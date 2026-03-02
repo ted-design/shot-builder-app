@@ -614,18 +614,24 @@ Admin (role-gated: admin only)
 
 ---
 
-## Phase 10: Asset Requirements & PLM (Future)
+## Phase 10: Asset Requirements & PLM — COMPLETE
 
 **Goal:** Track per-product/colorway asset requirements and sample logistics.
 
-**Status:** Not started. Outline only.
+**Status:** Complete. 3 slices shipped, 24 new tests, 2,254 total pass.
+
+### Sub-tasks
+
+- [x] **10A: Launch Date + Asset Flags** — Types, lib, mappers, writes, Requirements tab, overview card
+- [x] **10B: Sample Logistics** — returnDueDate + condition fields in Sheet, badges in SampleRow, SAMPLE_CONDITIONS constant
+- [x] **10C: Dashboard Shoot Readiness** — shootReadiness lib, useShootReadiness hook, ShootReadinessWidget on ProjectDashboard (admin/producer only)
 
 ### Key Concepts
 
-- Per-product/colorway asset flags: needs e-comm, campaign, video, AI-generated
-- Product launch date tracking
-- Sample logistics: arrival, return, status timeline
-- Auto-suggest shoot dates based on sample availability + quantity thresholds
+- Per-colorway (SKU) asset flags with 4-state lifecycle: needed → in_progress → delivered | not_needed
+- Product launch date on ProductFamily with overdue/soon deadline warnings
+- Sample logistics: returnDueDate + condition fields, return overdue/due-soon badges
+- Dashboard widget: shoot readiness for products with launch dates in next 90 days
 
 ---
 

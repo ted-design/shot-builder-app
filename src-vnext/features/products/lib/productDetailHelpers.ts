@@ -1,3 +1,4 @@
+import type { ProductSampleCondition } from "@/shared/types"
 import type { Timestamp } from "firebase/firestore"
 
 export function formatDateTime(ts: Timestamp | undefined | null): string {
@@ -87,6 +88,42 @@ export function isSampleDueSoon(sample: { readonly status: string; readonly eta?
     const now = Date.now()
     if (etaMs < now) return false // overdue, not "due soon"
     return etaMs - now <= withinDays * 24 * 60 * 60 * 1000
+  } catch {
+    return false
+  }
+}
+
+export const SAMPLE_CONDITIONS: ReadonlyArray<{
+  readonly key: ProductSampleCondition
+  readonly label: string
+  readonly color: "green" | "amber" | "red"
+}> = [
+  { key: "new", label: "New", color: "green" },
+  { key: "good", label: "Good", color: "green" },
+  { key: "fair", label: "Fair", color: "amber" },
+  { key: "damaged", label: "Damaged", color: "red" },
+] as const
+
+/** Returns true if sample return date is past due (status is 'arrived' and returnDueDate < now) */
+export function isSampleReturnOverdue(sample: { readonly status: string; readonly returnDueDate?: Timestamp | null }): boolean {
+  if (!sample.returnDueDate) return false
+  if (sample.status !== "arrived") return false
+  try {
+    return sample.returnDueDate.toDate().getTime() < Date.now()
+  } catch {
+    return false
+  }
+}
+
+/** Returns true if sample return date is within N days (status is 'arrived') */
+export function isSampleReturnDueSoon(sample: { readonly status: string; readonly returnDueDate?: Timestamp | null }, withinDays = 3): boolean {
+  if (!sample.returnDueDate) return false
+  if (sample.status !== "arrived") return false
+  try {
+    const dueMs = sample.returnDueDate.toDate().getTime()
+    const now = Date.now()
+    if (dueMs < now) return false
+    return dueMs - now <= withinDays * 24 * 60 * 60 * 1000
   } catch {
     return false
   }

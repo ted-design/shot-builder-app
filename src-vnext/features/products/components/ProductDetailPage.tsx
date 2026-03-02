@@ -13,7 +13,9 @@ import { ProductColorwaysSection } from "@/features/products/components/ProductC
 import { ProductSamplesSection } from "@/features/products/components/ProductSamplesSection"
 import { ProductAssetsSection } from "@/features/products/components/ProductAssetsSection"
 import { ProductActivitySection } from "@/features/products/components/ProductActivitySection"
+import { ProductRequirementsSection } from "@/features/products/components/ProductRequirementsSection"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
+import { countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import { useProductFamily, useProductSkus } from "@/features/products/hooks/useProducts"
 import { useProductComments, useProductDocuments, useProductSamples } from "@/features/products/hooks/useProductWorkspace"
 import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
@@ -27,6 +29,7 @@ import { Separator } from "@/ui/separator"
 import {
   Activity as ActivityIcon,
   Box,
+  ClipboardCheck,
   FileText,
   LayoutDashboard,
   Palette,
@@ -92,19 +95,28 @@ export default function ProductDetailPage() {
     })
   }, [activeSkus, showDeleted, skus])
 
+  const activeRequirementsCount = useMemo(() => {
+    let count = 0
+    for (const sku of activeSkus) {
+      count += countActiveRequirements(sku.assetRequirements)
+    }
+    return count
+  }, [activeSkus])
+
   // Nav items with count badges (M2)
   const navItems = useMemo(() => [
     { key: "overview" as const, label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
     { key: "colorways" as const, label: "Colorways", icon: <Palette className="h-4 w-4" />, count: activeSkus.length },
     { key: "samples" as const, label: "Samples", icon: <Box className="h-4 w-4" />, count: visibleSamples.length },
     { key: "assets" as const, label: "Assets", icon: <FileText className="h-4 w-4" />, count: assetsCount },
+    { key: "requirements" as const, label: "Requirements", icon: <ClipboardCheck className="h-4 w-4" />, count: activeRequirementsCount || undefined },
     { key: "activity" as const, label: "Activity", icon: <ActivityIcon className="h-4 w-4" />, count: visibleComments.length },
-  ], [activeSkus.length, assetsCount, visibleComments.length, visibleSamples.length])
+  ], [activeRequirementsCount, activeSkus.length, assetsCount, visibleComments.length, visibleSamples.length])
 
   // Section routing
   const sectionParam = searchParams.get("section")
   const activeSection: ProductWorkspaceSectionKey =
-    sectionParam === "colorways" || sectionParam === "samples" || sectionParam === "assets" || sectionParam === "activity" || sectionParam === "overview"
+    sectionParam === "colorways" || sectionParam === "samples" || sectionParam === "assets" || sectionParam === "requirements" || sectionParam === "activity" || sectionParam === "overview"
       ? sectionParam
       : "overview"
 
@@ -266,6 +278,17 @@ export default function ProductDetailPage() {
               userAvatar={user?.photoURL ?? null}
               isFamilyDeleted={isFamilyDeleted}
               assetsCount={assetsCount}
+            />
+          )}
+          {activeSection === "requirements" && (
+            <ProductRequirementsSection
+              family={family}
+              activeSkus={activeSkus}
+              visibleSamples={visibleSamples}
+              canEdit={canEdit}
+              clientId={clientId}
+              userId={user?.uid ?? null}
+              isFamilyDeleted={isFamilyDeleted}
             />
           )}
           {activeSection === "activity" && (

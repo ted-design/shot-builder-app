@@ -111,7 +111,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Route | Page | Notes |
 |-------|------|-------|
 | `/` | Redirect -> `/projects` | |
-| `/projects` | ProjectsPage | Statically imported (post-OAuth landing) |
+| `/projects` | ProjectsPage | Statically imported (post-OAuth landing). Phase 10: ShootReadinessWidget below project grid (admin/producer only). |
 | `/projects/:id` | Redirect -> `dashboard` | |
 | `/projects/:id/dashboard` | ProjectDashboardPage | Readiness overview |
 | `/projects/:id/shots` | ShotsPage | Shot list (table / board / gallery views) |
@@ -126,7 +126,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
-| `/products/:productId` | ProductDetailPage | Thin shell + 5 section components (Overview, Colorways, Samples, Assets, Activity) |
+| `/products/:productId` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Assets, Requirements, Activity). Phase 10: Requirements tab (launch date, per-colorway asset flags). Samples: returnDueDate + condition fields. |
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |

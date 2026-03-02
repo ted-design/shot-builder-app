@@ -5,11 +5,13 @@ import { cn } from "@/shared/lib/utils"
 import {
   ActivityIcon,
   Box,
+  ClipboardCheck,
   FileText,
   Palette,
 } from "lucide-react"
 import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 import { normalizeNotesSnippet } from "@/features/products/lib/productDetailHelpers"
+import { countActiveRequirements, formatLaunchDate } from "@/features/products/lib/assetRequirements"
 import type { ProductWorkspaceSectionKey } from "@/features/products/components/ProductWorkspaceNav"
 
 interface ProductOverviewSectionProps {
@@ -70,6 +72,14 @@ export function ProductOverviewSection({
           metric={assetsCount}
           metricSub={`${imageAssetsCount} images · ${visibleDocuments.length} docs`}
           onClick={() => onSectionChange("assets")}
+        />
+        <OverviewCard
+          icon={<ClipboardCheck className="h-4 w-4" />}
+          title="Requirements"
+          description="Asset flags and launch timeline."
+          metric={activeSkus.reduce((sum, s) => sum + countActiveRequirements(s.assetRequirements), 0)}
+          metricSub={family.launchDate ? `Launch: ${formatLaunchDate(family.launchDate)}` : "No launch date"}
+          onClick={() => onSectionChange("requirements")}
         />
         <OverviewCard
           icon={<ActivityIcon className="h-4 w-4" />}

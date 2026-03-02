@@ -8,7 +8,8 @@ import { ProjectCard } from "@/features/projects/components/ProjectCard"
 import { CreateProjectDialog } from "@/features/projects/components/CreateProjectDialog"
 import { EditProjectDialog } from "@/features/projects/components/EditProjectDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { canManageProjects, isAdmin } from "@/shared/lib/rbac"
+import { canManageProjects, canManageProducts, isAdmin } from "@/shared/lib/rbac"
+import { ShootReadinessWidget } from "@/features/dashboard/components/ShootReadinessWidget"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -375,6 +376,12 @@ export default function ProjectDashboard() {
               onEdit={(p) => setEditingProjectId(p.id)}
             />
           ))}
+        </div>
+      )}
+
+      {canManageProducts(role) && (
+        <div className="mt-6">
+          <ShootReadinessWidget />
         </div>
       )}
 

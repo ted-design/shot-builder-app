@@ -254,6 +254,10 @@ export interface ProductFamily {
   readonly sizeOptions?: ReadonlyArray<string>
   readonly shotIds?: ReadonlyArray<string>
 
+  // Phase 10: PLM
+  /** Product launch date (YYYY-MM-DD stored as Timestamp for Firestore compatibility). */
+  readonly launchDate?: Timestamp | null
+
   // Soft-delete (legacy)
   readonly deleted?: boolean
   readonly deletedAt?: Timestamp
@@ -279,6 +283,8 @@ export interface ProductSku {
   /** Legacy alias for `hexColor`. Prefer `hexColor`. */
   readonly colourHex?: string
   readonly hexColor?: string
+  /** Per-colorway asset requirement flags (Phase 10: PLM). */
+  readonly assetRequirements?: ProductAssetRequirements | null
   readonly deleted?: boolean
   readonly deletedAt?: Timestamp
   readonly createdAt?: Timestamp
@@ -301,6 +307,21 @@ export interface ProductClassification {
   readonly updatedBy?: string | null
 }
 
+// --- Product Asset Requirements (Phase 10: PLM) ---
+
+export type ProductAssetType = "ecomm" | "campaign" | "video" | "ai_generated"
+
+export type ProductAssetFlag = "needed" | "in_progress" | "delivered" | "not_needed"
+
+export interface ProductAssetRequirements {
+  readonly ecomm?: ProductAssetFlag
+  readonly campaign?: ProductAssetFlag
+  readonly video?: ProductAssetFlag
+  readonly ai_generated?: ProductAssetFlag
+}
+
+export type ProductSampleCondition = "new" | "good" | "fair" | "damaged"
+
 // --- Product Workspace (Samples, Comments, Documents) ---
 
 export type ProductSampleType = "shoot" | "pre_production" | "bulk"
@@ -318,6 +339,10 @@ export interface ProductSample {
   readonly notes?: string | null
   /** Optional: scope sample to a specific colorway SKU id. */
   readonly scopeSkuId?: string | null
+  /** When sample must be returned (Phase 10). */
+  readonly returnDueDate?: Timestamp | null
+  /** Physical condition of the sample (Phase 10). */
+  readonly condition?: ProductSampleCondition | null
   readonly deleted?: boolean
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp
