@@ -82,6 +82,10 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
     sizeOptions: asStringArray(data["sizeOptions"]),
     shotIds: asStringArray(data["shotIds"]),
     launchDate: normalizeTimestamp(data["launchDate"]),
+    sampleCount: asNumber(data["sampleCount"]),
+    samplesArrivedCount: asNumber(data["samplesArrivedCount"]),
+    earliestSampleEta: normalizeTimestamp(data["earliestSampleEta"]),
+    earliestLaunchDate: normalizeTimestamp(data["earliestLaunchDate"]),
     deleted: asBoolean(data["deleted"]),
     deletedAt: normalizeTimestamp(data["deletedAt"]),
     createdAt: normalizeTimestamp(data["createdAt"]),
@@ -91,17 +95,22 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
   }
 }
 
-const VALID_ASSET_FLAGS = new Set(["needed", "in_progress", "delivered", "not_needed"])
+const VALID_ASSET_FLAGS = new Set(["needed", "in_progress", "delivered", "not_needed", "ai_generated"])
 
 function normalizeAssetRequirements(value: unknown): ProductAssetRequirements | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
   const raw = value as Record<string, unknown>
   const result: Record<string, string> = {}
   let hasAny = false
-  for (const key of ["ecomm", "campaign", "video", "ai_generated"]) {
-    const flag = raw[key]
-    if (typeof flag === "string" && VALID_ASSET_FLAGS.has(flag)) {
-      result[key] = flag
+  for (const [key, val] of Object.entries(raw)) {
+    if (key === "other_label") {
+      if (typeof val === "string" && val.trim().length > 0) {
+        result[key] = val
+      }
+      continue
+    }
+    if (typeof val === "string" && VALID_ASSET_FLAGS.has(val)) {
+      result[key] = val
       hasAny = true
     }
   }
@@ -125,6 +134,7 @@ export function mapProductSku(id: string, data: Record<string, unknown>): Produc
     colourHex: hexColor,
     hexColor,
     assetRequirements: normalizeAssetRequirements(data["assetRequirements"]),
+    launchDate: normalizeTimestamp(data["launchDate"]),
     deleted: asBoolean(data["deleted"]),
     deletedAt: normalizeTimestamp(data["deletedAt"]),
     createdAt: normalizeTimestamp(data["createdAt"]),

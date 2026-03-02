@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shoot Readiness Widget — Shot Builder vNext</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Tokens ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Light Mode (default) ────────────────────────────────────── */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-text: #18181b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-accent: #E31E24;
+
+      --color-status-amber-bg: rgba(245,158,11,0.08);
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: rgba(245,158,11,0.2);
+      --color-status-blue-bg: rgba(59,130,246,0.08);
+      --color-status-blue-text: #1d4ed8;
+      --color-status-green-bg: rgba(34,197,94,0.08);
+      --color-status-green-text: #15803d;
+      --color-status-red-bg: rgba(239,68,68,0.08);
+      --color-status-red-text: #b91c1c;
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    /* ─── Dark Mode ───────────────────────────────────────────────── */
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #1c1c1f;
+      --color-text: #fafafa;
+      --color-text-muted: #a1a1aa;
+      --color-text-subtle: #71717a;
+      --color-border: #3f3f46;
+      --color-border-strong: #52525b;
+      --color-primary: #fafafa;
+      --color-primary-text: #09090b;
+      --color-status-amber-bg: rgba(245,158,11,0.12);
+      --color-status-amber-text: #fbbf24;
+      --color-status-amber-border: rgba(245,158,11,0.25);
+      --color-status-blue-bg: rgba(59,130,246,0.12);
+      --color-status-blue-text: #60a5fa;
+      --color-status-green-bg: rgba(34,197,94,0.12);
+      --color-status-green-text: #4ade80;
+      --color-status-red-bg: rgba(239,68,68,0.12);
+      --color-status-red-text: #f87171;
+    }
+
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ─── Phase / Viewport Labels ─────────────────────────────────── */
+    .mockup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .phase-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .viewport-label {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--color-text-subtle);
+    }
+
+    /* ─── Theme Toggle ────────────────────────────────────────────── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-subtle);
+      cursor: pointer;
+      color: var(--color-text-muted);
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .theme-toggle:hover {
+      color: var(--color-text);
+      background: var(--color-border);
+    }
+    .theme-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+    .theme-toggle .icon-moon { display: none; }
+    .dark .theme-toggle .icon-sun { display: none; }
+    .dark .theme-toggle .icon-moon { display: block; }
+
+    /* ─── Page Container ──────────────────────────────────────────── */
+    .page-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* ─── Widget Card ─────────────────────────────────────────────── */
+    .widget {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .widget-header-icon {
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+    .widget-header-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+      flex: 1;
+    }
+    .widget-header-badge {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--color-text-subtle);
+      background: var(--color-surface-subtle);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ─── Timeline Strip ─────────────────────────────────────────── */
+    .timeline-strip {
+      padding: 12px 20px 14px;
+      border-bottom: 1px solid var(--color-border);
+      position: relative;
+    }
+    .timeline-svg {
+      width: 100%;
+      height: 76px;
+      display: block;
+    }
+
+    /* ─── Product Item ────────────────────────────────────────────── */
+    .product-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .product-item:last-child {
+      border-bottom: none;
+    }
+    .product-item:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    .product-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .product-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .launch-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .launch-badge--amber {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+    }
+
+    .product-meta {
+      font-size: 12px;
+      color: var(--color-text-subtle);
+      margin-bottom: 8px;
+    }
+
+    .product-schedule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .schedule-text {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* ─── Confidence Badges ───────────────────────────────────────── */
+    .confidence-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .confidence-badge--high {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+    }
+    .confidence-badge--medium {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+    }
+    .confidence-badge--low {
+      background: var(--color-status-red-bg);
+      color: var(--color-status-red-text);
+    }
+
+    /* ─── Progress Bar ────────────────────────────────────────────── */
+    .progress-bar-container {
+      margin-bottom: 10px;
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 4px;
+      background: var(--color-surface-subtle);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .progress-bar-fill--amber {
+      background: var(--color-status-amber-text);
+    }
+    .progress-bar-fill--green {
+      background: var(--color-status-green-text);
+    }
+    .progress-bar-fill--red {
+      background: var(--color-status-red-text);
+    }
+
+    /* ─── Expandable Constraints ──────────────────────────────────── */
+    .constraints-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--color-text-subtle);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 0;
+      font-family: inherit;
+      transition: color 0.15s ease;
+    }
+    .constraints-toggle:hover {
+      color: var(--color-text-muted);
+    }
+    .constraints-toggle-arrow {
+      font-size: 10px;
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+
+    .constraints-panel {
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-top: 8px;
+      display: none;
+    }
+    .constraints-panel.expanded {
+      display: block;
+    }
+    .constraint-item {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      padding-left: 4px;
+    }
+
+    /* ─── Samples-Ready Dot ───────────────────────────────────────── */
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot--green {
+      background: var(--color-status-green-text);
+    }
+
+    .samples-ready-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── No-Data Annotation ──────────────────────────────────────── */
+    .annotation {
+      margin-top: 24px;
+      padding: 14px 16px;
+      background: var(--color-surface);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--color-text-subtle);
+      line-height: 1.5;
+    }
+    .annotation-label {
+      font-weight: 500;
+      color: var(--color-text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* ─── Reference Tables ────────────────────────────────────────── */
+    .ref-section {
+      margin-top: 48px;
+    }
+    .ref-section h2 {
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--color-text);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .ref-table th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+    .ref-table td {
+      padding: 10px 12px;
+      color: var(--color-text-muted);
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+    }
+    .ref-table tr:last-child td {
+      border-bottom: none;
+    }
+    .ref-table td:first-child {
+      color: var(--color-text);
+      font-weight: 400;
+    }
+
+    /* ─── Legend ───────────────────────────────────────────────────── */
+    .legend {
+      margin-top: 32px;
+    }
+    .legend h3 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      margin-bottom: 12px;
+    }
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .legend-description {
+      font-size: 12px;
+      color: var(--color-text-subtle);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Mockup Header ─────────────────────────────────────────── -->
+  <div class="mockup-header">
+    <span class="phase-label">Phase 10 — Asset Requirements & PLM</span>
+    <div class="header-right">
+      <span class="viewport-label">Desktop 800px</span>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Page Content ──────────────────────────────────────────── -->
+  <div class="page-container">
+
+    <!-- ─── Widget ────────────────────────────────────────────────── -->
+    <div class="widget">
+
+      <!-- Header -->
+      <div class="widget-header">
+        <svg class="widget-header-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+          <circle cx="12" cy="16" r="2"/>
+          <path d="M12 14v-1"/>
+          <path d="M12 18v1"/>
+          <path d="M14 16h1"/>
+          <path d="M9 16h1"/>
+        </svg>
+        <span class="widget-header-title">Shoot Readiness</span>
+        <span class="widget-header-badge">Next 90 days</span>
+      </div>
+
+      <!-- ── Timeline Strip ──────────────────────────────────────── -->
+      <div class="timeline-strip">
+        <svg class="timeline-svg" viewBox="0 0 760 76" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <!-- Date axis -->
+          <line x1="0" y1="62" x2="760" y2="62" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+          <!-- Month markers -->
+          <text x="12" y="74" font-size="10" font-family="Inter, sans-serif" fill="var(--color-text-subtle)" font-weight="500">Mar</text>
+          <line x1="0" y1="58" x2="0" y2="66" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+          <text x="262" y="74" font-size="10" font-family="Inter, sans-serif" fill="var(--color-text-subtle)" font-weight="500">Apr</text>
+          <line x1="253" y1="58" x2="253" y2="66" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+          <text x="512" y="74" font-size="10" font-family="Inter, sans-serif" fill="var(--color-text-subtle)" font-weight="500">May</text>
+          <line x1="506" y1="58" x2="506" y2="66" stroke="var(--color-border-strong)" stroke-width="1"/>
+
+          <!-- Today marker (Mar 2) — ~2/90 of 760 = ~17px -->
+          <line x1="17" y1="2" x2="17" y2="62" stroke="var(--color-accent)" stroke-width="1" stroke-dasharray="3,3"/>
+          <text x="22" y="10" font-size="9" font-family="Inter, sans-serif" fill="var(--color-accent)" font-weight="500">Today</text>
+
+          <!-- Product bars -->
+
+          <!-- Sport Bra Pro: Mar 20–Apr 1  (green bar) -->
+          <!-- Mar 20 = day 18/90 => 18/90*760 = ~152px,  Apr 1 = day 30/90 => 30/90*760 = ~253px -->
+          <rect x="152" y="16" width="101" height="14" rx="3" fill="var(--color-status-green-bg)" stroke="var(--color-status-green-text)" stroke-width="0.5"/>
+          <text x="158" y="26" font-size="9" font-family="Inter, sans-serif" fill="var(--color-status-green-text)" font-weight="500">Sport Bra Pro</text>
+
+          <!-- Launch date diamond for Sport Bra Pro: Apr 15 = day 44/90 => 44/90*760 = ~371px -->
+          <polygon points="371,58 376,62 371,66 366,62" fill="var(--color-status-amber-text)"/>
+          <text x="380" y="66" font-size="8" font-family="Inter, sans-serif" fill="var(--color-status-amber-text)" font-weight="400">Apr 15 launch</text>
+
+          <!-- Running Short V2: open start–Apr 1 (amber bar, faded left edge) -->
+          <!-- Apr 1 = ~253px, bar starts from ~100px (indeterminate start, open-ended) -->
+          <rect x="100" y="34" width="153" height="14" rx="3" fill="var(--color-status-amber-bg)" stroke="var(--color-status-amber-text)" stroke-width="0.5"/>
+          <!-- Faded left edge to indicate open start -->
+          <rect x="100" y="34" width="16" height="14" rx="3" fill="var(--color-surface)" opacity="0.5"/>
+          <text x="120" y="44" font-size="9" font-family="Inter, sans-serif" fill="var(--color-status-amber-text)" font-weight="500">Running Short V2</text>
+
+          <!-- Casual Tee Basic: available now (green dot at "today") -->
+          <circle cx="17" cy="52" r="4" fill="var(--color-status-green-text)"/>
+          <text x="26" y="55" font-size="9" font-family="Inter, sans-serif" fill="var(--color-status-green-text)" font-weight="500">Casual Tee Basic</text>
+        </svg>
+      </div>
+
+      <!-- ── Tier 1: Full Scheduling ────────────────────────────── -->
+      <div class="product-item" id="item-tier1">
+        <div class="product-top">
+          <span class="product-name">Sport Bra Pro</span>
+          <span class="launch-badge launch-badge--amber">Launch: Apr 15</span>
+        </div>
+        <div class="product-meta">3 colorways &middot; 2/3 samples arrived</div>
+
+        <div class="product-schedule">
+          <span class="schedule-text">Shoot window: Mar 20 &ndash; Apr 1</span>
+          <span class="confidence-badge confidence-badge--high">High &#10003;</span>
+        </div>
+
+        <div class="progress-bar-container">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill progress-bar-fill--amber" style="width: 67%"></div>
+          </div>
+        </div>
+
+        <!-- Expanded constraints (shown by default for demo) -->
+        <button class="constraints-toggle" onclick="toggleConstraints('tier1')" id="toggle-tier1">
+          <span class="constraints-toggle-arrow" id="arrow-tier1">&#9662;</span> Hide details
+        </button>
+        <div class="constraints-panel expanded" id="constraints-tier1">
+          <div class="constraint-item">&middot; 2 of 3 samples arrived; 1 in transit (ETA Mar 8)</div>
+          <div class="constraint-item">&middot; Shot request "Holiday Campaign" deadline Apr 1</div>
+          <div class="constraint-item">&middot; 14-day buffer before Apr 15 launch</div>
+        </div>
+      </div>
+
+      <!-- ── Tier 2: Request Deadline Only ──────────────────────── -->
+      <div class="product-item" id="item-tier2">
+        <div class="product-top">
+          <span class="product-name">Running Short V2</span>
+        </div>
+        <div class="product-meta">4 colorways &middot; 4/4 samples arrived</div>
+
+        <div class="product-schedule">
+          <span class="schedule-text">Request deadline: Apr 1. Samples ready.</span>
+          <span class="confidence-badge confidence-badge--medium">Medium</span>
+        </div>
+
+        <button class="constraints-toggle" onclick="toggleConstraints('tier2')" id="toggle-tier2">
+          <span class="constraints-toggle-arrow" id="arrow-tier2">&#9656;</span> View details
+        </button>
+        <div class="constraints-panel" id="constraints-tier2">
+          <div class="constraint-item">&middot; All 4 samples arrived and accounted for</div>
+          <div class="constraint-item">&middot; Shot request "Spring Lookbook" deadline Apr 1</div>
+          <div class="constraint-item">&middot; No launch date set &mdash; scheduling driven by request deadline</div>
+        </div>
+      </div>
+
+      <!-- ── Tier 3: Samples Only ───────────────────────────────── -->
+      <div class="product-item" id="item-tier3">
+        <div class="product-top">
+          <span class="product-name">Casual Tee Basic</span>
+        </div>
+        <div class="product-meta">2 colorways &middot; 2/2 samples arrived</div>
+
+        <div class="samples-ready-row">
+          <span class="status-dot status-dot--green"></span>
+          <span class="schedule-text">Samples ready &mdash; available to schedule</span>
+        </div>
+
+        <div style="margin-top: 8px">
+          <button class="constraints-toggle" onclick="toggleConstraints('tier3')" id="toggle-tier3">
+            <span class="constraints-toggle-arrow" id="arrow-tier3">&#9656;</span> View details
+          </button>
+          <div class="constraints-panel" id="constraints-tier3">
+            <div class="constraint-item">&middot; All 2 samples arrived</div>
+            <div class="constraint-item">&middot; No launch date or request deadline set</div>
+            <div class="constraint-item">&middot; Product is available for ad-hoc scheduling</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /widget -->
+
+    <!-- ─── Timeline Annotation ───────────────────────────────────── -->
+    <div class="annotation">
+      <div class="annotation-label">Timeline strip:</div>
+      Mini timeline &mdash; shows shoot windows mapped to calendar. Not a full calendar &mdash; just enough to see scheduling density and conflicts at a glance.
+    </div>
+
+    <!-- ─── No-Data Annotation ──────────────────────────────────── -->
+    <div class="annotation">
+      <div class="annotation-label">Not shown in widget:</div>
+      Products with NO launch date, NO samples, and NO linked requests do not appear in this widget. Only products with at least one trackable data point surface here.
+    </div>
+
+    <!-- ─── Tier Comparison Table ─────────────────────────────────── -->
+    <div class="ref-section">
+      <h2>Tier Comparison</h2>
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>Available data</th>
+            <th>What the system shows</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Launch date + samples + requests</td>
+            <td>Full scheduling window with constraints and confidence</td>
+          </tr>
+          <tr>
+            <td>Request deadline + samples</td>
+            <td>"Request deadline: {date}. Samples: {status}."</td>
+          </tr>
+          <tr>
+            <td>Samples only (no dates)</td>
+            <td>"Samples ready &mdash; available to schedule"</td>
+          </tr>
+          <tr>
+            <td>Nothing tracked</td>
+            <td>Does not appear</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Confidence Badge Legend ────────────────────────────────── -->
+    <div class="ref-section legend">
+      <h3>Confidence Badge Legend</h3>
+      <div class="legend-items">
+        <div class="legend-row">
+          <span class="confidence-badge confidence-badge--high">High &#10003;</span>
+          <span class="legend-description">All samples arrived, wide shoot window (&gt;14 days)</span>
+        </div>
+        <div class="legend-row">
+          <span class="confidence-badge confidence-badge--medium">Medium</span>
+          <span class="legend-description">Some samples pending or tight window (7&ndash;14 days)</span>
+        </div>
+        <div class="legend-row">
+          <span class="confidence-badge confidence-badge--low">Low</span>
+          <span class="legend-description">Samples missing and window &lt;7 days or overdue</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-container -->
+
+  <!-- ─── Interactivity ───────────────────────────────────────────── -->
+  <script>
+    function toggleConstraints(id) {
+      var panel = document.getElementById('constraints-' + id);
+      var arrow = document.getElementById('arrow-' + id);
+      var toggle = document.getElementById('toggle-' + id);
+      var isExpanded = panel.classList.contains('expanded');
+
+      if (isExpanded) {
+        panel.classList.remove('expanded');
+        arrow.innerHTML = '&#9656;';
+        toggle.innerHTML = '<span class="constraints-toggle-arrow" id="arrow-' + id + '">&#9656;</span> View details';
+      } else {
+        panel.classList.add('expanded');
+        arrow.innerHTML = '&#9662;';
+        toggle.innerHTML = '<span class="constraints-toggle-arrow" id="arrow-' + id + '">&#9662;</span> Hide details';
+      }
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+    }
+  </script>
+
+</body>
+</html>

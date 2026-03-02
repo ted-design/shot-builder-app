@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asset Requirements — Chip-Based Progressive Disclosure</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Light mode (default) */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-text: #18181b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-accent: #E31E24;
+      --color-status-amber-bg: rgba(245,158,11,0.08);
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: rgba(245,158,11,0.2);
+      --color-status-blue-bg: rgba(59,130,246,0.08);
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: rgba(59,130,246,0.2);
+      --color-status-green-bg: rgba(34,197,94,0.08);
+      --color-status-green-text: #15803d;
+      --color-status-green-border: rgba(34,197,94,0.2);
+      --color-status-red-bg: rgba(239,68,68,0.08);
+      --color-status-red-text: #b91c1c;
+      --color-status-red-border: rgba(239,68,68,0.2);
+      --color-status-purple-bg: rgba(147,51,234,0.08);
+      --color-status-purple-text: #7c3aed;
+      --color-status-purple-border: rgba(147,51,234,0.2);
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    /* Dark mode */
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #1c1c1f;
+      --color-text: #fafafa;
+      --color-text-muted: #a1a1aa;
+      --color-text-subtle: #71717a;
+      --color-border: #3f3f46;
+      --color-border-strong: #52525b;
+      --color-primary: #fafafa;
+      --color-primary-text: #09090b;
+      --color-status-amber-bg: rgba(245,158,11,0.12);
+      --color-status-amber-text: #fbbf24;
+      --color-status-amber-border: rgba(245,158,11,0.25);
+      --color-status-blue-bg: rgba(59,130,246,0.12);
+      --color-status-blue-text: #60a5fa;
+      --color-status-blue-border: rgba(59,130,246,0.25);
+      --color-status-green-bg: rgba(34,197,94,0.12);
+      --color-status-green-text: #4ade80;
+      --color-status-green-border: rgba(34,197,94,0.25);
+      --color-status-red-bg: rgba(239,68,68,0.12);
+      --color-status-red-text: #f87171;
+      --color-status-red-border: rgba(239,68,68,0.25);
+      --color-status-purple-bg: rgba(147,51,234,0.12);
+      --color-status-purple-text: #a78bfa;
+      --color-status-purple-border: rgba(147,51,234,0.25);
+    }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Fixed labels ---- */
+    .phase-label {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      z-index: 999;
+      letter-spacing: 0.02em;
+    }
+
+    .top-right-controls {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+    }
+
+    .viewport-label {
+      background: var(--color-surface-subtle);
+      color: var(--color-text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: background 150ms, color 150ms;
+    }
+
+    .theme-toggle:hover {
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+    }
+
+    .theme-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Show sun icon in dark mode, moon icon in light mode */
+    .theme-toggle .icon-moon { display: block; }
+    .theme-toggle .icon-sun { display: none; }
+    .dark .theme-toggle .icon-moon { display: none; }
+    .dark .theme-toggle .icon-sun { display: block; }
+
+    /* ---- Layout ---- */
+    .page-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    /* ---- Typography ---- */
+    .heading-page {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--color-text);
+    }
+
+    .heading-section {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .label-meta {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .text-muted {
+      color: var(--color-text-muted);
+    }
+
+    .text-subtle {
+      color: var(--color-text-subtle);
+    }
+
+    /* ---- Card ---- */
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+
+    .card-flush {
+      padding: 0;
+    }
+
+    /* ---- Section header ---- */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .section-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .section-subtitle {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    /* ---- Toggle button ---- */
+    .toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      transition: background 150ms, color 150ms;
+    }
+
+    .toggle-btn:hover {
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+    }
+
+    .toggle-btn.active {
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+      border-color: var(--color-border-strong);
+    }
+
+    .toggle-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ---- Summary badges row ---- */
+    .summary-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .summary-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .summary-badge-amber {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+      border-color: var(--color-status-amber-border);
+    }
+
+    .summary-badge-blue {
+      background: var(--color-status-blue-bg);
+      color: var(--color-status-blue-text);
+      border-color: var(--color-status-blue-border);
+    }
+
+    .summary-badge-green {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+      border-color: var(--color-status-green-border);
+    }
+
+    .summary-badge-purple {
+      background: var(--color-status-purple-bg);
+      color: var(--color-status-purple-text);
+      border-color: var(--color-status-purple-border);
+    }
+
+    /* ---- Launch date card ---- */
+    .launch-date-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 16px;
+    }
+
+    .launch-date-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .launch-date-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .launch-date-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .launch-date-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .date-input {
+      height: 32px;
+      padding: 0 10px;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .date-input:hover {
+      border-color: var(--color-border-strong);
+    }
+
+    /* ---- Colorway rows ---- */
+    .colorway-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--color-border);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .colorway-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px;
+      background: var(--color-surface);
+    }
+
+    .colorway-row:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    /* Colorway swatch + name */
+    .colorway-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 180px;
+      flex-shrink: 0;
+    }
+
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+
+    .colorway-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
+    }
+
+    .colorway-date {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      margin-top: 2px;
+    }
+
+    .colorway-date-custom {
+      color: var(--color-text-muted);
+    }
+
+    /* Chips area */
+    .chips-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+      padding-top: 2px;
+    }
+
+    /* Requirement chip */
+    .req-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+      cursor: pointer;
+      transition: opacity 150ms;
+      white-space: nowrap;
+    }
+
+    .req-chip:hover {
+      opacity: 0.85;
+    }
+
+    .req-chip-amber {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+      border-color: var(--color-status-amber-border);
+    }
+
+    .req-chip-blue {
+      background: var(--color-status-blue-bg);
+      color: var(--color-status-blue-text);
+      border-color: var(--color-status-blue-border);
+    }
+
+    .req-chip-green {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+      border-color: var(--color-status-green-border);
+    }
+
+    .req-chip-red {
+      background: var(--color-status-red-bg);
+      color: var(--color-status-red-text);
+      border-color: var(--color-status-red-border);
+    }
+
+    .req-chip-purple {
+      background: var(--color-status-purple-bg);
+      color: var(--color-status-purple-text);
+      border-color: var(--color-status-purple-border);
+    }
+
+    .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 9999px;
+      flex-shrink: 0;
+    }
+
+    .chip-dot-amber { background: var(--color-status-amber-text); }
+    .chip-dot-blue { background: var(--color-status-blue-text); }
+    .chip-dot-green { background: var(--color-status-green-text); }
+    .chip-dot-purple { background: var(--color-status-purple-text); }
+
+    .chip-label {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .chip-status {
+      font-size: 11px;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    /* Add chip */
+    .add-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px dashed var(--color-border);
+      background: transparent;
+      color: var(--color-text-subtle);
+      cursor: pointer;
+      transition: border-color 150ms, color 150ms, background 150ms;
+    }
+
+    .add-chip:hover {
+      border-color: var(--color-border-strong);
+      color: var(--color-text-muted);
+      background: var(--color-surface-subtle);
+    }
+
+    .add-chip svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ---- Popover ---- */
+    .popover {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      padding: 8px;
+      width: 280px;
+    }
+
+    .popover-group-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 8px 8px 4px;
+    }
+
+    .popover-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--color-text);
+      cursor: pointer;
+      transition: background 150ms;
+    }
+
+    .popover-item:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    .popover-item-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .popover-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: 4px 0;
+    }
+
+    .popover-other-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+    }
+
+    .popover-other-input input {
+      flex: 1;
+      height: 30px;
+      padding: 0 8px;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      color: var(--color-text);
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .popover-other-input input::placeholder {
+      color: var(--color-text-subtle);
+    }
+
+    /* ---- Status selector popover ---- */
+    .status-popover {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      padding: 6px;
+      width: 220px;
+    }
+
+    .status-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--color-text);
+      cursor: pointer;
+      transition: background 150ms;
+    }
+
+    .status-option:hover {
+      background: var(--color-surface-subtle);
+    }
+
+    .status-option.selected {
+      background: var(--color-surface-subtle);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      flex-shrink: 0;
+    }
+
+    .status-dot-amber { background: var(--color-status-amber-text); }
+    .status-dot-blue { background: var(--color-status-blue-text); }
+    .status-dot-green { background: var(--color-status-green-text); }
+    .status-dot-purple { background: var(--color-status-purple-text); }
+    .status-dot-gray { background: var(--color-text-subtle); }
+
+    .status-check {
+      margin-left: auto;
+      width: 16px;
+      height: 16px;
+      color: var(--color-text);
+    }
+
+    .status-popover-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: 4px 0;
+    }
+
+    .remove-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--color-status-red-text);
+      cursor: pointer;
+      transition: background 150ms;
+    }
+
+    .remove-link:hover {
+      background: var(--color-status-red-bg);
+    }
+
+    .remove-link svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ---- Sample readiness card ---- */
+    .sample-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      margin-top: 16px;
+    }
+
+    .sample-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sample-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .sample-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    .sample-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .sample-progress-bar {
+      width: 120px;
+      height: 6px;
+      background: var(--color-surface-subtle);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .sample-progress-fill {
+      height: 100%;
+      border-radius: 9999px;
+      background: var(--color-status-green-text);
+    }
+
+    /* ---- Demo sections ---- */
+    .demo-section {
+      margin-top: 40px;
+      padding-top: 32px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .demo-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+    }
+
+    .demo-row {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .demo-annotation {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      margin-top: 8px;
+      font-style: italic;
+    }
+
+    /* ---- Arrow connector ---- */
+    .arrow-connector {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--color-text-subtle);
+      font-size: 11px;
+      margin: 8px 0;
+      padding-left: 28px;
+    }
+
+    .arrow-connector svg {
+      width: 14px;
+      height: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Fixed labels -->
+<div class="phase-label">Phase 10 — Asset Requirements</div>
+<div class="top-right-controls">
+  <div class="viewport-label">Desktop 1200px</div>
+  <button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark')" title="Toggle light/dark theme">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+</div>
+
+<div class="page-container">
+
+  <!-- ============================================ -->
+  <!-- SECTION HEADER                               -->
+  <!-- ============================================ -->
+  <div class="section-header">
+    <div class="section-header-left">
+      <div class="section-icon">
+        <!-- ClipboardCheck icon -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+          <path d="m9 14 2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="section-title-group">
+        <h2 class="heading-page">Asset Requirements</h2>
+        <p class="section-subtitle">Track what needs to be shot for each colorway</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="toggle-btn active">
+        <!-- Chips view icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Chips
+      </div>
+      <div class="toggle-btn">
+        <!-- Table view icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="3" y1="15" x2="21" y2="15"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+        </svg>
+        Table
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- FAMILY LAUNCH DATE                           -->
+  <!-- ============================================ -->
+  <div class="launch-date-card">
+    <div class="launch-date-left">
+      <div class="launch-date-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <div>
+        <div class="launch-date-label">Family Launch Date</div>
+        <div class="launch-date-value">April 15, 2026</div>
+      </div>
+    </div>
+    <input type="text" class="date-input" value="2026-04-15" readonly />
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SUMMARY BADGES                               -->
+  <!-- ============================================ -->
+  <div class="summary-row">
+    <span class="summary-badge summary-badge-amber">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      2 needed
+    </span>
+    <span class="summary-badge summary-badge-blue">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      1 in progress
+    </span>
+    <span class="summary-badge summary-badge-green">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11.5 14.5 16 10"/></svg>
+      3 delivered
+    </span>
+    <span class="summary-badge summary-badge-purple">
+      &#10022;
+      1 AI
+    </span>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- COLORWAY ROWS                                -->
+  <!-- ============================================ -->
+  <div class="colorway-list">
+
+    <!-- Row 1: Navy Blue -->
+    <div class="colorway-row">
+      <div class="colorway-identity">
+        <div class="color-swatch" style="background: #1e3a5f;"></div>
+        <div>
+          <div class="colorway-name">Navy Blue</div>
+          <div class="colorway-date colorway-date-custom">Custom: Apr 15</div>
+        </div>
+      </div>
+      <div class="chips-area">
+        <div class="req-chip req-chip-amber">
+          <span class="chip-dot chip-dot-amber"></span>
+          <span class="chip-label">E-comm (on-figure)</span>
+          <span class="chip-status">Needed</span>
+        </div>
+        <div class="req-chip req-chip-blue">
+          <span class="chip-dot chip-dot-blue"></span>
+          <span class="chip-label">Lifestyle</span>
+          <span class="chip-status">In Progress</span>
+        </div>
+        <div class="add-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Burgundy -->
+    <div class="colorway-row">
+      <div class="colorway-identity">
+        <div class="color-swatch" style="background: #6b2139;"></div>
+        <div>
+          <div class="colorway-name">Burgundy</div>
+          <div class="colorway-date">Family: Apr 15</div>
+        </div>
+      </div>
+      <div class="chips-area">
+        <div class="req-chip req-chip-green">
+          <span class="chip-dot chip-dot-green"></span>
+          <span class="chip-label">E-comm (on-figure)</span>
+          <span class="chip-status">Delivered</span>
+        </div>
+        <div class="req-chip req-chip-purple">
+          <span class="chip-dot chip-dot-purple"></span>
+          <span class="chip-label">Off-figure (pinups)</span>
+          <span class="chip-status">AI &#10022;</span>
+        </div>
+        <div class="req-chip req-chip-amber">
+          <span class="chip-dot chip-dot-amber"></span>
+          <span class="chip-label">Video</span>
+          <span class="chip-status">Needed</span>
+        </div>
+        <div class="add-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Forest Green (empty) -->
+    <div class="colorway-row">
+      <div class="colorway-identity">
+        <div class="color-swatch" style="background: #2d5a3f;"></div>
+        <div>
+          <div class="colorway-name">Forest Green</div>
+          <div class="colorway-date text-subtle">&mdash;</div>
+        </div>
+      </div>
+      <div class="chips-area">
+        <div class="add-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add requirement
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================ -->
+  <!-- EXPANDED POPOVER: "+ Add" menu               -->
+  <!-- ============================================ -->
+  <div class="demo-section">
+    <div class="demo-title">Popover: Add Requirement (expanded from "+ Add")</div>
+    <div class="demo-row">
+      <div style="position: relative;">
+        <!-- The trigger chip -->
+        <div class="add-chip" style="margin-bottom: 8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </div>
+        <div class="arrow-connector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          opens popover
+        </div>
+        <!-- Popover -->
+        <div class="popover" style="margin-top: 4px;">
+          <div class="popover-group-title">Photography</div>
+          <div class="popover-item">
+            <div class="popover-item-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            Off-figure (pinups/flatlays)
+          </div>
+          <div class="popover-item">
+            <div class="popover-item-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            Off-figure (fabric/detail)
+          </div>
+          <div class="popover-divider"></div>
+          <div class="popover-group-title">Motion</div>
+          <div class="popover-item">
+            <div class="popover-item-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </div>
+            Video
+          </div>
+          <div class="popover-divider"></div>
+          <div class="popover-group-title">Other</div>
+          <div class="popover-item" style="padding-bottom: 4px;">
+            <div class="popover-item-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            Other (specify)
+          </div>
+          <div class="popover-other-input">
+            <input type="text" placeholder="e.g. Social crop, Swatch card" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Annotation -->
+      <div style="max-width: 300px; padding-top: 48px;">
+        <p class="demo-annotation">
+          The popover shows only unused asset types for this colorway. Grouped by category (Photography, Motion, Other). Selecting "Other" reveals an inline text input for custom labels.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- EXPANDED POPOVER: Chip edit / status         -->
+  <!-- ============================================ -->
+  <div class="demo-section">
+    <div class="demo-title">Popover: Edit Chip Status (expanded from clicking a chip)</div>
+    <div class="demo-row">
+      <div style="position: relative;">
+        <!-- The trigger chip -->
+        <div class="req-chip req-chip-amber" style="margin-bottom: 8px;">
+          <span class="chip-dot chip-dot-amber"></span>
+          <span class="chip-label">E-comm (on-figure)</span>
+          <span class="chip-status">Needed</span>
+        </div>
+        <div class="arrow-connector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          click to edit status
+        </div>
+        <!-- Status popover -->
+        <div class="status-popover" style="margin-top: 4px;">
+          <div class="status-option selected">
+            <span class="status-dot status-dot-amber"></span>
+            <span>Needed</span>
+            <svg class="status-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="status-option">
+            <span class="status-dot status-dot-blue"></span>
+            <span>In progress</span>
+          </div>
+          <div class="status-option">
+            <span class="status-dot status-dot-green"></span>
+            <span>Delivered</span>
+          </div>
+          <div class="status-option">
+            <span class="status-dot status-dot-purple"></span>
+            <span>AI Generated &#10022;</span>
+          </div>
+          <div class="status-option">
+            <span class="status-dot status-dot-gray"></span>
+            <span>Not needed</span>
+          </div>
+          <div class="status-popover-divider"></div>
+          <div class="remove-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Remove requirement
+          </div>
+        </div>
+      </div>
+
+      <!-- Annotation -->
+      <div style="max-width: 300px; padding-top: 48px;">
+        <p class="demo-annotation">
+          Clicking any chip opens a 5-state selector. The current status is highlighted with a checkmark. "AI Generated" = this deliverable will be produced via AI, not a photoshoot. Counts as "complete" for scheduling purposes. "Not needed" grays it out (soft delete). "Remove requirement" fully deletes the chip.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SAMPLE READINESS SUMMARY                     -->
+  <!-- ============================================ -->
+  <div class="demo-section">
+    <div class="demo-title">Sample Readiness Summary</div>
+    <div class="sample-card">
+      <div class="sample-left">
+        <div class="sample-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sample-label">Sample Readiness</div>
+          <div class="sample-value">2 of 3 samples arrived</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="sample-progress-bar">
+          <div class="sample-progress-fill" style="width: 66.6%;"></div>
+        </div>
+        <span style="font-size: 13px; font-weight: 600; color: var(--color-status-amber-text);">67%</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

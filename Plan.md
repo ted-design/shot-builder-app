@@ -628,10 +628,16 @@ Admin (role-gated: admin only)
 
 ### Key Concepts
 
-- Per-colorway (SKU) asset flags with 4-state lifecycle: needed → in_progress → delivered | not_needed
+- Per-colorway (SKU) asset flags with 5-state lifecycle: needed → in_progress → delivered | ai_generated | not_needed
+- 6 canonical asset types (ecomm_on_figure, lifestyle, off_figure_pinup, off_figure_detail, video, other) + 3 legacy compat (ecomm, campaign, ai_generated)
+- AI Generated flag: purple status (5th flag state, counts as "complete" for scheduling)
+- Chip-based progressive disclosure (default) + table view toggle for asset requirements
+- Per-colorway launch dates on ProductSku with family inheritance (resolveSkuLaunchDate)
+- Family hero image with EditableProductImage (hover Replace/Remove) in Colorways section
+- Assets tab renamed to Files (documents only, identity images moved to Colorways)
 - Product launch date on ProductFamily with overdue/soon deadline warnings
 - Sample logistics: returnDueDate + condition fields, return overdue/due-soon badges
-- Dashboard widget: shoot readiness for products with launch dates in next 90 days
+- Dashboard widget: shoot readiness with 3-tier display (full/request-deadline/samples-only), expandable constraints, confidence badges, progress bars
 
 ---
 

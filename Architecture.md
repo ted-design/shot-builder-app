@@ -126,7 +126,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
 | `/products` | ProductsPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
-| `/products/:productId` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Assets, Requirements, Activity). Phase 10: Requirements tab (launch date, per-colorway asset flags). Samples: returnDueDate + condition fields. |
+| `/products/:productId` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Files, Requirements, Activity). Phase 10: Requirements tab (chip/table toggle, 5-state asset flags incl. AI Generated). Colorways: hero image with EditableProductImage. Files: documents only (identity images moved to Colorways). Samples: returnDueDate + condition fields. |
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
@@ -283,6 +283,37 @@ interface ShotRequest {
   absorbedIntoProjectId?: string | null
   absorbedAsShotId?: string | null
   rejectionReason?: string | null
+  relatedFamilyIds?: readonly string[] | null    // Phase 10: link requests to product families
+}
+```
+
+**ProductFamily** (Phase 10 additions):
+```typescript
+interface ProductFamily {
+  // ... existing fields ...
+  sampleCount?: number                     // Denormalized: total samples in family
+  samplesArrivedCount?: number             // Denormalized: samples with status 'arrived'
+  earliestSampleEta?: Timestamp | null     // Denormalized: earliest ETA across samples
+  earliestLaunchDate?: Timestamp | null    // Denormalized: earliest launch date across SKUs
+}
+```
+
+**ProductSku** (Phase 10 additions):
+```typescript
+interface ProductSku {
+  // ... existing fields ...
+  launchDate?: Timestamp | null            // Per-colorway launch date (overrides family)
+}
+```
+
+**ProductAssetRequirements** (Phase 10):
+```typescript
+type ProductAssetType = 'ecomm_on_figure' | 'lifestyle' | 'off_figure_pinup' | 'off_figure_detail' | 'video' | 'other' | 'ecomm' | 'campaign' | 'ai_generated'
+type ProductAssetFlag = 'needed' | 'in_progress' | 'delivered' | 'ai_generated' | 'not_needed'
+
+interface ProductAssetRequirements {
+  [key: string]: ProductAssetFlag | string | undefined
+  other_label?: string
 }
 ```
 
@@ -409,7 +440,7 @@ Visual direction finalized. Zinc neutral scale (not Slate), near-black primary, 
 
 Single source of design truth. CSS custom properties for colors, spacing, typography, shadows, radius. Referenced by Tailwind config. Micro font sizes: `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px). Editorial body scale (Sprint S4): `text-xs` (12px), `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — all 1-2px smaller than Tailwind defaults.
 
-**Status color tokens:** `--color-status-{color}-bg`, `--color-status-{color}-text`, `--color-status-{color}-border` for blue (info/submitted), green (success/absorbed), amber (warning/triaged), red (error/out-of-range). Both light and dark theme variants defined. Added red tokens in Phase 9 for casting match out-of-range scores.
+**Status color tokens:** `--color-status-{color}-bg`, `--color-status-{color}-text`, `--color-status-{color}-border` for blue (info/submitted), green (success/absorbed), amber (warning/triaged), red (error/out-of-range), purple (AI Generated asset flag). Both light and dark theme variants defined. Added red tokens in Phase 9 for casting match out-of-range scores. Added purple tokens in Phase 10 for AI Generated flag state.
 
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 
@@ -498,6 +529,22 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `NotesSection` | `features/shots/components/` | Read/edit toggle notes (click-to-edit, blur-to-save) |
 | `ActiveLookCoverReferencesPanel` | `features/shots/components/` | Reference tiles with hover-reveal action bar |
 | `useListDisplayPreferences` | `features/shots/hooks/` | localStorage-backed display preferences (`sb:three-panel:list-prefs`) |
+
+### Product PLM Components (Phase 10)
+
+| Component / Hook | Location | Purpose |
+|---|---|---|
+| `AssetRequirementChip` | `features/products/components/` | Chip badge with popover flag selector (5 states incl. AI Generated purple) |
+| `AddRequirementPopover` | `features/products/components/` | Grouped asset type picker (photography/motion/other) + Other label input |
+| `SkuRequirementsRow` | `features/products/components/` | Per-colorway chip + launch date layout |
+| `EditableProductImage` | `features/products/components/` | Image with hover overlay (Replace/Remove actions) for hero + colorway images |
+| `InlineDateField` | `features/products/components/` | Reusable inline date picker for launch dates |
+| `ProductRequirementsSection` | `features/products/components/` | Chip view (default) + table view toggle for per-colorway asset requirements |
+| `ProductFilesSection` | `features/products/components/` | Documents only (renamed from Assets; identity images moved to Colorways) |
+| `ShootReadinessWidget` | `features/dashboard/components/` | Dashboard widget: 3-tier display, expandable constraint cards, confidence badges, progress bars |
+| `useShootReadiness` | `features/products/hooks/` | 3-tier eligibility hook reading denormalized family fields |
+| `assetRequirements.ts` | `features/products/lib/` | ASSET_TYPES (with groups), LEGACY_ASSET_TYPES, ASSET_FLAG_OPTIONS, resolveSkuLaunchDate, resolveEarliestLaunchDate |
+| `shootReadiness.ts` | `features/products/lib/` | ShootWindow interface, computeSuggestedShootWindow (3-tier), sortByUrgency |
 
 ---
 

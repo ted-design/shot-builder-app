@@ -21,8 +21,7 @@ interface ProductOverviewSectionProps {
   readonly visibleComments: ReadonlyArray<ProductComment>
   readonly visibleDocuments: ReadonlyArray<ProductDocument>
   readonly skuPhotosCount: number
-  readonly assetsCount: number
-  readonly imageAssetsCount: number
+  readonly filesCount: number
   readonly onSectionChange: (key: ProductWorkspaceSectionKey) => void
 }
 
@@ -33,8 +32,7 @@ export function ProductOverviewSection({
   visibleComments,
   visibleDocuments,
   skuPhotosCount,
-  assetsCount,
-  imageAssetsCount,
+  filesCount,
   onSectionChange,
 }: ProductOverviewSectionProps) {
   const notesSnippet = useMemo(() => normalizeNotesSnippet(family.notes), [family.notes])
@@ -44,7 +42,7 @@ export function ProductOverviewSection({
       <div>
         <h3 className="text-sm font-semibold text-[var(--color-text)]">Explore sections</h3>
         <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Colorways, samples, assets, and activity—organized for fast scanning under pressure.
+          Colorways, samples, files, and activity—organized for fast scanning under pressure.
         </p>
       </div>
 
@@ -67,11 +65,11 @@ export function ProductOverviewSection({
         />
         <OverviewCard
           icon={<FileText className="h-4 w-4" />}
-          title="Assets"
-          description="Photos plus supporting documents (tech packs, specs)."
-          metric={assetsCount}
-          metricSub={`${imageAssetsCount} images · ${visibleDocuments.length} docs`}
-          onClick={() => onSectionChange("assets")}
+          title="Files"
+          description="Documents and reference files."
+          metric={filesCount}
+          metricSub={`${visibleDocuments.length} documents`}
+          onClick={() => onSectionChange("files")}
         />
         <OverviewCard
           icon={<ClipboardCheck className="h-4 w-4" />}
@@ -156,7 +154,7 @@ function ClassificationField({ label, value }: { readonly label: string; readonl
     <div>
       <div className="text-2xs uppercase tracking-wider text-[var(--color-text-subtle)]">{label}</div>
       <div className="mt-0.5 text-sm text-[var(--color-text)]">
-        {value ? humanizeClassificationKey(value) : "—"}
+        {value ? humanizeClassificationKey(value) : "\u2014"}
       </div>
     </div>
   )

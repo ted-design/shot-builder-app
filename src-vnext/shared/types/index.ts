@@ -257,6 +257,14 @@ export interface ProductFamily {
   // Phase 10: PLM
   /** Product launch date (YYYY-MM-DD stored as Timestamp for Firestore compatibility). */
   readonly launchDate?: Timestamp | null
+  /** Denormalized: total non-deleted samples for this family. */
+  readonly sampleCount?: number
+  /** Denormalized: count of samples with status "arrived". */
+  readonly samplesArrivedCount?: number
+  /** Denormalized: earliest sample ETA across all pending samples. */
+  readonly earliestSampleEta?: Timestamp | null
+  /** Denormalized: earliest launch date across family + all SKUs. */
+  readonly earliestLaunchDate?: Timestamp | null
 
   // Soft-delete (legacy)
   readonly deleted?: boolean
@@ -285,6 +293,8 @@ export interface ProductSku {
   readonly hexColor?: string
   /** Per-colorway asset requirement flags (Phase 10: PLM). */
   readonly assetRequirements?: ProductAssetRequirements | null
+  /** Per-SKU launch date override (Phase 10 refinement). Falls back to family.launchDate. */
+  readonly launchDate?: Timestamp | null
   readonly deleted?: boolean
   readonly deletedAt?: Timestamp
   readonly createdAt?: Timestamp
@@ -309,15 +319,23 @@ export interface ProductClassification {
 
 // --- Product Asset Requirements (Phase 10: PLM) ---
 
-export type ProductAssetType = "ecomm" | "campaign" | "video" | "ai_generated"
+export type ProductAssetType =
+  | "ecomm_on_figure"
+  | "lifestyle"
+  | "video"
+  | "off_figure_pinup"
+  | "off_figure_detail"
+  | "other"
+  // Legacy compat
+  | "ecomm"
+  | "campaign"
+  | "ai_generated"
 
-export type ProductAssetFlag = "needed" | "in_progress" | "delivered" | "not_needed"
+export type ProductAssetFlag = "needed" | "in_progress" | "delivered" | "not_needed" | "ai_generated"
 
 export interface ProductAssetRequirements {
-  readonly ecomm?: ProductAssetFlag
-  readonly campaign?: ProductAssetFlag
-  readonly video?: ProductAssetFlag
-  readonly ai_generated?: ProductAssetFlag
+  readonly [key: string]: ProductAssetFlag | string | undefined
+  readonly other_label?: string
 }
 
 export type ProductSampleCondition = "new" | "good" | "fair" | "damaged"
@@ -653,4 +671,6 @@ export interface ShotRequest {
   readonly absorbedIntoProjectId?: string | null
   readonly absorbedAsShotId?: string | null
   readonly rejectionReason?: string | null
+  /** Product families linked to this request (Phase 10 refinement). */
+  readonly relatedFamilyIds?: readonly string[] | null
 }

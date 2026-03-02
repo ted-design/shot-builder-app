@@ -11,7 +11,7 @@ import { ProductWorkspaceNav, type ProductWorkspaceSectionKey } from "@/features
 import { ProductOverviewSection } from "@/features/products/components/ProductOverviewSection"
 import { ProductColorwaysSection } from "@/features/products/components/ProductColorwaysSection"
 import { ProductSamplesSection } from "@/features/products/components/ProductSamplesSection"
-import { ProductAssetsSection } from "@/features/products/components/ProductAssetsSection"
+import { ProductFilesSection } from "@/features/products/components/ProductAssetsSection"
 import { ProductActivitySection } from "@/features/products/components/ProductActivitySection"
 import { ProductRequirementsSection } from "@/features/products/components/ProductRequirementsSection"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
@@ -65,26 +65,11 @@ export default function ProductDetailPage() {
   const visibleComments = useMemo(() => comments.filter((c) => c.deleted !== true), [comments])
   const visibleDocuments = useMemo(() => documents.filter((d) => d.deleted !== true && typeof d.storagePath === "string" && d.storagePath.trim().length > 0), [documents])
 
-  const familyImages = useMemo(() => {
-    if (!family) return []
-    const out: Array<{ key: string; label: string; path: string }> = []
-    if (family.thumbnailImagePath) out.push({ key: "thumb", label: "Thumbnail", path: family.thumbnailImagePath })
-    if (family.headerImagePath && family.headerImagePath !== family.thumbnailImagePath) {
-      out.push({ key: "header", label: "Header image", path: family.headerImagePath })
-    }
-    return out
-  }, [family])
-
-  const skuImages = useMemo(() => {
-    return skus
-      .filter((s) => s.deleted !== true)
-      .map((s) => ({ key: s.id, label: s.colorName ?? s.name, path: s.imagePath ?? null }))
-      .filter((s): s is { key: string; label: string; path: string } => typeof s.path === "string" && s.path.trim().length > 0)
-  }, [skus])
-
-  const imageAssetsCount = familyImages.length + skuImages.length
-  const assetsCount = imageAssetsCount + visibleDocuments.length
-  const skuPhotosCount = skuImages.length
+  const filesCount = visibleDocuments.length
+  const skuPhotosCount = useMemo(
+    () => activeSkus.filter((s) => typeof s.imagePath === "string" && s.imagePath.trim().length > 0).length,
+    [activeSkus],
+  )
 
   const visibleSkus = useMemo(() => {
     const source = showDeleted ? skus : activeSkus
@@ -103,21 +88,22 @@ export default function ProductDetailPage() {
     return count
   }, [activeSkus])
 
-  // Nav items with count badges (M2)
+  // Nav items with count badges
   const navItems = useMemo(() => [
     { key: "overview" as const, label: "Overview", icon: <LayoutDashboard className="h-4 w-4" /> },
     { key: "colorways" as const, label: "Colorways", icon: <Palette className="h-4 w-4" />, count: activeSkus.length },
     { key: "samples" as const, label: "Samples", icon: <Box className="h-4 w-4" />, count: visibleSamples.length },
-    { key: "assets" as const, label: "Assets", icon: <FileText className="h-4 w-4" />, count: assetsCount },
+    { key: "files" as const, label: "Files", icon: <FileText className="h-4 w-4" />, count: filesCount },
     { key: "requirements" as const, label: "Requirements", icon: <ClipboardCheck className="h-4 w-4" />, count: activeRequirementsCount || undefined },
     { key: "activity" as const, label: "Activity", icon: <ActivityIcon className="h-4 w-4" />, count: visibleComments.length },
-  ], [activeRequirementsCount, activeSkus.length, assetsCount, visibleComments.length, visibleSamples.length])
+  ], [activeRequirementsCount, activeSkus.length, filesCount, visibleComments.length, visibleSamples.length])
 
-  // Section routing
+  // Section routing — treat "assets" as backward-compat alias for "files"
   const sectionParam = searchParams.get("section")
+  const resolvedSection = sectionParam === "assets" ? "files" : sectionParam
   const activeSection: ProductWorkspaceSectionKey =
-    sectionParam === "colorways" || sectionParam === "samples" || sectionParam === "assets" || sectionParam === "requirements" || sectionParam === "activity" || sectionParam === "overview"
-      ? sectionParam
+    resolvedSection === "colorways" || resolvedSection === "samples" || resolvedSection === "files" || resolvedSection === "requirements" || resolvedSection === "activity" || resolvedSection === "overview"
+      ? resolvedSection
       : "overview"
 
   const setSection = (next: ProductWorkspaceSectionKey) => {
@@ -215,7 +201,7 @@ export default function ProductDetailPage() {
             <div className="mt-2 grid gap-1 text-xs text-[var(--color-text-muted)]">
               <div>{activeSkus.length} active colorways</div>
               <div>{skuPhotosCount} colorway photos</div>
-              <div>{assetsCount} assets</div>
+              <div>{filesCount} files</div>
               <div>{visibleSamples.length} samples tracked</div>
               <div>{visibleDocuments.length} documents</div>
               <div>{visibleComments.length} comments</div>
@@ -232,8 +218,7 @@ export default function ProductDetailPage() {
               visibleComments={visibleComments}
               visibleDocuments={visibleDocuments}
               skuPhotosCount={skuPhotosCount}
-              assetsCount={assetsCount}
-              imageAssetsCount={imageAssetsCount}
+              filesCount={filesCount}
               onSectionChange={setSection}
             />
           )}
@@ -263,11 +248,9 @@ export default function ProductDetailPage() {
               isFamilyDeleted={isFamilyDeleted}
             />
           )}
-          {activeSection === "assets" && (
-            <ProductAssetsSection
+          {activeSection === "files" && (
+            <ProductFilesSection
               family={family}
-              familyImages={familyImages}
-              skuImages={skuImages}
               documents={documents}
               documentsLoading={documentsLoading}
               documentsError={documentsError}
@@ -277,7 +260,7 @@ export default function ProductDetailPage() {
               userName={user?.displayName ?? null}
               userAvatar={user?.photoURL ?? null}
               isFamilyDeleted={isFamilyDeleted}
-              assetsCount={assetsCount}
+              filesCount={filesCount}
             />
           )}
           {activeSection === "requirements" && (

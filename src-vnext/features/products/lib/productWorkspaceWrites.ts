@@ -276,3 +276,107 @@ export async function updateProductSkuAssetRequirements(args: {
     updatedBy: userId,
   })
 }
+
+export async function updateProductSkuLaunchDate(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuId: string
+  readonly userId: string | null
+  readonly launchDate: Date | null
+}): Promise<void> {
+  const { clientId, familyId, skuId, userId, launchDate } = args
+  const path = productFamilySkusPath(familyId, clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
+    launchDate: launchDate ?? null,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+}
+
+export async function replaceProductSkuImage(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuId: string
+  readonly userId: string | null
+  readonly file: File
+  readonly previousImagePath?: string | null
+}): Promise<string> {
+  const { clientId, familyId, skuId, userId, file, previousImagePath } = args
+
+  const blob = await compressImageToWebp(file)
+  const storagePath = `products/${familyId}/skus/${skuId}/image.webp`
+  await uploadBytes(storageRef(storage, storagePath), blob, { contentType: "image/webp" })
+
+  const path = productFamilySkusPath(familyId, clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
+    imagePath: storagePath,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+
+  if (previousImagePath && previousImagePath !== storagePath) {
+    try {
+      await deleteObject(storageRef(storage, previousImagePath))
+    } catch {
+      // Best-effort cleanup of previous image.
+    }
+  }
+
+  return storagePath
+}
+
+export async function removeProductSkuImage(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuId: string
+  readonly userId: string | null
+  readonly previousImagePath: string
+}): Promise<void> {
+  const { clientId, familyId, skuId, userId, previousImagePath } = args
+
+  const path = productFamilySkusPath(familyId, clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
+    imagePath: null,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+
+  try {
+    await deleteObject(storageRef(storage, previousImagePath))
+  } catch {
+    // Best-effort cleanup.
+  }
+}
+
+export async function replaceProductFamilyImage(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly userId: string | null
+  readonly imageType: "thumbnail" | "header"
+  readonly file: File
+  readonly previousImagePath?: string | null
+}): Promise<string> {
+  const { clientId, familyId, userId, imageType, file, previousImagePath } = args
+
+  const blob = await compressImageToWebp(file)
+  const storagePath = `products/${familyId}/${imageType}.webp`
+  await uploadBytes(storageRef(storage, storagePath), blob, { contentType: "image/webp" })
+
+  const fieldName = imageType === "thumbnail" ? "thumbnailImagePath" : "headerImagePath"
+  const familyPath = productFamiliesPath(clientId)
+  await updateDoc(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+    [fieldName]: storagePath,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+
+  if (previousImagePath && previousImagePath !== storagePath) {
+    try {
+      await deleteObject(storageRef(storage, previousImagePath))
+    } catch {
+      // Best-effort cleanup of previous image.
+    }
+  }
+
+  return storagePath
+}
