@@ -446,6 +446,33 @@ The most efficient agent team cadence for a vertical slice:
 
 Key lessons: typed contracts prevent signature divergence between agents. Senior review catches hardcoded colors and format inconsistencies that pass tests but violate design system rules.
 
+### Effective Launch Date Resolution (Phase 10 Refinement Pattern)
+
+When a product entity has multiple date sources (family-level `launchDate` and per-SKU `earliestLaunchDate`), the resolution must prefer **upcoming** dates over past dates:
+
+1. If `earliestLaunchDate` is in the past but `launchDate` is upcoming → use `launchDate` (the family's actual upcoming launch)
+2. If both are upcoming → use `earliestLaunchDate` (the soonest constraint)
+3. If only one exists → use whichever is available
+4. PR reviewers catch this: "overdue" status when the family is actually upcoming is a data priority bug, not a display bug
+
+### Samples-Ready Copy Gate (Phase 10 Refinement Pattern)
+
+Any UI that displays "ready" or "available to schedule" status text must verify the underlying data condition is actually met. Don't assume a tier/category implies readiness:
+
+- `samples_only` tier with `samplesArrived === 0` → "Samples tracked — awaiting arrival" (not "Samples ready")
+- `samples_only` tier with `samplesArrived > 0` → "Samples ready — available to schedule"
+- General rule: gate optimistic copy on the actual data field, not the tier classification
+
+### Stub Reconciliation After Multi-Agent Work (Phase 10 Refinement Pattern)
+
+When UI agents create local type stubs (duplicated constants, interfaces) because the data layer isn't available yet:
+
+1. After merging both agents' work, search for comments like "Will be replaced by import" or "Local type stub"
+2. Replace local stubs with canonical imports from the data layer (e.g., `ASSET_TYPES` from `assetRequirements.ts`)
+3. Watch for label mismatches — UI agent may use abbreviated labels ("E-comm On Figure") while data layer uses full labels ("E-commerce (on-figure)")
+4. Build `Record<string, string>` maps dynamically from canonical arrays: `Object.fromEntries(TYPES.map(t => [t.key, t.label]))` instead of hardcoded objects
+5. Run build + lint + test after each reconciliation to catch import errors
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session
