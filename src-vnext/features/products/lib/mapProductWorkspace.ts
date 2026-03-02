@@ -63,6 +63,8 @@ export function mapProductSample(id: string, data: Record<string, unknown>): Pro
     arrivedAt: asTimestamp(data.arrivedAt),
     notes: asString(data.notes),
     scopeSkuId: asString(data.scopeSkuId),
+    returnDueDate: asTimestamp(data.returnDueDate),
+    condition: asString(data.condition) ?? null,
     deleted: asBoolean(data.deleted),
     createdAt: asTimestamp(data.createdAt) ?? undefined,
     updatedAt: asTimestamp(data.updatedAt) ?? undefined,

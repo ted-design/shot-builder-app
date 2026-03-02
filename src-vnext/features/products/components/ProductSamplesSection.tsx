@@ -14,6 +14,9 @@ import {
   sampleSortKey,
   isSampleOverdue,
   isSampleDueSoon,
+  isSampleReturnOverdue,
+  isSampleReturnDueSoon,
+  SAMPLE_CONDITIONS,
 } from "@/features/products/lib/productDetailHelpers"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
@@ -22,7 +25,7 @@ import { Label } from "@/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { Textarea } from "@/ui/textarea"
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/ui/sheet"
-import { AlertTriangle, Box, Clock, Plus, Trash2 } from "lucide-react"
+import { AlertTriangle, Box, Clock, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 
 type SampleStatusFilter = "all" | ProductSampleStatus
@@ -79,6 +82,8 @@ export function ProductSamplesSection({
     readonly eta: string
     readonly notes: string
     readonly scopeSkuId: string
+    readonly returnDueDate: string
+    readonly condition: string
   }>({
     type: "shoot",
     status: "requested",
@@ -88,6 +93,8 @@ export function ProductSamplesSection({
     eta: "",
     notes: "",
     scopeSkuId: "",
+    returnDueDate: "",
+    condition: "",
   })
 
   const visibleSamples = useMemo(() => samples.filter((s) => s.deleted !== true), [samples])
@@ -137,6 +144,8 @@ export function ProductSamplesSection({
       eta: "",
       notes: "",
       scopeSkuId: scopeSkuId || "",
+      returnDueDate: "",
+      condition: "",
     })
     setDeleteConfirmOpen(false)
     setSheetOpen(true)
@@ -153,6 +162,8 @@ export function ProductSamplesSection({
       eta: sample.eta ? sample.eta.toDate().toISOString().slice(0, 10) : "",
       notes: sample.notes ?? "",
       scopeSkuId: sample.scopeSkuId ?? "",
+      returnDueDate: sample.returnDueDate ? sample.returnDueDate.toDate().toISOString().slice(0, 10) : "",
+      condition: sample.condition ?? "",
     })
     setDeleteConfirmOpen(false)
     setSheetOpen(true)
@@ -162,6 +173,7 @@ export function ProductSamplesSection({
     if (!clientId) return
     setSaving(true)
     const eta = parseDateInput(draft.eta)
+    const returnDueDate = parseDateInput(draft.returnDueDate)
     const arrivedAt =
       draft.status === "arrived" && !(activeSample?.arrivedAt) ? new Date() : null
 
@@ -181,6 +193,8 @@ export function ProductSamplesSection({
             arrivedAt: arrivedAt ?? undefined,
             notes: draft.notes || null,
             scopeSkuId: draft.scopeSkuId || null,
+            returnDueDate,
+            condition: draft.condition || null,
           },
         })
       : createProductSample({
@@ -195,6 +209,8 @@ export function ProductSamplesSection({
           eta,
           notes: draft.notes || null,
           scopeSkuId: draft.scopeSkuId || null,
+          returnDueDate,
+          condition: draft.condition || null,
         })
 
     void Promise.resolve(op)
@@ -429,6 +445,34 @@ export function ProductSamplesSection({
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="flex flex-col gap-1">
+                <Label className="text-xs">Return due</Label>
+                <Input
+                  type="date"
+                  value={draft.returnDueDate}
+                  disabled={saving}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, returnDueDate: e.target.value }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Condition</Label>
+                <Select
+                  value={draft.condition || "__none__"}
+                  onValueChange={(value) => setDraft((prev) => ({ ...prev, condition: value === "__none__" ? "" : value }))}
+                  disabled={saving}
+                >
+                  <SelectTrigger><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not set</SelectItem>
+                    {SAMPLE_CONDITIONS.map((opt) => (
+                      <SelectItem key={opt.key} value={opt.key}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
                 <Label className="text-xs">Carrier</Label>
                 <Input
                   value={draft.carrier}
@@ -556,6 +600,11 @@ function SampleRow({
 }) {
   const overdue = isSampleOverdue(sample)
   const dueSoon = !overdue && isSampleDueSoon(sample)
+  const returnOverdue = isSampleReturnOverdue(sample)
+  const returnDueSoon = !returnOverdue && isSampleReturnDueSoon(sample)
+  const conditionMeta = sample.condition
+    ? SAMPLE_CONDITIONS.find((c) => c.key === sample.condition) ?? null
+    : null
 
   return (
     <div
@@ -593,6 +642,27 @@ function SampleRow({
             <Badge className={cn("gap-1 border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300")}>
               <Clock className="h-3 w-3" />
               Due soon
+            </Badge>
+          )}
+          {returnOverdue && (
+            <Badge className={cn("gap-1 border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300")}>
+              <RotateCcw className="h-3 w-3" />
+              Return overdue
+            </Badge>
+          )}
+          {returnDueSoon && (
+            <Badge className={cn("gap-1 border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300")}>
+              <RotateCcw className="h-3 w-3" />
+              Return due soon
+            </Badge>
+          )}
+          {conditionMeta && (
+            <Badge className={cn("gap-1", {
+              "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300": conditionMeta.color === "green",
+              "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300": conditionMeta.color === "amber",
+              "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300": conditionMeta.color === "red",
+            })}>
+              {conditionMeta.label}
             </Badge>
           )}
         </div>

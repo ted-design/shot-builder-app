@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore"
-import type { ProductFamily, ProductSku } from "@/shared/types"
+import type { ProductFamily, ProductSku, ProductAssetRequirements } from "@/shared/types"
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined
@@ -81,6 +81,7 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
     colorNames: asStringArray(data["colorNames"]),
     sizeOptions: asStringArray(data["sizeOptions"]),
     shotIds: asStringArray(data["shotIds"]),
+    launchDate: normalizeTimestamp(data["launchDate"]),
     deleted: asBoolean(data["deleted"]),
     deletedAt: normalizeTimestamp(data["deletedAt"]),
     createdAt: normalizeTimestamp(data["createdAt"]),
@@ -88,6 +89,23 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
     createdBy: asString(data["createdBy"]),
     updatedBy: asString(data["updatedBy"]),
   }
+}
+
+const VALID_ASSET_FLAGS = new Set(["needed", "in_progress", "delivered", "not_needed"])
+
+function normalizeAssetRequirements(value: unknown): ProductAssetRequirements | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const raw = value as Record<string, unknown>
+  const result: Record<string, string> = {}
+  let hasAny = false
+  for (const key of ["ecomm", "campaign", "video", "ai_generated"]) {
+    const flag = raw[key]
+    if (typeof flag === "string" && VALID_ASSET_FLAGS.has(flag)) {
+      result[key] = flag
+      hasAny = true
+    }
+  }
+  return hasAny ? (result as unknown as ProductAssetRequirements) : undefined
 }
 
 export function mapProductSku(id: string, data: Record<string, unknown>): ProductSku {
@@ -106,6 +124,7 @@ export function mapProductSku(id: string, data: Record<string, unknown>): Produc
     colorKey: asString(data["colorKey"]),
     colourHex: hexColor,
     hexColor,
+    assetRequirements: normalizeAssetRequirements(data["assetRequirements"]),
     deleted: asBoolean(data["deleted"]),
     deletedAt: normalizeTimestamp(data["deletedAt"]),
     createdAt: normalizeTimestamp(data["createdAt"]),

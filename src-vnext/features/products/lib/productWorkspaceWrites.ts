@@ -9,12 +9,14 @@ import {
 import { deleteObject, ref as storageRef, uploadBytes } from "firebase/storage"
 import { db, storage } from "@/shared/lib/firebase"
 import {
+  productFamiliesPath,
   productFamilyCommentsPath,
   productFamilyDocumentsPath,
   productFamilySamplesPath,
+  productFamilySkusPath,
 } from "@/shared/lib/paths"
 import { compressImageToWebp } from "@/shared/lib/uploadImage"
-import type { ProductSampleStatus, ProductSampleType } from "@/shared/types"
+import type { ProductAssetRequirements, ProductSampleStatus, ProductSampleType } from "@/shared/types"
 
 function cleanFileName(name: string): string {
   const normalized = name.split("/").join("-").split("\\").join("-")
@@ -81,6 +83,8 @@ export async function createProductSample(args: {
   readonly eta?: Date | null
   readonly notes?: string | null
   readonly scopeSkuId?: string | null
+  readonly returnDueDate?: Date | null
+  readonly condition?: string | null
 }): Promise<string> {
   const {
     clientId,
@@ -94,6 +98,8 @@ export async function createProductSample(args: {
     eta,
     notes,
     scopeSkuId,
+    returnDueDate,
+    condition,
   } = args
 
   const cleanedSizes = parseSizeRunCsv(sizeRunCsv)
@@ -109,6 +115,8 @@ export async function createProductSample(args: {
     arrivedAt: status === "arrived" ? new Date() : null,
     notes: notes?.trim() || null,
     scopeSkuId: scopeSkuId?.trim() || null,
+    returnDueDate: returnDueDate ?? null,
+    condition: condition?.trim() || null,
     deleted: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -134,6 +142,8 @@ export async function updateProductSample(args: {
     readonly arrivedAt: Date | null
     readonly notes: string | null
     readonly scopeSkuId: string | null
+    readonly returnDueDate: Date | null
+    readonly condition: string | null
     readonly deleted: boolean
   }>
 }): Promise<void> {
@@ -154,6 +164,8 @@ export async function updateProductSample(args: {
   if (patch.arrivedAt !== undefined) update.arrivedAt = patch.arrivedAt
   if (patch.notes !== undefined) update.notes = patch.notes?.trim() || null
   if (patch.scopeSkuId !== undefined) update.scopeSkuId = patch.scopeSkuId?.trim() || null
+  if (patch.returnDueDate !== undefined) update.returnDueDate = patch.returnDueDate
+  if (patch.condition !== undefined) update.condition = patch.condition?.trim() || null
   if (patch.deleted !== undefined) update.deleted = patch.deleted
 
   await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
@@ -232,4 +244,35 @@ export async function deleteProductDocument(args: {
   } catch {
     // Best-effort.
   }
+}
+
+export async function updateProductFamilyLaunchDate(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly userId: string | null
+  readonly launchDate: Date | null
+}): Promise<void> {
+  const { clientId, familyId, userId, launchDate } = args
+  const path = productFamiliesPath(clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), familyId), {
+    launchDate: launchDate ?? null,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+}
+
+export async function updateProductSkuAssetRequirements(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuId: string
+  readonly userId: string | null
+  readonly assetRequirements: ProductAssetRequirements
+}): Promise<void> {
+  const { clientId, familyId, skuId, userId, assetRequirements } = args
+  const path = productFamilySkusPath(familyId, clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
+    assetRequirements,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
 }

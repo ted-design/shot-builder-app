@@ -18,9 +18,9 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 |------|-------|--------|--------|
 | **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox, create project from request | 7A-7E, S1-S5b, 8, 8.5 | **COMPLETE** |
 | **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
-| **Future** | Per-product asset requirements, sample logistics (PLM), auto-suggest shoot dates from sample availability | 10+ | Not started |
+| **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 | **COMPLETE** |
 
-The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence.
+The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — per-colorway asset flags, launch date tracking, sample condition/return logistics, and a dashboard shoot readiness widget.
 
 ---
 
@@ -186,12 +186,12 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Shot history: every talent profile shows past shots they appeared in (reverse lookup from shot.talent[]).
 - Casting session workflow: shortlist → book → confirm → assign to shots.
 
-### Journey 9: Asset Requirements & PLM (Phase 10 — future)
+### Journey 9: Asset Requirements & PLM (Phase 10 — COMPLETE)
 
-- Per-product/colorway asset flags: needs e-comm, campaign, video, AI-generated.
-- Product launch date tracking with shoot deadline calculation.
-- Sample logistics: arrival date, return due, current status, condition.
-- Auto-suggest shoot dates based on sample availability + quantity thresholds.
+- Per-colorway (SKU) asset flags with 4-state lifecycle: needed → in_progress → delivered | not_needed. Requirements tab on product detail page.
+- Product launch date tracking with overdue/soon deadline warnings on overview card.
+- Sample logistics: return due date + physical condition (new/good/fair/damaged) with badges in sample list.
+- Dashboard shoot readiness widget: products with upcoming launch dates sorted by urgency, sample arrival progress bars. Admin/producer only.
 
 ---
 
