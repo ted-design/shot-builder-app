@@ -305,6 +305,7 @@ export default function ShotDetailPage() {
                       onSave={(ids) => save({ talent: ids, talentIds: ids })}
                       disabled={!canEdit}
                       compact
+                      projectId={shot.projectId}
                     />
                   ) : (
                     <ReadOnlyMetaValue value={`${talentCount} assigned`} />

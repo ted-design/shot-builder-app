@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Option C — Full-Width Slide-Over (Talent Detail)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Design Tokens ─────────────────────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg:               #09090b;
+      --surface:          #18181b;
+      --surface-subtle:   #1c1c1f;
+      --surface-raised:   #232327;
+      --text-primary:     #fafafa;
+      --text-secondary:   #d4d4d8;
+      --text-muted:       #a1a1aa;
+      --text-subtle:      #71717a;
+      --border:           #3f3f46;
+      --border-strong:    #52525b;
+      --primary:          #fafafa;
+      --primary-text:     #09090b;
+      --accent:           #E31E24;
+      --status-green-bg:  #052e16;
+      --status-green-text:#6ee7b7;
+      --status-amber-bg:  #451a03;
+      --status-amber-text:#fcd34d;
+      --radius-sm:        4px;
+      --radius-md:        6px;
+      --radius-lg:        10px;
+      --radius-xl:        14px;
+      --shadow-card:      0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+      --shadow-raised:    0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    :root[data-theme="light"] {
+      --bg:               #f4f4f5;
+      --surface:          #ffffff;
+      --surface-subtle:   #f9f9f9;
+      --surface-raised:   #ffffff;
+      --text-primary:     #09090b;
+      --text-secondary:   #3f3f46;
+      --text-muted:       #71717a;
+      --text-subtle:      #a1a1aa;
+      --border:           #e4e4e7;
+      --border-strong:    #d4d4d8;
+      --primary:          #18181b;
+      --primary-text:     #fafafa;
+      --accent:           #E31E24;
+      --status-green-bg:  #dcfce7;
+      --status-green-text:#15803d;
+      --status-amber-bg:  #fef9c3;
+      --status-amber-text:#92400e;
+      --shadow-card:      0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.06);
+      --shadow-raised:    0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    /* ─── Base ─────────────────────────────────────────────────── */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ─── Top Bar ───────────────────────────────────────────────── */
+    .topbar {
+      flex-shrink: 0;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .topbar-logo {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .topbar-logo span {
+      color: var(--accent);
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+    }
+
+    .topbar-project {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: background 150ms, color 150ms, border-color 150ms;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .theme-toggle svg { display: block; }
+
+    /* ─── Slide Viewport ─────────────────────────────────────────── */
+    /*
+      The "stage" is a horizontal strip wide enough to hold both panels.
+      We slide it left/right using translateX to reveal grid or detail.
+    */
+    .stage-wrapper {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .stage {
+      display: flex;
+      width: 200%;        /* two full-viewport-width panels side by side */
+      height: 100%;
+      transform: translateX(0);
+      transition: transform 400ms cubic-bezier(0.32, 0.72, 0, 1);
+      will-change: transform;
+    }
+
+    .stage.detail-visible {
+      transform: translateX(-50%);  /* shift left one viewport width */
+    }
+
+    /* Each panel is exactly half the stage = one full viewport */
+    .panel {
+      width: 50%;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Grid panel */
+    .panel-grid {
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    /* Detail panel */
+    .panel-detail {
+      background: var(--bg);
+    }
+
+    /* ─── Grid Panel Content ─────────────────────────────────────── */
+    .grid-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .grid-title {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .grid-meta {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-subtle);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .grid-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-ghost {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 150ms, border-color 150ms, color 150ms;
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+
+    .btn-primary {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--primary);
+      color: var(--primary-text);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 150ms;
+    }
+
+    .btn-primary:hover { opacity: 0.88; }
+
+    /* Talent grid */
+    .talent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .talent-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 540px) {
+      .talent-grid { grid-template-columns: 1fr; }
+      .panel-grid { padding: 16px; }
+    }
+
+    /* Talent card */
+    .talent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 200ms, border-color 200ms, box-shadow 200ms, transform 150ms;
+      box-shadow: var(--shadow-card);
+      user-select: none;
+    }
+
+    .talent-card:hover {
+      background: var(--surface-raised);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-raised);
+      transform: translateY(-1px);
+    }
+
+    .talent-card:active { transform: translateY(0); }
+
+    .talent-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      overflow: hidden;
+      background: var(--surface-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      letter-spacing: -0.02em;
+    }
+
+    .talent-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .talent-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .talent-card-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .talent-card-agency {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-weight: 400;
+    }
+
+    .talent-card-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 100px;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .badge-confirmed {
+      background: var(--status-green-bg);
+      color: var(--status-green-text);
+    }
+
+    .badge-pending {
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+    }
+
+    .talent-card-arrow {
+      color: var(--text-subtle);
+      flex-shrink: 0;
+      transition: color 150ms, transform 150ms;
+    }
+
+    .talent-card:hover .talent-card-arrow {
+      color: var(--text-muted);
+      transform: translateX(2px);
+    }
+
+    /* ─── Detail Panel Content ───────────────────────────────────── */
+    .detail-inner {
+      min-height: 100%;
+    }
+
+    /* Detail top bar */
+    .detail-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      padding: 6px 0;
+      transition: color 150ms;
+    }
+
+    .back-btn:hover { color: var(--text-primary); }
+
+    .back-btn svg { flex-shrink: 0; }
+
+    .detail-topbar-center {
+      flex: 1;
+      text-align: center;
+    }
+
+    .detail-topbar-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .detail-topbar-sub {
+      font-size: 11px;
+      color: var(--text-subtle);
+      margin-top: 1px;
+    }
+
+    .detail-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 150ms, color 150ms, border-color 150ms;
+      font-family: inherit;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: var(--surface);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .nav-count {
+      font-size: 11px;
+      color: var(--text-subtle);
+      min-width: 36px;
+      text-align: center;
+    }
+
+    /* Detail hero section */
+    .detail-hero {
+      padding: 28px 24px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .detail-headshot {
+      width: 88px;
+      height: 88px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: 300;
+      color: var(--text-muted);
+      letter-spacing: -0.03em;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .detail-hero-info {
+      flex: 1;
+      padding-top: 4px;
+    }
+
+    .detail-name {
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .detail-agency {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .detail-status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: 100px;
+      letter-spacing: 0.02em;
+    }
+
+    .status-confirmed {
+      background: var(--status-green-bg);
+      color: var(--status-green-text);
+    }
+
+    .status-pending {
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+    }
+
+    .project-pill {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 100px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+    }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      padding: 20px 24px 0;
+      border-bottom: 1px solid var(--border);
+      margin-top: 20px;
+    }
+
+    .tab-item {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 10px 16px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 150ms, border-color 150ms;
+      background: transparent;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: inherit;
+    }
+
+    .tab-item:hover { color: var(--text-primary); }
+
+    .tab-item.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--text-primary);
+    }
+
+    /* Tab content */
+    .tab-content {
+      padding: 24px;
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Detail sections */
+    .detail-section {
+      margin-bottom: 28px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 12px;
+    }
+
+    /* Contact info row */
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .contact-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .contact-label {
+      color: var(--text-subtle);
+      font-size: 11px;
+      width: 56px;
+      flex-shrink: 0;
+    }
+
+    .contact-value {
+      color: var(--text-primary);
+    }
+
+    /* Measurements grid */
+    .measurements-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 600px) {
+      .measurements-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .measurement-cell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+    }
+
+    .measurement-value {
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .measurement-label {
+      font-size: 10px;
+      color: var(--text-subtle);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+    }
+
+    /* Notes */
+    .notes-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Shot history table */
+    .shot-history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .shot-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shot-number {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      width: 36px;
+      flex-shrink: 0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .shot-info { flex: 1; min-width: 0; }
+
+    .shot-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .shot-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .shot-status {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 100px;
+      letter-spacing: 0.02em;
+    }
+
+    .shot-status-shot {
+      background: var(--status-green-bg);
+      color: var(--status-green-text);
+    }
+
+    .shot-status-inprogress {
+      background: var(--status-amber-bg);
+      color: var(--status-amber-text);
+    }
+
+    .shot-status-draft {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-subtle);
+    }
+
+    /* ─── Annotation Banner ──────────────────────────────────────── */
+    .annotation {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      z-index: 200;
+      white-space: nowrap;
+      box-shadow: var(--shadow-raised);
+      pointer-events: none;
+      transition: opacity 300ms;
+    }
+
+    .annotation strong {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .annotation-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 8px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    /* Phase label */
+    .phase-label {
+      position: fixed;
+      top: 60px;
+      left: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: var(--radius-sm);
+      z-index: 300;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Scrollbar styling ──────────────────────────────────────── */
+    .panel::-webkit-scrollbar { width: 4px; }
+    .panel::-webkit-scrollbar-track { background: transparent; }
+    .panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .panel::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+    /* ─── Utilities ─────────────────────────────────────────────── */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 24px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Phase badge -->
+<div class="phase-label">Option C</div>
+
+<!-- ─── App Shell ─────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-logo">Shot<span>Builder</span></div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-project">SS26 Campaign · Talent</div>
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark">
+        <!-- Moon icon (shown in dark mode) -->
+        <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <!-- Sun icon (shown in light mode) -->
+        <svg id="iconSun" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Slide Stage -->
+  <div class="stage-wrapper">
+    <div class="stage" id="stage">
+
+      <!-- ── Panel 1: Grid ─────────────────────────────────── -->
+      <div class="panel panel-grid" id="panelGrid">
+        <div class="grid-header">
+          <div>
+            <div class="grid-title">Talent</div>
+            <div class="grid-meta">6 talent · SS26 Campaign</div>
+          </div>
+          <div class="grid-actions">
+            <button class="btn-ghost">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
+              Filter
+            </button>
+            <button class="btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Talent
+            </button>
+          </div>
+        </div>
+
+        <div class="talent-grid" id="talentGrid">
+          <!-- Cards injected by JS -->
+        </div>
+      </div>
+
+      <!-- ── Panel 2: Detail ───────────────────────────────── -->
+      <div class="panel panel-detail" id="panelDetail">
+        <div class="detail-inner">
+
+          <!-- Sticky top bar -->
+          <div class="detail-topbar">
+            <button class="back-btn" id="backBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Back to Talent
+            </button>
+
+            <div class="detail-topbar-center">
+              <div class="detail-topbar-name" id="detailTopName">—</div>
+              <div class="detail-topbar-sub" id="detailTopSub">—</div>
+            </div>
+
+            <div class="detail-nav">
+              <button class="nav-btn" id="prevBtn" aria-label="Previous talent" title="Previous">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <span class="nav-count" id="navCount">1 / 6</span>
+              <button class="nav-btn" id="nextBtn" aria-label="Next talent" title="Next">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hero -->
+          <div class="detail-hero">
+            <div class="detail-headshot" id="detailHeadshot">SC</div>
+            <div class="detail-hero-info">
+              <div class="detail-name" id="detailName">Sarah Chen</div>
+              <div class="detail-agency" id="detailAgency">Elite Models · New York</div>
+              <div class="detail-status-row" id="detailStatusRow">
+                <span class="status-pill status-confirmed">Confirmed</span>
+                <span class="project-pill">SS26 Campaign</span>
+                <span class="project-pill">Lookbook 2026</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab bar -->
+          <div class="tab-bar">
+            <button class="tab-item active" data-tab="profile">Profile</button>
+            <button class="tab-item" data-tab="shots">Shot History</button>
+          </div>
+
+          <!-- Tab: Profile -->
+          <div class="tab-content">
+            <div class="tab-pane active" id="tab-profile">
+
+              <!-- Contact -->
+              <div class="detail-section">
+                <div class="section-label">Contact</div>
+                <div class="contact-list" id="detailContact">
+                  <!-- Injected by JS -->
+                </div>
+              </div>
+
+              <!-- Measurements -->
+              <div class="detail-section">
+                <div class="section-label">Measurements</div>
+                <div class="measurements-grid" id="detailMeasurements">
+                  <!-- Injected by JS -->
+                </div>
+              </div>
+
+              <!-- Notes -->
+              <div class="detail-section">
+                <div class="section-label">Notes</div>
+                <div class="notes-box" id="detailNotes">—</div>
+              </div>
+
+            </div>
+
+            <!-- Tab: Shot History -->
+            <div class="tab-pane" id="tab-shots">
+              <div class="shot-history-list" id="detailShots">
+                <!-- Injected by JS -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- end panel-detail -->
+
+    </div>
+    <!-- end stage -->
+  </div>
+  <!-- end stage-wrapper -->
+
+</div>
+<!-- end app-shell -->
+
+<!-- Annotation -->
+<div class="annotation" id="annotation">
+  <span class="annotation-dot"></span>
+  <strong>Option C — Full-Width Slide-Over:</strong> Like iOS navigation push — grid slides left, detail slides in from right. Grid context is lost entirely.
+</div>
+
+<script>
+  /* ─── Talent Data ─────────────────────────────────────────────── */
+  const TALENT = [
+    {
+      id: 't1',
+      initials: 'SC',
+      name: 'Sarah Chen',
+      agency: 'Elite Models',
+      location: 'New York',
+      status: 'confirmed',
+      projects: ['SS26 Campaign', 'Lookbook 2026'],
+      contact: {
+        email: 'sarah.chen@elitemodels.com',
+        phone: '+1 (212) 555-0142',
+        booker: 'Amanda Ross'
+      },
+      measurements: { height: "5'10\"", bust: '34"', waist: '25"', hips: '36"', dress: '4 US', shoe: '9 US' },
+      notes: 'Available all of March. Prefers natural makeup looks. Previous experience with activewear and luxury fashion. No fur. Vegan.',
+      shots: [
+        { num: 'S-014', name: 'White Linen Suit — Exterior', date: 'Feb 18', status: 'shot' },
+        { num: 'S-009', name: 'Silk Midi Dress — Studio', date: 'Feb 18', status: 'shot' },
+        { num: 'S-022', name: 'Evening Gown — Rooftop', date: 'Mar 4', status: 'inprogress' },
+        { num: 'S-031', name: 'Cashmere Coat — City', date: 'Mar 4', status: 'draft' }
+      ]
+    },
+    {
+      id: 't2',
+      initials: 'MJ',
+      name: 'Marcus Johnson',
+      agency: 'IMG',
+      location: 'Los Angeles',
+      status: 'confirmed',
+      projects: ['SS26 Campaign'],
+      contact: {
+        email: 'm.johnson@imgmodels.com',
+        phone: '+1 (310) 555-0876',
+        booker: 'Kevin Lim'
+      },
+      measurements: { height: '6\'1"', chest: '40"', waist: '32"', hips: '38"', suit: '40 R', shoe: '11 US' },
+      notes: 'Excellent at motion / action shots. Former athlete. Very punctual. Comfortable with water-based shoots.',
+      shots: [
+        { num: 'S-007', name: 'Sport Collection — Trackside', date: 'Feb 10', status: 'shot' },
+        { num: 'S-011', name: 'Tailored Suit — Studio', date: 'Feb 10', status: 'shot' },
+        { num: 'S-019', name: 'Swim Collection — Poolside', date: 'Mar 6', status: 'draft' }
+      ]
+    },
+    {
+      id: 't3',
+      initials: 'ER',
+      name: 'Elena Rodriguez',
+      agency: 'Wilhelmina',
+      location: 'Miami',
+      status: 'pending',
+      projects: ['SS26 Campaign', 'Editorial May'],
+      contact: {
+        email: 'erodriguez@wilhelmina.com',
+        phone: '+1 (305) 555-0334',
+        booker: 'Sofia Vega'
+      },
+      measurements: { height: '5\'9"', bust: '33"', waist: '24"', hips: '35"', dress: '2 US', shoe: '8.5 US' },
+      notes: 'Fluent in Spanish and English. Highly requested for resort and swim campaigns. Availability TBC for March 4 dates.',
+      shots: [
+        { num: 'S-003', name: 'Resort Collection — Beach', date: 'Jan 28', status: 'shot' },
+        { num: 'S-025', name: 'Denim Campaign — Warehouse', date: 'Mar 4', status: 'draft' }
+      ]
+    },
+    {
+      id: 't4',
+      initials: 'JP',
+      name: 'James Park',
+      agency: 'Ford',
+      location: 'New York',
+      status: 'confirmed',
+      projects: ['SS26 Campaign'],
+      contact: {
+        email: 'james.park@fordmodels.com',
+        phone: '+1 (212) 555-0991',
+        booker: 'Claire Holt'
+      },
+      measurements: { height: '6\'0"', chest: '38"', waist: '30"', hips: '37"', suit: '38 R', shoe: '10.5 US' },
+      notes: 'Works well in editorial and commercial. Background in art direction — very collaborative on set.',
+      shots: [
+        { num: 'S-006', name: 'Outerwear Campaign — Park', date: 'Feb 12', status: 'shot' },
+        { num: 'S-015', name: 'Knitwear — Studio Light', date: 'Mar 5', status: 'inprogress' },
+        { num: 'S-028', name: 'Formal Collection — Hotel', date: 'Mar 5', status: 'draft' }
+      ]
+    },
+    {
+      id: 't5',
+      initials: 'AM',
+      name: 'Ava Mitchell',
+      agency: 'Next',
+      location: 'London',
+      status: 'confirmed',
+      projects: ['SS26 Campaign', 'Lookbook 2026', 'Digital Assets'],
+      contact: {
+        email: 'a.mitchell@nextmodels.com',
+        phone: '+44 20 7946 0958',
+        booker: 'Priya Sharma'
+      },
+      measurements: { height: '5\'11"', bust: '35"', waist: '26"', hips: '37"', dress: '6 US', shoe: '9.5 US' },
+      notes: 'Based in London — confirm travel arrangements before shoot. Exceptional for high-fashion editorial. Does not work with fur.',
+      shots: [
+        { num: 'S-001', name: 'Opening Look — Studio', date: 'Feb 5', status: 'shot' },
+        { num: 'S-002', name: 'Couture Gown — Atelier', date: 'Feb 5', status: 'shot' },
+        { num: 'S-016', name: 'Accessories Close-up', date: 'Feb 5', status: 'shot' },
+        { num: 'S-020', name: 'Campaign Hero Shot', date: 'Mar 3', status: 'inprogress' },
+        { num: 'S-033', name: 'Social Content — Lifestyle', date: 'Mar 3', status: 'draft' }
+      ]
+    },
+    {
+      id: 't6',
+      initials: 'DT',
+      name: 'David Thompson',
+      agency: 'Storm',
+      location: 'New York',
+      status: 'pending',
+      projects: ['SS26 Campaign'],
+      contact: {
+        email: 'd.thompson@stormmodels.com',
+        phone: '+1 (212) 555-0217',
+        booker: 'Nicole Webb'
+      },
+      measurements: { height: '6\'2"', chest: '41"', waist: '33"', hips: '39"', suit: '42 R', shoe: '12 US' },
+      notes: 'Experienced with high-end menswear. Great for architectural and structural looks. Hold pending contract.',
+      shots: [
+        { num: 'S-010', name: 'Menswear Collection — Loft', date: 'Mar 7', status: 'draft' },
+        { num: 'S-017', name: 'Tailoring — City Rooftop', date: 'Mar 7', status: 'draft' }
+      ]
+    }
+  ];
+
+  /* ─── State ───────────────────────────────────────────────────── */
+  let activeIndex = 0;
+  let detailVisible = false;
+
+  /* ─── Elements ────────────────────────────────────────────────── */
+  const stage      = document.getElementById('stage');
+  const backBtn    = document.getElementById('backBtn');
+  const prevBtn    = document.getElementById('prevBtn');
+  const nextBtn    = document.getElementById('nextBtn');
+  const navCount   = document.getElementById('navCount');
+  const themeToggle = document.getElementById('themeToggle');
+  const iconMoon   = document.getElementById('iconMoon');
+  const iconSun    = document.getElementById('iconSun');
+
+  /* ─── Build Grid Cards ────────────────────────────────────────── */
+  function buildGrid() {
+    const grid = document.getElementById('talentGrid');
+    grid.innerHTML = TALENT.map((t, i) => `
+      <div class="talent-card" data-index="${i}" role="button" tabindex="0" aria-label="View ${t.name}">
+        <div class="talent-thumb">${t.initials}</div>
+        <div class="talent-card-info">
+          <div class="talent-card-name">${t.name}</div>
+          <div class="talent-card-agency">${t.agency} · ${t.location}</div>
+        </div>
+        <span class="talent-card-badge ${t.status === 'confirmed' ? 'badge-confirmed' : 'badge-pending'}">
+          ${t.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+        </span>
+        <svg class="talent-card-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.talent-card').forEach(card => {
+      card.addEventListener('click', () => openDetail(parseInt(card.dataset.index)));
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openDetail(parseInt(card.dataset.index));
+        }
+      });
+    });
+  }
+
+  /* ─── Render Detail Panel ─────────────────────────────────────── */
+  function renderDetail(index) {
+    const t = TALENT[index];
+
+    document.getElementById('detailTopName').textContent = t.name;
+    document.getElementById('detailTopSub').textContent  = `${t.agency} · ${t.location}`;
+    document.getElementById('detailHeadshot').textContent = t.initials;
+    document.getElementById('detailName').textContent    = t.name;
+    document.getElementById('detailAgency').textContent  = `${t.agency} · ${t.location}`;
+    navCount.textContent = `${index + 1} / ${TALENT.length}`;
+
+    // Status row
+    const statusEl = document.getElementById('detailStatusRow');
+    const statusClass = t.status === 'confirmed' ? 'status-confirmed' : 'status-pending';
+    const statusLabel = t.status === 'confirmed' ? 'Confirmed' : 'Pending';
+    statusEl.innerHTML =
+      `<span class="status-pill ${statusClass}">${statusLabel}</span>` +
+      t.projects.map(p => `<span class="project-pill">${p}</span>`).join('');
+
+    // Contact
+    const contactEl = document.getElementById('detailContact');
+    contactEl.innerHTML = `
+      <div class="contact-item">
+        <div class="contact-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <span class="contact-label">Email</span>
+        <span class="contact-value">${t.contact.email}</span>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <span class="contact-label">Phone</span>
+        <span class="contact-value">${t.contact.phone}</span>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <span class="contact-label">Booker</span>
+        <span class="contact-value">${t.contact.booker}</span>
+      </div>
+    `;
+
+    // Measurements
+    const measEl = document.getElementById('detailMeasurements');
+    measEl.innerHTML = Object.entries(t.measurements).map(([key, val]) => `
+      <div class="measurement-cell">
+        <div class="measurement-value">${val}</div>
+        <div class="measurement-label">${key}</div>
+      </div>
+    `).join('');
+
+    // Notes
+    document.getElementById('detailNotes').textContent = t.notes;
+
+    // Shot history
+    const shotsEl = document.getElementById('detailShots');
+    const statusMap = {
+      shot: { cls: 'shot-status-shot', label: 'Shot' },
+      inprogress: { cls: 'shot-status-inprogress', label: 'In Progress' },
+      draft: { cls: 'shot-status-draft', label: 'Draft' }
+    };
+    shotsEl.innerHTML = t.shots.map(s => {
+      const st = statusMap[s.status] || statusMap.draft;
+      return `
+        <div class="shot-row">
+          <div class="shot-number">${s.num}</div>
+          <div class="shot-info">
+            <div class="shot-name">${s.name}</div>
+            <div class="shot-meta">${s.date}</div>
+          </div>
+          <span class="shot-status ${st.cls}">${st.label}</span>
+        </div>
+      `;
+    }).join('');
+
+    // Nav buttons
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === TALENT.length - 1;
+
+    // Scroll detail panel to top
+    document.getElementById('panelDetail').scrollTop = 0;
+
+    // Reset tabs to Profile
+    setActiveTab('profile');
+  }
+
+  /* ─── Slide In/Out ────────────────────────────────────────────── */
+  function openDetail(index) {
+    activeIndex = index;
+    renderDetail(index);
+    stage.classList.add('detail-visible');
+    detailVisible = true;
+  }
+
+  function closeDetail() {
+    stage.classList.remove('detail-visible');
+    detailVisible = false;
+    // Return focus to the card that was clicked
+    const card = document.querySelector(`.talent-card[data-index="${activeIndex}"]`);
+    if (card) card.focus();
+  }
+
+  /* ─── Tabs ────────────────────────────────────────────────────── */
+  function setActiveTab(tabId) {
+    document.querySelectorAll('.tab-item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.id === `tab-${tabId}`);
+    });
+  }
+
+  document.querySelectorAll('.tab-item').forEach(btn => {
+    btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+  });
+
+  /* ─── Navigation ──────────────────────────────────────────────── */
+  backBtn.addEventListener('click', closeDetail);
+
+  prevBtn.addEventListener('click', () => {
+    if (activeIndex > 0) {
+      activeIndex -= 1;
+      renderDetail(activeIndex);
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (activeIndex < TALENT.length - 1) {
+      activeIndex += 1;
+      renderDetail(activeIndex);
+    }
+  });
+
+  /* ─── Keyboard shortcuts ──────────────────────────────────────── */
+  document.addEventListener('keydown', e => {
+    if (!detailVisible) return;
+    if (e.key === 'Escape') closeDetail();
+    if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+      activeIndex -= 1;
+      renderDetail(activeIndex);
+    }
+    if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+      activeIndex += 1;
+      renderDetail(activeIndex);
+    }
+  });
+
+  /* ─── Theme Toggle ────────────────────────────────────────────── */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const isDark = theme === 'dark';
+    iconMoon.style.display = isDark ? 'block' : 'none';
+    iconSun.style.display  = isDark ? 'none'  : 'block';
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  /* ─── Init ────────────────────────────────────────────────────── */
+  buildGrid();
+  applyTheme('dark');
+</script>
+</body>
+</html>

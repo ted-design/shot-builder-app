@@ -5,9 +5,9 @@ import type { GenderKey } from "@/features/library/lib/measurementOptions"
 import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
 import type { MeasurementRange } from "@/features/library/lib/talentFilters"
 import type { CastingBrief, TalentMatchResult, FieldMatchDetail } from "@/features/library/lib/castingMatch"
-import { EMPTY_CASTING_BRIEF, rankTalentForBrief } from "@/features/library/lib/castingMatch"
+import { EMPTY_CASTING_BRIEF } from "@/features/library/lib/castingMatch"
+import { scoreColorClass, scoreBarFillClass } from "@/features/library/lib/castingScoreUtils"
 import { Button } from "@/ui/button"
-import { Input } from "@/ui/input"
 import {
   Select,
   SelectContent,
@@ -16,22 +16,12 @@ import {
   SelectValue,
 } from "@/ui/select"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { MeasurementRangeSlider } from "@/features/library/components/MeasurementRangeSlider"
+import { useMeasurementBounds } from "@/features/library/hooks/useMeasurementBounds"
 
 // ---------------------------------------------------------------------------
 // Score helpers
 // ---------------------------------------------------------------------------
-
-function scoreColorClass(score: number): string {
-  if (score >= 0.8) return "bg-[var(--color-status-green-bg)] text-[var(--color-status-green-text)]"
-  if (score >= 0.5) return "bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)]"
-  return "bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)]"
-}
-
-function scoreBarFillClass(score: number): string {
-  if (score >= 0.8) return "bg-[var(--color-status-green-text)]"
-  if (score >= 0.5) return "bg-[var(--color-status-amber-text)]"
-  return "bg-[var(--color-text-subtle)]"
-}
 
 function fieldPillClass(detail: FieldMatchDetail): string {
   if (detail.score === null) return "bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]"
@@ -69,26 +59,23 @@ interface BriefFormProps {
   readonly onClear: () => void
   readonly collapsed?: boolean
   readonly onToggleCollapse?: () => void
+  readonly talent: readonly TalentRecord[]
 }
 
-function BriefForm({ brief, onBriefChange, onClear, collapsed, onToggleCollapse }: BriefFormProps) {
+function BriefForm({ brief, onBriefChange, onClear, collapsed, onToggleCollapse, talent }: BriefFormProps) {
   const fields = useMemo(() => getMeasurementOptionsForGender(brief.gender), [brief.gender])
+  const bounds = useMeasurementBounds(talent, brief.gender)
 
   const setGender = (gender: string) => {
     onBriefChange({ ...brief, gender: gender as GenderKey, requirements: {} })
   }
 
-  const setRange = (key: string, field: "min" | "max", value: string) => {
-    const parsed = value.trim() === "" ? null : Number(value)
-    const numValue = parsed !== null && Number.isFinite(parsed) ? parsed : null
-    const existing = brief.requirements[key] ?? { min: null, max: null }
-    const next: MeasurementRange = { ...existing, [field]: numValue }
-
-    if (next.min === null && next.max === null) {
+  const setRange = (key: string, range: MeasurementRange) => {
+    if (range.min === null && range.max === null) {
       const { [key]: _removed, ...rest } = brief.requirements
       onBriefChange({ ...brief, requirements: rest })
     } else {
-      onBriefChange({ ...brief, requirements: { ...brief.requirements, [key]: next } })
+      onBriefChange({ ...brief, requirements: { ...brief.requirements, [key]: range } })
     }
   }
 
@@ -153,39 +140,27 @@ function BriefForm({ brief, onBriefChange, onClear, collapsed, onToggleCollapse 
 
       <div className="mb-4 h-px bg-[var(--color-border)]" />
 
-      {/* Measurement ranges */}
+      {/* Measurement ranges — dual-thumb sliders */}
       <div className="mb-4">
         <div className="mb-2 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
           Measurement Ranges
         </div>
-        <div className="space-y-2.5">
+        <div className="space-y-4">
           {fields.map((field) => {
-            const range = brief.requirements[field.key]
+            const range = brief.requirements[field.key] ?? { min: null, max: null }
+            const fieldBounds = bounds[field.key]
+            if (!fieldBounds) return null
             return (
-              <div key={field.key}>
-                <div className="mb-1 text-xs font-medium text-[var(--color-text-secondary)]">
-                  {field.label}
-                </div>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="min"
-                    value={range?.min ?? ""}
-                    onChange={(e) => setRange(field.key, "min", e.target.value)}
-                    className="h-8 text-sm"
-                    aria-label={`${field.label} min`}
-                  />
-                  <span className="text-xs text-[var(--color-text-subtle)]">to</span>
-                  <Input
-                    type="number"
-                    placeholder="max"
-                    value={range?.max ?? ""}
-                    onChange={(e) => setRange(field.key, "max", e.target.value)}
-                    className="h-8 text-sm"
-                    aria-label={`${field.label} max`}
-                  />
-                </div>
-              </div>
+              <MeasurementRangeSlider
+                key={field.key}
+                label={field.label}
+                fieldKey={field.key}
+                boundsMin={fieldBounds.min}
+                boundsMax={fieldBounds.max}
+                step={fieldBounds.step}
+                value={range}
+                onChange={(next) => setRange(field.key, next)}
+              />
             )
           })}
         </div>
@@ -293,80 +268,71 @@ function MatchCard({ result, compact }: MatchCardProps) {
 
 interface CastingBriefMatcherProps {
   readonly talent: readonly TalentRecord[]
+  readonly brief: CastingBrief
+  readonly onBriefChange: (next: CastingBrief) => void
+  readonly results?: readonly TalentMatchResult[]
 }
 
-export function CastingBriefMatcher({ talent }: CastingBriefMatcherProps) {
+export function CastingBriefMatcher({ talent, brief, onBriefChange, results: externalResults }: CastingBriefMatcherProps) {
   const isMobile = useIsMobile()
-  const [brief, setBrief] = useState<CastingBrief>(EMPTY_CASTING_BRIEF)
   const [collapsed, setCollapsed] = useState(false)
 
   const hasRequirements = Object.values(brief.requirements).some(
     (r) => r.min !== null || r.max !== null,
   )
 
-  const results = useMemo((): readonly TalentMatchResult[] => {
-    if (!hasRequirements) return []
-    return rankTalentForBrief(talent, brief)
-  }, [talent, brief, hasRequirements])
+  const results = externalResults ?? []
 
   const clearBrief = () => {
-    setBrief(EMPTY_CASTING_BRIEF)
+    onBriefChange(EMPTY_CASTING_BRIEF)
     setCollapsed(false)
   }
 
   return (
-    <div>
-      <div className="mb-4">
-        <h2 className="heading-section">Casting Brief</h2>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Define measurement requirements to find matching talent.
-        </p>
-      </div>
+    <div className={isMobile ? "space-y-4" : "grid grid-cols-[360px_1fr] items-start gap-6"}>
+      {/* Brief form */}
+      <BriefForm
+        brief={brief}
+        onBriefChange={onBriefChange}
+        onClear={clearBrief}
+        collapsed={isMobile && collapsed && hasRequirements}
+        onToggleCollapse={isMobile ? () => setCollapsed((prev) => !prev) : undefined}
+        talent={talent}
+      />
 
-      <div className={isMobile ? "space-y-4" : "grid grid-cols-[360px_1fr] items-start gap-6"}>
-        {/* Brief form */}
-        <BriefForm
-          brief={brief}
-          onBriefChange={setBrief}
-          onClear={clearBrief}
-          collapsed={isMobile && collapsed && hasRequirements}
-          onToggleCollapse={isMobile ? () => setCollapsed((prev) => !prev) : undefined}
-        />
-
-        {/* Results */}
-        <div>
-          {hasRequirements ? (
-            <>
-              <div className="mb-3 flex items-center justify-between">
-                <span className="heading-section">Match Results</span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  {results.length} talent matched
-                </span>
-              </div>
-
-              {results.length === 0 ? (
-                <div className="py-8 text-center text-sm text-[var(--color-text-subtle)]">
-                  No talent match the current requirements.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {results.map((r) => (
-                    <MatchCard
-                      key={r.talent.id}
-                      result={r}
-                      compact={isMobile}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center py-10 text-center text-sm text-[var(--color-text-subtle)]">
-              <Search className="mb-2 h-6 w-6" />
-              Set gender and at least one measurement range to find matches.
+      {/* Results */}
+      <div>
+        {hasRequirements ? (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="heading-section">Match Results</span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {results.length} talent matched
+              </span>
             </div>
-          )}
-        </div>
+
+            {results.length === 0 ? (
+              <div className="py-8 text-center text-sm text-[var(--color-text-subtle)]">
+                No talent match the current requirements.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {results.map((r) => (
+                  <MatchCard
+                    key={r.talent.id}
+                    result={r}
+                    compact={isMobile}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center py-10 text-center text-sm text-[var(--color-text-subtle)]">
+            <Search className="mb-2 h-6 w-6" />
+            Set gender and at least one measurement range to find matches.
+          </div>
+        )}
       </div>
     </div>
   )

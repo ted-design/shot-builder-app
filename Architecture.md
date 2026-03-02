@@ -130,7 +130,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
 | `/import-products` | ImportProducts | CSV import |
 | `/library` | LibraryPage | Redirect -> `/library/talent` |
-| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, inline detail, measurements, portfolio, castings. Phase 9: tabbed detail (Profile / Shot History / Casting Brief), search/filter toolbar (gender, measurement ranges, agency), auto-match scoring. |
+| `/library/talent` | LibraryTalentPage | Full CRUD: card grid, Sheet detail drawer (right on desktop, bottom on mobile), prev/next nav + keyboard arrows. Tabs: Profile / Shot History / Casting Brief. Search/filter toolbar (gender, measurement ranges, agency), auto-match scoring. Project pills read-only with Link navigation. Decomposed: 12 files in `features/library/components/`. Casting brief is top-level collapsible panel (CastingBriefPanel) with data-driven range sliders. |
 | `/library/crew` | LibraryCrewPage | Table list with search, create dialog, row click to detail |
 | `/library/crew/:crewId` | CrewDetailPage | Inline edit all fields, notes, delete with confirmation |
 | `/library/locations` | LibraryLocationsPage | Table list with search, create dialog, row click to detail |
@@ -481,7 +481,8 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `locationWrites.ts` | `features/library/lib/` | Create/update/delete locations + photo upload/removal |
 | `talentWrites.ts` | `features/library/lib/` | Full talent CRUD: create, update, delete, headshot, portfolio, casting images |
 | `measurementOptions.ts` | `features/library/lib/` | Gender-specific measurement field definitions (men: 7, women: 6, other: all) |
-| `measurementParsing.ts` | `features/library/lib/` | Conservative parser for free-form measurement strings (`5'9"`, `34"`, `40R`, `175cm`) → numeric values |
+| `measurementParsing.ts` | `features/library/lib/` | Conservative parser for free-form measurement strings (`5'9"`, `34"`, `40R`, `175cm`) → numeric values. Type-guards non-string Firestore values (objects, booleans) before `.trim()`. |
+| `castingScoreUtils.ts` | `features/library/lib/` | Shared score color utilities: `scoreColorClass(score)` and `scoreBarFillClass(score)` for consistent threshold styling (green ≥80%, amber ≥50%, muted <50%) |
 | `talentFilters.ts` | `features/library/lib/` | TalentSearchFilters interface + filterTalent() pure function (gender, measurement ranges, agency, casting history) |
 | `castingMatch.ts` | `features/library/lib/` | CastingBrief interface, computeMatchScore() proximity scoring, rankTalentForBrief() sorted results |
 | `talentShotHistory.ts` | `features/library/lib/` | TalentShotHistoryEntry type definition for shot history reverse lookup |
@@ -489,8 +490,19 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `useLocationLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for locations list |
 | `useTalentLibrary.ts` | `features/library/hooks/` | Real-time Firestore subscription for talent list |
 | `useTalentShotHistory.ts` | `features/library/hooks/` | Firestore `array-contains` query: all shots a talent appears in, grouped by project |
+| `useMeasurementBounds.ts` | `features/library/hooks/` | Computes min/max bounds from actual talent measurement data for slider ranges. Stack-safe reduce (not Math.min/max spread). |
 | `TalentSearchFilters.tsx` | `features/library/components/` | Responsive filter sheet (side on desktop, bottom on mobile) — gender, measurement ranges, agency, casting history |
-| `CastingBriefMatcher.tsx` | `features/library/components/` | Brief form + ranked results with match score badges (green ≥80%, amber ≥50%, red <50%) |
+| `TalentDetailPanel.tsx` | `features/library/components/` | Detail panel rendered inside Sheet — Profile/Shot History tabs, headshot, contact, measurements, portfolio (491 lines after CastingSessionList extraction) |
+| `CastingSessionList.tsx` | `features/library/components/` | Extracted from TalentDetailPanel — casting session expansion with DnD image grid and session field editors |
+| `TalentDialogs.tsx` | `features/library/components/` | Extracted from LibraryTalentPage — 5 ConfirmDialogs + Dialog + TalentCastingPrintPortal |
+| `CastingBriefPanel.tsx` | `features/library/components/` | Top-level collapsible casting brief panel with mode toggle button, score badges on grid cards, and embedded CastingBriefMatcher |
+| `MeasurementRangeSlider.tsx` | `features/library/components/` | Dual-thumb Radix Slider for measurement range inputs with value labels |
+| `talentUtils.ts` | `features/library/components/` | buildDisplayName, initials, normalizeImages, normalizeSessions, constants |
+| `HeadshotThumb.tsx` | `features/library/components/` | Avatar thumbnail for talent grid cards |
+| `SortableImageTile.tsx` | `features/library/components/` | Drag-and-drop image tile for portfolio/casting galleries |
+| `TalentInlineEditors.tsx` | `features/library/components/` | InlineInput + InlineTextarea for talent field editing |
+| `CreateTalentDialog.tsx` | `features/library/components/` | Dialog for creating new talent profiles |
+| `CastingBriefMatcher.tsx` | `features/library/components/` | Brief form (dual-thumb range sliders) + ranked results with match score badges. Accepts optional `results` prop to avoid redundant computation. Uses shared castingScoreUtils. |
 | `TalentShotHistory.tsx` | `features/library/components/` | Shot history grouped by project, status badges via getShotStatusColor() |
 | `CreateCrewDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating crew members |
 | `CreateLocationDialog.tsx` | `features/library/components/` | ResponsiveDialog for creating locations |

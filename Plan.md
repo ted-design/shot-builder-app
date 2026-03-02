@@ -641,6 +641,46 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S6: Talent Page Improvements
+
+**Goal:** Fix 6 UX issues on the Library > Talent page: details below grid requiring excessive scrolling, editable project linking, misleading shot history errors, misplaced casting brief, text-field measurements, and unscoped TalentPicker.
+
+**Status:** COMPLETE
+
+### Sub-tasks
+
+- [x] **S6-1 (Mockups):** 4 HTML mockups — 3 layout options (Sheet/MasterDetail/SlideOver) + casting brief panel with range sliders. User chose Option A (Sheet).
+- [x] **S6-2 (Decompose):** LibraryTalentPage.tsx 1,896→741 lines. Extracted 6 files: talentUtils.ts, HeadshotThumb.tsx, SortableImageTile.tsx, TalentInlineEditors.tsx, TalentDetailPanel.tsx (916 lines), CreateTalentDialog.tsx. Build + 98 tests pass.
+- [x] **S6-3a (Read-only projects):** Removed add/remove project controls from TalentDetailPanel. Project pills are now read-only `<Link>` to `/projects/:id/assets`. Removed `availableProjectOptions` prop/computation.
+- [x] **S6-3b (Shot history fix):** Fixed `error instanceof Error` always false (FirestoreCollectionError is plain object). `isMissingIndex` → muted message, genuine errors → red.
+- [x] **S6-4 (Sheet layout):** Replaced inline Card with Sheet (right-side on desktop, bottom sheet on mobile). Added prev/next navigation buttons + keyboard arrow keys. Selected card gets highlight ring. Build + 98 tests pass.
+- [x] **S6-5a (Casting brief relocation):** Extract casting brief from TalentDetailPanel tabs to top-level collapsible panel above grid. Grid cards show match score badges when casting mode active.
+- [x] **S6-5b (Range sliders):** Install shadcn Slider, create MeasurementRangeSlider (dual-thumb), useMeasurementBounds hook for data-driven bounds. Replace text inputs in casting brief.
+- [x] **S6-6 (TalentPicker scoping):** Added `projectId` prop to TalentPicker, project-scoped filtering, auto-repair orphaned talent via `addTalentToProject`. ShotDetailPage passes `shot.projectId`. All 242 tests pass.
+
+### Key Decisions
+
+- **Layout:** Option A (Sheet) — right-side drawer on desktop (`sm:max-w-xl lg:max-w-2xl`), bottom sheet on mobile (`max-h-[90vh] rounded-t-xl`)
+- **Navigation:** Prev/next buttons in sticky Sheet header + Left/Right keyboard arrows (skip when typing in inputs)
+- **Project pills:** Read-only with `<Link>` navigation to `/projects/:id/assets`
+- **Shot history errors:** `isMissingIndex` → muted message (not red), genuine errors → red
+- **TalentPicker:** Scoped to project talent; auto-repair is silent best-effort (idempotent `arrayUnion`)
+- **Casting brief:** Will move from detail tabs to top-level collapsible panel (Phase 5)
+- **Range sliders:** Dual-thumb with data-driven bounds from actual talent measurements (Phase 5)
+
+### Acceptance Criteria
+
+- [x] Talent detail opens in Sheet (no more scrolling below grid)
+- [x] Prev/next + keyboard arrow navigation works
+- [x] Project pills are read-only links
+- [x] Shot history shows muted message for missing indexes
+- [x] TalentPicker dropdown only shows project talent
+- [x] Casting brief accessible as top-level panel (not buried in detail tabs)
+- [x] Measurement inputs are range sliders with data-driven bounds
+- [x] Build clean, all tests pass
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

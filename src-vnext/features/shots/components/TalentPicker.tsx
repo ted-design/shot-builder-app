@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover"
 import {
   Command,
@@ -12,6 +12,8 @@ import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
 import { Badge } from "@/ui/badge"
 import { useTalent } from "@/features/shots/hooks/usePickerData"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { addTalentToProject } from "@/features/assets/lib/projectAssetsWrites"
 import { Users } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 
@@ -20,6 +22,7 @@ interface TalentPickerProps {
   readonly onSave: (ids: string[]) => void
   readonly disabled?: boolean
   readonly compact?: boolean
+  readonly projectId?: string
 }
 
 export function TalentPicker({
@@ -27,10 +30,39 @@ export function TalentPicker({
   onSave,
   disabled,
   compact = false,
+  projectId,
 }: TalentPickerProps) {
   const { data: talent } = useTalent()
+  const { clientId } = useAuth()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<string[]>(selectedIds)
+  const repairRanRef = useRef(false)
+
+  const visibleTalent = projectId
+    ? talent.filter((t) => t.projectIds?.includes(projectId))
+    : talent
+
+  // Auto-repair: if selectedIds contains talent not yet linked to the project,
+  // silently backfill the link using arrayUnion (idempotent).
+  useEffect(() => {
+    if (!projectId || !clientId || repairRanRef.current) return
+    if (selectedIds.length === 0 || talent.length === 0) return
+
+    repairRanRef.current = true
+
+    const projectTalentIds = new Set(
+      talent
+        .filter((t) => t.projectIds?.includes(projectId))
+        .map((t) => t.id),
+    )
+    const orphaned = selectedIds.filter((id) => !projectTalentIds.has(id))
+
+    if (orphaned.length === 0) return
+
+    addTalentToProject({ clientId, projectId, ids: orphaned }).catch(() => {
+      // Silent failure — best-effort backfill
+    })
+  }, [projectId, clientId, selectedIds, talent])
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
@@ -49,7 +81,7 @@ export function TalentPicker({
     )
   }
 
-  const selectedNames = talent
+  const selectedNames = visibleTalent
     .filter((t) => selectedIds.includes(t.id))
     .map((t) => t.name)
 
@@ -86,7 +118,7 @@ export function TalentPicker({
           <CommandList>
             <CommandEmpty>No talent found.</CommandEmpty>
             <CommandGroup>
-              {talent.map((t) => (
+              {visibleTalent.map((t) => (
                 <CommandItem
                   key={t.id}
                   onSelect={() => toggle(t.id)}
