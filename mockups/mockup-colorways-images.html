@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colorways Section — Identity Images Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Light mode (default) */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-text: #18181b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-accent: #E31E24;
+      --color-overlay-bg: rgba(0, 0, 0, 0.55);
+      --color-overlay-remove-bg: rgba(0, 0, 0, 0.08);
+      --color-overlay-remove-hover: rgba(239, 68, 68, 0.15);
+      --color-overlay-remove-text: #fafafa;
+      --color-swatch-border: rgba(0, 0, 0, 0.1);
+      --color-badge-active-bg: rgba(34, 197, 94, 0.1);
+      --color-badge-active-text: #16a34a;
+      --color-badge-active-border: rgba(34, 197, 94, 0.2);
+      --color-badge-archived-bg: rgba(161, 161, 170, 0.08);
+      --color-badge-archived-text: #71717a;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    /* Dark mode */
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #1c1c1f;
+      --color-text: #fafafa;
+      --color-text-muted: #a1a1aa;
+      --color-text-subtle: #71717a;
+      --color-border: #3f3f46;
+      --color-border-strong: #52525b;
+      --color-primary: #fafafa;
+      --color-primary-text: #09090b;
+      --color-overlay-bg: rgba(0, 0, 0, 0.65);
+      --color-overlay-remove-bg: rgba(255, 255, 255, 0.15);
+      --color-overlay-remove-hover: rgba(239, 68, 68, 0.3);
+      --color-overlay-remove-text: #fafafa;
+      --color-swatch-border: rgba(255, 255, 255, 0.15);
+      --color-badge-active-bg: rgba(34, 197, 94, 0.12);
+      --color-badge-active-text: #4ade80;
+      --color-badge-active-border: rgba(34, 197, 94, 0.2);
+      --color-badge-archived-bg: rgba(161, 161, 170, 0.1);
+      --color-badge-archived-text: var(--color-text-subtle);
+    }
+
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ─── Phase & Viewport Labels ──────────────────────────────────── */
+    .phase-label {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-subtle);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      z-index: 100;
+      letter-spacing: 0.02em;
+    }
+
+    .top-right-controls {
+      position: fixed;
+      top: 12px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .viewport-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-subtle);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.02em;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--color-text-subtle);
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--color-border-strong);
+      color: var(--color-text);
+    }
+
+    .theme-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Show sun icon in dark mode, moon icon in light mode */
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+    .dark .theme-toggle .icon-sun { display: block; }
+    .dark .theme-toggle .icon-moon { display: none; }
+
+    /* ─── Page Container ───────────────────────────────────────────── */
+    .page-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    /* ─── Section Header ───────────────────────────────────────────── */
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      gap: 16px;
+    }
+
+    .section-header-text h2 {
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .section-header-text p {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      font-weight: 400;
+    }
+
+    .btn-quick-add {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-primary-text);
+      background: var(--color-primary);
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+
+    .btn-quick-add:hover { opacity: 0.9; }
+
+    .btn-quick-add svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ─── Family Hero Image ────────────────────────────────────────── */
+    .family-hero-section {
+      margin-bottom: 32px;
+    }
+
+    .family-hero-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .family-hero-states {
+      display: flex;
+      gap: 32px;
+      align-items: flex-end;
+    }
+
+    .hero-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-state-label {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      font-weight: 400;
+    }
+
+    .family-hero-image {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      border-radius: var(--radius-lg);
+      background: var(--color-surface-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+    }
+
+    .family-hero-image svg {
+      width: 48px;
+      height: 48px;
+      color: var(--color-text-subtle);
+    }
+
+    .image-hover-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--color-overlay-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      border-radius: var(--radius-lg);
+    }
+
+    .family-hero-image:hover .image-hover-overlay {
+      opacity: 1;
+    }
+
+    .hero-state--hovered .image-hover-overlay {
+      opacity: 1;
+    }
+
+    .overlay-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .overlay-btn--replace {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+
+    .overlay-btn--replace:hover {
+      opacity: 0.9;
+    }
+
+    .overlay-btn--remove {
+      background: var(--color-overlay-remove-bg);
+      color: var(--color-overlay-remove-text);
+    }
+
+    .overlay-btn--remove:hover {
+      background: var(--color-overlay-remove-hover);
+    }
+
+    .overlay-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .hover-annotation {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    /* ─── Divider ──────────────────────────────────────────────────── */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--color-border);
+      margin: 0 0 28px;
+    }
+
+    /* ─── Colorway Grid ────────────────────────────────────────────── */
+    .colorway-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .colorway-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 580px) {
+      .colorway-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .family-hero-states {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .section-header {
+        flex-direction: column;
+      }
+    }
+
+    /* ─── Colorway Card ────────────────────────────────────────────── */
+    .colorway-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      gap: 14px;
+      transition: border-color 0.15s;
+    }
+
+    .colorway-card:hover {
+      border-color: var(--color-border-strong);
+    }
+
+    .colorway-card--hover-demo {
+      border-color: var(--color-border-strong);
+    }
+
+    /* Card Image */
+    .colorway-image {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      min-width: 80px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+    }
+
+    .colorway-image svg {
+      width: 28px;
+      height: 28px;
+      color: var(--color-text-subtle);
+    }
+
+    .colorway-image .card-hover-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--color-overlay-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      border-radius: var(--radius-md);
+    }
+
+    .colorway-card:hover .card-hover-overlay {
+      opacity: 1;
+    }
+
+    .colorway-card--hover-demo .card-hover-overlay {
+      opacity: 1;
+    }
+
+    .card-overlay-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .card-overlay-btn--replace {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+    }
+
+    .card-overlay-btn--remove {
+      background: var(--color-overlay-remove-bg);
+      color: var(--color-overlay-remove-text);
+      font-size: 10px;
+    }
+
+    /* Image placeholder with color tint */
+    .colorway-image-fill {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .colorway-image-fill--navy {
+      background: linear-gradient(135deg, #1e3a5f 0%, #162d4a 100%);
+    }
+
+    .colorway-image-fill--green {
+      background: linear-gradient(135deg, #228b22 0%, #1a6e1a 100%);
+    }
+
+    /* Card Info */
+    .colorway-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .colorway-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .color-swatch {
+      width: 12px;
+      height: 12px;
+      min-width: 12px;
+      border-radius: 50%;
+      border: 1px solid var(--color-swatch-border);
+    }
+
+    .colorway-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .colorway-sku {
+      font-size: 12px;
+      color: var(--color-text-subtle);
+      font-family: 'JetBrains Mono', monospace, 'Inter';
+      letter-spacing: 0.02em;
+    }
+
+    .colorway-sizes {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .colorway-sizes span {
+      color: var(--color-text-subtle);
+      font-weight: 500;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 999px;
+      width: fit-content;
+      margin-top: 2px;
+    }
+
+    .badge--active {
+      background: var(--color-badge-active-bg);
+      color: var(--color-badge-active-text);
+      border: 1px solid var(--color-badge-active-border);
+    }
+
+    .badge--archived {
+      background: var(--color-badge-archived-bg);
+      color: var(--color-badge-archived-text);
+      border: 1px solid var(--color-border);
+    }
+
+    /* ─── Annotation Callout ───────────────────────────────────────── */
+    .annotation-callout {
+      margin-top: 32px;
+      padding: 14px 18px;
+      background: var(--color-surface);
+      border: 1px dashed var(--color-border-strong);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .annotation-callout svg {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      color: var(--color-text-muted);
+      margin-top: 1px;
+    }
+
+    .annotation-callout p {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+    }
+
+    .annotation-callout strong {
+      color: var(--color-text);
+      font-weight: 500;
+    }
+
+    /* ─── Hover State Detail Section ───────────────────────────────── */
+    .hover-detail-section {
+      margin-top: 40px;
+      padding-top: 32px;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .hover-detail-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+    }
+
+    .hover-detail-row {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .hover-detail-card-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hover-detail-card-label {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      text-align: center;
+    }
+
+    .hover-detail-card-wrapper .colorway-card {
+      width: 320px;
+    }
+
+    .hover-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--color-text-subtle);
+      padding-top: 40px;
+    }
+
+    .hover-arrow svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (max-width: 720px) {
+      .hover-detail-row {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .hover-arrow {
+        transform: rotate(90deg);
+        padding-top: 0;
+      }
+
+      .hover-detail-card-wrapper .colorway-card {
+        width: 100%;
+        max-width: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Phase label -->
+  <div class="phase-label">Phase 11 — Product Detail</div>
+
+  <!-- Viewport label & theme toggle -->
+  <div class="top-right-controls">
+    <div class="viewport-label">Desktop 1200px</div>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+      <!-- Sun icon (shown in dark mode) -->
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <!-- Moon icon (shown in light mode) -->
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
+  </div>
+
+  <div class="page-container">
+
+    <!-- ─── Section Header ──────────────────────────────────────── -->
+    <div class="section-header">
+      <div class="section-header-text">
+        <h2>Colorways</h2>
+        <p>SKU-level status, sizing, and images</p>
+      </div>
+      <button class="btn-quick-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Quick add
+      </button>
+    </div>
+
+    <!-- ─── Family Hero Image ───────────────────────────────────── -->
+    <div class="family-hero-section">
+      <div class="family-hero-label">Family Image</div>
+      <div class="family-hero-states">
+        <!-- Normal state -->
+        <div class="hero-state">
+          <div class="family-hero-image">
+            <!-- Package icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16.5 9.4l-9-5.19"/>
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <div class="image-hover-overlay">
+              <button class="overlay-btn overlay-btn--replace">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Replace
+              </button>
+              <button class="overlay-btn overlay-btn--remove">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                Remove
+              </button>
+            </div>
+          </div>
+          <span class="hero-state-label">Normal</span>
+        </div>
+
+        <!-- Hovered state (forced visible) -->
+        <div class="hero-state hero-state--hovered">
+          <div class="family-hero-image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16.5 9.4l-9-5.19"/>
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <div class="image-hover-overlay">
+              <button class="overlay-btn overlay-btn--replace">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Replace
+              </button>
+              <button class="overlay-btn overlay-btn--remove">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                Remove
+              </button>
+            </div>
+          </div>
+          <span class="hero-state-label">Hovered</span>
+        </div>
+      </div>
+      <p class="hover-annotation">(hover actions, desktop only)</p>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ─── Colorway Grid ───────────────────────────────────────── -->
+    <div class="colorway-grid">
+
+      <!-- Card 1: Navy Blue (with image, active) -->
+      <div class="colorway-card">
+        <div class="colorway-image">
+          <div class="colorway-image-fill colorway-image-fill--navy"></div>
+          <div class="card-hover-overlay">
+            <button class="card-overlay-btn card-overlay-btn--replace">Replace</button>
+            <button class="card-overlay-btn card-overlay-btn--remove">Remove</button>
+          </div>
+        </div>
+        <div class="colorway-info">
+          <div class="colorway-name-row">
+            <div class="color-swatch" style="background: #1e3a5f;"></div>
+            <span class="colorway-name">Navy Blue</span>
+          </div>
+          <span class="colorway-sku">NB-2024-001</span>
+          <span class="colorway-sizes"><span>Sizes</span> XS, S, M, L, XL</span>
+          <span class="badge badge--active">Active</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Burgundy (no image, fallback icon) -->
+      <div class="colorway-card">
+        <div class="colorway-image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16.5 9.4l-9-5.19"/>
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          <div class="card-hover-overlay">
+            <button class="card-overlay-btn card-overlay-btn--replace">Replace</button>
+            <button class="card-overlay-btn card-overlay-btn--remove">Remove</button>
+          </div>
+        </div>
+        <div class="colorway-info">
+          <div class="colorway-name-row">
+            <div class="color-swatch" style="background: #722f37;"></div>
+            <span class="colorway-name">Burgundy</span>
+          </div>
+          <span class="colorway-sku">BG-2024-002</span>
+          <span class="colorway-sizes"><span>Sizes</span> S, M, L</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Forest Green (with image, archived) -->
+      <div class="colorway-card">
+        <div class="colorway-image">
+          <div class="colorway-image-fill colorway-image-fill--green"></div>
+          <div class="card-hover-overlay">
+            <button class="card-overlay-btn card-overlay-btn--replace">Replace</button>
+            <button class="card-overlay-btn card-overlay-btn--remove">Remove</button>
+          </div>
+        </div>
+        <div class="colorway-info">
+          <div class="colorway-name-row">
+            <div class="color-swatch" style="background: #228b22;"></div>
+            <span class="colorway-name">Forest Green</span>
+          </div>
+          <span class="colorway-sku">FG-2024-003</span>
+          <span class="colorway-sizes"><span>Sizes</span> XS, S, M, L, XL, XXL</span>
+          <span class="badge badge--archived">Archived</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── Hover State Detail ──────────────────────────────────── -->
+    <div class="hover-detail-section">
+      <div class="hover-detail-title">Hover State Detail</div>
+      <div class="hover-detail-row">
+        <!-- Normal card -->
+        <div class="hover-detail-card-wrapper">
+          <span class="hover-detail-card-label">Default</span>
+          <div class="colorway-card">
+            <div class="colorway-image">
+              <div class="colorway-image-fill colorway-image-fill--navy"></div>
+              <div class="card-hover-overlay">
+                <button class="card-overlay-btn card-overlay-btn--replace">Replace</button>
+                <button class="card-overlay-btn card-overlay-btn--remove">Remove</button>
+              </div>
+            </div>
+            <div class="colorway-info">
+              <div class="colorway-name-row">
+                <div class="color-swatch" style="background: #1e3a5f;"></div>
+                <span class="colorway-name">Navy Blue</span>
+              </div>
+              <span class="colorway-sku">NB-2024-001</span>
+              <span class="colorway-sizes"><span>Sizes</span> XS, S, M, L, XL</span>
+              <span class="badge badge--active">Active</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="hover-arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </div>
+
+        <!-- Hovered card (forced overlay) -->
+        <div class="hover-detail-card-wrapper">
+          <span class="hover-detail-card-label">On Hover (desktop)</span>
+          <div class="colorway-card colorway-card--hover-demo">
+            <div class="colorway-image">
+              <div class="colorway-image-fill colorway-image-fill--navy"></div>
+              <div class="card-hover-overlay">
+                <button class="card-overlay-btn card-overlay-btn--replace">Replace</button>
+                <button class="card-overlay-btn card-overlay-btn--remove">Remove</button>
+              </div>
+            </div>
+            <div class="colorway-info">
+              <div class="colorway-name-row">
+                <div class="color-swatch" style="background: #1e3a5f;"></div>
+                <span class="colorway-name">Navy Blue</span>
+              </div>
+              <span class="colorway-sku">NB-2024-001</span>
+              <span class="colorway-sizes"><span>Sizes</span> XS, S, M, L, XL</span>
+              <span class="badge badge--active">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Annotation Callout ──────────────────────────────────── -->
+    <div class="annotation-callout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      <p><strong>Identity images moved from Assets tab.</strong> Edit inline. Desktop hover actions only. Mobile users see view-only images with no replace/remove controls.</p>
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      document.documentElement.classList.toggle('dark');
+    });
+  </script>
+</body>
+</html>

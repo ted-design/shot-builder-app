@@ -139,6 +139,9 @@
   --color-status-red-bg: #fef2f2;        /* red-50 */
   --color-status-red-text: #dc2626;      /* red-600 */
   --color-status-red-border: #fecaca;    /* red-200 */
+  --color-status-purple-bg: #faf5ff;     /* purple-50 */
+  --color-status-purple-text: #7c3aed;   /* purple-600 */
+  --color-status-purple-border: #e9d5ff; /* purple-200 */
 
   /* --- Table Specific --- */
   --color-table-header-bg: transparent;
@@ -387,6 +390,9 @@
   --color-status-red-bg: #450a0a;        /* red-950 */
   --color-status-red-text: #fca5a5;      /* red-300 */
   --color-status-red-border: #b91c1c;    /* red-700 */
+  --color-status-purple-bg: #2e1065;     /* purple-950 */
+  --color-status-purple-text: #d8b4fe;   /* purple-300 */
+  --color-status-purple-border: #7c3aed; /* purple-600 */
 
   /* --- Table --- */
   --color-table-header-border: #52525b;  /* zinc-600 */

@@ -1,18 +1,20 @@
 import { useMemo } from "react"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import {
+  computeSuggestedShootWindow,
   sortByUrgency,
   isWithinDays,
   type ShootReadinessItem,
 } from "@/features/products/lib/shootReadiness"
-import { countActiveRequirements } from "@/features/products/lib/assetRequirements"
 
 /**
- * Returns shoot readiness data for families with launch dates in the next 90 days.
+ * Returns shoot readiness data for product families using 3-tier eligibility:
+ *   1. Launch date within 90 days (full tier)
+ *   2. Earliest SKU launch date within 90 days (full tier)
+ *   3. Has tracked samples (samples_only tier)
  *
- * Uses denormalized family-level fields (activeSkuCount) for colorway counts.
- * Per-family sample/SKU subcollection data is not loaded to avoid N subscription fan-out
- * (CLAUDE.md Rule 5). Full readiness % will require denormalized aggregates on the family doc.
+ * Uses denormalized family-level fields only to avoid N subscription fan-out
+ * (CLAUDE.md Rule 5).
  */
 export function useShootReadiness(): {
   readonly items: ReadonlyArray<ShootReadinessItem>
@@ -21,25 +23,57 @@ export function useShootReadiness(): {
   const { data: allFamilies, loading: familiesLoading } = useProductFamilies()
 
   const items = useMemo(() => {
-    const eligible = allFamilies.filter(
-      (f) =>
-        f.launchDate != null &&
-        f.archived !== true &&
-        isWithinDays(f.launchDate, 90),
-    )
+    const eligible = allFamilies.filter((f) => {
+      if (f.archived === true || f.deleted === true) return false
+
+      // Tier 1: Has family-level launch date within 90 days
+      const hasUpcomingLaunch =
+        f.launchDate != null && isWithinDays(f.launchDate, 90)
+
+      // Tier 2: Has earliest SKU-level launch date within 90 days
+      const hasUpcomingEarliestLaunch =
+        f.earliestLaunchDate != null && isWithinDays(f.earliestLaunchDate, 90)
+
+      // Tier 3: Has tracked samples
+      const hasSamples =
+        (f.sampleCount ?? 0) > 0 || (f.samplesArrivedCount ?? 0) > 0
+
+      return hasUpcomingLaunch || hasUpcomingEarliestLaunch || hasSamples
+    })
 
     if (eligible.length === 0) return []
 
-    const readinessItems: ShootReadinessItem[] = eligible.map((family) => ({
-      familyId: family.id,
-      familyName: family.styleName,
-      launchDate: family.launchDate!,
-      totalSkus: family.activeSkuCount ?? family.skuCount ?? 0,
-      skusWithFlags: 0,
-      samplesArrived: 0,
-      samplesTotal: 0,
-      readinessPct: 0,
-    }))
+    const readinessItems: ShootReadinessItem[] = eligible.map((family) => {
+      const effectiveLaunchDate =
+        family.earliestLaunchDate ?? family.launchDate ?? null
+      const samplesTotal = family.sampleCount ?? 0
+      const samplesArrived = family.samplesArrivedCount ?? 0
+      const readinessPct =
+        samplesTotal > 0
+          ? Math.round((samplesArrived / samplesTotal) * 100)
+          : 0
+
+      const shootWindow = computeSuggestedShootWindow({
+        launchDate: effectiveLaunchDate,
+        samplesTotal,
+        samplesArrived,
+        earliestSampleEta: family.earliestSampleEta ?? null,
+        requestDeadline: null,
+      })
+
+      return {
+        familyId: family.id,
+        familyName: family.styleName,
+        launchDate: effectiveLaunchDate,
+        totalSkus: family.activeSkuCount ?? family.skuCount ?? 0,
+        skusWithFlags: 0,
+        samplesArrived,
+        samplesTotal,
+        readinessPct,
+        shootWindow,
+        requestDeadline: null,
+      }
+    })
 
     return sortByUrgency(readinessItems)
   }, [allFamilies])

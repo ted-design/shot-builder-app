@@ -1,21 +1,36 @@
-import type { ProductAssetType, ProductAssetFlag, ProductAssetRequirements, ProductSku } from "@/shared/types"
+import type { ProductAssetFlag, ProductAssetRequirements, ProductSku } from "@/shared/types"
 import type { Timestamp } from "firebase/firestore"
 
-export const ASSET_TYPES: ReadonlyArray<{ readonly key: ProductAssetType; readonly label: string }> = [
-  { key: "ecomm", label: "E-commerce" },
-  { key: "campaign", label: "Campaign" },
-  { key: "video", label: "Video" },
-  { key: "ai_generated", label: "AI-generated" },
-] as const
+export interface AssetTypeEntry {
+  readonly key: string
+  readonly label: string
+  readonly group: "photography" | "motion" | "other"
+}
+
+export const ASSET_TYPES: ReadonlyArray<AssetTypeEntry> = [
+  { key: "ecomm_on_figure", label: "E-commerce (on-figure)", group: "photography" },
+  { key: "lifestyle", label: "Lifestyle / Campaign", group: "photography" },
+  { key: "off_figure_pinup", label: "Off-figure (pinups / flatlays)", group: "photography" },
+  { key: "off_figure_detail", label: "Off-figure (fabric / detail)", group: "photography" },
+  { key: "video", label: "Video", group: "motion" },
+  { key: "other", label: "Other (specify)", group: "other" },
+]
+
+export const LEGACY_ASSET_TYPES: ReadonlyArray<{ readonly key: string; readonly label: string }> = [
+  { key: "ecomm", label: "E-commerce (legacy)" },
+  { key: "campaign", label: "Campaign (legacy)" },
+  { key: "ai_generated", label: "AI-generated (legacy)" },
+]
 
 export const ASSET_FLAG_OPTIONS: ReadonlyArray<{ readonly value: ProductAssetFlag; readonly label: string }> = [
   { value: "needed", label: "Needed" },
   { value: "in_progress", label: "In progress" },
   { value: "delivered", label: "Delivered" },
+  { value: "ai_generated", label: "AI Generated" },
   { value: "not_needed", label: "Not needed" },
-] as const
+]
 
-const VALID_FLAGS = new Set<string>(["needed", "in_progress", "delivered", "not_needed"])
+const VALID_FLAGS = new Set<string>(["needed", "in_progress", "delivered", "not_needed", "ai_generated"])
 
 export function normalizeAssetFlag(value: unknown): ProductAssetFlag | undefined {
   if (typeof value !== "string") return undefined
@@ -29,8 +44,12 @@ export function isRequirementActionable(flag: ProductAssetFlag | undefined | nul
 export function countActiveRequirements(reqs: ProductAssetRequirements | null | undefined): number {
   if (!reqs) return 0
   let count = 0
-  for (const key of ASSET_TYPES) {
-    if (isRequirementActionable(reqs[key.key])) count += 1
+  for (const key of Object.keys(reqs)) {
+    if (key === "other_label") continue
+    const flag = reqs[key]
+    if (typeof flag === "string" && isRequirementActionable(flag as ProductAssetFlag)) {
+      count += 1
+    }
   }
   return count
 }
@@ -54,7 +73,7 @@ export function getLaunchDeadlineWarning(
 }
 
 export function formatLaunchDate(launchDate: Timestamp | null | undefined): string {
-  if (!launchDate) return "—"
+  if (!launchDate) return "\u2014"
   try {
     return new Intl.DateTimeFormat(undefined, {
       year: "numeric",
@@ -62,7 +81,7 @@ export function formatLaunchDate(launchDate: Timestamp | null | undefined): stri
       day: "numeric",
     }).format(launchDate.toDate())
   } catch {
-    return "—"
+    return "\u2014"
   }
 }
 
@@ -81,7 +100,8 @@ export function summarizeSkuAssetFlags(skus: ReadonlyArray<ProductSku>): SkuAsse
 
   for (const sku of skus) {
     if (!sku.assetRequirements) continue
-    for (const { key } of ASSET_TYPES) {
+    for (const key of Object.keys(sku.assetRequirements)) {
+      if (key === "other_label") continue
       const flag = sku.assetRequirements[key]
       if (!flag || flag === "not_needed") continue
       total += 1
@@ -92,4 +112,30 @@ export function summarizeSkuAssetFlags(skus: ReadonlyArray<ProductSku>): SkuAsse
   }
 
   return { total, needed, inProgress, delivered }
+}
+
+export function resolveSkuLaunchDate(
+  sku: ProductSku,
+  familyLaunchDate: Timestamp | null | undefined,
+): Timestamp | null {
+  return sku.launchDate ?? familyLaunchDate ?? null
+}
+
+export function resolveEarliestLaunchDate(
+  familyLaunchDate: Timestamp | null | undefined,
+  skus: ReadonlyArray<ProductSku>,
+): Timestamp | null {
+  const candidates: Timestamp[] = []
+  if (familyLaunchDate) candidates.push(familyLaunchDate)
+  for (const sku of skus) {
+    if (sku.launchDate) candidates.push(sku.launchDate)
+  }
+  if (candidates.length === 0) return null
+  return candidates.reduce((earliest, ts) => {
+    try {
+      return ts.toDate().getTime() < earliest.toDate().getTime() ? ts : earliest
+    } catch {
+      return earliest
+    }
+  })
 }
