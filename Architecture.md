@@ -442,6 +442,8 @@ Single source of design truth. CSS custom properties for colors, spacing, typogr
 
 **Status color tokens:** `--color-status-{color}-bg`, `--color-status-{color}-text`, `--color-status-{color}-border` for blue (info/submitted), green (success/absorbed), amber (warning/triaged), red (error/out-of-range), purple (AI Generated asset flag). Both light and dark theme variants defined. Added red tokens in Phase 9 for casting match out-of-range scores. Added purple tokens in Phase 10 for AI Generated flag state.
 
+**Entry-type color tokens (Sprint S7):** `--color-entry-{type}-border`, `--color-entry-{type}-bg` for setup (amber), shooting (blue), hmu (violet), meal (emerald), travel (zinc), banner (neutral), shot (blue). Both light and dark variants. Used by `blockColors.ts` via CSS var references — components use inline `style` with these vars, not Tailwind color classes.
+
 **Dark mode:** `.dark` class selector block overrides all color tokens (surfaces, text, borders, primary, status badges, table, shadows). Activation via Tailwind `darkMode: 'class'` strategy. ThemeProvider applies `.dark` on `<html>`. FOUC prevention script in `index.html` applies it pre-React. localStorage key: `sb:theme` (`light | dark | system`).
 
 ### design-tokens.js (Semantic Classes)
@@ -557,6 +559,32 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `useShootReadiness` | `features/products/hooks/` | 3-tier eligibility hook reading denormalized family fields |
 | `assetRequirements.ts` | `features/products/lib/` | ASSET_TYPES (with groups), LEGACY_ASSET_TYPES, ASSET_FLAG_OPTIONS, resolveSkuLaunchDate, resolveEarliestLaunchDate |
 | `shootReadiness.ts` | `features/products/lib/` | ShootWindow interface, computeSuggestedShootWindow (3-tier), sortByUrgency |
+
+### Schedule & Call Sheet Components (Sprint S7)
+
+| Component / Hook / Lib | Location | Purpose |
+|---|---|---|
+| `overlapGroups.ts` | `features/schedules/lib/` | Sweep-line per-track overlap detection algorithm. Groups timed non-banner entries by time overlap. Clamps endMin to 1439 for midnight-spanning entries. 12 TDD tests. |
+| `blockColors.ts` | `features/schedules/lib/` | Maps entry type/banner label to CSS var references. Returns `BlockColorVars { borderColorVar, bgColorVar }`. Setup=amber, shooting=blue, HMU=violet, meal=emerald, travel=zinc. |
+| `useOverlapGroups.ts` | `features/schedules/hooks/` | Memoized wrapper around `buildOverlapGroups()` |
+| `useNowMinute.ts` | `shared/hooks/` | System clock hook returning current minute of day (0-1439). Updates every 60s. CANONICAL source — no duplicates. |
+| `TimelineGridView.tsx` | `features/schedules/components/` | Grid orchestrator: TimelineGutter + track columns + NowIndicator + OverlapGroups. min-w-[600px], empty-state guard. |
+| `TimelineGutter.tsx` | `features/schedules/components/` | 60px time label column, 15-min tick marks |
+| `TimelineNowIndicator.tsx` | `features/schedules/components/` | NOW label + pulsing dot + 1px red line across track columns |
+| `TimelineBlockCard.tsx` | `features/schedules/components/` | Single schedule block card. COMPACT_HEIGHT=64px. Uses getBlockColors() CSS vars. |
+| `TimelineBlockGroup.tsx` | `features/schedules/components/` | Renders overlap groups: isolated=full-width 64px, overlapping=side-by-side sub-columns |
+| `TimelinePropertiesDrawer.tsx` | `features/schedules/components/` | Persistent 320px right-side panel for block details (NOT a Sheet/dialog) |
+| `CallSheetPageHeader.tsx` | `features/schedules/components/` | 3-zone modular grid header for call sheet output |
+| `CallSheetCastTable.tsx` | `features/schedules/components/` | Talent table with editorial section label |
+| `CallSheetDeptGrid.tsx` | `features/schedules/components/` | Crew by department with dark headers, break-inside-avoid for print |
+| `CallSheetKeyTimesStrip.tsx` | `features/schedules/components/` | Horizontal key times band |
+| `OnSetViewer.tsx` | `features/schedules/components/` | Mobile on-set viewer shell with 4-tab navigation (useSearchParams) |
+| `OnSetNowBanner.tsx` | `features/schedules/components/` | Sticky LIVE status bar with green pulse dot |
+| `OnSetScheduleTab.tsx` | `features/schedules/components/` | Today's schedule with time gutter, status badges, progress bars |
+| `OnSetCrewTab.tsx` | `features/schedules/components/` | Department-grouped crew directory with collapsible sections (grid-template-rows) |
+| `OnSetLocationTab.tsx` | `features/schedules/components/` | Address display + directions (Apple Maps on iOS, Google Maps elsewhere) |
+| `OnSetNotesTab.tsx` | `features/schedules/components/` | Free text notes display |
+| `OnSetFloatingBar.tsx` | `features/schedules/components/` | Frosted glass floating action bar (Add Note + Flag Issue) |
 
 ---
 

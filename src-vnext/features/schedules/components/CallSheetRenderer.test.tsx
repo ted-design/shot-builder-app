@@ -50,7 +50,8 @@ describe("CallSheetRenderer", () => {
       />,
     )
 
-    expect(screen.getByText("Project Alpha")).toBeInTheDocument()
+    // Project name may appear in header and footer; verify at least one occurrence
+    expect(screen.getAllByText("Project Alpha").length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText("Day 1")).toBeInTheDocument()
   })
 

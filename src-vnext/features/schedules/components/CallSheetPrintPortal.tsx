@@ -108,7 +108,12 @@ function PrintApp({
   }, [])
 
   return (
-    <div data-callsheet-print-root className="min-h-screen bg-white">
+    <div
+      data-callsheet-print-root
+      data-callsheet-doc-light
+      className="min-h-screen"
+      style={{ colorScheme: "light", background: "#ffffff", color: "#111111" }}
+    >
       {/* Readiness registry: each section registers and reports ready once its subscription has emitted. */}
       <PrintReady id="schedule" ready={readiness.schedule} onRegister={onRegister} onReady={onReady} />
       <PrintReady id="dayDetails" ready={readiness.dayDetails} onRegister={onRegister} onReady={onReady} />

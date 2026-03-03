@@ -2,7 +2,347 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * ══════════════════════════════════════════════════════
+ * CALLSHEET LIGHT-MODE SCOPE  (S7-7 dark mode fix)
+ *
+ * The print portal and editor preview MUST always render
+ * in light mode regardless of the system/app dark mode.
+ * We use [data-callsheet-doc-light] to hard-pin all CSS
+ * variables used by callsheet components to light values.
+ *
+ * Placed outside @layer so it beats .dark specificity.
+ * ══════════════════════════════════════════════════════
+ */
+[data-callsheet-doc-light],
+[data-callsheet-doc-light] * {
+  color-scheme: light;
+}
+
+[data-callsheet-doc-light] {
+  /* Surfaces */
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #e4e4e7;
+  --color-surface-subtle: #f4f4f5;
+
+  /* Text */
+  --color-text: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #71717a;
+  --color-text-subtle: #a1a1aa;
+
+  /* Borders */
+  --color-border: #e4e4e7;
+  --color-border-muted: #f4f4f5;
+  --color-border-strong: #d4d4d8;
+
+  /* Doc-specific tokens */
+  --color-doc-ink: #111111;
+  --color-doc-header-fill: #f2f2f2;
+
+  /* Doc page tokens */
+  --doc-canvas-bg: #e4e4e7;
+  --doc-page-bg: #ffffff;
+  --doc-page-border: 1px solid #e4e4e7;
+  --doc-section-band-bg: #111111;
+  --doc-section-band-text: #ffffff;
+
+  background-color: #ffffff;
+  color: #111111;
+}
+
 @layer components {
+  /* ══════════════════════════════════════════════════
+     CALL SHEET DOCUMENT STYLES (S7-7)
+     Section labels: editorial dark text + 2px border rule (NOT full-bleed bands)
+     Table headers: light gray bg / zinc-600 text
+     ══════════════════════════════════════════════════ */
+
+  /* Editorial section label — dark text + bottom border rule */
+  .callsheet-section-label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-doc-ink, #111111);
+    padding: 8px 0 4px;
+    margin-top: 8px;
+    border-bottom: 2px solid var(--color-doc-ink, #111111);
+  }
+
+  .callsheet-section-label-meta {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, #71717a);
+    text-transform: none;
+  }
+
+  /* Dense table base for cast + crew */
+  .callsheet-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .callsheet-cs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .callsheet-cs-table th {
+    background: var(--color-surface-subtle, #f4f4f5);
+    color: var(--color-text-secondary, #52525b);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 6px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--color-border-strong, #d4d4d8);
+  }
+
+  .callsheet-cs-table th.text-right { text-align: right; }
+  .callsheet-cs-table th.text-center { text-align: center; }
+
+  .callsheet-cs-table td {
+    padding: 2px 6px;
+    height: 20px;
+    vertical-align: middle;
+    border-bottom: 0.5px solid var(--color-border-muted, #f4f4f5);
+    font-size: 11px;
+  }
+
+  .callsheet-cs-table td.text-right { text-align: right; }
+  .callsheet-cs-table td.text-center { text-align: center; }
+
+  .callsheet-row-odd td { background: var(--color-surface, #ffffff); }
+  .callsheet-row-even td { background: var(--color-bg, #fafafa); }
+
+  /* Department block (crew grid) */
+  .callsheet-dept-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 8px;
+  }
+
+  .callsheet-dept-header {
+    background: var(--color-doc-ink, #111111);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .callsheet-dept-count {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    text-transform: none;
+  }
+
+  .callsheet-crew-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* Key times strip */
+  .callsheet-key-times {
+    display: flex;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-doc-ink, #111111);
+    border-top: 1.5px solid var(--color-doc-ink, #111111);
+    border-bottom: 1.5px solid var(--color-doc-ink, #111111);
+    margin-top: 8px;
+  }
+
+  .callsheet-key-time-item {
+    flex: 1;
+    text-align: center;
+    padding: 4px 6px;
+    border-right: 0.5px solid var(--color-border-strong, #d4d4d8);
+  }
+
+  .callsheet-key-time-item:last-child { border-right: none; }
+
+  .callsheet-key-time-label {
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--color-text-muted, #71717a);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+  }
+
+  /* 3-zone grid header */
+  .callsheet-header-grid-wrap {
+    margin-bottom: 8px;
+  }
+
+  .callsheet-accent-rule {
+    height: 2px;
+    background: var(--doc-accent, var(--color-accent, #E31E24));
+  }
+
+  .callsheet-header-grid {
+    display: grid;
+    grid-template-columns: 25% 50% 25%;
+    border: 1px solid var(--color-border-strong, #d4d4d8);
+  }
+
+  .callsheet-header-zone {
+    padding: 10px 12px;
+  }
+
+  .callsheet-header-zone:not(:last-child) {
+    border-right: 0.5px solid var(--color-border-strong, #d4d4d8);
+  }
+
+  .callsheet-header-zone--left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .callsheet-header-zone--center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1px;
+  }
+
+  .callsheet-header-zone--right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .callsheet-header-project {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-doc-ink, #111111);
+  }
+
+  .callsheet-header-schedule {
+    font-size: 10px;
+    color: var(--color-text-muted, #71717a);
+  }
+
+  .callsheet-header-crew-call {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--color-doc-ink, #111111);
+  }
+
+  .callsheet-header-crew-call-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-subtle, #a1a1aa);
+  }
+
+  .callsheet-header-day {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-doc-ink, #111111);
+    line-height: 1.15;
+  }
+
+  .callsheet-header-date {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-doc-ink, #111111);
+    letter-spacing: 0.02em;
+  }
+
+  .callsheet-header-weather {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-doc-ink, #111111);
+    margin-top: 4px;
+  }
+
+  .callsheet-header-weather-summary {
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--color-text-muted, #71717a);
+  }
+
+  .callsheet-location-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 10px;
+    border-bottom: 0.5px solid var(--color-border, #e4e4e7);
+  }
+
+  .callsheet-location-label {
+    font-weight: 600;
+    color: var(--color-text-muted, #71717a);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+
+  .callsheet-location-value {
+    font-weight: 500;
+    color: var(--color-doc-ink, #111111);
+  }
+
+  /* Running header — hidden on screen, visible in print only */
+  .callsheet-running-header {
+    display: none;
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--color-text-muted, #71717a);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 6px;
+    border-bottom: 0.5px solid var(--color-border-strong, #d4d4d8);
+    margin-bottom: 12px;
+  }
+
+  /* Page footer — hidden on screen, visible in print only */
+  .callsheet-page-footer-left {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    font-size: 9px;
+    color: var(--color-text-subtle, #a1a1aa);
+    letter-spacing: 0.02em;
+  }
+
   /* Timeline spine — vertical rhythm scaffold for schedule entries */
   .schedule-entry-stream {
     position: relative;
@@ -175,4 +515,71 @@
     text-decoration: none !important;
     color: inherit !important;
   }
+
+  /* ── S7-7 Call Sheet Print Additions ─────────────────────────────── */
+
+  /* Department blocks avoid page breaks inside */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .callsheet-dept-block {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Running header: hidden on screen, shown at start of crew section in print */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .callsheet-running-header {
+    display: flex !important;
+  }
+
+  /* Page footer: shown in print only */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .callsheet-page-footer-left {
+    display: block !important;
+    position: fixed !important;
+    bottom: 10px !important;
+    left: 0 !important;
+  }
+
+  /* Section labels avoid orphan breaks */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .callsheet-section-label {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Key times strip stays with schedule */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] .callsheet-key-times {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Table headers repeat on page breaks */
+  body[data-callsheet-printing="1"] [data-callsheet-print-portal] thead {
+    display: table-header-group !important;
+  }
+
+}
+
+/* ═══════════════════════════════════════════════
+ * ON-SET VIEWER ANIMATIONS (S7-8)
+ * ═══════════════════════════════════════════════ */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.live-dot {
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes now-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.now-line-pulse {
+  animation: now-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+.pulse-active {
+  animation: pulse-ring 2s ease-out infinite;
 }

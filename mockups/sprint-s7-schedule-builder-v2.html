@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint S7 — Schedule Builder v2 (Overlap Groups Compression)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            sidebar: '#09090b',
+            'sidebar-border': '#27272a',
+            'sidebar-hover': '#27272a',
+            'sidebar-active': '#3f3f46',
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+            schedule: {
+              setup:    { border: '#f59e0b', bg: 'rgba(255,251,235,0.55)' },
+              shooting: { border: '#3b82f6', bg: 'rgba(239,246,255,0.55)' },
+              hmu:      { border: '#8b5cf6', bg: 'rgba(245,243,255,0.55)' },
+              meal:     { border: '#10b981', bg: 'rgba(236,253,245,0.55)' },
+              travel:   { border: '#71717a', bg: 'rgba(244,244,245,0.55)' },
+              banner:   { border: '#18181b', bg: 'rgba(244,244,245,0.65)' },
+            },
+          },
+          fontSize: {
+            '3xs': ['9px',  { lineHeight: '12px' }],
+            '2xs': ['10px', { lineHeight: '14px' }],
+            'xs':  ['11px', { lineHeight: '16px' }],
+            'sm':  ['13px', { lineHeight: '18px' }],
+            'base':['14px', { lineHeight: '20px' }],
+            'lg':  ['16px', { lineHeight: '22px' }],
+            'xl':  ['18px', { lineHeight: '24px' }],
+          },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: #fafafa;
+      color: #18181b;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Typography Tokens ---- */
+    .heading-page {
+      font-size: 24px;
+      line-height: 28px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+    .heading-section {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .label-meta {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ---- Collapsed Sidebar ---- */
+    .icon-sidebar {
+      width: 64px;
+      background: #09090b;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 4px;
+      border-right: 1px solid #27272a;
+      z-index: 50;
+    }
+    .icon-sidebar .sb-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #71717a;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .icon-sidebar .sb-icon:hover {
+      background: #27272a;
+      color: #a1a1aa;
+    }
+    .icon-sidebar .sb-icon.active {
+      background: #3f3f46;
+      color: #fafafa;
+    }
+    .icon-sidebar .sb-icon.active::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: #E31E24;
+    }
+    .icon-sidebar .sb-logo {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .icon-sidebar .sb-spacer { flex: 1; }
+    .icon-sidebar .sb-tooltip {
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: #18181b;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .icon-sidebar .sb-icon:hover .sb-tooltip { opacity: 1; }
+
+    /* ---- Scrollbar Styling ---- */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+    /* ---- Buttons ---- */
+    .btn-secondary {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #e4e4e7;
+      background: #ffffff;
+      color: #18181b;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-secondary:hover {
+      border-color: #d4d4d8;
+      background: #f4f4f5;
+    }
+    .btn-primary {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #18181b;
+      background: #18181b;
+      color: #fafafa;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #27272a; }
+    .btn-danger {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #fecaca;
+      background: #fff;
+      color: #dc2626;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+
+    /* ---- Top Bar ---- */
+    .top-bar {
+      height: 52px;
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    /* ---- Day Tabs ---- */
+    .day-tabs {
+      display: flex;
+      align-items: center;
+      background: #f4f4f5;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 1px;
+    }
+    .day-tab {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .day-tab:hover { color: #18181b; }
+    .day-tab.active {
+      background: #ffffff;
+      color: #18181b;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      font-weight: 600;
+    }
+
+    /* ---- View Mode Toggle ---- */
+    .view-toggle {
+      display: flex;
+      align-items: center;
+      background: #f4f4f5;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 1px;
+    }
+    .view-toggle-btn {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .view-toggle-btn:hover { color: #18181b; }
+    .view-toggle-btn.active {
+      background: #ffffff;
+      color: #18181b;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+    /* ---- Day Details Bar ---- */
+    .day-details-bar {
+      height: 38px;
+      background: #fafafa;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 24px;
+      flex-shrink: 0;
+    }
+    .day-detail-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .day-detail-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #a1a1aa;
+    }
+    .day-detail-value {
+      font-size: 12px;
+      font-weight: 500;
+      color: #3f3f46;
+    }
+    .day-detail-separator {
+      width: 1px;
+      height: 16px;
+      background: #e4e4e7;
+    }
+
+    /* ---- Timeline Area ---- */
+    .timeline-area {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .timeline-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      background: #ffffff;
+    }
+    .timeline-content {
+      position: relative;
+      padding: 16px 0 80px 0;
+    }
+
+    /* ---- Time Gutter ---- */
+    .time-gutter {
+      width: 60px;
+      flex-shrink: 0;
+    }
+    .time-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #a1a1aa;
+      text-align: right;
+      padding-right: 12px;
+      line-height: 1;
+      position: absolute;
+      right: 0;
+      transform: translateY(-50%);
+    }
+
+    /* ---- Schedule Blocks ---- */
+    .schedule-block {
+      border-radius: 6px;
+      border: 1px solid #e4e4e7;
+      border-left-width: 3px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .schedule-block:hover {
+      border-left-width: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+      transform: translateY(-1px);
+    }
+    .schedule-block.selected {
+      border-left-width: 4px;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .schedule-block .block-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #18181b;
+      line-height: 1.3;
+    }
+    .schedule-block .block-time {
+      font-size: 11px;
+      font-weight: 400;
+      color: #71717a;
+      margin-top: 1px;
+    }
+    .schedule-block .block-desc {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-top: 2px;
+    }
+
+    /* Block type colors */
+    .block-setup    { border-left-color: #f59e0b; background: rgba(255,251,235,0.55); }
+    .block-shooting { border-left-color: #3b82f6; background: rgba(239,246,255,0.55); }
+    .block-hmu      { border-left-color: #8b5cf6; background: rgba(245,243,255,0.55); }
+    .block-meal     { border-left-color: #10b981; background: rgba(236,253,245,0.55); }
+    .block-travel   { border-left-color: #71717a; background: rgba(244,244,245,0.55); }
+    .block-banner   { border-left-color: #18181b; background: rgba(244,244,245,0.65); }
+
+    /* ---- NOW Indicator ---- */
+    .now-line {
+      position: absolute;
+      left: 60px;
+      right: 0;
+      height: 1px;
+      background: #E31E24;
+      opacity: 0.5;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .now-dot {
+      position: absolute;
+      left: 53px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #E31E24;
+      transform: translateY(-50%);
+      z-index: 21;
+      animation: nowPulse 2s ease-in-out infinite;
+    }
+    .now-label {
+      position: absolute;
+      left: 0;
+      width: 52px;
+      text-align: right;
+      transform: translateY(-50%);
+      font-size: 9px;
+      font-weight: 700;
+      color: #E31E24;
+      letter-spacing: 0.02em;
+      z-index: 22;
+      white-space: nowrap;
+    }
+    @keyframes nowPulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(227, 30, 36, 0.3); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(227, 30, 36, 0); }
+    }
+
+    /* Current block highlight */
+    .block-current {
+      border-left-color: #16a34a !important;
+      box-shadow: 0 0 0 1px rgba(22,163,74,0.2), inset 0 0 0 1px rgba(22,163,74,0.08);
+      animation: currentPulse 3s ease-in-out infinite;
+    }
+    @keyframes currentPulse {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(22,163,74,0.2), inset 0 0 0 1px rgba(22,163,74,0.08); }
+      50% { box-shadow: 0 0 0 3px rgba(22,163,74,0.12), inset 0 0 0 1px rgba(22,163,74,0.05); }
+    }
+
+    /* ---- Compression Boundary ---- */
+    .compression-boundary {
+      position: relative;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      margin: 0 0 0 60px;
+    }
+    .compression-boundary::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 0;
+      border-top: 1px dashed #d4d4d8;
+    }
+    .compression-label {
+      position: relative;
+      z-index: 1;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a1a1aa;
+      background: #fff;
+      padding: 0 8px;
+      margin-left: 8px;
+    }
+
+    /* ---- Properties Drawer ---- */
+    .properties-drawer {
+      width: 320px;
+      flex-shrink: 0;
+      background: #ffffff;
+      border-left: 1px solid #e4e4e7;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      transition: width 0.2s ease, opacity 0.2s ease;
+    }
+    .properties-drawer.collapsed {
+      width: 0;
+      overflow: hidden;
+      opacity: 0;
+    }
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid #f4f4f5;
+    }
+    .drawer-field {
+      padding: 0 16px;
+      margin-bottom: 16px;
+    }
+    .drawer-field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .drawer-field-value {
+      font-size: 14px;
+      color: #18181b;
+      padding: 7px 10px;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      background: #fafafa;
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.15s;
+    }
+    .drawer-field-value:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .drawer-field select.drawer-field-value {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 32px;
+      cursor: pointer;
+    }
+    .drawer-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border-left-width: 3px;
+      border-left-style: solid;
+    }
+    .drawer-section {
+      padding: 12px 16px;
+      border-top: 1px solid #f4f4f5;
+    }
+    .drawer-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #a1a1aa;
+      margin-bottom: 10px;
+    }
+    .crew-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #3f3f46;
+      background: #f4f4f5;
+      border-radius: 4px;
+      padding: 3px 8px;
+      margin: 0 4px 4px 0;
+    }
+
+    /* ---- FAB (Floating Action Button) ---- */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 356px; /* 320px drawer + 24px margin + 12px gap */
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: #18181b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1);
+      transition: all 0.15s;
+      z-index: 40;
+    }
+    .fab:hover {
+      background: #27272a;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 3px 6px rgba(0,0,0,0.1);
+    }
+    .fab.drawer-closed {
+      right: 36px;
+    }
+
+    /* ---- Track Layout ---- */
+    .track-row {
+      position: relative;
+      margin-left: 60px;
+      margin-right: 12px;
+    }
+    .track-row .track-columns {
+      display: flex;
+      gap: 4px;
+    }
+    .track-col {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ---- Overlap Group Container ---- */
+    .overlap-group {
+      position: relative;
+    }
+    .overlap-row {
+      display: flex;
+      gap: 4px;
+      margin-left: 60px;
+      margin-right: 12px;
+    }
+
+    /* ---- Isolated Block Container ---- */
+    .isolated-row {
+      margin-left: 60px;
+      margin-right: 12px;
+    }
+
+    /* ---- Timeline Row (absolute positioning within) ---- */
+    .timeline-row {
+      position: relative;
+    }
+
+    /* ---- Timeline Footer ---- */
+    .timeline-footer {
+      margin: 24px 0 0 60px;
+      padding: 16px 12px 16px 0;
+      border-top: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .footer-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .footer-stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #a1a1aa;
+    }
+    .footer-stat-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #18181b;
+    }
+    .type-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #71717a;
+    }
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid;
+    }
+
+    /* Drawer toggle button */
+    .drawer-toggle {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 40px;
+      background: #fff;
+      border: 1px solid #e4e4e7;
+      border-right: none;
+      border-radius: 4px 0 0 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a1a1aa;
+      z-index: 30;
+      transition: all 0.15s;
+    }
+    .drawer-toggle:hover {
+      background: #f4f4f5;
+      color: #52525b;
+    }
+  </style>
+</head>
+
+<body class="font-sans text-base" style="margin:0">
+
+  <!--
+    +============================================================+
+    |  SPRINT S7 — Schedule Builder v2                            |
+    |  Overlap Groups Compression Algorithm                       |
+    |                                                             |
+    |  Layout:                                                    |
+    |  [Sidebar 64px] [Main Content] [Properties Drawer 320px]   |
+    |                                                             |
+    |  Main Content:                                              |
+    |  [Top Bar 52px]                                             |
+    |  [Day Details Bar 38px]                                     |
+    |  [Timeline with compressed/proportional zones]              |
+    +============================================================+
+  -->
+
+  <div id="app" style="display: flex; height: 100vh; overflow: hidden;">
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SIDEBAR — 64px, icon-only, collapsed state     -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <aside class="icon-sidebar">
+      <!-- Logo -->
+      <div class="sb-logo">
+        <div style="width:32px; height:32px; border-radius:8px; background:#E31E24; display:flex; align-items:center; justify-content:center;">
+          <svg width="16" height="16" fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+            <circle cx="12" cy="13" r="3" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div class="sb-icon" title="Dashboard">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+        </svg>
+        <span class="sb-tooltip">Dashboard</span>
+      </div>
+
+      <!-- Projects (active) -->
+      <div class="sb-icon active" title="Projects">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+        </svg>
+        <span class="sb-tooltip">Projects</span>
+      </div>
+
+      <!-- Products -->
+      <div class="sb-icon" title="Products">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+        </svg>
+        <span class="sb-tooltip">Products</span>
+      </div>
+
+      <!-- Inbox -->
+      <div class="sb-icon" title="Inbox">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+        </svg>
+        <span class="sb-tooltip">Inbox</span>
+      </div>
+
+      <!-- Library -->
+      <div class="sb-icon" title="Library">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+        </svg>
+        <span class="sb-tooltip">Library</span>
+      </div>
+
+      <div class="sb-spacer"></div>
+
+      <!-- Settings -->
+      <div class="sb-icon" title="Settings">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <circle cx="12" cy="12" r="3" stroke-width="1.5"/>
+        </svg>
+        <span class="sb-tooltip">Settings</span>
+      </div>
+
+      <!-- User Avatar -->
+      <div class="sb-icon" style="margin-top: 4px;" title="Account">
+        <div style="width:28px; height:28px; border-radius:50%; background:#3f3f46; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#d4d4d8; letter-spacing:0.02em;">
+          TG
+        </div>
+        <span class="sb-tooltip">Account</span>
+      </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- MAIN CONTENT AREA                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+
+      <!-- ── TOP BAR ── -->
+      <div class="top-bar">
+        <!-- Breadcrumb -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 14px; font-weight: 500; color: #18181b;">SS26 Campaign</span>
+          <svg width="14" height="14" fill="none" stroke="#a1a1aa" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+          <span style="font-size: 14px; font-weight: 400; color: #71717a;">Schedule</span>
+          <svg width="14" height="14" fill="none" stroke="#a1a1aa" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+          <span style="font-size: 14px; font-weight: 500; color: #18181b;">Day 2</span>
+        </div>
+
+        <div style="flex: 1;"></div>
+
+        <!-- Day Selector Tabs -->
+        <div class="day-tabs">
+          <button class="day-tab">Day 1</button>
+          <button class="day-tab active">Day 2</button>
+          <button class="day-tab">Day 3</button>
+          <button class="day-tab">Day 4</button>
+        </div>
+
+        <!-- View Mode Toggle -->
+        <div class="view-toggle" id="viewModeToggle">
+          <button class="view-toggle-btn active" onclick="setViewMode('compressed')" id="btn-compressed">Compressed</button>
+          <button class="view-toggle-btn" onclick="setViewMode('proportional')" id="btn-proportional">Proportional</button>
+        </div>
+
+        <!-- Track Toggle -->
+        <div class="view-toggle" id="trackToggle">
+          <button class="view-toggle-btn active" onclick="setTrackMode('auto')" id="btn-auto">Auto</button>
+          <button class="view-toggle-btn" onclick="setTrackMode('1')" id="btn-1track">1 Track</button>
+          <button class="view-toggle-btn" onclick="setTrackMode('2')" id="btn-2track">2 Tracks</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <button class="btn-secondary">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+          Preview Call Sheet
+        </button>
+        <button class="btn-primary" onclick="alert('Add Entry dialog would open here')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add Entry
+        </button>
+      </div>
+
+      <!-- ── DAY DETAILS BAR ── -->
+      <div class="day-details-bar">
+        <div class="day-detail-item">
+          <span class="day-detail-label">Crew Call</span>
+          <span class="day-detail-value">6:30a</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <span class="day-detail-label">Shooting Call</span>
+          <span class="day-detail-value">8:00a</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <span class="day-detail-label">Lunch</span>
+          <span class="day-detail-value">12:30p</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <span class="day-detail-label">Wrap</span>
+          <span class="day-detail-value">6:00p</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <svg width="14" height="14" fill="none" stroke="#a1a1aa" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="day-detail-value">Studio A, 245 Fashion Ave, Brooklyn</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <svg width="14" height="14" fill="none" stroke="#a1a1aa" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <span class="day-detail-value">72°F, Partly Cloudy</span>
+        </div>
+        <div class="day-detail-separator"></div>
+        <div class="day-detail-item">
+          <svg width="12" height="12" fill="none" stroke="#a1a1aa" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3"/>
+          </svg>
+          <span style="font-size: 11px; color: #a1a1aa;">
+            <span style="color:#f59e0b;">&#9650;</span> 6:42a &nbsp;
+            <span style="color:#3b82f6;">&#9660;</span> 7:18p
+          </span>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════ -->
+      <!-- TIMELINE + DRAWER AREA                          -->
+      <!-- ═══════════════════════════════════════════════ -->
+      <div class="timeline-area">
+
+        <!-- ── TIMELINE SCROLL ── -->
+        <div class="timeline-scroll" id="timelineScroll">
+          <div class="timeline-content" id="timelineContent">
+
+            <!-- ============================================ -->
+            <!-- RENDERED BY JAVASCRIPT — see buildTimeline() -->
+            <!-- ============================================ -->
+
+          </div>
+        </div>
+
+        <!-- ── PROPERTIES DRAWER ── -->
+        <div class="properties-drawer" id="propertiesDrawer">
+          <!-- Drawer Header -->
+          <div class="drawer-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="drawer-type-badge" style="border-left-color: #3b82f6; background: rgba(239,246,255,0.7);">
+                <span style="color: #3b82f6;">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  </svg>
+                </span>
+                <span style="color: #2563eb;">Shooting</span>
+              </div>
+            </div>
+            <button onclick="toggleDrawer()" style="background:none; border:none; cursor:pointer; padding:4px; border-radius:4px; color:#a1a1aa; transition: all 0.15s;" onmouseover="this.style.background='#f4f4f5'; this.style.color='#52525b'" onmouseout="this.style.background='none'; this.style.color='#a1a1aa'">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Title -->
+          <div class="drawer-field" style="padding-top: 16px;">
+            <div class="drawer-field-label">Title</div>
+            <input type="text" class="drawer-field-value" value="Setup 2: On-Figure" />
+          </div>
+
+          <!-- Type -->
+          <div class="drawer-field">
+            <div class="drawer-field-label">Type</div>
+            <select class="drawer-field-value">
+              <option>Setup</option>
+              <option selected>Shooting</option>
+              <option>HMU</option>
+              <option>Meal</option>
+              <option>Travel</option>
+              <option>Banner / General</option>
+            </select>
+          </div>
+
+          <!-- Time Row -->
+          <div style="display: flex; gap: 12px; padding: 0 16px; margin-bottom: 16px;">
+            <div style="flex: 1;">
+              <div class="drawer-field-label">Start Time</div>
+              <input type="text" class="drawer-field-value" value="10:00 AM" />
+            </div>
+            <div style="flex: 1;">
+              <div class="drawer-field-label">End Time</div>
+              <input type="text" class="drawer-field-value" value="12:30 PM" />
+            </div>
+          </div>
+
+          <!-- Duration -->
+          <div class="drawer-field">
+            <div class="drawer-field-label">Duration</div>
+            <div style="font-size: 14px; color: #18181b; font-weight: 500;">2h 30m</div>
+          </div>
+
+          <!-- Description -->
+          <div class="drawer-field">
+            <div class="drawer-field-label">Description</div>
+            <textarea class="drawer-field-value" rows="3" style="resize:vertical; font-size:13px; line-height:1.5;">8 on-figure looks — full-length + detail crops. Talent: Sarah M., Mika T. White seamless backdrop with soft key light.</textarea>
+          </div>
+
+          <!-- Location -->
+          <div class="drawer-field">
+            <div class="drawer-field-label">Location</div>
+            <input type="text" class="drawer-field-value" value="Studio A — Main Cyc Wall" />
+          </div>
+
+          <!-- Assigned Talent -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">Assigned Talent</div>
+            <div style="display: flex; flex-wrap: wrap;">
+              <span class="crew-tag">
+                <span style="width:18px; height:18px; border-radius:50%; background:#dbeafe; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#2563eb;">SM</span>
+                Sarah M.
+              </span>
+              <span class="crew-tag">
+                <span style="width:18px; height:18px; border-radius:50%; background:#f3e8ff; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#7c3aed;">MT</span>
+                Mika T.
+              </span>
+            </div>
+          </div>
+
+          <!-- Assigned Crew -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">Assigned Crew</div>
+            <div style="display: flex; flex-wrap: wrap;">
+              <span class="crew-tag">
+                <svg width="12" height="12" fill="none" stroke="#71717a" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg>
+                Alex R. (Photographer)
+              </span>
+              <span class="crew-tag">
+                <svg width="12" height="12" fill="none" stroke="#71717a" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                Jordan K. (Digital Tech)
+              </span>
+              <span class="crew-tag">
+                <svg width="12" height="12" fill="none" stroke="#71717a" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Chris B. (Stylist)
+              </span>
+              <span class="crew-tag">
+                <svg width="12" height="12" fill="none" stroke="#71717a" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Dana L. (Photo Assist)
+              </span>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="drawer-section">
+            <div class="drawer-section-title">Notes</div>
+            <textarea class="drawer-field-value" rows="2" style="resize:vertical; font-size:13px; line-height:1.5;">Priority looks: #3, #5, #7 must be captured first. Client wants warm, editorial tone with natural movement.</textarea>
+          </div>
+
+          <!-- Delete Button -->
+          <div style="padding: 16px; margin-top: auto; border-top: 1px solid #f4f4f5;">
+            <button class="btn-danger" style="width: 100%; justify-content: center;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              Delete Entry
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FAB: Add Entry -->
+  <button class="fab" id="addEntryFab" onclick="alert('Add Entry dialog would open here')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </button>
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- JAVASCRIPT: Overlap Groups Compression Algorithm            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ─── SCHEDULE DATA ───
+    const scheduleData = [
+      {
+        id: 'crew-arrival',
+        title: 'Crew Arrival & Check-In',
+        type: 'banner',
+        start: 6.5,   // 6:30
+        end: 7.0,     // 7:00
+        track: 1,
+        desc: 'All crew sign in at production table. Parking in Lot B. Coffee & breakfast provided.',
+        location: 'Studio A Lobby',
+        talent: [],
+        crew: ['Production Coordinator', 'PA Team']
+      },
+      {
+        id: 'setup-lighting',
+        title: 'Setup: Studio A Lighting',
+        type: 'setup',
+        start: 7.0,
+        end: 8.0,
+        track: 1,
+        desc: 'Rig overhead softbox array, set white seamless, calibrate Profoto B10s.',
+        location: 'Studio A — Main Cyc',
+        talent: [],
+        crew: ['Alex R. (Photographer)', 'Dana L. (Photo Assist)', 'Grip Team']
+      },
+      {
+        id: 'hmu-sarah-mika',
+        title: 'HMU: Sarah & Mika',
+        type: 'hmu',
+        start: 7.0,
+        end: 8.0,
+        track: 2,
+        desc: 'Full glam for e-comm: clean skin, soft brows, nude lip. Hair: loose waves.',
+        location: 'HMU Station 1 & 2',
+        talent: ['Sarah M.', 'Mika T.'],
+        crew: ['Nadia F. (MUA)', 'Priya K. (Hair)']
+      },
+      {
+        id: 'ecomm-flatlay',
+        title: 'Setup 1: E-comm Flatlay',
+        type: 'shooting',
+        start: 8.0,
+        end: 10.0,
+        track: 1,
+        desc: '12 flatlay looks — overhead rig with soft diffusion. Styling: pressed & pinned on foam board.',
+        location: 'Studio A — Flatlay Table',
+        talent: [],
+        crew: ['Alex R. (Photographer)', 'Jordan K. (Digital Tech)', 'Chris B. (Stylist)']
+      },
+      {
+        id: 'on-figure',
+        title: 'Setup 2: On-Figure',
+        type: 'shooting',
+        start: 10.0,
+        end: 12.5,
+        track: 1,
+        desc: '8 on-figure looks — full-length + detail crops. White seamless backdrop with soft key light.',
+        location: 'Studio A — Main Cyc Wall',
+        talent: ['Sarah M.', 'Mika T.'],
+        crew: ['Alex R. (Photographer)', 'Jordan K. (Digital Tech)', 'Chris B. (Stylist)', 'Dana L. (Photo Assist)']
+      },
+      {
+        id: 'lunch',
+        title: 'Lunch',
+        type: 'meal',
+        start: 12.5,
+        end: 13.5,
+        track: 1,
+        desc: 'Catered by Sweetgreen. Vegan & GF options available. Eat in green room or courtyard.',
+        location: 'Green Room / Courtyard',
+        talent: ['Sarah M.', 'Mika T.'],
+        crew: ['All Crew']
+      },
+      {
+        id: 'hmu-touchup',
+        title: 'HMU Touch-Up: Afternoon Talent',
+        type: 'hmu',
+        start: 12.75,  // 12:45
+        end: 13.25,    // 1:15
+        track: 2,
+        desc: 'Quick refresh: blot, powder, lip touch-up, smooth flyaways. Transition to editorial look.',
+        location: 'HMU Station 1',
+        talent: ['Sarah M.', 'Mika T.'],
+        crew: ['Nadia F. (MUA)', 'Priya K. (Hair)']
+      },
+      {
+        id: 'editorial-campaign',
+        title: 'Setup 3: Editorial Campaign',
+        type: 'shooting',
+        start: 13.5,
+        end: 16.5,
+        track: 1,
+        desc: '6 editorial looks — moody, directional lighting. Campaign hero shots for social & web banners.',
+        location: 'Studio A — Black Backdrop',
+        talent: ['Sarah M.', 'Mika T.'],
+        crew: ['Alex R. (Photographer)', 'Jordan K. (Digital Tech)', 'Chris B. (Stylist)', 'Dana L. (Photo Assist)']
+      },
+      {
+        id: 'detail-texture',
+        title: 'Setup 4: Detail & Texture Shots',
+        type: 'shooting',
+        start: 16.5,
+        end: 17.5,
+        track: 1,
+        desc: 'Close-up fabric, hardware, label details. Macro lens on tripod with controlled lighting.',
+        location: 'Studio A — Product Table',
+        talent: [],
+        crew: ['Alex R. (Photographer)', 'Jordan K. (Digital Tech)']
+      },
+      {
+        id: 'wrap',
+        title: 'Wrap & Breakdown',
+        type: 'banner',
+        start: 17.5,
+        end: 18.0,
+        track: 1,
+        desc: 'Strike all sets, secure equipment, return wardrobe to racks. Final card pull & backup.',
+        location: 'Studio A',
+        talent: [],
+        crew: ['All Crew', 'PA Team']
+      }
+    ];
+
+    // ─── OVERLAP GROUP DETECTION ───
+    function detectOverlapGroups(entries) {
+      // Sort by start time
+      const sorted = [...entries].sort((a, b) => a.start - b.start);
+      const groups = [];
+      let currentGroup = null;
+
+      for (const entry of sorted) {
+        if (!currentGroup) {
+          currentGroup = { start: entry.start, end: entry.end, entries: [entry] };
+        } else if (entry.start < currentGroup.end) {
+          // Overlaps with current group
+          currentGroup.end = Math.max(currentGroup.end, entry.end);
+          currentGroup.entries.push(entry);
+        } else {
+          // No overlap — finalize current group and start new one
+          groups.push(currentGroup);
+          currentGroup = { start: entry.start, end: entry.end, entries: [entry] };
+        }
+      }
+      if (currentGroup) groups.push(currentGroup);
+
+      // Classify each group
+      return groups.map(g => {
+        const hasOverlap = g.entries.length > 1;
+        // Check if any entries actually overlap in time
+        let trulyOverlapping = false;
+        for (let i = 0; i < g.entries.length; i++) {
+          for (let j = i + 1; j < g.entries.length; j++) {
+            if (g.entries[i].start < g.entries[j].end && g.entries[j].start < g.entries[i].end) {
+              trulyOverlapping = true;
+              break;
+            }
+          }
+          if (trulyOverlapping) break;
+        }
+        return {
+          ...g,
+          type: trulyOverlapping ? 'overlap' : 'isolated',
+          duration: g.end - g.start
+        };
+      });
+    }
+
+    // ─── CONSTANTS ───
+    const COMPACT_HEIGHT = 64;
+    const PX_PER_HOUR = 80;  // 80px per hour within overlap groups
+    const BLOCK_GAP = 4;
+    const NOW_TIME = 10.7; // 10:42 AM
+
+    // ─── STATE ───
+    let viewMode = 'compressed'; // 'compressed' | 'proportional'
+    let trackMode = 'auto';      // 'auto' | '1' | '2'
+    let selectedBlockId = 'on-figure';
+    let drawerOpen = true;
+
+    // ─── FORMAT TIME ───
+    function formatTime(t) {
+      const hours = Math.floor(t);
+      const minutes = Math.round((t - hours) * 60);
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    function formatTimeShort(t) {
+      const hours = Math.floor(t);
+      const minutes = Math.round((t - hours) * 60);
+      const ampm = hours >= 12 ? 'p' : 'a';
+      const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      if (minutes === 0) return `${displayHours}${ampm}`;
+      return `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
+    }
+
+    // ─── BUILD THE TIMELINE ───
+    function buildTimeline() {
+      const container = document.getElementById('timelineContent');
+      container.innerHTML = '';
+
+      const groups = detectOverlapGroups(scheduleData);
+      let yOffset = 0;
+
+      groups.forEach((group, groupIdx) => {
+        const isOverlap = group.type === 'overlap';
+        const isCompressed = viewMode === 'compressed';
+
+        // Add compression boundary before overlap groups (not at the very start)
+        if (groupIdx > 0) {
+          const prevGroup = groups[groupIdx - 1];
+          const currIsOverlap = isOverlap;
+          const prevIsOverlap = prevGroup.type === 'overlap';
+
+          // Show boundary when transitioning between compressed and proportional zones
+          if (isCompressed && (currIsOverlap !== prevIsOverlap)) {
+            const boundary = document.createElement('div');
+            boundary.className = 'compression-boundary';
+            boundary.style.position = 'relative';
+            boundary.style.marginTop = `${yOffset}px`;
+            boundary.innerHTML = '<span class="compression-label">compressed</span>';
+            container.appendChild(boundary);
+            yOffset = 0;
+          } else {
+            // Small gap between groups
+            yOffset += 2;
+          }
+        }
+
+        if (isOverlap || (!isCompressed)) {
+          // ─── PROPORTIONAL RENDERING ───
+          const groupDuration = group.end - group.start;
+          const groupHeight = groupDuration * PX_PER_HOUR;
+
+          // Create the group container
+          const groupDiv = document.createElement('div');
+          groupDiv.className = 'overlap-group';
+          groupDiv.style.position = 'relative';
+          groupDiv.style.height = groupHeight + 'px';
+          groupDiv.style.marginTop = yOffset + 'px';
+          yOffset = 0;
+
+          // ─── Time labels in gutter ───
+          // Show time labels at start, end, and intermediate hours
+          const startHour = Math.ceil(group.start);
+          const endHour = Math.floor(group.end);
+          const timeLabels = new Set();
+          timeLabels.add(group.start);
+          for (let h = startHour; h <= endHour; h++) {
+            if (h >= group.start && h <= group.end) timeLabels.add(h);
+          }
+          timeLabels.add(group.end);
+
+          for (const t of timeLabels) {
+            const labelY = ((t - group.start) / groupDuration) * groupHeight;
+            const label = document.createElement('div');
+            label.className = 'time-label';
+            label.style.top = labelY + 'px';
+            label.style.left = '0';
+            label.style.width = '60px';
+            label.textContent = formatTimeShort(t);
+            groupDiv.appendChild(label);
+
+            // Faint horizontal guideline
+            if (t !== group.start) {
+              const line = document.createElement('div');
+              line.style.cssText = `position:absolute; left:60px; right:12px; top:${labelY}px; height:1px; background:#f4f4f5; pointer-events:none;`;
+              groupDiv.appendChild(line);
+            }
+          }
+
+          // ─── Determine tracks needed ───
+          let useTwoTracks = false;
+          if (trackMode === '2') {
+            useTwoTracks = true;
+          } else if (trackMode === '1') {
+            useTwoTracks = false;
+          } else {
+            // Auto: use 2 tracks if there's actual temporal overlap
+            useTwoTracks = isOverlap;
+          }
+
+          // ─── Render blocks ───
+          const blocksContainer = document.createElement('div');
+          blocksContainer.style.cssText = `position:absolute; left:60px; right:12px; top:0; bottom:0;`;
+
+          if (useTwoTracks) {
+            // Split into track columns
+            const track1 = document.createElement('div');
+            track1.style.cssText = 'position:absolute; left:0; width:calc(50% - 2px); top:0; bottom:0;';
+            const track2 = document.createElement('div');
+            track2.style.cssText = 'position:absolute; right:0; width:calc(50% - 2px); top:0; bottom:0;';
+
+            group.entries.forEach(entry => {
+              const block = createBlock(entry, group, groupHeight, groupDuration);
+              if (entry.track === 2) {
+                track2.appendChild(block);
+              } else {
+                track1.appendChild(block);
+              }
+            });
+
+            blocksContainer.appendChild(track1);
+            blocksContainer.appendChild(track2);
+          } else {
+            // Single track — stack sequentially
+            group.entries.forEach(entry => {
+              const block = createBlock(entry, group, groupHeight, groupDuration);
+              block.style.left = '0';
+              block.style.right = '0';
+              blocksContainer.appendChild(block);
+            });
+          }
+
+          groupDiv.appendChild(blocksContainer);
+
+          // ─── NOW indicator ───
+          if (NOW_TIME >= group.start && NOW_TIME <= group.end) {
+            const nowY = ((NOW_TIME - group.start) / groupDuration) * groupHeight;
+
+            const nowLine = document.createElement('div');
+            nowLine.className = 'now-line';
+            nowLine.style.top = nowY + 'px';
+            nowLine.style.left = '60px';
+            groupDiv.appendChild(nowLine);
+
+            const nowDot = document.createElement('div');
+            nowDot.className = 'now-dot';
+            nowDot.style.top = nowY + 'px';
+            groupDiv.appendChild(nowDot);
+
+            const nowLabel = document.createElement('div');
+            nowLabel.className = 'now-label';
+            nowLabel.style.top = nowY + 'px';
+            nowLabel.textContent = 'NOW';
+            groupDiv.appendChild(nowLabel);
+          }
+
+          container.appendChild(groupDiv);
+          yOffset = BLOCK_GAP;
+
+        } else {
+          // ─── COMPRESSED (ISOLATED) RENDERING ───
+          group.entries.forEach((entry, entryIdx) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.style.position = 'relative';
+            rowDiv.style.height = COMPACT_HEIGHT + 'px';
+            rowDiv.style.marginTop = (entryIdx === 0 ? yOffset : BLOCK_GAP) + 'px';
+
+            // Time label
+            const label = document.createElement('div');
+            label.className = 'time-label';
+            label.style.top = '50%';
+            label.style.left = '0';
+            label.style.width = '60px';
+            label.textContent = formatTimeShort(entry.start);
+            rowDiv.appendChild(label);
+
+            // Block
+            const blockDiv = document.createElement('div');
+            blockDiv.className = `schedule-block block-${entry.type}${entry.id === selectedBlockId ? ' selected' : ''}${isBlockCurrent(entry) ? ' block-current' : ''}`;
+            blockDiv.style.cssText = `position:absolute; left:60px; right:12px; top:0; bottom:0;`;
+            blockDiv.setAttribute('data-id', entry.id);
+            blockDiv.onclick = () => selectBlock(entry.id);
+
+            blockDiv.innerHTML = `
+              <div class="block-title">${entry.title}</div>
+              <div class="block-time">${formatTime(entry.start)} - ${formatTime(entry.end)} (${formatDuration(entry.end - entry.start)})</div>
+            `;
+
+            // Description shown when block is tall enough
+            if (entry.desc && COMPACT_HEIGHT >= 64) {
+              blockDiv.innerHTML += `<div class="block-desc">${entry.desc}</div>`;
+            }
+
+            rowDiv.appendChild(blockDiv);
+
+            // NOW indicator within isolated blocks
+            if (NOW_TIME >= entry.start && NOW_TIME <= entry.end) {
+              const progress = (NOW_TIME - entry.start) / (entry.end - entry.start);
+              const nowY = progress * COMPACT_HEIGHT;
+
+              const nowLine = document.createElement('div');
+              nowLine.className = 'now-line';
+              nowLine.style.top = nowY + 'px';
+              nowLine.style.left = '60px';
+              rowDiv.appendChild(nowLine);
+
+              const nowDot = document.createElement('div');
+              nowDot.className = 'now-dot';
+              nowDot.style.top = nowY + 'px';
+              rowDiv.appendChild(nowDot);
+
+              const nowLabel = document.createElement('div');
+              nowLabel.className = 'now-label';
+              nowLabel.style.top = nowY + 'px';
+              nowLabel.textContent = 'NOW';
+              rowDiv.appendChild(nowLabel);
+            }
+
+            container.appendChild(rowDiv);
+            yOffset = BLOCK_GAP;
+          });
+        }
+      });
+
+      // ─── TIMELINE FOOTER: Stats + Legend ───
+      const footer = document.createElement('div');
+      footer.className = 'timeline-footer';
+
+      // Calculate stats
+      const totalHours = scheduleData.reduce((sum, e) => sum + (e.end - e.start), 0);
+      const shootingHours = scheduleData.filter(e => e.type === 'shooting').reduce((sum, e) => sum + (e.end - e.start), 0);
+      const daySpan = 18.0 - 6.5; // 6:30a to 6:00p
+
+      footer.innerHTML = `
+        <div class="footer-stat">
+          <span class="footer-stat-label">Total Day</span>
+          <span class="footer-stat-value">${formatDuration(daySpan)}</span>
+        </div>
+        <div class="footer-stat">
+          <span class="footer-stat-label">Shooting Time</span>
+          <span class="footer-stat-value">${formatDuration(shootingHours)}</span>
+        </div>
+        <div class="footer-stat">
+          <span class="footer-stat-label">Entries</span>
+          <span class="footer-stat-value">${scheduleData.length}</span>
+        </div>
+        <div class="footer-stat">
+          <span class="footer-stat-label">Overlap Groups</span>
+          <span class="footer-stat-value">${groups.filter(g => g.type === 'overlap').length}</span>
+        </div>
+        <div class="type-legend">
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(255,251,235,0.55); border-color:#f59e0b;"></div>
+            Setup
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(239,246,255,0.55); border-color:#3b82f6;"></div>
+            Shooting
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(245,243,255,0.55); border-color:#8b5cf6;"></div>
+            HMU
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(236,253,245,0.55); border-color:#10b981;"></div>
+            Meal
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:rgba(244,244,245,0.65); border-color:#18181b;"></div>
+            General
+          </div>
+        </div>
+      `;
+      container.appendChild(footer);
+    }
+
+    function createBlock(entry, group, groupHeight, groupDuration) {
+      const topPct = ((entry.start - group.start) / groupDuration) * groupHeight;
+      const heightPx = ((entry.end - entry.start) / groupDuration) * groupHeight;
+
+      const block = document.createElement('div');
+      block.className = `schedule-block block-${entry.type}${entry.id === selectedBlockId ? ' selected' : ''}${isBlockCurrent(entry) ? ' block-current' : ''}`;
+      block.style.cssText = `position:absolute; left:0; right:0; top:${topPct}px; height:${Math.max(heightPx - 2, 28)}px;`;
+      block.setAttribute('data-id', entry.id);
+      block.onclick = () => selectBlock(entry.id);
+
+      const actualHeight = Math.max(heightPx - 2, 28);
+      const showDesc = actualHeight > 44;
+      const showTimeRange = actualHeight > 32;
+
+      block.innerHTML = `
+        <div class="block-title">${entry.title}</div>
+        ${showTimeRange ? `<div class="block-time">${formatTime(entry.start)} - ${formatTime(entry.end)} (${formatDuration(entry.end - entry.start)})</div>` : ''}
+        ${showDesc ? `<div class="block-desc">${entry.desc}</div>` : ''}
+      `;
+
+      return block;
+    }
+
+    function isBlockCurrent(entry) {
+      return NOW_TIME >= entry.start && NOW_TIME <= entry.end;
+    }
+
+    function formatDuration(hours) {
+      const h = Math.floor(hours);
+      const m = Math.round((hours - h) * 60);
+      if (h === 0) return `${m}m`;
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
+    }
+
+    // ─── SELECT BLOCK ───
+    function selectBlock(id) {
+      selectedBlockId = id;
+      const entry = scheduleData.find(e => e.id === id);
+      if (!entry) return;
+
+      // Update drawer content
+      updateDrawer(entry);
+
+      // Open drawer if closed
+      if (!drawerOpen) toggleDrawer();
+
+      // Re-render timeline to update selection styles
+      buildTimeline();
+    }
+
+    function updateDrawer(entry) {
+      const drawer = document.getElementById('propertiesDrawer');
+      if (!drawer) return;
+
+      // Type colors map
+      const typeColors = {
+        setup: { border: '#f59e0b', bg: 'rgba(255,251,235,0.7)', text: '#b45309', label: 'Setup' },
+        shooting: { border: '#3b82f6', bg: 'rgba(239,246,255,0.7)', text: '#2563eb', label: 'Shooting' },
+        hmu: { border: '#8b5cf6', bg: 'rgba(245,243,255,0.7)', text: '#7c3aed', label: 'HMU' },
+        meal: { border: '#10b981', bg: 'rgba(236,253,245,0.7)', text: '#059669', label: 'Meal' },
+        travel: { border: '#71717a', bg: 'rgba(244,244,245,0.7)', text: '#52525b', label: 'Travel' },
+        banner: { border: '#18181b', bg: 'rgba(244,244,245,0.7)', text: '#18181b', label: 'Banner' },
+      };
+
+      const tc = typeColors[entry.type] || typeColors.banner;
+      const typeIcon = entry.type === 'shooting'
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>'
+        : entry.type === 'setup'
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/>'
+        : entry.type === 'hmu'
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>'
+        : entry.type === 'meal'
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+        : '<path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+
+      const duration = entry.end - entry.start;
+      const durationStr = formatDuration(duration);
+
+      // Build talent tags
+      const talentTags = entry.talent.length > 0
+        ? entry.talent.map(t => {
+            const initials = t.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            const colors = ['#dbeafe', '#f3e8ff', '#fce7f3', '#d1fae5'];
+            const textColors = ['#2563eb', '#7c3aed', '#be185d', '#059669'];
+            const idx = entry.talent.indexOf(t) % colors.length;
+            return `<span class="crew-tag">
+              <span style="width:18px; height:18px; border-radius:50%; background:${colors[idx]}; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:${textColors[idx]};">${initials}</span>
+              ${t}
+            </span>`;
+          }).join('')
+        : '<span style="font-size:12px; color:#a1a1aa; font-style:italic;">No talent assigned</span>';
+
+      // Build crew tags
+      const crewTags = entry.crew.map(c => {
+        return `<span class="crew-tag">
+          <svg width="12" height="12" fill="none" stroke="#71717a" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          ${c}
+        </span>`;
+      }).join('');
+
+      // Build type select with correct selected option
+      const typeOptions = ['setup', 'shooting', 'hmu', 'meal', 'travel', 'banner'];
+      const typeOptionsHtml = typeOptions.map(t => {
+        const label = typeColors[t]?.label || t;
+        return `<option value="${t}" ${t === entry.type ? 'selected' : ''}>${label}</option>`;
+      }).join('');
+
+      drawer.innerHTML = `
+        <!-- Drawer Header -->
+        <div class="drawer-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="drawer-type-badge" style="border-left-color: ${tc.border}; background: ${tc.bg};">
+              <span style="color: ${tc.text};">
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">${typeIcon}</svg>
+              </span>
+              <span style="color: ${tc.text};">${tc.label}</span>
+            </div>
+            ${isBlockCurrent(entry) ? '<span style="font-size:10px; font-weight:600; color:#16a34a; background:#f0fdf4; padding:2px 6px; border-radius:3px; letter-spacing:0.04em;">ACTIVE</span>' : ''}
+          </div>
+          <button onclick="toggleDrawer()" style="background:none; border:none; cursor:pointer; padding:4px; border-radius:4px; color:#a1a1aa; transition: all 0.15s;" onmouseover="this.style.background='#f4f4f5'; this.style.color='#52525b'" onmouseout="this.style.background='none'; this.style.color='#a1a1aa'">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Title -->
+        <div class="drawer-field" style="padding-top: 16px;">
+          <div class="drawer-field-label">Title</div>
+          <input type="text" class="drawer-field-value" value="${entry.title}" />
+        </div>
+
+        <!-- Type -->
+        <div class="drawer-field">
+          <div class="drawer-field-label">Type</div>
+          <select class="drawer-field-value">${typeOptionsHtml}</select>
+        </div>
+
+        <!-- Time Row -->
+        <div style="display: flex; gap: 12px; padding: 0 16px; margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <div class="drawer-field-label">Start Time</div>
+            <input type="text" class="drawer-field-value" value="${formatTime(entry.start)}" />
+          </div>
+          <div style="flex: 1;">
+            <div class="drawer-field-label">End Time</div>
+            <input type="text" class="drawer-field-value" value="${formatTime(entry.end)}" />
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div class="drawer-field">
+          <div class="drawer-field-label">Duration</div>
+          <div style="font-size: 14px; color: #18181b; font-weight: 500;">${durationStr}</div>
+        </div>
+
+        <!-- Description -->
+        <div class="drawer-field">
+          <div class="drawer-field-label">Description</div>
+          <textarea class="drawer-field-value" rows="3" style="resize:vertical; font-size:13px; line-height:1.5;">${entry.desc}</textarea>
+        </div>
+
+        <!-- Location -->
+        <div class="drawer-field">
+          <div class="drawer-field-label">Location</div>
+          <input type="text" class="drawer-field-value" value="${entry.location}" />
+        </div>
+
+        <!-- Assigned Talent -->
+        <div class="drawer-section">
+          <div class="drawer-section-title">Assigned Talent</div>
+          <div style="display: flex; flex-wrap: wrap;">${talentTags}</div>
+        </div>
+
+        <!-- Assigned Crew -->
+        <div class="drawer-section">
+          <div class="drawer-section-title">Assigned Crew</div>
+          <div style="display: flex; flex-wrap: wrap;">${crewTags}</div>
+        </div>
+
+        <!-- Notes -->
+        <div class="drawer-section">
+          <div class="drawer-section-title">Notes</div>
+          <textarea class="drawer-field-value" rows="2" style="resize:vertical; font-size:13px; line-height:1.5;" placeholder="Add notes..."></textarea>
+        </div>
+
+        <!-- Delete Button -->
+        <div style="padding: 16px; margin-top: auto; border-top: 1px solid #f4f4f5;">
+          <button class="btn-danger" style="width: 100%; justify-content: center;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Delete Entry
+          </button>
+        </div>
+      `;
+    }
+
+    // ─── TOGGLE DRAWER ───
+    function toggleDrawer() {
+      drawerOpen = !drawerOpen;
+      const drawer = document.getElementById('propertiesDrawer');
+      const fab = document.getElementById('addEntryFab');
+      if (drawerOpen) {
+        drawer.classList.remove('collapsed');
+        fab.classList.remove('drawer-closed');
+      } else {
+        drawer.classList.add('collapsed');
+        fab.classList.add('drawer-closed');
+      }
+    }
+
+    // ─── VIEW MODE ───
+    function setViewMode(mode) {
+      viewMode = mode;
+      document.getElementById('btn-compressed').classList.toggle('active', mode === 'compressed');
+      document.getElementById('btn-proportional').classList.toggle('active', mode === 'proportional');
+      buildTimeline();
+    }
+
+    // ─── TRACK MODE ───
+    function setTrackMode(mode) {
+      trackMode = mode;
+      document.getElementById('btn-auto').classList.toggle('active', mode === 'auto');
+      document.getElementById('btn-1track').classList.toggle('active', mode === '1');
+      document.getElementById('btn-2track').classList.toggle('active', mode === '2');
+      buildTimeline();
+    }
+
+    // ─── INIT ───
+    buildTimeline();
+
+    // Select the default block and populate drawer
+    const defaultEntry = scheduleData.find(e => e.id === selectedBlockId);
+    if (defaultEntry) updateDrawer(defaultEntry);
+  </script>
+
+</body>
+</html>

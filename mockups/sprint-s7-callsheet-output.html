@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint S7 — Call Sheet Output Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          fontSize: {
+            '3xs': '9px',
+            '2xs': '10px',
+            'xxs': '11px',
+          },
+          colors: {
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: #f4f4f5;
+      color: #18181b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Toggle nav */
+    .opt-nav { position: sticky; top: 0; z-index: 100; background: #09090b; }
+    .opt-nav button { background: none; border: none; color: #a1a1aa; font-family: inherit;
+      font-size: 13px; font-weight: 500; padding: 14px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+    .opt-nav button.active { color: #fff; border-bottom-color: #E31E24; }
+    .opt-nav button:hover:not(.active) { color: #d4d4d8; }
+
+    .option-panel { display: none; }
+    .option-panel.active { display: block; }
+
+    /* ═══════════════════════════════════════
+       OPTION A — Classic Editorial
+       ═══════════════════════════════════════ */
+    .cs-a {
+      --ink: #111111;
+      --band-bg: #111111;
+      --band-fg: #ffffff;
+      --tbl-hdr-bg: #111111;
+      --tbl-hdr-fg: #ffffff;
+      --tbl-font: 11px;
+      --tbl-hdr-font: 9px;
+      --tbl-row-h: 20px;
+      --page-pad: 20px;
+      --border: #d4d4d8;
+    }
+    .cs-a .doc {
+      background: #fff; max-width: 816px; margin: 0 auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.04);
+      font-size: var(--tbl-font); color: var(--ink);
+    }
+    .cs-a .band {
+      background: var(--band-bg); color: var(--band-fg);
+      font-size: var(--tbl-hdr-font); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      padding: 5px var(--page-pad); margin: 0;
+    }
+    .cs-a .section-body { padding: 8px var(--page-pad) 12px; }
+    .cs-a table { width: 100%; border-collapse: collapse; font-size: var(--tbl-font); }
+    .cs-a th {
+      background: var(--tbl-hdr-bg); color: var(--tbl-hdr-fg);
+      font-size: var(--tbl-hdr-font); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 4px 6px; text-align: left; white-space: nowrap;
+    }
+    .cs-a td {
+      padding: 3px 6px; border-bottom: 1px solid #e4e4e7;
+      height: var(--tbl-row-h); vertical-align: middle;
+    }
+    .cs-a tr:last-child td { border-bottom: none; }
+    .cs-a .hero-time {
+      font-size: 42px; font-weight: 700; letter-spacing: -0.03em;
+      line-height: 1; color: var(--ink);
+    }
+    .cs-a .lbl {
+      font-size: var(--tbl-hdr-font); font-weight: 600;
+      text-transform: uppercase; letter-spacing: .05em; color: #71717a;
+    }
+    .cs-a .val { font-size: var(--tbl-font); font-weight: 500; color: var(--ink); }
+    .cs-a .bulletin-band {
+      background: #E31E24; color: #fff;
+      font-size: var(--tbl-hdr-font); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      padding: 5px var(--page-pad);
+    }
+    .cs-a .bulletin-body {
+      background: #fef2f2; border-left: 3px solid #E31E24;
+      padding: 8px var(--page-pad); font-size: var(--tbl-font);
+    }
+    .cs-a .status-confirmed { color: #047857; font-weight: 600; }
+    .cs-a .status-pending { color: #b45309; font-weight: 600; }
+
+    /* ═══════════════════════════════════════
+       OPTION B — Modern Card
+       ═══════════════════════════════════════ */
+    .cs-b .doc {
+      background: #fafafa; max-width: 816px; margin: 0 auto;
+    }
+    .cs-b .card {
+      background: #fff; border: 1px solid #e4e4e7; border-radius: 8px;
+      margin-bottom: 12px; overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .cs-b .card-header {
+      padding: 10px 16px; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: #52525b; border-bottom: 1px solid #e4e4e7;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .cs-b .card-accent { width: 2.5px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+    .cs-b .card-body { padding: 12px 16px; font-size: 12px; color: #18181b; }
+    .cs-b table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .cs-b th {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: #71717a; padding: 6px 8px;
+      text-align: left; border-bottom: 1px solid #e4e4e7;
+    }
+    .cs-b td { padding: 6px 8px; border-bottom: 1px solid #f4f4f5; vertical-align: middle; }
+    .cs-b tr:last-child td { border-bottom: none; }
+    .cs-b .hero-card {
+      background: #18181b; border-radius: 8px; color: #fff;
+      padding: 24px; text-align: center; margin-bottom: 12px;
+    }
+    .cs-b .hero-card .time { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+    .cs-b .hero-card .sub { font-size: 11px; font-weight: 500; color: #a1a1aa; margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .cs-b .badge {
+      display: inline-flex; align-items: center; padding: 2px 8px;
+      border-radius: 4px; font-size: 10px; font-weight: 600;
+    }
+    .cs-b .badge-green { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .cs-b .badge-amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+    .cs-b .badge-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .cs-b .badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .cs-b .bulletin-card {
+      border-left: 3px solid #E31E24;
+    }
+
+    /* ═══════════════════════════════════════
+       OPTION C — Fashion Forward
+       ═══════════════════════════════════════ */
+    .cs-c .doc {
+      background: #fff; max-width: 816px; margin: 0 auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.04);
+    }
+    .cs-c .editorial-header {
+      padding: 40px 32px 24px; border-bottom: 1px solid #e4e4e7;
+    }
+    .cs-c .editorial-header h1 {
+      font-size: 32px; font-weight: 300; letter-spacing: -0.03em;
+      color: #18181b; margin: 0 0 4px; line-height: 1.1;
+    }
+    .cs-c .editorial-header .subtitle {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .1em; color: #71717a;
+    }
+    .cs-c .meta-strip {
+      display: flex; flex-wrap: wrap; gap: 24px;
+      padding: 16px 32px; border-bottom: 1px solid #e4e4e7;
+      font-size: 11px;
+    }
+    .cs-c .meta-item .mlbl {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: #a1a1aa; margin-bottom: 2px;
+    }
+    .cs-c .meta-item .mval { font-weight: 600; color: #18181b; }
+    .cs-c .section-title {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: #a1a1aa;
+      padding: 16px 32px 8px; margin: 0;
+    }
+    .cs-c .section-content { padding: 0 32px 16px; }
+    .cs-c .divider { border: none; border-top: 1px solid #e4e4e7; margin: 0; }
+    .cs-c table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .cs-c th {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: #a1a1aa; padding: 6px 8px;
+      text-align: left; border-bottom: 1px solid #e4e4e7;
+    }
+    .cs-c td { padding: 8px 8px; border-bottom: 1px solid #f4f4f5; vertical-align: middle; }
+    .cs-c tr:last-child td { border-bottom: none; }
+    .cs-c .hero-time-c {
+      display: flex; align-items: baseline; gap: 12px;
+      padding: 20px 32px; border-bottom: 1px solid #e4e4e7;
+    }
+    .cs-c .hero-time-c .big {
+      font-size: 56px; font-weight: 300; letter-spacing: -0.04em;
+      line-height: 1; color: #18181b;
+    }
+    .cs-c .hero-time-c .detail {
+      font-size: 11px; color: #71717a; line-height: 1.6;
+    }
+    .cs-c .talent-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #e4e4e7; display: inline-flex; align-items: center;
+      justify-content: center; font-size: 10px; font-weight: 700;
+      color: #52525b; flex-shrink: 0;
+    }
+    .cs-c .product-thumb {
+      width: 32px; height: 32px; border-radius: 4px;
+      background: #f4f4f5; border: 1px solid #e4e4e7;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 8px; color: #a1a1aa; flex-shrink: 0;
+    }
+    .cs-c .weather-widget {
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 16px; background: #fafafa; border-radius: 8px;
+      border: 1px solid #e4e4e7;
+    }
+    .cs-c .weather-icon { font-size: 28px; }
+    .cs-c .status-dot {
+      width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+    }
+    .cs-c .dot-green { background: #10b981; }
+    .cs-c .dot-amber { background: #f59e0b; }
+    .cs-c .bulletin-fashion {
+      margin: 0 32px 16px; padding: 12px 16px;
+      background: #18181b; border-radius: 6px; color: #fff;
+      font-size: 11px;
+    }
+    .cs-c .bulletin-fashion .bf-label {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: #E31E24; margin-bottom: 4px;
+    }
+
+    /* ═══════════════════════════════════════
+       Thumbnail preview
+       ═══════════════════════════════════════ */
+    .thumb-wrap {
+      background: #fff; border: 1px solid #e4e4e7; border-radius: 8px;
+      padding: 16px; margin: 24px auto; max-width: 320px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .thumb-wrap .thumb-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: #71717a; margin-bottom: 8px;
+    }
+    .thumb-inner {
+      transform-origin: top left;
+      transform: scale(0.35);
+      width: 816px;
+      pointer-events: none;
+    }
+    .thumb-container {
+      width: 286px; /* 816 * 0.35 */
+      overflow: hidden;
+      border: 1px solid #e4e4e7; border-radius: 4px;
+    }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .cs-a .doc, .cs-b .doc, .cs-c .doc { margin: 0 8px; }
+      .cs-c .editorial-header { padding: 24px 16px 16px; }
+      .cs-c .meta-strip { padding: 12px 16px; gap: 16px; }
+      .cs-c .section-title { padding: 12px 16px 6px; }
+      .cs-c .section-content { padding: 0 16px 12px; }
+      .cs-c .hero-time-c { padding: 16px; }
+      .cs-c .bulletin-fashion { margin: 0 16px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     NAVIGATION
+     ════════════════════════════════════════════════ -->
+<nav class="opt-nav">
+  <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; gap:4px; padding:0 16px;">
+    <div style="font-size:13px; font-weight:700; color:#fff; padding:14px 12px 14px 0; border-right:1px solid #27272a; margin-right:8px; letter-spacing:-0.01em;">
+      Call Sheet Output
+    </div>
+    <button class="active" onclick="showOption('a', this)">A: Classic Editorial</button>
+    <button onclick="showOption('b', this)">B: Modern Card</button>
+    <button onclick="showOption('c', this)">C: Fashion-Forward</button>
+  </div>
+</nav>
+
+<div style="padding:24px 0 48px;">
+
+<!-- ════════════════════════════════════════════════
+     OPTION A — CLASSIC EDITORIAL
+     ════════════════════════════════════════════════ -->
+<div id="option-a" class="option-panel active cs-a">
+  <div style="max-width:880px; margin:0 auto; padding:0 16px;">
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:20px; font-weight:300; letter-spacing:-0.02em; color:#18181b; margin:0 0 4px;">Option A: Classic Editorial</h2>
+      <p style="font-size:12px; color:#71717a; margin:0;">Dense black-and-white print aesthetic. Bloomberg Terminal meets professional call sheet.</p>
+    </div>
+
+    <!-- DOCUMENT -->
+    <div class="doc">
+
+      <!-- Production Header -->
+      <div style="background:#111; color:#fff; padding:16px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em; line-height:1.1;">SPRING/SUMMER 2026 CAMPAIGN</div>
+            <div style="font-size:11px; color:#a1a1aa; margin-top:4px;">Nordstrom &mdash; Produced by Slate Studios</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:#a1a1aa;">CALL SHEET</div>
+            <div style="font-size:13px; font-weight:700;">DAY 2 OF 4</div>
+            <div style="font-size:10px; color:#71717a; margin-top:2px;">Rev. 3 &mdash; Mar 14, 2026 11:45 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date + Key Personnel Row -->
+      <div style="display:flex; border-bottom:1px solid #e4e4e7;">
+        <div style="flex:1; padding:10px 20px; border-right:1px solid #e4e4e7;">
+          <div class="lbl">Shoot Date</div>
+          <div style="font-size:14px; font-weight:700; color:#111;">Saturday, March 15, 2026</div>
+        </div>
+        <div style="flex:1; padding:10px 20px;">
+          <div class="lbl">Location</div>
+          <div class="val">Pier 59 Studios, 481 Washington St, NYC</div>
+        </div>
+      </div>
+
+      <!-- Key Personnel -->
+      <div class="band">Key Personnel</div>
+      <div class="section-body" style="padding-top:6px; padding-bottom:8px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+          <div style="display:flex; justify-content:space-between; padding:3px 6px; border-bottom:1px solid #f4f4f5;">
+            <span><span style="font-weight:600;">Producer:</span> Sarah Mitchell</span>
+            <span style="color:#52525b;">(212) 555-0147</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:3px 6px; border-bottom:1px solid #f4f4f5;">
+            <span><span style="font-weight:600;">Photographer:</span> Alex Thompson</span>
+            <span style="color:#52525b;">(212) 555-0198</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:3px 6px; border-bottom:1px solid #f4f4f5;">
+            <span><span style="font-weight:600;">Director:</span> James Rivera</span>
+            <span style="color:#52525b;">(917) 555-0234</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:3px 6px; border-bottom:1px solid #f4f4f5;">
+            <span><span style="font-weight:600;">Styling Lead:</span> Olivia Chen</span>
+            <span style="color:#52525b;">(646) 555-0312</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:3px 6px;">
+            <span><span style="font-weight:600;">HMU Lead:</span> Diana Reyes</span>
+            <span style="color:#52525b;">(347) 555-0189</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:3px 6px;">
+            <span><span style="font-weight:600;">Prod. Coordinator:</span> Marcus Lee</span>
+            <span style="color:#52525b;">(212) 555-0276</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KEY TIMES HERO -->
+      <div class="band">Key Times</div>
+      <div class="section-body" style="padding:12px 20px;">
+        <div style="display:flex; align-items:center; gap:32px; flex-wrap:wrap;">
+          <div>
+            <div class="lbl" style="margin-bottom:2px;">General Crew Call</div>
+            <div class="hero-time">6:30A</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(4,auto); gap:16px;">
+            <div>
+              <div class="lbl">First Shot</div>
+              <div class="val" style="font-size:14px; font-weight:700;">8:00A</div>
+            </div>
+            <div>
+              <div class="lbl">Lunch</div>
+              <div class="val" style="font-size:14px; font-weight:700;">12:30P</div>
+            </div>
+            <div>
+              <div class="lbl">2nd Meal</div>
+              <div class="val" style="font-size:14px; font-weight:700;">5:30P</div>
+            </div>
+            <div>
+              <div class="lbl">Est. Wrap</div>
+              <div class="val" style="font-size:14px; font-weight:700;">7:00P</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BULLETIN -->
+      <div class="bulletin-band">&#9888; Special Notices</div>
+      <div class="bulletin-body">
+        <div style="font-weight:600; margin-bottom:2px;">WEATHER ADVISORY:</div>
+        <div>Rain expected after 3 PM. All exterior setups (Setup #3) must be completed by 2:30 PM. Backup interior location confirmed at Studio B.</div>
+        <div style="margin-top:6px; font-weight:600;">PARKING:</div>
+        <div>Crew parking at Lot C (entrance on Washington St). Display dashboard pass. No street parking &mdash; vehicles will be towed.</div>
+      </div>
+
+      <!-- WEATHER + LOCATION -->
+      <div class="band">Weather &amp; Location</div>
+      <div class="section-body">
+        <div style="display:flex; gap:24px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px;">
+            <div class="lbl" style="margin-bottom:4px;">Forecast &mdash; New York, NY</div>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; font-size:11px;">
+              <div><span style="font-weight:600;">Hi/Lo:</span> 54&deg;F / 42&deg;F</div>
+              <div><span style="font-weight:600;">Precip:</span> 60% after 3PM</div>
+              <div><span style="font-weight:600;">Wind:</span> SW 12 mph</div>
+              <div><span style="font-weight:600;">Sunrise:</span> 6:12 AM</div>
+              <div><span style="font-weight:600;">Sunset:</span> 7:04 PM</div>
+              <div><span style="font-weight:600;">Humidity:</span> 68%</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <div class="lbl" style="margin-bottom:4px;">Location Details</div>
+            <div style="font-size:11px;">
+              <div><span style="font-weight:600;">Address:</span> 481 Washington St, New York, NY 10013</div>
+              <div><span style="font-weight:600;">Parking:</span> Lot C &mdash; enter on Washington St</div>
+              <div><span style="font-weight:600;">Nearest Hospital:</span> Lenox Health Greenwich Village (1.2 mi)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TODAY'S SCHEDULE -->
+      <div class="band">Today's Schedule</div>
+      <div style="padding:0;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:50px;">#</th>
+              <th>Description</th>
+              <th>Talent</th>
+              <th>Products</th>
+              <th style="width:60px;">Location</th>
+              <th style="width:70px;">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700;">01</td>
+              <td><span style="font-weight:600;">Resort Poolside</span> &mdash; Lifestyle group shot, natural light</td>
+              <td>Amara K., Lena V., Priya S.</td>
+              <td>Floral maxi dress, Linen set, Wrap skirt</td>
+              <td>Studio A</td>
+              <td style="font-weight:600;">8:00A&ndash;10:00A</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700;">02</td>
+              <td><span style="font-weight:600;">Editorial Denim</span> &mdash; Solo model, hard light, 2 looks</td>
+              <td>Kai M.</td>
+              <td>Wide-leg jean, Denim jacket, Belt</td>
+              <td>Studio A</td>
+              <td style="font-weight:600;">10:15A&ndash;12:15P</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700;">03</td>
+              <td><span style="font-weight:600;">Street Style</span> &mdash; Walking shots, urban exterior</td>
+              <td>Amara K., Kai M.</td>
+              <td>Trench coat, Sneakers, Crossbody bag</td>
+              <td>Exterior</td>
+              <td style="font-weight:600;">1:00P&ndash;2:30P</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700;">04</td>
+              <td><span style="font-weight:600;">Accessories Flat-Lay</span> &mdash; Product-only, overhead rig</td>
+              <td>&mdash;</td>
+              <td>Sunglasses, Watch, Earrings, Scarf</td>
+              <td>Studio B</td>
+              <td style="font-weight:600;">3:00P&ndash;5:00P</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TALENT / MODEL CALLS -->
+      <div class="band">Talent / Model Calls</div>
+      <div style="padding:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Agency</th>
+              <th style="width:65px;">Call</th>
+              <th style="width:65px;">HMU</th>
+              <th style="width:65px;">On Set</th>
+              <th style="width:65px;">Wrap</th>
+              <th style="width:75px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">Amara Kone</td>
+              <td>IMG Models</td>
+              <td>6:00A</td>
+              <td>6:15A</td>
+              <td>8:00A</td>
+              <td>2:30P</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Kai Mitchell</td>
+              <td>Wilhelmina</td>
+              <td>8:30A</td>
+              <td>8:45A</td>
+              <td>10:15A</td>
+              <td>2:30P</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Lena Voronova</td>
+              <td>The Society</td>
+              <td>6:00A</td>
+              <td>6:15A</td>
+              <td>8:00A</td>
+              <td>10:00A</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Priya Sharma</td>
+              <td>Elite Model</td>
+              <td>6:00A</td>
+              <td>6:30A</td>
+              <td>8:00A</td>
+              <td>10:00A</td>
+              <td class="status-pending">Pending</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Sofia Andersson</td>
+              <td>Next Models</td>
+              <td>12:00P</td>
+              <td>12:15P</td>
+              <td>1:00P</td>
+              <td>3:00P</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Maya Torres</td>
+              <td>Ford Models</td>
+              <td>12:00P</td>
+              <td>12:30P</td>
+              <td>1:30P</td>
+              <td>3:30P</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Jin Park</td>
+              <td>DNA Models</td>
+              <td>2:00P</td>
+              <td>2:15P</td>
+              <td>3:00P</td>
+              <td>5:00P</td>
+              <td class="status-pending">Pending</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">Nia Campbell</td>
+              <td>IMG Models</td>
+              <td>2:00P</td>
+              <td>2:30P</td>
+              <td>3:30P</td>
+              <td>5:30P</td>
+              <td class="status-confirmed">Confirmed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CREW CALLS -->
+      <div class="band">Crew Calls</div>
+      <div style="padding:0;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:130px;">Department</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th style="width:65px;">Call</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f9fafb;">
+              <td rowspan="3" style="font-weight:700; vertical-align:top; border-bottom:1px solid #e4e4e7; background:#f9fafb;">Camera</td>
+              <td>Alex Thompson</td><td>Photographer</td><td style="font-weight:600;">6:30A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Ryan Walsh</td><td>1st Photo Assistant</td><td>6:30A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Nora Elias</td><td>Digital Tech</td><td>6:00A</td>
+            </tr>
+            <tr>
+              <td rowspan="3" style="font-weight:700; vertical-align:top; border-bottom:1px solid #e4e4e7;">Styling</td>
+              <td>Olivia Chen</td><td>Styling Lead</td><td style="font-weight:600;">6:00A</td>
+            </tr>
+            <tr>
+              <td>Emma Scott</td><td>Styling Assistant</td><td>6:00A</td>
+            </tr>
+            <tr>
+              <td>Lucas Fernandez</td><td>Styling Assistant</td><td>6:00A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td rowspan="3" style="font-weight:700; vertical-align:top; border-bottom:1px solid #e4e4e7; background:#f9fafb;">Hair &amp; Makeup</td>
+              <td>Diana Reyes</td><td>HMU Lead</td><td style="font-weight:600;">5:30A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Zara Okafor</td><td>Makeup Artist</td><td>5:30A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Tomoko Nakamura</td><td>Hair Stylist</td><td>5:30A</td>
+            </tr>
+            <tr>
+              <td rowspan="4" style="font-weight:700; vertical-align:top; border-bottom:1px solid #e4e4e7;">Production</td>
+              <td>Sarah Mitchell</td><td>Producer</td><td style="font-weight:600;">5:30A</td>
+            </tr>
+            <tr>
+              <td>Marcus Lee</td><td>Production Coordinator</td><td>5:30A</td>
+            </tr>
+            <tr>
+              <td>Ashley Brooks</td><td>Production Assistant</td><td>5:30A</td>
+            </tr>
+            <tr>
+              <td>Tyler Nguyen</td><td>Production Assistant</td><td>6:00A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td rowspan="3" style="font-weight:700; vertical-align:top; background:#f9fafb;">Lighting</td>
+              <td>James Rivera</td><td>Gaffer / Director</td><td style="font-weight:600;">6:00A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Chris Daniels</td><td>Key Grip</td><td>6:00A</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td>Sam Park</td><td>Lighting Tech</td><td>6:00A</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PRODUCTION NOTES -->
+      <div class="band">Production Notes</div>
+      <div class="section-body" style="font-size:11px; line-height:1.6;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 24px;">
+          <div><span style="font-weight:600;">Catering:</span> Breakfast 6:00A (Studio C lobby). Lunch 12:30P (same). Afternoon snacks 4:00P.</div>
+          <div><span style="font-weight:600;">Wardrobe Returns:</span> All garments to be steamed and returned to wardrobe rack by wrap. Do not leave on set.</div>
+          <div><span style="font-weight:600;">Transport:</span> Talent van departs from hotel lobby at 5:30A. Contact Marcus Lee for pickups.</div>
+          <div><span style="font-weight:600;">Client on Set:</span> Nordstrom creative team arriving 10:00A for Setup #2 review. Producer to meet at entrance.</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#f4f4f5; padding:8px 20px; font-size:9px; color:#71717a; display:flex; justify-content:space-between; border-top:1px solid #e4e4e7;">
+        <span>Confidential &mdash; Distribution restricted to call sheet recipients only</span>
+        <span>Generated by Shot Builder &mdash; shotbuilder.app</span>
+      </div>
+
+    </div><!-- /doc -->
+
+    <!-- Thumbnail -->
+    <div class="thumb-wrap">
+      <div class="thumb-label">Print Preview (35% scale)</div>
+      <div class="thumb-container" style="height:400px;">
+        <div class="thumb-inner" id="thumb-a"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     OPTION B — MODERN CARD
+     ════════════════════════════════════════════════ -->
+<div id="option-b" class="option-panel cs-b">
+  <div style="max-width:880px; margin:0 auto; padding:0 16px;">
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:20px; font-weight:300; letter-spacing:-0.02em; color:#18181b; margin:0 0 4px;">Option B: Modern Card</h2>
+      <p style="font-size:12px; color:#71717a; margin:0;">Modular card layout with color accents. Notion document meets call sheet.</p>
+    </div>
+
+    <!-- DOCUMENT -->
+    <div class="doc">
+
+      <!-- Production Header Card -->
+      <div class="card">
+        <div style="padding:20px 16px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#71717a;">Call Sheet &mdash; Day 2 of 4</div>
+            <div style="font-size:20px; font-weight:700; letter-spacing:-0.02em; color:#18181b; margin-top:4px;">Spring/Summer 2026 Campaign</div>
+            <div style="font-size:12px; color:#52525b; margin-top:2px;">Nordstrom &bull; Slate Studios Production</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px; font-weight:600; color:#18181b;">Saturday, March 15, 2026</div>
+            <div style="font-size:10px; color:#71717a; margin-top:2px;">Revision 3 &mdash; Updated Mar 14, 11:45 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Time Card -->
+      <div class="hero-card">
+        <div class="sub">General Crew Call</div>
+        <div class="time">6:30 AM</div>
+        <div style="display:flex; justify-content:center; gap:32px; margin-top:16px; font-size:11px;">
+          <div><span style="color:#71717a;">First Shot</span> <span style="font-weight:600;">8:00A</span></div>
+          <div><span style="color:#71717a;">Lunch</span> <span style="font-weight:600;">12:30P</span></div>
+          <div><span style="color:#71717a;">2nd Meal</span> <span style="font-weight:600;">5:30P</span></div>
+          <div><span style="color:#71717a;">Est. Wrap</span> <span style="font-weight:600;">7:00P</span></div>
+        </div>
+      </div>
+
+      <!-- Bulletin Card -->
+      <div class="card bulletin-card">
+        <div class="card-header" style="background:#fef2f2; color:#dc2626; border-bottom-color:#fecaca;">
+          <div class="card-accent" style="background:#E31E24;"></div>
+          Special Notices
+        </div>
+        <div class="card-body" style="font-size:11px; line-height:1.6;">
+          <div style="margin-bottom:6px;"><span style="font-weight:700; color:#dc2626;">WEATHER ADVISORY:</span> Rain expected after 3 PM. All exterior setups must be completed by 2:30 PM. Backup interior location at Studio B.</div>
+          <div><span style="font-weight:700; color:#dc2626;">PARKING:</span> Crew parking at Lot C (entrance on Washington St). Display dashboard pass.</div>
+        </div>
+      </div>
+
+      <!-- Key Personnel Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#18181b;"></div>
+          Key Personnel
+        </div>
+        <div class="card-body" style="padding:8px 16px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f4f4f5;">
+              <div><span style="font-weight:600;">Sarah Mitchell</span><br><span style="font-size:10px; color:#71717a;">Producer</span></div>
+              <span style="color:#52525b; font-size:11px;">(212) 555-0147</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0 6px 16px; border-bottom:1px solid #f4f4f5;">
+              <div><span style="font-weight:600;">Alex Thompson</span><br><span style="font-size:10px; color:#71717a;">Photographer</span></div>
+              <span style="color:#52525b; font-size:11px;">(212) 555-0198</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f4f4f5;">
+              <div><span style="font-weight:600;">James Rivera</span><br><span style="font-size:10px; color:#71717a;">Director</span></div>
+              <span style="color:#52525b; font-size:11px;">(917) 555-0234</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0 6px 16px; border-bottom:1px solid #f4f4f5;">
+              <div><span style="font-weight:600;">Olivia Chen</span><br><span style="font-size:10px; color:#71717a;">Styling Lead</span></div>
+              <span style="color:#52525b; font-size:11px;">(646) 555-0312</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0;">
+              <div><span style="font-weight:600;">Diana Reyes</span><br><span style="font-size:10px; color:#71717a;">HMU Lead</span></div>
+              <span style="color:#52525b; font-size:11px;">(347) 555-0189</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:6px 0 6px 16px;">
+              <div><span style="font-weight:600;">Marcus Lee</span><br><span style="font-size:10px; color:#71717a;">Prod. Coordinator</span></div>
+              <span style="color:#52525b; font-size:11px;">(212) 555-0276</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weather & Location Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#3b82f6;"></div>
+          Weather &amp; Location
+        </div>
+        <div class="card-body">
+          <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px; padding:10px 12px; background:#fafafa; border-radius:6px; border:1px solid #e4e4e7;">
+              <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#71717a; margin-bottom:6px;">Forecast &mdash; NYC</div>
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                <span style="font-size:24px;">&#9925;</span>
+                <div>
+                  <div style="font-size:16px; font-weight:700;">54&deg; / 42&deg;F</div>
+                  <div style="font-size:10px; color:#71717a;">Partly cloudy, rain after 3 PM</div>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px; font-size:10px; color:#52525b;">
+                <div>Sunrise: 6:12 AM</div>
+                <div>Sunset: 7:04 PM</div>
+                <div>Wind: SW 12 mph</div>
+                <div>Humidity: 68%</div>
+              </div>
+            </div>
+            <div style="flex:1; min-width:200px;">
+              <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#71717a; margin-bottom:6px;">Location</div>
+              <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Pier 59 Studios</div>
+              <div style="font-size:11px; color:#52525b; line-height:1.5;">
+                481 Washington St, New York, NY 10013<br>
+                Parking: Lot C (Washington St entrance)<br>
+                Nearest Hospital: Lenox Health (1.2 mi)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#8b5cf6;"></div>
+          Today's Schedule
+        </div>
+        <div style="padding:0 16px 8px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px;">#</th>
+                <th>Setup</th>
+                <th>Talent</th>
+                <th>Products</th>
+                <th style="width:56px;">Loc.</th>
+                <th style="width:90px;">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:700;">01</td>
+                <td><span style="font-weight:600;">Resort Poolside</span><br><span style="font-size:10px; color:#71717a;">Lifestyle group shot, natural light</span></td>
+                <td>Amara K., Lena V., Priya S.</td>
+                <td><span style="font-size:10px;">Floral maxi, Linen set, Wrap skirt</span></td>
+                <td><span class="badge badge-blue">Studio A</span></td>
+                <td style="font-weight:600;">8:00&ndash;10:00A</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">02</td>
+                <td><span style="font-weight:600;">Editorial Denim</span><br><span style="font-size:10px; color:#71717a;">Solo model, hard light, 2 looks</span></td>
+                <td>Kai M.</td>
+                <td><span style="font-size:10px;">Wide-leg jean, Jacket, Belt</span></td>
+                <td><span class="badge badge-blue">Studio A</span></td>
+                <td style="font-weight:600;">10:15&ndash;12:15P</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">03</td>
+                <td><span style="font-weight:600;">Street Style</span><br><span style="font-size:10px; color:#71717a;">Walking shots, urban exterior</span></td>
+                <td>Amara K., Kai M.</td>
+                <td><span style="font-size:10px;">Trench, Sneakers, Crossbody</span></td>
+                <td><span class="badge badge-amber">Exterior</span></td>
+                <td style="font-weight:600;">1:00&ndash;2:30P</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;">04</td>
+                <td><span style="font-weight:600;">Accessories Flat-Lay</span><br><span style="font-size:10px; color:#71717a;">Product-only, overhead rig</span></td>
+                <td><span style="color:#a1a1aa;">&mdash;</span></td>
+                <td><span style="font-size:10px;">Sunglasses, Watch, Earrings, Scarf</span></td>
+                <td><span class="badge badge-green">Studio B</span></td>
+                <td style="font-weight:600;">3:00&ndash;5:00P</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Talent Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#ec4899;"></div>
+          Talent / Model Calls
+        </div>
+        <div style="padding:0 16px 8px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Agency</th>
+                <th>Call</th>
+                <th>HMU</th>
+                <th>On Set</th>
+                <th>Wrap</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:600;">Amara Kone</td>
+                <td>IMG Models</td>
+                <td>6:00A</td><td>6:15A</td><td>8:00A</td><td>2:30P</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Kai Mitchell</td>
+                <td>Wilhelmina</td>
+                <td>8:30A</td><td>8:45A</td><td>10:15A</td><td>2:30P</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Lena Voronova</td>
+                <td>The Society</td>
+                <td>6:00A</td><td>6:15A</td><td>8:00A</td><td>10:00A</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Priya Sharma</td>
+                <td>Elite Model</td>
+                <td>6:00A</td><td>6:30A</td><td>8:00A</td><td>10:00A</td>
+                <td><span class="badge badge-amber">Pending</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Sofia Andersson</td>
+                <td>Next Models</td>
+                <td>12:00P</td><td>12:15P</td><td>1:00P</td><td>3:00P</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Maya Torres</td>
+                <td>Ford Models</td>
+                <td>12:00P</td><td>12:30P</td><td>1:30P</td><td>3:30P</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Jin Park</td>
+                <td>DNA Models</td>
+                <td>2:00P</td><td>2:15P</td><td>3:00P</td><td>5:00P</td>
+                <td><span class="badge badge-amber">Pending</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">Nia Campbell</td>
+                <td>IMG Models</td>
+                <td>2:00P</td><td>2:30P</td><td>3:30P</td><td>5:30P</td>
+                <td><span class="badge badge-green">Confirmed</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Crew Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#f59e0b;"></div>
+          Crew Calls
+        </div>
+        <div style="padding:0 16px 8px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:110px;">Department</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th style="width:56px;">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="font-weight:700;" rowspan="3">Camera</td><td>Alex Thompson</td><td>Photographer</td><td style="font-weight:600;">6:30A</td></tr>
+              <tr><td>Ryan Walsh</td><td>1st Photo Assistant</td><td>6:30A</td></tr>
+              <tr><td>Nora Elias</td><td>Digital Tech</td><td>6:00A</td></tr>
+              <tr style="background:#fafafa;"><td style="font-weight:700;" rowspan="3">Styling</td><td>Olivia Chen</td><td>Styling Lead</td><td style="font-weight:600;">6:00A</td></tr>
+              <tr style="background:#fafafa;"><td>Emma Scott</td><td>Styling Assistant</td><td>6:00A</td></tr>
+              <tr style="background:#fafafa;"><td>Lucas Fernandez</td><td>Styling Assistant</td><td>6:00A</td></tr>
+              <tr><td style="font-weight:700;" rowspan="3">Hair &amp; Makeup</td><td>Diana Reyes</td><td>HMU Lead</td><td style="font-weight:600;">5:30A</td></tr>
+              <tr><td>Zara Okafor</td><td>Makeup Artist</td><td>5:30A</td></tr>
+              <tr><td>Tomoko Nakamura</td><td>Hair Stylist</td><td>5:30A</td></tr>
+              <tr style="background:#fafafa;"><td style="font-weight:700;" rowspan="4">Production</td><td>Sarah Mitchell</td><td>Producer</td><td style="font-weight:600;">5:30A</td></tr>
+              <tr style="background:#fafafa;"><td>Marcus Lee</td><td>Prod. Coordinator</td><td>5:30A</td></tr>
+              <tr style="background:#fafafa;"><td>Ashley Brooks</td><td>Production Assistant</td><td>5:30A</td></tr>
+              <tr style="background:#fafafa;"><td>Tyler Nguyen</td><td>Production Assistant</td><td>6:00A</td></tr>
+              <tr><td style="font-weight:700;" rowspan="3">Lighting</td><td>James Rivera</td><td>Gaffer / Director</td><td style="font-weight:600;">6:00A</td></tr>
+              <tr><td>Chris Daniels</td><td>Key Grip</td><td>6:00A</td></tr>
+              <tr><td>Sam Park</td><td>Lighting Tech</td><td>6:00A</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Production Notes Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-accent" style="background:#10b981;"></div>
+          Production Notes
+        </div>
+        <div class="card-body" style="font-size:11px; line-height:1.7;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 24px;">
+            <div style="padding:6px 10px; background:#fafafa; border-radius:4px;"><span style="font-weight:600;">Catering:</span> Breakfast 6:00A (Studio C lobby). Lunch 12:30P. Snacks 4:00P.</div>
+            <div style="padding:6px 10px; background:#fafafa; border-radius:4px;"><span style="font-weight:600;">Wardrobe:</span> All garments steamed and returned to rack by wrap.</div>
+            <div style="padding:6px 10px; background:#fafafa; border-radius:4px;"><span style="font-weight:600;">Transport:</span> Talent van from hotel lobby at 5:30A. Contact Marcus Lee.</div>
+            <div style="padding:6px 10px; background:#fafafa; border-radius:4px;"><span style="font-weight:600;">Client:</span> Nordstrom creative team arriving 10:00A for Setup #2.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align:center; padding:16px; font-size:10px; color:#a1a1aa;">
+        Confidential &mdash; Distribution restricted to call sheet recipients &bull; Generated by Shot Builder
+      </div>
+
+    </div><!-- /doc -->
+
+    <!-- Thumbnail -->
+    <div class="thumb-wrap">
+      <div class="thumb-label">Print Preview (35% scale)</div>
+      <div class="thumb-container" style="height:400px;">
+        <div class="thumb-inner" id="thumb-b"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════
+     OPTION C — FASHION FORWARD
+     ════════════════════════════════════════════════ -->
+<div id="option-c" class="option-panel cs-c">
+  <div style="max-width:880px; margin:0 auto; padding:0 16px;">
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:20px; font-weight:300; letter-spacing:-0.02em; color:#18181b; margin:0 0 4px;">Option C: Fashion-Forward</h2>
+      <p style="font-size:12px; color:#71717a; margin:0;">Magazine-inspired editorial typography with visual references. Vogue shoot call meets production logistics.</p>
+    </div>
+
+    <!-- DOCUMENT -->
+    <div class="doc">
+
+      <!-- Editorial Header -->
+      <div class="editorial-header">
+        <div class="subtitle">Call Sheet &mdash; Day 2 of 4 &bull; Revision 3</div>
+        <h1>Spring / Summer<br>2026 Campaign</h1>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <div style="font-size:12px; font-weight:500; color:#52525b;">Nordstrom</div>
+          <div style="width:3px; height:3px; border-radius:50%; background:#d4d4d8;"></div>
+          <div style="font-size:12px; font-weight:500; color:#52525b;">Slate Studios Production</div>
+          <div style="width:3px; height:3px; border-radius:50%; background:#d4d4d8;"></div>
+          <div style="font-size:12px; font-weight:500; color:#52525b;">Saturday, March 15, 2026</div>
+        </div>
+      </div>
+
+      <!-- Hero Time -->
+      <div class="hero-time-c">
+        <div class="big">6:30<span style="font-size:24px; font-weight:400; color:#a1a1aa;">AM</span></div>
+        <div class="detail">
+          General Crew Call<br>
+          <span style="font-size:10px; color:#a1a1aa;">First Shot 8:00A &bull; Lunch 12:30P &bull; 2nd Meal 5:30P &bull; Wrap 7:00P</span>
+        </div>
+      </div>
+
+      <!-- Meta Strip -->
+      <div class="meta-strip">
+        <div class="meta-item">
+          <div class="mlbl">Producer</div>
+          <div class="mval">Sarah Mitchell</div>
+          <div style="font-size:10px; color:#71717a;">(212) 555-0147</div>
+        </div>
+        <div class="meta-item">
+          <div class="mlbl">Photographer</div>
+          <div class="mval">Alex Thompson</div>
+          <div style="font-size:10px; color:#71717a;">(212) 555-0198</div>
+        </div>
+        <div class="meta-item">
+          <div class="mlbl">Director</div>
+          <div class="mval">James Rivera</div>
+          <div style="font-size:10px; color:#71717a;">(917) 555-0234</div>
+        </div>
+        <div class="meta-item">
+          <div class="mlbl">Styling Lead</div>
+          <div class="mval">Olivia Chen</div>
+          <div style="font-size:10px; color:#71717a;">(646) 555-0312</div>
+        </div>
+        <div class="meta-item">
+          <div class="mlbl">HMU Lead</div>
+          <div class="mval">Diana Reyes</div>
+          <div style="font-size:10px; color:#71717a;">(347) 555-0189</div>
+        </div>
+      </div>
+
+      <!-- Bulletin -->
+      <div class="bulletin-fashion">
+        <div class="bf-label">Special Notices</div>
+        <div><span style="font-weight:600;">Weather:</span> Rain expected after 3 PM &mdash; exterior setups (Setup #3) must wrap by 2:30 PM. Backup at Studio B.</div>
+        <div style="margin-top:4px;"><span style="font-weight:600;">Parking:</span> Lot C (Washington St entrance). Display pass. No street parking.</div>
+      </div>
+
+      <!-- Weather Widget -->
+      <div class="section-title">Weather &amp; Location</div>
+      <div class="section-content">
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+          <div class="weather-widget" style="flex:1; min-width:220px;">
+            <div class="weather-icon">&#9925;</div>
+            <div>
+              <div style="font-size:18px; font-weight:300; letter-spacing:-0.02em;">54&deg; <span style="color:#a1a1aa;">/</span> 42&deg;F</div>
+              <div style="font-size:10px; color:#71717a;">Partly cloudy, rain after 3 PM</div>
+              <div style="font-size:9px; color:#a1a1aa; margin-top:2px;">Sunrise 6:12 AM &bull; Sunset 7:04 PM &bull; Wind SW 12 mph</div>
+            </div>
+          </div>
+          <div style="flex:1; min-width:220px; font-size:11px;">
+            <div style="font-weight:600; margin-bottom:4px;">Pier 59 Studios</div>
+            <div style="color:#52525b; line-height:1.6;">
+              481 Washington St, New York, NY 10013<br>
+              Parking: Lot C &bull; Nearest Hospital: Lenox Health (1.2 mi)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Schedule with product thumbnails -->
+      <div class="section-title">Today's Schedule</div>
+      <div class="section-content">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px;">#</th>
+              <th></th>
+              <th>Setup</th>
+              <th>Talent</th>
+              <th style="width:56px;">Loc.</th>
+              <th style="width:90px;">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:700; font-size:14px; color:#a1a1aa;">01</td>
+              <td style="width:40px;">
+                <div class="product-thumb">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><path d="M20.38 3.46L16 2 12 5.5 8 2l-4.38 1.46a1 1 0 00-.62.94V19a1 1 0 001 1h16a1 1 0 001-1V4.4a1 1 0 00-.6-.94z"/></svg>
+                </div>
+              </td>
+              <td>
+                <span style="font-weight:600;">Resort Poolside</span><br>
+                <span style="font-size:10px; color:#71717a;">Lifestyle group, natural light &bull; Floral maxi, Linen set, Wrap skirt</span>
+              </td>
+              <td style="font-size:10px;">Amara K., Lena V., Priya S.</td>
+              <td style="font-size:10px;">Studio A</td>
+              <td style="font-weight:600;">8:00&ndash;10:00A</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700; font-size:14px; color:#a1a1aa;">02</td>
+              <td>
+                <div class="product-thumb">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10h18"/></svg>
+                </div>
+              </td>
+              <td>
+                <span style="font-weight:600;">Editorial Denim</span><br>
+                <span style="font-size:10px; color:#71717a;">Solo, hard light, 2 looks &bull; Wide-leg jean, Jacket, Belt</span>
+              </td>
+              <td style="font-size:10px;">Kai M.</td>
+              <td style="font-size:10px;">Studio A</td>
+              <td style="font-weight:600;">10:15&ndash;12:15P</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700; font-size:14px; color:#a1a1aa;">03</td>
+              <td>
+                <div class="product-thumb">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                </div>
+              </td>
+              <td>
+                <span style="font-weight:600;">Street Style</span><br>
+                <span style="font-size:10px; color:#71717a;">Walking shots, exterior &bull; Trench, Sneakers, Crossbody bag</span>
+              </td>
+              <td style="font-size:10px;">Amara K., Kai M.</td>
+              <td style="font-size:10px; color:#b45309; font-weight:600;">Exterior</td>
+              <td style="font-weight:600;">1:00&ndash;2:30P</td>
+            </tr>
+            <tr>
+              <td style="font-weight:700; font-size:14px; color:#a1a1aa;">04</td>
+              <td>
+                <div class="product-thumb">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </div>
+              </td>
+              <td>
+                <span style="font-weight:600;">Accessories Flat-Lay</span><br>
+                <span style="font-size:10px; color:#71717a;">Product-only, overhead rig &bull; Sunglasses, Watch, Earrings, Scarf</span>
+              </td>
+              <td style="font-size:10px; color:#a1a1aa;">&mdash;</td>
+              <td style="font-size:10px;">Studio B</td>
+              <td style="font-weight:600;">3:00&ndash;5:00P</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Talent with avatars -->
+      <div class="section-title">Talent / Model Calls</div>
+      <div class="section-content">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px;"></th>
+              <th>Name</th>
+              <th>Agency</th>
+              <th>Call</th>
+              <th>HMU</th>
+              <th>On Set</th>
+              <th>Wrap</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="talent-avatar">AK</div></td>
+              <td style="font-weight:600;">Amara Kone</td>
+              <td>IMG Models</td>
+              <td>6:00A</td><td>6:15A</td><td>8:00A</td><td>2:30P</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">KM</div></td>
+              <td style="font-weight:600;">Kai Mitchell</td>
+              <td>Wilhelmina</td>
+              <td>8:30A</td><td>8:45A</td><td>10:15A</td><td>2:30P</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">LV</div></td>
+              <td style="font-weight:600;">Lena Voronova</td>
+              <td>The Society</td>
+              <td>6:00A</td><td>6:15A</td><td>8:00A</td><td>10:00A</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">PS</div></td>
+              <td style="font-weight:600;">Priya Sharma</td>
+              <td>Elite Model</td>
+              <td>6:00A</td><td>6:30A</td><td>8:00A</td><td>10:00A</td>
+              <td><span class="status-dot dot-amber"></span> <span style="font-size:10px; color:#b45309; font-weight:600;">Pending</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">SA</div></td>
+              <td style="font-weight:600;">Sofia Andersson</td>
+              <td>Next Models</td>
+              <td>12:00P</td><td>12:15P</td><td>1:00P</td><td>3:00P</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">MT</div></td>
+              <td style="font-weight:600;">Maya Torres</td>
+              <td>Ford Models</td>
+              <td>12:00P</td><td>12:30P</td><td>1:30P</td><td>3:30P</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">JP</div></td>
+              <td style="font-weight:600;">Jin Park</td>
+              <td>DNA Models</td>
+              <td>2:00P</td><td>2:15P</td><td>3:00P</td><td>5:00P</td>
+              <td><span class="status-dot dot-amber"></span> <span style="font-size:10px; color:#b45309; font-weight:600;">Pending</span></td>
+            </tr>
+            <tr>
+              <td><div class="talent-avatar">NC</div></td>
+              <td style="font-weight:600;">Nia Campbell</td>
+              <td>IMG Models</td>
+              <td>2:00P</td><td>2:30P</td><td>3:30P</td><td>5:30P</td>
+              <td><span class="status-dot dot-green"></span> <span style="font-size:10px; color:#047857; font-weight:600;">Confirmed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Crew -->
+      <div class="section-title">Crew Calls</div>
+      <div class="section-content">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:110px;">Department</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th style="width:56px;">Call</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="font-weight:600; color:#a1a1aa;" rowspan="3">Camera</td><td style="font-weight:600;">Alex Thompson</td><td>Photographer</td><td style="font-weight:600;">6:30A</td></tr>
+            <tr><td>Ryan Walsh</td><td>1st Photo Assistant</td><td>6:30A</td></tr>
+            <tr><td>Nora Elias</td><td>Digital Tech</td><td>6:00A</td></tr>
+            <tr style="background:#fafafa;"><td style="font-weight:600; color:#a1a1aa;" rowspan="3">Styling</td><td style="font-weight:600;">Olivia Chen</td><td>Styling Lead</td><td style="font-weight:600;">6:00A</td></tr>
+            <tr style="background:#fafafa;"><td>Emma Scott</td><td>Styling Assistant</td><td>6:00A</td></tr>
+            <tr style="background:#fafafa;"><td>Lucas Fernandez</td><td>Styling Assistant</td><td>6:00A</td></tr>
+            <tr><td style="font-weight:600; color:#a1a1aa;" rowspan="3">Hair &amp; Makeup</td><td style="font-weight:600;">Diana Reyes</td><td>HMU Lead</td><td style="font-weight:600;">5:30A</td></tr>
+            <tr><td>Zara Okafor</td><td>Makeup Artist</td><td>5:30A</td></tr>
+            <tr><td>Tomoko Nakamura</td><td>Hair Stylist</td><td>5:30A</td></tr>
+            <tr style="background:#fafafa;"><td style="font-weight:600; color:#a1a1aa;" rowspan="4">Production</td><td style="font-weight:600;">Sarah Mitchell</td><td>Producer</td><td style="font-weight:600;">5:30A</td></tr>
+            <tr style="background:#fafafa;"><td>Marcus Lee</td><td>Prod. Coordinator</td><td>5:30A</td></tr>
+            <tr style="background:#fafafa;"><td>Ashley Brooks</td><td>Production Assistant</td><td>5:30A</td></tr>
+            <tr style="background:#fafafa;"><td>Tyler Nguyen</td><td>Production Assistant</td><td>6:00A</td></tr>
+            <tr><td style="font-weight:600; color:#a1a1aa;" rowspan="3">Lighting</td><td style="font-weight:600;">James Rivera</td><td>Gaffer / Director</td><td style="font-weight:600;">6:00A</td></tr>
+            <tr><td>Chris Daniels</td><td>Key Grip</td><td>6:00A</td></tr>
+            <tr><td>Sam Park</td><td>Lighting Tech</td><td>6:00A</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Production Notes -->
+      <div class="section-title">Production Notes</div>
+      <div class="section-content" style="font-size:11px; line-height:1.7; padding-bottom:24px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="padding:10px 14px; border:1px solid #e4e4e7; border-radius:6px;">
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#a1a1aa; margin-bottom:4px;">Catering</div>
+            Breakfast 6:00A (Studio C lobby). Lunch 12:30P. Afternoon snacks 4:00P.
+          </div>
+          <div style="padding:10px 14px; border:1px solid #e4e4e7; border-radius:6px;">
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#a1a1aa; margin-bottom:4px;">Wardrobe</div>
+            All garments steamed and returned to wardrobe rack by wrap. Do not leave on set.
+          </div>
+          <div style="padding:10px 14px; border:1px solid #e4e4e7; border-radius:6px;">
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#a1a1aa; margin-bottom:4px;">Transport</div>
+            Talent van departs hotel lobby at 5:30A. Contact Marcus Lee for pickups.
+          </div>
+          <div style="padding:10px 14px; border:1px solid #e4e4e7; border-radius:6px;">
+            <div style="font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#a1a1aa; margin-bottom:4px;">Client Visit</div>
+            Nordstrom creative team arriving 10:00A for Setup #2 review. Producer to meet at entrance.
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="border-top:1px solid #e4e4e7; padding:12px 32px; display:flex; justify-content:space-between; font-size:9px; color:#a1a1aa;">
+        <span>Confidential &mdash; Distribution restricted to call sheet recipients</span>
+        <span style="letter-spacing:.02em;">Shot Builder</span>
+      </div>
+
+    </div><!-- /doc -->
+
+    <!-- Thumbnail -->
+    <div class="thumb-wrap">
+      <div class="thumb-label">Print Preview (35% scale)</div>
+      <div class="thumb-container" style="height:400px;">
+        <div class="thumb-inner" id="thumb-c"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /padding wrapper -->
+
+<script>
+  // Option toggle
+  function showOption(id, btn) {
+    document.querySelectorAll('.option-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.opt-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('option-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // Thumbnail cloning
+  function populateThumbnails() {
+    const pairs = [
+      { src: '.cs-a .doc', target: 'thumb-a' },
+      { src: '.cs-b .doc', target: 'thumb-b' },
+      { src: '.cs-c .doc', target: 'thumb-c' },
+    ];
+    pairs.forEach(function(p) {
+      var src = document.querySelector(p.src);
+      var tgt = document.getElementById(p.target);
+      if (src && tgt) {
+        tgt.innerHTML = src.innerHTML;
+        // Copy computed styles from the source doc class
+        var srcStyles = window.getComputedStyle(src);
+        tgt.style.background = srcStyles.background || srcStyles.backgroundColor;
+        tgt.style.color = srcStyles.color;
+        tgt.style.fontFamily = srcStyles.fontFamily;
+        tgt.style.fontSize = srcStyles.fontSize;
+      }
+    });
+  }
+
+  // Run after a short delay to ensure styles are applied
+  setTimeout(populateThumbnails, 200);
+</script>
+
+</body>
+</html>

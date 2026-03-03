@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Call Sheet Output v2 — Sprint S7</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          fontSize: {
+            '3xs': '9px',
+            '2xs': '10px',
+            'xxs': '11px',
+            'xs': '12px',
+            'sm': '13px',
+            'base': '14px',
+            'lg': '16px',
+            'xl': '18px',
+          },
+          colors: {
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b', 950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* ══════════════════════════════════════════════════
+       BASE RESET & TYPOGRAPHY
+       ══════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+    body { background: #e4e4e7; min-height: 100vh; }
+
+    /* ══════════════════════════════════════════════════
+       DOCUMENT / PRINT DESIGN TOKENS
+       ══════════════════════════════════════════════════ */
+    :root {
+      --doc-ink: #111111;
+      --doc-bg: #ffffff;
+      --section-band-bg: #111111;
+      --section-band-text: #ffffff;
+      --table-header-bg: #000000;
+      --table-header-text: #ffffff;
+      --table-body-fs: 11px;
+      --table-row-h: 20px;
+      --page-padding: 20px;
+      --page-w: 816px;
+      --page-h: 1056px;
+      --accent: #E31E24;
+      --neutral-50: #fafafa;
+      --neutral-100: #f4f4f5;
+      --neutral-200: #e4e4e7;
+      --neutral-300: #d4d4d8;
+      --neutral-400: #a1a1aa;
+      --neutral-500: #71717a;
+      --neutral-600: #52525b;
+      --neutral-700: #3f3f46;
+      --neutral-800: #27272a;
+      --neutral-900: #18181b;
+      --neutral-950: #09090b;
+    }
+
+    /* Typography tokens */
+    .heading-page {
+      font-size: 24px;
+      line-height: 28px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+    }
+    .heading-section {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .label-meta {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ══════════════════════════════════════════════════
+       PAGE CONTAINER
+       ══════════════════════════════════════════════════ */
+    .page {
+      width: var(--page-w);
+      min-height: var(--page-h);
+      background: var(--doc-bg);
+      color: var(--doc-ink);
+      padding: var(--page-padding);
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .page-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      padding: 24px 0 60px;
+    }
+    .page-wrapper.print-preview .page {
+      box-shadow: none;
+      border: 1px solid var(--neutral-200);
+    }
+
+    /* ══════════════════════════════════════════════════
+       SECTION BANDS — Full-bleed dark headers
+       ══════════════════════════════════════════════════ */
+    .section-band {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--doc-ink);
+      padding: 8px 0 4px;
+      margin-top: 10px;
+      border-bottom: 2px solid var(--doc-ink);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .section-band .band-meta {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--neutral-500);
+    }
+
+    /* ══════════════════════════════════════════════════
+       TABLE STYLES
+       ══════════════════════════════════════════════════ */
+    .cs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--table-body-fs);
+      line-height: 1.3;
+    }
+    .cs-table th {
+      background: var(--neutral-100);
+      color: var(--neutral-600);
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 6px;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--neutral-300);
+    }
+    .cs-table th.text-right { text-align: right; }
+    .cs-table th.text-center { text-align: center; }
+    .cs-table td {
+      padding: 2px 6px;
+      height: var(--table-row-h);
+      vertical-align: middle;
+      border-bottom: 0.5px solid var(--neutral-200);
+    }
+    .cs-table td.text-right { text-align: right; }
+    .cs-table td.text-center { text-align: center; }
+    .cs-table tr.zebra-odd td { background: var(--doc-bg); }
+    .cs-table tr.zebra-even td { background: var(--neutral-50); }
+
+    /* ══════════════════════════════════════════════════
+       DEPARTMENT HEADERS (Crew grid)
+       ══════════════════════════════════════════════════ */
+    .dept-header {
+      background: var(--section-band-bg);
+      color: var(--section-band-text);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* ══════════════════════════════════════════════════
+       RUNNING HEADER (page 2+)
+       ══════════════════════════════════════════════════ */
+    .running-header {
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--neutral-500);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 0.5px solid var(--neutral-300);
+      margin-bottom: 12px;
+    }
+
+    /* ══════════════════════════════════════════════════
+       PAGE FOOTER
+       ══════════════════════════════════════════════════ */
+    .page-footer {
+      position: absolute;
+      bottom: 10px;
+      right: var(--page-padding);
+      font-size: 9px;
+      color: var(--neutral-400);
+      letter-spacing: 0.04em;
+    }
+    .page-footer-left {
+      position: absolute;
+      bottom: 10px;
+      left: var(--page-padding);
+      font-size: 9px;
+      color: var(--neutral-400);
+      letter-spacing: 0.02em;
+    }
+
+    /* ══════════════════════════════════════════════════
+       SCHEDULE TIMELINE BLOCKS
+       ══════════════════════════════════════════════════ */
+    .timeline-track { position: relative; min-height: 40px; }
+    .timeline-block {
+      border-left: 3px solid;
+      padding: 3px 8px;
+      font-size: 10px;
+      line-height: 1.35;
+      border-radius: 2px;
+    }
+    .timeline-row {
+      display: flex;
+      border-bottom: 0.5px solid var(--neutral-100);
+    }
+    .timeline-time {
+      width: 50px;
+      flex-shrink: 0;
+      padding: 4px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--neutral-500);
+      text-align: right;
+      border-right: 0.5px solid var(--neutral-200);
+    }
+    .timeline-content { flex: 1; padding: 4px; }
+    .timeline-content-split {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+    }
+
+    /* Schedule block color variants */
+    .block-setup { border-color: #f59e0b; background: rgba(255,251,235,0.55); }
+    .block-setup .block-title { color: #b45309; }
+    .block-shooting { border-color: #3b82f6; background: rgba(239,246,255,0.55); }
+    .block-shooting .block-title { color: #1d4ed8; }
+    .block-hmu { border-color: #8b5cf6; background: rgba(245,243,255,0.55); }
+    .block-hmu .block-title { color: #6d28d9; }
+    .block-meal { border-color: #10b981; background: rgba(236,253,245,0.55); }
+    .block-meal .block-title { color: #047857; }
+    .block-travel { border-color: #71717a; background: rgba(244,244,245,0.55); }
+    .block-travel .block-title { color: var(--neutral-600); }
+    .block-title { font-weight: 600; font-size: 10px; }
+    .block-meta { color: var(--neutral-500); font-size: 9px; }
+
+    /* ══════════════════════════════════════════════════
+       CREW GRID — 1-col / 2-col
+       ══════════════════════════════════════════════════ */
+    .crew-grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 12px;
+    }
+    .crew-grid-1col {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    /* ══════════════════════════════════════════════════
+       KEY TIMES STRIP
+       ══════════════════════════════════════════════════ */
+    .key-times {
+      display: flex;
+      gap: 0;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--doc-ink);
+      border-top: 1.5px solid var(--doc-ink);
+      border-bottom: 1.5px solid var(--doc-ink);
+      margin: 0 calc(-1 * var(--page-padding));
+      padding: 0;
+    }
+    .key-times .kt-item {
+      flex: 1;
+      text-align: center;
+      padding: 4px 6px;
+      border-right: 0.5px solid var(--neutral-300);
+    }
+    .key-times .kt-item:last-child { border-right: none; }
+    .key-times .kt-label {
+      font-size: 9px;
+      font-weight: 400;
+      color: var(--neutral-500);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: block;
+    }
+
+    /* ══════════════════════════════════════════════════
+       CONTROLS BAR (screen-only)
+       ══════════════════════════════════════════════════ */
+    .controls-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--neutral-950);
+      color: #ffffff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .controls-bar label {
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .controls-bar input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+    }
+    .btn-toggle {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: transparent;
+      color: rgba(255,255,255,0.6);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .btn-toggle:hover {
+      border-color: rgba(255,255,255,0.45);
+      color: rgba(255,255,255,0.85);
+    }
+    .btn-toggle.active {
+      background: #ffffff;
+      color: var(--neutral-950);
+      border-color: #ffffff;
+    }
+    .sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.15);
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════════════════════════
+       SECTION VISIBILITY TRANSITIONS
+       ══════════════════════════════════════════════════ */
+    .section-container {
+      transition: opacity 0.2s ease, max-height 0.35s ease;
+      overflow: visible;
+    }
+    .section-container.hidden-section {
+      opacity: 0;
+      max-height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════════════════
+       HEADER GRID — 3-zone modular
+       ══════════════════════════════════════════════════ */
+    .header-grid {
+      display: grid;
+      grid-template-columns: 25% 50% 25%;
+      border: 1px solid var(--neutral-300);
+    }
+    .header-grid > div { padding: 10px 12px; }
+    .header-grid > div:not(:last-child) {
+      border-right: 0.5px solid var(--neutral-300);
+    }
+
+    /* ══════════════════════════════════════════════════
+       ACCENT RULE (red brand line)
+       ══════════════════════════════════════════════════ */
+    .accent-rule {
+      height: 2px;
+      background: var(--accent);
+      margin: 0 calc(-1 * var(--page-padding));
+    }
+
+    /* ══════════════════════════════════════════════════
+       WEATHER ICON (inline)
+       ══════════════════════════════════════════════════ */
+    .weather-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 0 0 2px rgba(251,191,36,0.2);
+    }
+
+    /* ══════════════════════════════════════════════════
+       SHOT BREAKDOWN — compact list
+       ══════════════════════════════════════════════════ */
+    .shot-breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      line-height: 1.3;
+    }
+    .shot-breakdown-table th {
+      background: var(--neutral-100);
+      color: var(--neutral-600);
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 5px;
+      text-align: left;
+      border-bottom: 0.5px solid var(--neutral-300);
+    }
+    .shot-breakdown-table td {
+      padding: 2px 5px;
+      height: 18px;
+      vertical-align: middle;
+      border-bottom: 0.5px solid var(--neutral-100);
+    }
+
+    /* ══════════════════════════════════════════════════
+       STATUS BADGE (cast)
+       ══════════════════════════════════════════════════ */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 2px;
+    }
+    .status-badge-s { background: #dbeafe; color: #1d4ed8; }
+    .status-badge-w { background: #fef3c7; color: #b45309; }
+    .status-badge-h { background: #f4f4f5; color: #71717a; }
+
+    /* ══════════════════════════════════════════════════
+       WALKIE CHIP
+       ══════════════════════════════════════════════════ */
+    .walkie-chip {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-transform: none;
+      background: rgba(255,255,255,0.12);
+      padding: 1px 6px;
+      border-radius: 2px;
+    }
+
+    /* ══════════════════════════════════════════════════
+       PRINT STYLES
+       ══════════════════════════════════════════════════ */
+    @media print {
+      @page {
+        size: letter;
+        margin: 0.5in 0.4in;
+      }
+      body {
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .screen-only { display: none !important; }
+      .page {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+      }
+      .page-wrapper {
+        padding: 0 !important;
+        gap: 0 !important;
+      }
+      .page-break-before {
+        page-break-before: always;
+        break-before: page;
+      }
+      .dept-block {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      thead {
+        display: table-header-group;
+      }
+      .section-band { margin: 0 !important; }
+      .key-times { margin: 0 !important; }
+      .accent-rule { margin: 0 !important; }
+      .comparison-notes { display: none !important; }
+      .page-footer, .page-footer-left {
+        position: absolute;
+      }
+    }
+
+    /* ══════════════════════════════════════════════════
+       RESPONSIVE — mobile view
+       ══════════════════════════════════════════════════ */
+    @media (max-width: 860px) {
+      .page {
+        width: 100% !important;
+        min-height: auto !important;
+        box-shadow: none !important;
+        border-radius: 0;
+      }
+      .header-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0;
+      }
+      .header-grid > div {
+        border-right: none !important;
+        border-bottom: 0.5px solid var(--neutral-200);
+        text-align: center;
+      }
+      .header-grid > div:last-child { border-bottom: none; }
+      .header-grid > div:first-child { display: flex; flex-direction: column; align-items: center; }
+      .header-grid > div:last-child { align-items: center; }
+      .timeline-content-split {
+        grid-template-columns: 1fr !important;
+      }
+      .crew-grid-2col {
+        grid-template-columns: 1fr !important;
+      }
+      .controls-bar {
+        gap: 8px;
+        padding: 8px 12px;
+      }
+      body { background: #ffffff; }
+      .page-wrapper { gap: 0; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     CONTROLS BAR (screen-only, sticky)
+     ════════════════════════════════════════════════════ -->
+<div class="controls-bar screen-only" id="controlsBar">
+  <span style="font-size:13px;font-weight:700;letter-spacing:0.04em;margin-right:4px;">CALL SHEET v2</span>
+  <div class="sep"></div>
+
+  <!-- Mode toggle -->
+  <div style="display:flex;gap:4px;">
+    <button class="btn-toggle active" id="btnScreen" onclick="setMode('screen')">Screen</button>
+    <button class="btn-toggle" id="btnPrint" onclick="setMode('print')">Print Preview</button>
+  </div>
+  <div class="sep"></div>
+
+  <!-- Crew columns toggle -->
+  <div style="display:flex;gap:4px;">
+    <button class="btn-toggle active" id="btn1col" onclick="setCrewCols(1)">1-Col Crew</button>
+    <button class="btn-toggle" id="btn2col" onclick="setCrewCols(2)">2-Col Crew</button>
+  </div>
+  <div class="sep"></div>
+
+  <!-- Section visibility checkboxes -->
+  <label><input type="checkbox" checked onchange="toggleSection('header',this.checked)" /> Header</label>
+  <label><input type="checkbox" checked onchange="toggleSection('cast',this.checked)" /> Cast</label>
+  <label><input type="checkbox" checked onchange="toggleSection('schedule',this.checked)" /> Schedule</label>
+  <label><input type="checkbox" checked onchange="toggleSection('crew',this.checked)" /> Crew</label>
+  <label><input type="checkbox" checked onchange="toggleSection('notes',this.checked)" /> Notes</label>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════
+     PAGE WRAPPER
+     ════════════════════════════════════════════════════ -->
+<div class="page-wrapper" id="pageWrapper">
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       PAGE 1 — FRONT PAGE
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page1">
+
+    <!-- ══ A. MODULAR GRID HEADER (3 zones) ═══════════ -->
+    <div class="section-container" id="section-header">
+
+      <!-- Top accent rule -->
+      <div class="accent-rule" style="margin-bottom:0;"></div>
+
+      <div class="header-grid">
+
+        <!-- ── LEFT ZONE: Company & Safety ──────────── -->
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:2px;">
+          <!-- Logo placeholder -->
+          <div style="width:72px;height:28px;background:#18181b;border-radius:2px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;">
+            <span style="color:#ffffff;font-size:10px;font-weight:700;letter-spacing:0.1em;">STUDIO</span>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--doc-ink);">Meridian Studios</div>
+          <div style="font-size:10px;color:var(--neutral-500);">+1 (310) 555-0142</div>
+          <div style="font-size:10px;color:var(--neutral-500);line-height:1.3;margin-top:3px;">
+            <span style="font-weight:600;color:var(--accent);font-size:9px;letter-spacing:0.04em;">NEAREST HOSPITAL</span><br/>
+            Cedars-Sinai Medical Center<br/>
+            8700 Beverly Blvd, Los Angeles
+          </div>
+        </div>
+
+        <!-- ── CENTER ZONE: Production info ─────────── -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;">
+          <!-- Production title -->
+          <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:var(--doc-ink);">
+            SS26 Campaign
+          </div>
+          <div style="font-size:11px;font-weight:500;color:var(--neutral-500);letter-spacing:0.02em;margin-top:1px;">
+            Resort Collection Lookbook
+          </div>
+          <!-- Hero crew call time -->
+          <div style="font-size:42px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--doc-ink);margin-top:4px;">
+            7:00<span style="font-size:18px;font-weight:500;margin-left:2px;">AM</span>
+          </div>
+          <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--neutral-400);margin-top:1px;">
+            General Crew Call
+          </div>
+          <!-- Key personnel -->
+          <div style="display:flex;gap:16px;margin-top:6px;font-size:10px;color:var(--neutral-600);">
+            <span><strong>Director</strong>&ensp;Alex Thompson</span>
+            <span><strong>1st AD</strong>&ensp;Jane Rodriguez</span>
+          </div>
+          <div style="display:flex;gap:16px;font-size:10px;color:var(--neutral-600);">
+            <span><strong>UPM</strong>&ensp;Michael Chen&ensp;(310) 555-0189</span>
+          </div>
+        </div>
+
+        <!-- ── RIGHT ZONE: Date & Weather ───────────── -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:2px;">
+          <div style="font-size:18px;font-weight:700;color:var(--doc-ink);line-height:1.15;">
+            MON
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--doc-ink);letter-spacing:0.02em;">
+            March 15, 2026
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--neutral-500);margin-top:1px;">
+            Day 2 of 4
+          </div>
+          <!-- Weather block -->
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+            <div class="weather-icon">
+              <span style="font-size:12px;">&#9728;</span>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px;font-weight:700;color:var(--doc-ink);">72&deg; / 55&deg;</div>
+              <div style="font-size:9px;color:var(--neutral-500);">Mostly Sunny</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--neutral-400);text-align:right;margin-top:4px;line-height:1.5;">
+            <span style="font-weight:600;">Sunrise</span> 6:42a&ensp;&ensp;<span style="font-weight:600;">Sunset</span> 7:18p
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom accent rule -->
+      <div class="accent-rule" style="margin-top:0;"></div>
+
+      <!-- Location & Parking strip -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:10px;border-bottom:0.5px solid var(--neutral-200);">
+        <div>
+          <span style="font-weight:600;color:var(--neutral-500);font-size:9px;letter-spacing:0.04em;text-transform:uppercase;">Location</span>
+          <span style="margin-left:6px;font-weight:500;color:var(--doc-ink);">Malibu Beach House &mdash; 21720 Pacific Coast Hwy, Malibu, CA 90265</span>
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--neutral-500);font-size:9px;letter-spacing:0.04em;text-transform:uppercase;">Parking</span>
+          <span style="margin-left:6px;font-weight:500;color:var(--doc-ink);">Lot B &mdash; enter via Coast View Dr</span>
+        </div>
+      </div>
+
+      <!-- Basecamp strip -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:10px;border-bottom:0.5px solid var(--neutral-200);">
+        <div>
+          <span style="font-weight:600;color:var(--neutral-500);font-size:9px;letter-spacing:0.04em;text-transform:uppercase;">Basecamp</span>
+          <span style="margin-left:6px;font-weight:500;color:var(--doc-ink);">North Lot &mdash; craft services, HMU trailer, wardrobe trailer</span>
+        </div>
+        <div>
+          <span style="font-weight:600;color:var(--neutral-500);font-size:9px;letter-spacing:0.04em;text-transform:uppercase;">Medic</span>
+          <span style="margin-left:6px;font-weight:500;color:var(--doc-ink);">On-site &mdash; Basecamp Tent 3</span>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ══ B. CAST / TALENT GRID ═══════════════════════ -->
+    <div class="section-container" id="section-cast" style="margin-top:10px;">
+      <div class="section-band">
+        <span>Cast</span>
+        <span class="band-meta">5 Talent</span>
+      </div>
+      <table class="cs-table">
+        <thead>
+          <tr>
+            <th style="width:26px;">#</th>
+            <th style="width:18%;">Talent</th>
+            <th style="width:20%;">Character / Role</th>
+            <th style="width:7%;" class="text-center">SWH</th>
+            <th style="width:10%;" class="text-right">Pickup</th>
+            <th style="width:10%;" class="text-right">Report</th>
+            <th style="width:10%;" class="text-right">HMU</th>
+            <th style="width:10%;" class="text-right">Set Call</th>
+            <th style="width:10%;" class="text-right">Wrap</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="zebra-odd">
+            <td style="font-weight:600;text-align:center;">1</td>
+            <td style="font-weight:600;">Sofia Reyes</td>
+            <td>Lead &mdash; Poolside &amp; Garden</td>
+            <td class="text-center"><span class="status-badge status-badge-s">S</span></td>
+            <td class="text-right">6:00a</td>
+            <td class="text-right">6:15a</td>
+            <td class="text-right">6:30a</td>
+            <td class="text-right" style="font-weight:600;">8:00a</td>
+            <td class="text-right">4:00p</td>
+          </tr>
+          <tr class="zebra-even">
+            <td style="font-weight:600;text-align:center;">2</td>
+            <td style="font-weight:600;">Maya Chen</td>
+            <td>Lead &mdash; Interior &amp; Rooftop</td>
+            <td class="text-center"><span class="status-badge status-badge-w">W</span></td>
+            <td class="text-right">6:30a</td>
+            <td class="text-right">6:45a</td>
+            <td class="text-right">7:00a</td>
+            <td class="text-right" style="font-weight:600;">8:30a</td>
+            <td class="text-right">5:30p</td>
+          </tr>
+          <tr class="zebra-odd">
+            <td style="font-weight:600;text-align:center;">3</td>
+            <td style="font-weight:600;">Aisha Laurent</td>
+            <td>Feature &mdash; Beachfront</td>
+            <td class="text-center"><span class="status-badge status-badge-s">S</span></td>
+            <td class="text-right">7:00a</td>
+            <td class="text-right">7:15a</td>
+            <td class="text-right">7:30a</td>
+            <td class="text-right" style="font-weight:600;">9:30a</td>
+            <td class="text-right">3:30p</td>
+          </tr>
+          <tr class="zebra-even">
+            <td style="font-weight:600;text-align:center;">4</td>
+            <td style="font-weight:600;">Liam Nakamura</td>
+            <td>Feature &mdash; Garden &amp; Pool</td>
+            <td class="text-center"><span class="status-badge status-badge-w">W</span></td>
+            <td class="text-right">8:00a</td>
+            <td class="text-right">8:15a</td>
+            <td class="text-right">8:30a</td>
+            <td class="text-right" style="font-weight:600;">10:00a</td>
+            <td class="text-right">4:30p</td>
+          </tr>
+          <tr class="zebra-odd">
+            <td style="font-weight:600;text-align:center;">5</td>
+            <td style="font-weight:600;">Zara Okafor</td>
+            <td>Hands / Detail Model</td>
+            <td class="text-center"><span class="status-badge status-badge-h">H</span></td>
+            <td class="text-right">&mdash;</td>
+            <td class="text-right">9:45a</td>
+            <td class="text-right">10:00a</td>
+            <td class="text-right" style="font-weight:600;">10:30a</td>
+            <td class="text-right">2:00p</td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- Status legend -->
+      <div style="display:flex;gap:12px;padding:3px 6px;font-size:9px;color:var(--neutral-400);border-bottom:0.5px solid var(--neutral-200);">
+        <span><span class="status-badge status-badge-s" style="width:14px;height:14px;font-size:8px;">S</span> Start</span>
+        <span><span class="status-badge status-badge-w" style="width:14px;height:14px;font-size:8px;">W</span> Work</span>
+        <span><span class="status-badge status-badge-h" style="width:14px;height:14px;font-size:8px;">H</span> Hold</span>
+        <span style="margin-left:auto;color:var(--neutral-400);">Talent with notes: see Production Notes below</span>
+      </div>
+    </div>
+
+
+    <!-- ══ C. SCHEDULE SECTION ═════════════════════════ -->
+    <div class="section-container" id="section-schedule" style="margin-top:10px;">
+      <div class="section-band">
+        <span>Schedule</span>
+        <span class="band-meta">6:30a &mdash; 6:00p&ensp;|&ensp;10 activities</span>
+      </div>
+
+      <!-- ── Mini Timeline ─────────────────────────── -->
+      <div style="position:relative;font-size:10px;">
+
+        <!-- 6:30 AM — Setup + HMU (overlap) -->
+        <div class="timeline-row">
+          <div class="timeline-time">6:30a</div>
+          <div class="timeline-content-split">
+            <div class="timeline-block block-setup" style="min-height:44px;">
+              <div class="block-title">Location Setup</div>
+              <div class="block-meta">6:30a &mdash; 8:00a&ensp;|&ensp;All departments</div>
+              <div class="block-meta">Grip, electric, art dept prep all zones</div>
+            </div>
+            <div class="timeline-block block-hmu" style="min-height:44px;">
+              <div class="block-title">HMU &mdash; Talent 1 &amp; 2</div>
+              <div class="block-meta">6:30a &mdash; 8:00a&ensp;|&ensp;HMU Trailer</div>
+              <div class="block-meta">Full glam, poolside looks first</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7:30 AM — HMU Talent 3 -->
+        <div class="timeline-row">
+          <div class="timeline-time">7:30a</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-hmu" style="min-height:28px;">
+              <div class="block-title">HMU &mdash; Talent 3</div>
+              <div class="block-meta">7:30a &mdash; 9:00a&ensp;|&ensp;HMU Trailer&ensp;|&ensp;Beachwear natural look</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8:00 AM — Shooting Block 1 -->
+        <div class="timeline-row">
+          <div class="timeline-time">8:00a</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-shooting" style="min-height:52px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <div class="block-title">Block 1 &mdash; Poolside Looks</div>
+                <div style="font-size:9px;color:var(--neutral-400);">Shots 101&ndash;108</div>
+              </div>
+              <div class="block-meta">8:00a &mdash; 10:30a&ensp;|&ensp;Pool Deck&ensp;|&ensp;Talent 1, 3</div>
+              <div class="block-meta" style="margin-top:1px;">12 setups&ensp;|&ensp;Swimwear + Resort Casual&ensp;|&ensp;Natural light + HMI fill</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10:30 AM — Travel + HMU changeover (overlap) -->
+        <div class="timeline-row">
+          <div class="timeline-time">10:30a</div>
+          <div class="timeline-content-split">
+            <div class="timeline-block block-travel" style="min-height:28px;">
+              <div class="block-title">Company Move &rarr; Garden</div>
+              <div class="block-meta">10:30a &mdash; 11:00a&ensp;|&ensp;30 min transition</div>
+            </div>
+            <div class="timeline-block block-hmu" style="min-height:28px;">
+              <div class="block-title">HMU Changeover &mdash; T1, T4</div>
+              <div class="block-meta">10:30a &mdash; 11:15a&ensp;|&ensp;HMU Trailer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11:00 AM — Shooting Block 2 -->
+        <div class="timeline-row">
+          <div class="timeline-time">11:00a</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-shooting" style="min-height:52px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <div class="block-title">Block 2 &mdash; Garden Editorial</div>
+                <div style="font-size:9px;color:var(--neutral-400);">Shots 201&ndash;210</div>
+              </div>
+              <div class="block-meta">11:00a &mdash; 12:30p&ensp;|&ensp;Garden Terrace&ensp;|&ensp;Talent 1, 2, 4</div>
+              <div class="block-meta" style="margin-top:1px;">10 setups&ensp;|&ensp;Linen Suiting + Accessories&ensp;|&ensp;Scrim overhead</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 12:30 PM — Lunch -->
+        <div class="timeline-row">
+          <div class="timeline-time">12:30p</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-meal" style="min-height:32px;">
+              <div class="block-title">Lunch</div>
+              <div class="block-meta">12:30p &mdash; 1:30p&ensp;|&ensp;Catering Tent&ensp;|&ensp;All crew + talent&ensp;|&ensp;Salt &amp; Vine catering</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1:30 PM — Shooting Block 3 -->
+        <div class="timeline-row">
+          <div class="timeline-time">1:30p</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-shooting" style="min-height:52px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <div class="block-title">Block 3 &mdash; Interior Moody</div>
+                <div style="font-size:9px;color:var(--neutral-400);">Shots 301&ndash;306</div>
+              </div>
+              <div class="block-meta">1:30p &mdash; 3:30p&ensp;|&ensp;Living Room&ensp;|&ensp;Talent 2, 5</div>
+              <div class="block-meta" style="margin-top:1px;">8 setups&ensp;|&ensp;Evening Wear + Jewelry&ensp;|&ensp;Controlled lighting, blinds closed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3:30 PM — Rooftop setup + HMU (overlap) -->
+        <div class="timeline-row">
+          <div class="timeline-time">3:30p</div>
+          <div class="timeline-content-split">
+            <div class="timeline-block block-setup" style="min-height:32px;">
+              <div class="block-title">Rooftop Lighting Setup</div>
+              <div class="block-meta">3:30p &mdash; 4:15p&ensp;|&ensp;Grip &amp; Electric</div>
+              <div class="block-meta">Kino Flos + bounce for golden hour</div>
+            </div>
+            <div class="timeline-block block-hmu" style="min-height:32px;">
+              <div class="block-title">HMU &mdash; Golden Hour Looks</div>
+              <div class="block-meta">3:30p &mdash; 4:30p&ensp;|&ensp;T1, T2</div>
+              <div class="block-meta">Hero campaign look, full changeover</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4:30 PM — Shooting Block 4 -->
+        <div class="timeline-row">
+          <div class="timeline-time">4:30p</div>
+          <div class="timeline-content">
+            <div class="timeline-block block-shooting" style="min-height:52px;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <div class="block-title">Block 4 &mdash; Rooftop Golden Hour</div>
+                <div style="font-size:9px;color:var(--neutral-400);">Shots 401&ndash;405</div>
+              </div>
+              <div class="block-meta">4:30p &mdash; 6:00p&ensp;|&ensp;Rooftop Deck&ensp;|&ensp;Talent 1, 2</div>
+              <div class="block-meta" style="margin-top:1px;">6 setups&ensp;|&ensp;Hero Looks &mdash; Campaign Key Art&ensp;|&ensp;Golden hour window: 5:15p&ndash;5:55p</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /timeline -->
+
+      <!-- ── Schedule Legend ────────────────────────── -->
+      <div style="display:flex;gap:12px;padding:4px 6px;font-size:9px;color:var(--neutral-500);border-top:0.5px solid var(--neutral-200);">
+        <span style="display:flex;align-items:center;gap:3px;">
+          <span style="width:8px;height:8px;border-radius:1px;background:rgba(255,251,235,0.8);border:1.5px solid #f59e0b;"></span> Setup
+        </span>
+        <span style="display:flex;align-items:center;gap:3px;">
+          <span style="width:8px;height:8px;border-radius:1px;background:rgba(239,246,255,0.8);border:1.5px solid #3b82f6;"></span> Shooting
+        </span>
+        <span style="display:flex;align-items:center;gap:3px;">
+          <span style="width:8px;height:8px;border-radius:1px;background:rgba(245,243,255,0.8);border:1.5px solid #8b5cf6;"></span> HMU
+        </span>
+        <span style="display:flex;align-items:center;gap:3px;">
+          <span style="width:8px;height:8px;border-radius:1px;background:rgba(236,253,245,0.8);border:1.5px solid #10b981;"></span> Meal
+        </span>
+        <span style="display:flex;align-items:center;gap:3px;">
+          <span style="width:8px;height:8px;border-radius:1px;background:rgba(244,244,245,0.8);border:1.5px solid #71717a;"></span> Travel
+        </span>
+        <span style="margin-left:auto;font-style:italic;">Side-by-side blocks indicate concurrent activities</span>
+      </div>
+
+      <!-- ── D. KEY TIMES STRIP ────────────────────── -->
+      <div class="key-times">
+        <div class="kt-item">
+          <span class="kt-label">Crew Call</span>
+          6:30a
+        </div>
+        <div class="kt-item">
+          <span class="kt-label">Shooting Call</span>
+          8:00a
+        </div>
+        <div class="kt-item">
+          <span class="kt-label">Lunch</span>
+          12:30p
+        </div>
+        <div class="kt-item">
+          <span class="kt-label">2nd Meal</span>
+          &mdash;
+        </div>
+        <div class="kt-item">
+          <span class="kt-label">Est. Wrap</span>
+          6:00p
+        </div>
+      </div>
+    </div><!-- /section-schedule -->
+
+
+    <!-- ══ E. PRODUCTION NOTES ═════════════════════════ -->
+    <div class="section-container" id="section-notes" style="margin-top:10px;">
+      <div class="section-band">
+        <span>Production Notes</span>
+      </div>
+      <div style="padding:6px 2px;font-size:10px;line-height:1.55;color:var(--neutral-700);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Wardrobe:</span>
+            All talent to arrive with clean nails, no jewelry, no self-tanner. Wardrobe fittings completed 3/13. Talent 1 &amp; 2 have alternate hero looks for Block 4 &mdash; confirm with stylist Camille before lunch. Shoes sized and labeled in wardrobe trailer.
+          </div>
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Location:</span>
+            Pool area restricted before 8:00a per neighbor agreement. Rooftop access via service elevator only &mdash; max 8 persons at a time. No smoking anywhere on property. Shoes off on interior hardwood floors. White gloves required when handling furniture.
+          </div>
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Catering:</span>
+            Craft services available 6:00a at basecamp (Tent 1). Lunch catered by Salt &amp; Vine, served 12:30p at catering tent. Dietary restrictions on file with coordinator &mdash; 2 vegan, 1 gluten-free, 1 nut allergy. Afternoon snack run at 3:00p.
+          </div>
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Safety:</span>
+            Pool shots require certified safety diver on standby (arrives 7:30a). First aid kits at basecamp and HMU trailer. On-site medic Dr. Sarah Park. COVID protocols: daily health screening before entry, masks required in enclosed prep spaces.
+          </div>
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Weather Contingency:</span>
+            If rain, Blocks 1 and 4 move to covered patio (setups TBD by DP). Block 2 moves indoors to dining room. 1st AD will call weather decision by 6:00a morning of.
+          </div>
+          <div>
+            <span style="font-weight:600;color:var(--doc-ink);">Client on Set:</span>
+            Brand Creative Director arriving 10:00a for Block 2 review. Client monitor in video village. All Block 2 selects to be shown on tethered laptop for real-time approval.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Advanced Notes / Shot Count Summary ─────── -->
+    <div style="margin-top:6px;padding:5px 0;border-top:0.5px solid var(--neutral-200);">
+      <div style="display:flex;gap:0;font-size:10px;">
+        <div style="flex:1;padding:0 4px;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--neutral-500);">Shot Count</span>
+          <div style="display:flex;gap:10px;margin-top:2px;color:var(--doc-ink);">
+            <span><strong>36</strong> total setups</span>
+            <span><strong>4</strong> blocks</span>
+            <span><strong>4</strong> locations</span>
+          </div>
+        </div>
+        <div style="flex:1;padding:0 4px;border-left:0.5px solid var(--neutral-200);">
+          <span style="font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--neutral-500);">Products</span>
+          <div style="display:flex;gap:10px;margin-top:2px;color:var(--doc-ink);">
+            <span><strong>18</strong> garments</span>
+            <span><strong>6</strong> accessories</span>
+            <span><strong>4</strong> shoes</span>
+          </div>
+        </div>
+        <div style="flex:1;padding:0 4px;border-left:0.5px solid var(--neutral-200);">
+          <span style="font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--neutral-500);">Deliverables</span>
+          <div style="display:flex;gap:10px;margin-top:2px;color:var(--doc-ink);">
+            <span><strong>24</strong> e-com</span>
+            <span><strong>8</strong> editorial</span>
+            <span><strong>4</strong> hero/key art</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 1 footer -->
+    <div class="page-footer-left">SS26 Campaign &mdash; Call Sheet &mdash; Confidential</div>
+    <div class="page-footer">Page 1 of 2</div>
+
+  </div><!-- /page1 -->
+
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       PAGE 2 — CREW GRID
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="page page-break-before" id="page2">
+
+    <!-- Running header (slim) -->
+    <div class="running-header">
+      <span>SS26 Campaign&ensp;&mdash;&ensp;Day 2 of 4&ensp;&mdash;&ensp;Monday, March 15, 2026</span>
+      <span style="font-weight:600;">Crew Call Sheet</span>
+    </div>
+
+    <!-- ══ CREW SECTION ════════════════════════════════ -->
+    <div class="section-container" id="section-crew">
+
+      <div class="section-band" style="margin-bottom:0;">
+        <span>Crew</span>
+        <span class="band-meta">34 Members&ensp;|&ensp;8 Departments</span>
+      </div>
+
+      <!-- Crew grid — toggles between 1-col and 2-col -->
+      <div id="crewGrid" class="crew-grid-1col">
+
+        <!-- ── PRODUCTION ──────────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Production</span>
+            <span class="walkie-chip">Walkie Ch. 1</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Producer</td>
+                <td style="font-weight:500;">Rachel Kim</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0201</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Line Producer</td>
+                <td style="font-weight:500;">David Park</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0202</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>Production Coordinator</td>
+                <td style="font-weight:500;">Emma Walsh</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0203</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Production Assistant</td>
+                <td style="font-weight:500;">Tyler Brooks</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0204</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>Production Assistant</td>
+                <td style="font-weight:500;">Ashley Nguyen</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0205</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── DIRECTION ───────────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Direction</span>
+            <span class="walkie-chip">Walkie Ch. 1</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Director</td>
+                <td style="font-weight:500;">Alex Thompson</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0101</td>
+                <td class="text-right" style="font-weight:600;">7:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>1st AD</td>
+                <td style="font-weight:500;">Jane Rodriguez</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0102</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>2nd AD</td>
+                <td style="font-weight:500;">Chris Morales</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0103</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Set PA</td>
+                <td style="font-weight:500;">Nadia Petrov</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0104</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── CAMERA ──────────────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Camera</span>
+            <span class="walkie-chip">Walkie Ch. 7.1</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Director of Photography</td>
+                <td style="font-weight:500;">Marcus Vega</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0110</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Camera Operator</td>
+                <td style="font-weight:500;">Kenji Sato</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0111</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>1st AC</td>
+                <td style="font-weight:500;">Lisa Tran</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0112</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>2nd AC / Loader</td>
+                <td style="font-weight:500;">Omar Diaz</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0113</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>DIT</td>
+                <td style="font-weight:500;">Sam Winters</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0114</td>
+                <td class="text-right" style="font-weight:600;">7:00a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── GRIP & ELECTRIC ─────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Grip &amp; Electric</span>
+            <span class="walkie-chip">Walkie Ch. 6.1</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Gaffer</td>
+                <td style="font-weight:500;">Mike Hernandez</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0120</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Best Boy Electric</td>
+                <td style="font-weight:500;">Andre Williams</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0121</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>Key Grip</td>
+                <td style="font-weight:500;">Tony Russo</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0122</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Best Boy Grip</td>
+                <td style="font-weight:500;">Jake Morrison</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0123</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>Electric</td>
+                <td style="font-weight:500;">Ben Cooper</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0124</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── WARDROBE ────────────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Wardrobe</span>
+            <span class="walkie-chip">Walkie Ch. 5</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Stylist</td>
+                <td style="font-weight:500;">Camille Dubois</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0130</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>1st Assistant Stylist</td>
+                <td style="font-weight:500;">Priya Sharma</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0131</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>2nd Assistant Stylist</td>
+                <td style="font-weight:500;">Mia Johnson</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0132</td>
+                <td class="text-right" style="font-weight:600;">6:30a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Wardrobe PA</td>
+                <td style="font-weight:500;">Leo Santos</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0133</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── HAIR & MAKEUP ───────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Hair &amp; Makeup</span>
+            <span class="walkie-chip">Walkie Ch. 5</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Key Hair</td>
+                <td style="font-weight:500;">Yuki Tanaka</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0140</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Key Makeup</td>
+                <td style="font-weight:500;">Danielle Hart</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0141</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>HMU Assistant</td>
+                <td style="font-weight:500;">Riley Chen</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0142</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Additional Makeup</td>
+                <td style="font-weight:500;">Ava Mitchell</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(310) 555-0143</td>
+                <td class="text-right" style="font-weight:600;">7:00a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── ART DEPARTMENT ──────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Art Department</span>
+            <span class="walkie-chip">Walkie Ch. 8</span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Production Designer</td>
+                <td style="font-weight:500;">Hannah Lee</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0150</td>
+                <td class="text-right" style="font-weight:600;">6:00a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Set Dresser</td>
+                <td style="font-weight:500;">Marco Bianchi</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0151</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+              <tr class="zebra-odd">
+                <td>Art PA</td>
+                <td style="font-weight:500;">Jordan Reeves</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(323) 555-0152</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── CATERING ────────────────────────────── -->
+        <div class="dept-block">
+          <div class="dept-header">
+            <span>Catering</span>
+            <span class="walkie-chip"></span>
+          </div>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th style="width:38%;">Position</th>
+                <th style="width:34%;">Name</th>
+                <th style="width:14%;">Phone</th>
+                <th style="width:14%;" class="text-right">Call</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="zebra-odd">
+                <td>Craft Services Lead</td>
+                <td style="font-weight:500;">Nina Castillo</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0160</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+              <tr class="zebra-even">
+                <td>Craft Services Assist</td>
+                <td style="font-weight:500;">Diego Flores</td>
+                <td style="font-size:10px;color:var(--neutral-500);">(818) 555-0161</td>
+                <td class="text-right" style="font-weight:600;">5:30a</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /crewGrid -->
+    </div><!-- /section-crew -->
+
+    <!-- ── Walkie Channel Summary ────────────────── -->
+    <div style="margin-top:10px;padding:6px 0;border-top:1px solid var(--neutral-200);border-bottom:1px solid var(--neutral-200);">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--neutral-500);margin-bottom:3px;">Walkie Channel Guide</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;font-size:10px;color:var(--neutral-600);">
+        <span style="background:var(--neutral-100);padding:2px 8px;border-radius:2px;"><strong>Ch. 1</strong>&ensp;Production / Direction</span>
+        <span style="background:var(--neutral-100);padding:2px 8px;border-radius:2px;"><strong>Ch. 5</strong>&ensp;Wardrobe / HMU</span>
+        <span style="background:var(--neutral-100);padding:2px 8px;border-radius:2px;"><strong>Ch. 6.1</strong>&ensp;Grip &amp; Electric</span>
+        <span style="background:var(--neutral-100);padding:2px 8px;border-radius:2px;"><strong>Ch. 7.1</strong>&ensp;Camera</span>
+        <span style="background:var(--neutral-100);padding:2px 8px;border-radius:2px;"><strong>Ch. 8</strong>&ensp;Art Dept</span>
+      </div>
+    </div>
+
+    <!-- ── Emergency & Vendor Contacts ───────────── -->
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:10px;color:var(--neutral-600);">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--neutral-500);margin-bottom:3px;">Emergency Contacts</div>
+        <div style="line-height:1.6;">
+          <div><strong>UPM:</strong> Michael Chen &mdash; (310) 555-0189</div>
+          <div><strong>On-Site Medic:</strong> Dr. Sarah Park &mdash; (310) 555-0234</div>
+          <div><strong>Security:</strong> Guardian Services &mdash; (310) 555-0267</div>
+          <div><strong>Police (local):</strong> Malibu/Lost Hills Station &mdash; (310) 456-6652</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--neutral-500);margin-bottom:3px;">Vendor Contacts</div>
+        <div style="line-height:1.6;">
+          <div><strong>Equipment:</strong> Panavision LA &mdash; (323) 555-0100</div>
+          <div><strong>Catering:</strong> Salt &amp; Vine &mdash; (310) 555-0312</div>
+          <div><strong>Transport:</strong> Star Wagons &mdash; (818) 555-0145</div>
+          <div><strong>Expendables:</strong> Filmtools &mdash; (818) 555-0199</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tomorrow Preview ──────────────────────── -->
+    <div style="margin-top:10px;padding:6px 8px;background:var(--neutral-50);border:0.5px solid var(--neutral-200);font-size:10px;color:var(--neutral-600);line-height:1.5;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--neutral-500);margin-bottom:2px;">Advance &mdash; Day 3 of 4 (Tue, March 16)</div>
+      <div style="display:flex;gap:16px;">
+        <span><strong>Crew Call:</strong> 8:00a</span>
+        <span><strong>Location:</strong> Downtown Arts District Loft &mdash; 950 E 3rd St, LA 90013</span>
+        <span><strong>Focus:</strong> Interior editorial, product flat-lays, BTS content</span>
+      </div>
+    </div>
+
+    <!-- ── Confidentiality Notice ────────────────── -->
+    <div style="margin-top:10px;padding:6px 8px;background:var(--neutral-50);border:0.5px solid var(--neutral-200);border-radius:2px;font-size:9px;color:var(--neutral-400);text-align:center;letter-spacing:0.02em;">
+      CONFIDENTIAL &mdash; This call sheet is the property of Meridian Studios. Distribution is limited to approved crew and talent only. Do not share, forward, or post publicly. Unauthorized distribution may result in removal from production.
+    </div>
+
+    <!-- Page 2 footer -->
+    <div class="page-footer-left">SS26 Campaign &mdash; Call Sheet &mdash; Confidential</div>
+    <div class="page-footer">Page 2 of 2</div>
+
+  </div><!-- /page2 -->
+
+</div><!-- /page-wrapper -->
+
+
+<!-- ════════════════════════════════════════════════════
+     COMPARISON NOTES (screen-only)
+     ════════════════════════════════════════════════════ -->
+<div class="comparison-notes screen-only" style="max-width:816px;margin:0 auto 60px;padding:24px;font-family:'Inter',sans-serif;">
+
+  <h2 style="font-size:18px;font-weight:700;color:#18181b;margin-bottom:4px;letter-spacing:-0.01em;">Design Decisions &mdash; v2 vs v1</h2>
+  <p style="font-size:12px;color:#71717a;margin-bottom:16px;">Key changes based on user feedback and SetHero competitor research.</p>
+
+  <div style="display:grid;gap:12px;">
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">1. Modular Grid Header (SetHero-inspired)</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        The 3-zone header compresses company info, production details, and date/weather into approximately 120px of vertical space. The previous v1 design used more than half the first page with stacked key-value pairs before reaching the schedule. The hero crew call time (42px) is the single most scanned element on any call sheet &mdash; it now dominates the center zone. Hospital info is in the left zone at a glance for safety compliance.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">2. Multi-Track Schedule Timeline</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        The schedule now renders overlapping events side-by-side in a 2-column split rather than stacking sequentially. This mirrors how the schedule builder works in the app and gives crew a realistic view of concurrency. Time-aligned layout with color-coded block types (Setup = amber, Shooting = blue, HMU = purple, Meal = green, Travel = gray) is scannable at a glance. Each shooting block includes shot numbers, setup count, product categories, and lighting notes.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">3. Department-Grouped Crew Grid (SetHero pattern)</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        Crew are grouped by department with dark header bands containing walkie channel chips. Each department is a self-contained block with <code>break-inside: avoid</code> for clean print pagination. The 2-column toggle allows dense side-by-side packing for productions with 40+ crew. Phone numbers are included as a 4th column &mdash; this was a gap in v1. Zebra striping uses the neutral-50 token for subtle differentiation.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">4. Print-First Document Design</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        Every element is sized for US Letter (816px wide). Print styles use <code>@page { size: letter; margin: 0.5in 0.4in }</code>, force background color printing, hide screen controls, and enforce orphan control on department blocks. Page 2 gets a running header with production name, day count, and date for context when pages separate. Footer includes confidentiality notice and page numbers on both pages.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">5. Section Visibility Toggles</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        The toggle bar provides granular control over Header, Cast, Schedule, Crew, and Notes sections. A producer sending to crew includes everything. A client-facing version hides crew details and phone numbers. The "Print Preview" mode removes shadows and shows exact page boundaries. All toggles work with smooth CSS transitions. This is a direct response to user feedback requesting field visibility control.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">6. Mobile Responsive</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        Below 860px, the header grid stacks vertically, the timeline drops to single-column, and the crew grid forces 1-column. The document fills the viewport width without a centered card. This allows crew to read the call sheet on their phone without pinch-zooming. The controls bar wraps gracefully and remains sticky at the top.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">7. Fashion/Commercial Context</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        The design uses the "Fashion-Forward" (Option C) base from v1 &mdash; near-black ink (#111111), minimal accent color (red brand moments on the top/bottom rules only), editorial typography (Inter 300-700). Shot count summary and product counts on page 1 are specific to fashion/commercial production. The advance preview for the next shoot day is a detail borrowed from SetHero that production coordinators find invaluable for overnight prep.
+      </div>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:6px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:4px;">8. Cast Grid Enhancements</div>
+      <div style="font-size:12px;color:#52525b;line-height:1.55;">
+        Added a "Report" column between Pickup and HMU for the time talent checks in at basecamp. Status badges (S/W/H) are now colored chips instead of plain text for faster scanning. The legend row is explicit and includes a note directing readers to production notes for talent-specific instructions. Column widths are proportional to content importance &mdash; name and role get the most space, times are right-aligned for vertical scanning.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Implementation notes -->
+  <div style="margin-top:20px;padding:14px 16px;background:#fafafa;border:1px solid #e4e4e7;border-radius:6px;">
+    <div style="font-size:12px;font-weight:700;color:#18181b;margin-bottom:6px;">Implementation Notes</div>
+    <ul style="font-size:12px;color:#52525b;line-height:1.7;padding-left:18px;">
+      <li>All design tokens match the project specification exactly &mdash; no arbitrary hex values or font sizes</li>
+      <li>Table header: bg=#000000, text=#ffffff, font-size=9px, bold, uppercase, 0.05em tracking</li>
+      <li>Table body: font-size=11px, row-height=20px</li>
+      <li>Section bands: bg=#111111, text=#ffffff, 11px bold, 0.08em tracking, uppercase</li>
+      <li>Department headers use the same spec as section bands for visual consistency</li>
+      <li>Accent color (#E31E24) used only for top/bottom rules and hospital label &mdash; brand moments only</li>
+      <li>Responsive breakpoint at 860px covers the document width + padding threshold</li>
+      <li>Print styles tested with Chrome "Save as PDF" and "Print" dialog</li>
+      <li>Status badges use established color tokens: blue for Start, amber for Work, gray for Hold</li>
+      <li>The walkie chip in department headers uses rgba white for subtle contrast against the dark band</li>
+    </ul>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════════════
+     JAVASCRIPT — INTERACTIVE CONTROLS
+     ════════════════════════════════════════════════════ -->
+<script>
+  /**
+   * Mode toggle: Screen vs Print Preview
+   * Print Preview removes shadows and adds borders to simulate page boundaries.
+   */
+  function setMode(mode) {
+    var wrapper = document.getElementById('pageWrapper');
+    var btnScreen = document.getElementById('btnScreen');
+    var btnPrint = document.getElementById('btnPrint');
+
+    if (mode === 'print') {
+      wrapper.classList.add('print-preview');
+      btnPrint.classList.add('active');
+      btnScreen.classList.remove('active');
+    } else {
+      wrapper.classList.remove('print-preview');
+      btnScreen.classList.add('active');
+      btnPrint.classList.remove('active');
+    }
+  }
+
+  /**
+   * Crew columns toggle: 1-col vs 2-col
+   * 2-col places departments side-by-side with a 12px gutter for dense packing.
+   */
+  function setCrewCols(cols) {
+    var grid = document.getElementById('crewGrid');
+    var btn1 = document.getElementById('btn1col');
+    var btn2 = document.getElementById('btn2col');
+
+    if (cols === 2) {
+      grid.className = 'crew-grid-2col';
+      btn2.classList.add('active');
+      btn1.classList.remove('active');
+    } else {
+      grid.className = 'crew-grid-1col';
+      btn1.classList.add('active');
+      btn2.classList.remove('active');
+    }
+  }
+
+  /**
+   * Section visibility toggle
+   * Hides/shows major call sheet sections with CSS transition.
+   */
+  function toggleSection(section, visible) {
+    var el = document.getElementById('section-' + section);
+    if (!el) return;
+
+    if (visible) {
+      el.classList.remove('hidden-section');
+    } else {
+      el.classList.add('hidden-section');
+    }
+  }
+</script>
+
+</body>
+</html>

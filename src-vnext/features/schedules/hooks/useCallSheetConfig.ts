@@ -6,12 +6,14 @@ import { upsertCallSheetConfig } from "@/features/schedules/lib/scheduleWrites"
 import {
   mergeLegacyColors,
   mergeLegacyScheduleBlockFields,
+  mergeHeaderLayout,
   normalizeCallSheetConfig,
   upsertLegacySectionVisibility,
 } from "@/features/schedules/lib/callSheetConfig"
 import type {
   CallSheetColors,
   CallSheetConfig,
+  CallSheetHeaderLayout,
   CallSheetSectionVisibility,
   ScheduleBlockFields,
 } from "@/features/schedules/components/CallSheetRenderer"
@@ -86,6 +88,20 @@ export function useCallSheetConfig(
     [clientId, projectId, scheduleId, raw],
   )
 
+  const setHeaderLayout = useCallback(
+    async (layout: CallSheetHeaderLayout) => {
+      if (!clientId || !scheduleId) return
+      try {
+        const next = mergeHeaderLayout(raw, layout)
+        await upsertCallSheetConfig(clientId, projectId, scheduleId, next)
+      } catch (err) {
+        toast.error("Failed to save header layout.")
+        throw err
+      }
+    },
+    [clientId, projectId, scheduleId, raw],
+  )
+
   return {
     raw,
     config,
@@ -94,6 +110,7 @@ export function useCallSheetConfig(
     setSectionVisibility,
     setScheduleBlockFields,
     setColors,
+    setHeaderLayout,
   }
 }
 

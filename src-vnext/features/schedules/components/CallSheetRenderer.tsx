@@ -3,6 +3,10 @@ import { textPreview } from "@/shared/lib/textPreview"
 import { formatHHMMTo12h } from "@/features/schedules/lib/time"
 import { AdvancedScheduleBlockSection } from "@/features/schedules/components/AdvancedScheduleBlockSection"
 import { TagBadge } from "@/shared/components/TagBadge"
+import { CallSheetKeyTimesStrip } from "@/features/schedules/components/CallSheetKeyTimesStrip"
+import { CallSheetCastTable } from "@/features/schedules/components/CallSheetCastTable"
+import { CallSheetDeptGrid } from "@/features/schedules/components/CallSheetDeptGrid"
+import { CallSheetPageHeader } from "@/features/schedules/components/CallSheetPageHeader"
 import type {
   Schedule,
   DayDetails,
@@ -16,6 +20,8 @@ import type {
 } from "@/shared/types"
 
 // --- Configuration types (Slice 4 will pass these; Slice 3 uses defaults) ---
+
+export type CallSheetHeaderLayout = "legacy" | "grid"
 
 export interface CallSheetSectionVisibility {
   readonly header?: boolean
@@ -46,6 +52,12 @@ export interface CallSheetConfig {
   readonly sections?: CallSheetSectionVisibility
   readonly colors?: CallSheetColors
   readonly scheduleBlockFields?: ScheduleBlockFields
+  /**
+   * Header layout variant.
+   * 'legacy' = current header (default, never breaks existing call sheets).
+   * 'grid' = new 3-zone modular grid header (S7-7).
+   */
+  readonly headerLayout?: CallSheetHeaderLayout
 }
 
 // --- Data props ---
@@ -351,6 +363,8 @@ export function CallSheetRenderer({
     })
   }, [entries, schedule?.tracks])
 
+  const headerLayout = config?.headerLayout ?? "legacy"
+
   if (!schedule) {
     return null
   }
@@ -358,6 +372,7 @@ export function CallSheetRenderer({
   const dateStr = formatDate(schedule.date)
   const headerTitle = projectName?.trim() ? projectName.trim() : schedule.name
   const headerSubtitle = projectName?.trim() ? schedule.name : ""
+  const resolvedProjectName = projectName?.trim() || schedule.name
 
   return (
     <div
@@ -375,27 +390,36 @@ export function CallSheetRenderer({
     >
       {/* Header section */}
       {sections.header && (
-        <div className="border-b-2 border-[var(--color-doc-ink)] pb-3">
-          <h2 className="text-lg font-bold" style={{ color: "var(--color-doc-ink)" }}>
-            {headerTitle}
-          </h2>
-          {headerSubtitle && (
-            <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.9 }}>
-              {headerSubtitle}
-            </p>
-          )}
-          {dateStr && (
-            <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.7 }}>
-              {dateStr}
-            </p>
-          )}
-        </div>
+        headerLayout === "grid" ? (
+          <CallSheetPageHeader
+            projectName={resolvedProjectName}
+            scheduleName={schedule.name}
+            schedule={schedule}
+            dayDetails={dayDetails}
+          />
+        ) : (
+          <div className="border-b-2 border-[var(--color-doc-ink)] pb-3">
+            <h2 className="text-lg font-bold" style={{ color: "var(--color-doc-ink)" }}>
+              {headerTitle}
+            </h2>
+            {headerSubtitle && (
+              <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.9 }}>
+                {headerSubtitle}
+              </p>
+            )}
+            {dateStr && (
+              <p className="mt-0.5 text-sm font-medium" style={{ color: "var(--color-doc-ink)", opacity: 0.7 }}>
+                {dateStr}
+              </p>
+            )}
+          </div>
+        )
       )}
 
-      {/* Day details section */}
-      {sections.dayDetails && dayDetails && (
+      {/* Day details section — only shown in legacy header mode */}
+      {sections.dayDetails && dayDetails && headerLayout === "legacy" && (
         <div className="flex flex-col gap-3">
-          <div className="doc-section-header--band">Day Details</div>
+          <div className="callsheet-section-label">Day Details</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2">
             <TimeField label="Crew Call" value={dayDetails.crewCallTime} />
             <TimeField label="Shooting Call" value={dayDetails.shootingCallTime} />
@@ -436,7 +460,7 @@ export function CallSheetRenderer({
       {/* Schedule entries */}
       {sections.schedule && (
         <div className="flex flex-col gap-1">
-          <div className="doc-section-header--band">Schedule</div>
+          <div className="callsheet-section-label">Schedule</div>
           {(!entries || entries.length === 0) ? (
             <p className="py-2 text-xs text-[var(--color-text-subtle)]">
               No entries scheduled.
@@ -476,108 +500,66 @@ export function CallSheetRenderer({
               </div>
             )
           )}
+          {/* Key times strip after schedule entries */}
+          {dayDetails && (
+            <CallSheetKeyTimesStrip dayDetails={dayDetails} />
+          )}
         </div>
       )}
 
-      {/* Talent calls */}
+      {/* Talent / Cast calls */}
       {sections.talent && (
         <div className="flex flex-col gap-1">
-          <div className="doc-section-header--band">Talent</div>
-          {(!talentCalls || talentCalls.length === 0) ? (
-            <p className="py-2 text-xs text-[var(--color-text-subtle)]">
-              No talent overrides set.
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {talentCalls.map((tc) => {
-                const talent = talentMap.get(tc.talentId)
-                const displayTime = tc.callTime ?? tc.callText ?? dayDetails?.shootingCallTime ?? ""
-                const isOverridden = !!(tc.callTime || tc.callText)
-                return (
-                  <div
-                    key={tc.id}
-                    className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
-                  >
-                    {displayTime && (
-                      <span
-                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
-                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
-                      >
-                        {formatTimeOrText(displayTime)}
-                      </span>
-                    )}
-                    <span className="flex-1 truncate text-sm text-[var(--color-text)]">
-                      {talent?.name ?? tc.talentId}
-                    </span>
-                    {tc.role && (
-                      <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
-                        {tc.role}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <div className="callsheet-section-label">
+            Cast
+            {talentCalls && talentCalls.length > 0 && (
+              <span className="callsheet-section-label-meta">{talentCalls.length} Talent</span>
+            )}
+          </div>
+          <CallSheetCastTable
+            talentCalls={talentCalls ?? []}
+            talentLookup={talentLookup ?? []}
+            dayDetails={dayDetails}
+          />
         </div>
       )}
 
-      {/* Crew calls */}
+      {/* Crew calls — grouped by department */}
       {sections.crew && (
         <div className="flex flex-col gap-1">
-          <div className="doc-section-header--band">Crew</div>
-          {(!crewCalls || crewCalls.length === 0) ? (
-            <p className="py-2 text-xs text-[var(--color-text-subtle)]">
-              No crew overrides set.
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {crewCalls.map((cc) => {
-                const crew = crewMap.get(cc.crewMemberId)
-                const displayTime = cc.callTime ?? cc.callText ?? dayDetails?.crewCallTime ?? ""
-                const isOverridden = !!(cc.callTime || cc.callText)
-                const deptPosition = [
-                  cc.department ?? crew?.department,
-                  cc.position ?? crew?.position,
-                ].filter(Boolean).join(" — ")
-                return (
-                  <div
-                    key={cc.id}
-                    className="callsheet-block flex items-baseline gap-3 border-b border-[var(--color-border)] py-2 last:border-b-0"
-                  >
-                    {displayTime && (
-                      <span
-                        className={`w-14 shrink-0 text-xs font-semibold ${isOverridden ? "" : "text-[var(--color-text-muted)]"}`}
-                        style={isOverridden ? { color: "var(--doc-accent,#2563eb)" } : undefined}
-                      >
-                        {formatTimeOrText(displayTime)}
-                      </span>
-                    )}
-                    <span className="flex-1 truncate text-sm text-[var(--color-text)]">
-                      {crew?.name ?? cc.crewMemberId}
-                    </span>
-                    {deptPosition && (
-                      <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
-                        {deptPosition}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {/* Running header for print page 2+ */}
+          <div className="callsheet-running-header" aria-hidden="true">
+            <span>{resolvedProjectName}</span>
+            <span>Crew Call Sheet</span>
+          </div>
+          <div className="callsheet-section-label">
+            Crew
+            {crewCalls && crewCalls.length > 0 && (
+              <span className="callsheet-section-label-meta">{crewCalls.length} Members</span>
+            )}
+          </div>
+          <CallSheetDeptGrid
+            crewCalls={crewCalls ?? []}
+            crewLookup={crewLookup ?? []}
+            dayDetails={dayDetails}
+          />
         </div>
       )}
 
       {/* Notes */}
       {sections.notes && dayDetails?.notes && dayDetails.notes.trim().length > 0 && (
         <div className="flex flex-col gap-1">
-          <div className="doc-section-header--band">Notes</div>
+          <div className="callsheet-section-label">Production Notes</div>
           <div className="whitespace-pre-wrap text-xs text-[var(--color-text)]">
             {dayDetails.notes}
           </div>
         </div>
       )}
+
+      {/* Page footer (confidential + print only) */}
+      <div className="callsheet-page-footer-left" aria-hidden="true">
+        {resolvedProjectName} &mdash; Call Sheet &mdash; Confidential
+      </div>
     </div>
   )
 }

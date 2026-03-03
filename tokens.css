@@ -123,6 +123,29 @@
   --color-error: #ef4444;             /* red-500 */
   --color-info: #3b82f6;              /* blue-500 */
 
+  /* --- Schedule Entry Type Colors --- */
+  /* Banner label "setup/prep" — amber */
+  --color-entry-setup-border: #f59e0b;   /* amber-400 */
+  --color-entry-setup-bg:     rgba(255, 251, 235, 0.55); /* amber-50 @ 55% */
+  /* Banner label "shoot/camera" — blue */
+  --color-entry-shooting-border: #3b82f6; /* blue-500 */
+  --color-entry-shooting-bg:     rgba(239, 246, 255, 0.55); /* blue-50 @ 55% */
+  /* Banner label "hmu/hair/makeup" — violet */
+  --color-entry-hmu-border: #8b5cf6;     /* violet-500 */
+  --color-entry-hmu-bg:     rgba(245, 243, 255, 0.55); /* violet-50 @ 55% */
+  /* Banner label "meal/lunch/break" — emerald */
+  --color-entry-meal-border: #10b981;    /* emerald-500 */
+  --color-entry-meal-bg:     rgba(236, 253, 245, 0.55); /* emerald-50 @ 55% */
+  /* Banner label "travel/move/transit" — zinc */
+  --color-entry-travel-border: #71717a;  /* zinc-500 */
+  --color-entry-travel-bg:    rgba(244, 244, 245, 0.55); /* zinc-100 @ 55% */
+  /* Banner default / unclassified */
+  --color-entry-banner-border: #18181b;  /* zinc-900 */
+  --color-entry-banner-bg:    rgba(244, 244, 245, 0.65); /* zinc-100 @ 65% */
+  /* Shot entries (same as shooting) */
+  --color-entry-shot-border: #3b82f6;   /* blue-500 */
+  --color-entry-shot-bg:     rgba(239, 246, 255, 0.55); /* blue-50 @ 55% */
+
   /* --- Status Badge Colors (tokenized for StatusBadge component) --- */
   --color-status-gray-bg: #f4f4f5;       /* zinc-100 */
   --color-status-gray-text: #3f3f46;     /* zinc-700 */
@@ -393,6 +416,22 @@
   --color-status-purple-bg: #2e1065;     /* purple-950 */
   --color-status-purple-text: #d8b4fe;   /* purple-300 */
   --color-status-purple-border: #7c3aed; /* purple-600 */
+
+  /* --- Schedule Entry Type Colors (dark mode — borders brighter, bg deeper) --- */
+  --color-entry-setup-border: #fbbf24;   /* amber-400 (brighter) */
+  --color-entry-setup-bg:     rgba(120, 53, 15, 0.25);  /* amber-900 @ 25% */
+  --color-entry-shooting-border: #60a5fa; /* blue-400 */
+  --color-entry-shooting-bg:     rgba(23, 37, 84, 0.35); /* blue-950 @ 35% */
+  --color-entry-hmu-border: #a78bfa;     /* violet-400 */
+  --color-entry-hmu-bg:     rgba(46, 16, 101, 0.35); /* violet-950 @ 35% */
+  --color-entry-meal-border: #34d399;    /* emerald-400 */
+  --color-entry-meal-bg:     rgba(5, 46, 22, 0.35); /* emerald-950 @ 35% */
+  --color-entry-travel-border: #a1a1aa;  /* zinc-400 */
+  --color-entry-travel-bg:    rgba(39, 39, 42, 0.55); /* zinc-800 @ 55% */
+  --color-entry-banner-border: #d4d4d8;  /* zinc-300 */
+  --color-entry-banner-bg:    rgba(39, 39, 42, 0.65); /* zinc-800 @ 65% */
+  --color-entry-shot-border: #60a5fa;   /* blue-400 */
+  --color-entry-shot-bg:     rgba(23, 37, 84, 0.35); /* blue-950 @ 35% */
 
   /* --- Table --- */
   --color-table-header-border: #52525b;  /* zinc-600 */

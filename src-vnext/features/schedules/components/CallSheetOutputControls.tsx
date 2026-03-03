@@ -7,6 +7,7 @@ import { Button } from "@/ui/button"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import type {
   CallSheetColors,
+  CallSheetHeaderLayout,
   CallSheetSectionVisibility,
   ScheduleBlockFields,
 } from "@/features/schedules/components/CallSheetRenderer"
@@ -15,6 +16,7 @@ interface CallSheetOutputControlsProps {
   readonly sections: Required<CallSheetSectionVisibility>
   readonly scheduleBlockFields: Required<ScheduleBlockFields>
   readonly colors: Required<CallSheetColors>
+  readonly headerLayout: CallSheetHeaderLayout
   readonly onPatchSections: (
     patch: Partial<Required<CallSheetSectionVisibility>>,
   ) => void
@@ -22,15 +24,18 @@ interface CallSheetOutputControlsProps {
     patch: Partial<Required<ScheduleBlockFields>>,
   ) => void
   readonly onPatchColors: (patch: Partial<Required<CallSheetColors>>) => void
+  readonly onSetHeaderLayout: (layout: CallSheetHeaderLayout) => void
 }
 
 export function CallSheetOutputControls({
   sections,
   scheduleBlockFields,
   colors,
+  headerLayout,
   onPatchSections,
   onPatchScheduleFields,
   onPatchColors,
+  onSetHeaderLayout,
 }: CallSheetOutputControlsProps) {
   const onChecked = useCallback(
     (fn: (value: boolean) => void) => (value: boolean | "indeterminate") => {
@@ -255,6 +260,32 @@ export function CallSheetOutputControls({
               className="h-9 p-1"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+          Header Layout
+        </p>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={headerLayout === "legacy" ? "secondary" : "outline"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => onSetHeaderLayout("legacy")}
+          >
+            Standard
+          </Button>
+          <Button
+            type="button"
+            variant={headerLayout === "grid" ? "secondary" : "outline"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => onSetHeaderLayout("grid")}
+          >
+            Grid Header
+          </Button>
         </div>
       </div>
     </div>
