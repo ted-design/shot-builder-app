@@ -20,10 +20,24 @@ export interface OverlapGroup {
 // ─── Algorithm ────────────────────────────────────────────────────────
 
 /**
+ * Clamp an entry's endMin to the end of the current day (1439 = 23:59).
+ *
+ * Handles two midnight-crossing scenarios:
+ * 1. endMin > 1439 (e.g. startMin=1380, duration=60 → endMin=1440): clamp to 1439.
+ * 2. endMin < startMin (wrapped midnight crossing, e.g. startMin=1380, endMin=60):
+ *    treat as extending to end-of-day → clamp to 1439.
+ */
+function clampEndMin(startMin: number, endMin: number): number {
+  if (endMin < startMin) return 1439
+  return Math.min(endMin, 1439)
+}
+
+/**
  * Groups timed, non-banner schedule entries by time overlap within each track.
  *
  * - Per-track only: entries in different tracks never merge.
  * - Banners are excluded.
+ * - Midnight-crossing entries are clamped to end-of-day (1439).
  * - Uses a sweep-line merge: entries are sorted by startMin, then any entry
  *   whose startMin < current group endMin is added to the group (extending
  *   the group's endMin as needed). Adjacent entries (startMin === prev endMin)
@@ -33,12 +47,12 @@ export function buildOverlapGroups(
   rows: readonly ProjectedScheduleRow[],
 ): readonly OverlapGroup[] {
   // Filter to timed, non-banner rows only.
-  // Clamp endMin to 1439 to handle midnight-spanning entries (e.g. 23:30 + 60min = 1470).
+  // Clamp endMin to handle midnight-spanning and midnight-crossing entries.
   const timedRows = rows
     .filter((r) => !r.isBanner && r.startMin != null && r.endMin != null)
     .map((r) => ({
       ...r,
-      endMin: Math.min(r.endMin!, 1439),
+      endMin: clampEndMin(r.startMin!, r.endMin!),
     }))
 
   if (timedRows.length === 0) return []

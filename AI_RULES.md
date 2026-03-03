@@ -473,6 +473,34 @@ When UI agents create local type stubs (duplicated constants, interfaces) becaus
 4. Build `Record<string, string>` maps dynamically from canonical arrays: `Object.fromEntries(TYPES.map(t => [t.key, t.label]))` instead of hardcoded objects
 5. Run build + lint + test after each reconciliation to catch import errors
 
+### Full-Codebase Audit Pattern (Sprint S8)
+
+For periodic health checks or pre-release quality gates:
+
+1. **Research phase** (6 parallel read-only agents): Researcher (PRD compliance), UX Auditor (design system), Systems Architect (performance/security), Adversary (edge cases/stress test), Code Reviewer (quality/duplication), Doc Keeper (documentation sync)
+2. **Synthesize** findings into a prioritized action list (Critical → High → Medium → Low)
+3. **Implementation phase** (6 parallel general-purpose agents): Assign non-overlapping file ownership to prevent merge conflicts. Each agent reads files first, makes targeted edits, runs tests.
+4. **Verify** all tests pass, build clean, lint zero warnings after all agents complete.
+
+Key learnings:
+- **Non-overlapping file ownership** is critical — two agents editing the same file causes conflicts
+- **6 agents is the practical ceiling** — more adds coordination overhead without proportional throughput
+- **Shut down agents immediately** after task completion to free resources
+- **Typography and token agents may overlap** on the same files — combine them or split by file set
+
+### Common Edge Cases to Test (Sprint S8 Adversary Findings)
+
+Always add test cases for these patterns when writing time/range/filter algorithms:
+- **Midnight crossing:** endMin < startMin in time ranges (e.g., 23:00–01:00)
+- **Selection invalidation:** Selected item removed by filter/sort change
+- **Bounds validation:** Format-valid but value-absurd inputs (99 feet, negative values)
+- **iOS sticky nesting:** Never nest multiple sticky elements in a scroll container
+- **Firestore wildcard rules:** Always require secret tokens, not just boolean flags for public access
+
+### Shared Utility Deduplication Rule
+
+Before creating any local utility function (normalizeText, humanizeLabel, parseCsvList, etc.), check `shared/lib/textUtils.ts` first. Sprint S8 found 3 independent implementations of normalizeText across 3 files. The consolidated version lives in `shared/lib/textUtils.ts`.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session

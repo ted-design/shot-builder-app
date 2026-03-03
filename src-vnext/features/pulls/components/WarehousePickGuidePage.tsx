@@ -108,7 +108,7 @@ export default function WarehousePickGuidePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
         <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h1 className="text-base font-semibold text-[var(--color-text)]">Access denied</h1>
+          <h1 className="heading-subsection">Access denied</h1>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">{error}</p>
         </div>
       </div>
@@ -133,12 +133,12 @@ export default function WarehousePickGuidePage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-semibold text-[var(--color-text)]">{title}</h1>
+          <h1 className="heading-subsection">{title}</h1>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
           <ClipboardList className="h-16 w-16 text-[var(--color-text-subtle)]" />
           <div>
-            <p className="text-lg font-semibold text-[var(--color-text)]">Guided Pick</p>
+            <p className="heading-section">Guided Pick</p>
             <p className="mt-1 text-sm text-[var(--color-text-muted)]">
               {items.length} items to pick
             </p>
@@ -167,20 +167,20 @@ export default function WarehousePickGuidePage() {
       <ErrorBoundary>
       <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
-          <h1 className="text-base font-semibold text-[var(--color-text)]">Pick Complete</h1>
+          <h1 className="heading-subsection">Pick Complete</h1>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
           <div className="flex flex-col gap-3">
-            <p className="text-3xl font-bold text-emerald-600">{picked}</p>
+            <p className="text-3xl font-bold text-[var(--color-success)]">{picked}</p>
             <p className="text-sm text-[var(--color-text-muted)]">Picked</p>
           </div>
           <div className="grid w-full max-w-xs grid-cols-2 gap-4">
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center">
-              <p className="text-xl font-semibold text-red-600">{notAvailable}</p>
+              <p className="text-xl font-semibold text-[var(--color-error)]">{notAvailable}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Not Available</p>
             </div>
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center">
-              <p className="text-xl font-semibold text-amber-600">{substituted}</p>
+              <p className="text-xl font-semibold text-[var(--color-warning)]">{substituted}</p>
               <p className="text-xs text-[var(--color-text-muted)]">Substituted</p>
             </div>
           </div>

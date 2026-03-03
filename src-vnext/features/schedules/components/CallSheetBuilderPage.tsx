@@ -241,7 +241,7 @@ export default function CallSheetBuilderPage() {
           {/* Preview-only header (minimal) */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="truncate text-base font-semibold text-[var(--color-text)]">
+              <h1 className="truncate heading-subsection">
                 {projectName || schedule.name || "Call Sheet"}
               </h1>
               {projectName && schedule.name && projectName !== schedule.name && (

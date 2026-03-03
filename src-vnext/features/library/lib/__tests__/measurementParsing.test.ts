@@ -57,6 +57,24 @@ describe("parseMeasurementValue", () => {
     expect(parseMeasurementValue('5\'13"')).toBeNull()
   })
 
+  it("returns null for feet below minimum bound (< 2)", () => {
+    expect(parseMeasurementValue('1\'6"')).toBeNull()
+    expect(parseMeasurementValue('0\'0"')).toBeNull()
+  })
+
+  it("returns null for feet above maximum bound (> 9)", () => {
+    expect(parseMeasurementValue('99\'6"')).toBeNull()
+    expect(parseMeasurementValue('10\'0"')).toBeNull()
+  })
+
+  it("accepts feet at minimum bound (2)", () => {
+    expect(parseMeasurementValue('2\'0"')).toBe(24)
+  })
+
+  it("accepts feet at maximum bound (9)", () => {
+    expect(parseMeasurementValue('9\'11"')).toBe(119)
+  })
+
   // --- inches only ---
   it('parses 34" to 34', () => {
     expect(parseMeasurementValue('34"')).toBe(34)

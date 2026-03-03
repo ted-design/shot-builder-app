@@ -150,7 +150,7 @@ export function OnSetCrewTab({ crewLibrary }: OnSetCrewTabProps) {
   if (departments.length === 0) {
     return (
       <div className="px-4 pt-6 pb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)] mb-3">Crew</h3>
+        <h3 className="heading-subsection mb-3">Crew</h3>
         <p className="text-sm text-[var(--color-text-muted)] py-6 text-center">
           No crew assigned.
         </p>
@@ -163,7 +163,7 @@ export function OnSetCrewTab({ crewLibrary }: OnSetCrewTabProps) {
   return (
     <div className="px-4 pt-6 pb-3">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)]">Crew</h3>
+        <h3 className="heading-subsection">Crew</h3>
         <span className="text-2xs text-[var(--color-text-muted)]">
           {totalCount} {totalCount === 1 ? "member" : "members"}
         </span>

@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotPath, shotVersionsPath } from "@/shared/lib/paths"
+import { normalizeWhitespace } from "@/shared/lib/textUtils"
 import type { AuthUser, Shot, ShotVersion, ShotVersionChangeType } from "@/shared/types"
 
 function stripHtmlToText(html: unknown): string {
@@ -25,15 +26,15 @@ function stripHtmlToText(html: unknown): string {
     .trim()
 }
 
-function normalizeText(value: unknown): string {
+function normalizeVersionText(value: unknown): string {
   if (value === null || value === undefined || value === "") return ""
   if (typeof value !== "string") return ""
-  return value.replace(/\r\n/g, "\n").replace(/\s+/g, " ").trim()
+  return normalizeWhitespace(value)
 }
 
 function notesMeaningfullyDifferent(prevNotes: unknown, nextNotes: unknown): boolean {
-  const prevText = normalizeText(stripHtmlToText(prevNotes))
-  const nextText = normalizeText(stripHtmlToText(nextNotes))
+  const prevText = normalizeVersionText(stripHtmlToText(prevNotes))
+  const nextText = normalizeVersionText(stripHtmlToText(nextNotes))
   return prevText !== nextText
 }
 

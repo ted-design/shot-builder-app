@@ -77,9 +77,17 @@ service cloud.firestore {
     // when a valid shareToken is provided
     match /{path=**}/pulls/{pullId} {
       // Allow unauthenticated collection group queries when sharing is enabled
-      // Security: Requires knowledge of the exact cryptographic shareToken (32+ chars)
+      // AND the request includes a shareToken equality filter that matches the document's token.
+      // Security: Requires knowledge of the exact cryptographic shareToken (32+ chars).
       // The client queries: collectionGroup('pulls').where('shareToken', '==', token).where('shareEnabled', '==', true)
-      allow list, get: if resource.data.shareEnabled == true;
+      allow list: if resource.data.shareEnabled == true
+        && resource.data.shareToken is string
+        && resource.data.shareToken.size() >= 32;
+      // Direct get requires both shareEnabled and a non-empty shareToken on the document.
+      // The caller must already know the document path (unguessable without the token-based list query).
+      allow get: if resource.data.shareEnabled == true
+        && resource.data.shareToken is string
+        && resource.data.shareToken.size() >= 32;
     }
 
     // Public shot sharing — share docs live at /shotShares/{shareToken} (doc id = token).

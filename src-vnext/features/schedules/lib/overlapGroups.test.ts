@@ -35,6 +35,34 @@ function makeRow(
   }
 }
 
+/** Create a row with explicit startMin/endMin (for midnight-crossing tests). */
+function makeRowExplicit(
+  id: string,
+  trackId: string,
+  startMin: number,
+  endMin: number,
+): ProjectedScheduleRow {
+  const entry: ScheduleEntry = {
+    id,
+    type: "shot",
+    title: `Entry ${id}`,
+    order: 0,
+    trackId,
+  }
+  return {
+    id,
+    entry,
+    trackId,
+    isBanner: false,
+    appliesToTrackIds: null,
+    applicabilityKind: "single",
+    startMin,
+    endMin,
+    durationMinutes: endMin >= startMin ? endMin - startMin : 1440 - startMin + endMin,
+    timeSource: "explicit",
+  }
+}
+
 function makeBannerRow(
   id: string,
   startMin: number,
@@ -203,5 +231,63 @@ describe("buildOverlapGroups", () => {
     expect(primaryGroup!.entries).toHaveLength(2)
     expect(primaryGroup!.isIsolated).toBe(false)
     expect(videoGroup!.isIsolated).toBe(true)
+  })
+
+  // ─── Midnight-crossing regression tests ──────────────────────────────
+
+  it("entry exceeding midnight (endMin > 1439) is clamped to 1439", () => {
+    // 23:00 + 60min = endMin 1440 → clamp to 1439
+    const rows = [makeRow("a", "primary", 1380, 60)]
+    const groups = buildOverlapGroups(rows)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.endMin).toBe(1439)
+    expect(groups[0]!.startMin).toBe(1380)
+  })
+
+  it("midnight-crossing entry (endMin < startMin) is clamped to end-of-day", () => {
+    // 23:00 → wraps to 01:00 next day (endMin=60). Should clamp to 1439.
+    const rows = [makeRowExplicit("a", "primary", 1380, 60)]
+    const groups = buildOverlapGroups(rows)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.endMin).toBe(1439)
+    expect(groups[0]!.startMin).toBe(1380)
+  })
+
+  it("midnight-crossing entry overlaps with a late-night entry in same track", () => {
+    // Entry a: 22:30–23:59 (clamped from midnight cross)
+    // Entry b: 23:00–23:30
+    // They should overlap into one group.
+    const rows = [
+      makeRowExplicit("a", "primary", 1350, 30),  // 22:30 → wraps to 00:30 next day
+      makeRow("b", "primary", 1380, 30),           // 23:00–23:30
+    ]
+    const groups = buildOverlapGroups(rows)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.entries).toHaveLength(2)
+    expect(groups[0]!.isIsolated).toBe(false)
+  })
+
+  it("two midnight-crossing entries in different tracks stay separate", () => {
+    const rows = [
+      makeRowExplicit("a", "primary", 1380, 60),
+      makeRowExplicit("b", "video", 1380, 60),
+    ]
+    const groups = buildOverlapGroups(rows)
+    expect(groups).toHaveLength(2)
+    expect(groups.every((g) => g.isIsolated)).toBe(true)
+  })
+
+  it("midnight-crossing entry does not false-overlap with early-morning entry", () => {
+    // Entry a: 23:00 → wraps to 01:00 (clamped to 23:59)
+    // Entry b: 06:00–07:00
+    // After clamping, a ends at 1439 and b starts at 360 — no overlap.
+    const rows = [
+      makeRowExplicit("a", "primary", 1380, 60),
+      makeRow("b", "primary", 360, 60),
+    ]
+    const groups = buildOverlapGroups(rows)
+    expect(groups).toHaveLength(2)
+    expect(groups[0]!.startMin).toBe(360)
+    expect(groups[1]!.startMin).toBe(1380)
   })
 })

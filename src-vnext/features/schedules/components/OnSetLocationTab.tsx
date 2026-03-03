@@ -26,7 +26,7 @@ export function OnSetLocationTab({ dayDetails }: OnSetLocationTabProps) {
   if (!locationLabel && !locationNotes) {
     return (
       <div className="px-4 pt-6 pb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)] mb-3">Location</h3>
+        <h3 className="heading-subsection mb-3">Location</h3>
         <p className="text-sm text-[var(--color-text-muted)] py-6 text-center">
           No location details added.
         </p>
@@ -44,7 +44,7 @@ export function OnSetLocationTab({ dayDetails }: OnSetLocationTabProps) {
   return (
     <div className="px-4 pt-6 pb-3">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)]">Location</h3>
+        <h3 className="heading-subsection">Location</h3>
       </div>
 
       <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden">

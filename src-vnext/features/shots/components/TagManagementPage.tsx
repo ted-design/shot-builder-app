@@ -425,13 +425,13 @@ export default function TagManagementPage() {
                       <div className="label-meta">
                         Name
                       </div>
-                      <div className="mt-1 text-lg font-semibold text-[var(--color-text)]">
+                      <div className="mt-1 heading-section">
                         <div data-testid="tag-details-name">
                           <InlineEdit
                             value={selected.label}
                             disabled={!canEdit || busy || selected.usageCount === 0}
                             onSave={(next) => applyRename(selected, next)}
-                            className="text-lg font-semibold"
+                            className="heading-section"
                             placeholder="Untitled"
                           />
                         </div>

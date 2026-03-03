@@ -52,6 +52,7 @@ function PrintDoc({
   const headshotKey = "headshot"
   const headshotSrc = srcByKey[headshotKey] ?? null
 
+  // bg-white is intentional: print portal always renders on white paper
   return (
     <div data-talent-casting-print-root className="min-h-screen bg-white">
       <div className="mx-auto w-full max-w-5xl p-8">
@@ -90,7 +91,7 @@ function PrintDoc({
 
         <div className="mt-6 rounded-md border border-[var(--color-border)] p-4">
           <div className="flex flex-col gap-1">
-            <div className="text-lg font-semibold text-[var(--color-text)]">
+            <div className="heading-section">
               {session.title?.trim() ? session.title.trim() : "Casting"}
             </div>
             <div className="text-sm text-[var(--color-text-muted)]">{session.date}</div>
@@ -321,6 +322,7 @@ export function TalentCastingPrintPortal({
         onImageEvent={onImageEvent}
       />
     ) : (
+      /* bg-white is intentional: print portal always renders on white paper */
       <div className="flex min-h-screen items-center justify-center bg-white p-8">
         <div className="text-sm text-[var(--color-text-muted)]">Preparing export…</div>
       </div>

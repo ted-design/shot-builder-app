@@ -131,7 +131,7 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
         <div className="flex items-center gap-2 border-t border-[var(--color-border)] pt-4">
           <Button
             onClick={() => setAbsorbOpen(true)}
-            className="bg-[var(--color-status-green-text)] hover:bg-[var(--color-status-green-text)]/90 text-white"
+            className="bg-[var(--color-status-green-text)] hover:bg-[var(--color-status-green-text)]/90 text-[var(--color-text-inverted)]"
           >
             Absorb into Project
           </Button>

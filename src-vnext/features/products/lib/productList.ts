@@ -1,4 +1,5 @@
 import type { ProductFamily } from "@/shared/types"
+import { normalizeText, humanizeLabel } from "@/shared/lib/textUtils"
 
 export type ProductListStatusFilter = "all" | "active" | "discontinued"
 
@@ -22,16 +23,6 @@ export interface ProductListFilters {
   readonly sort: ProductListSort
 }
 
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase()
-}
-
-function normalizeKey(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null
-  const next = value.trim().toLowerCase()
-  return next.length > 0 ? next : null
-}
-
 function asArray(value: ReadonlyArray<string> | undefined): ReadonlyArray<string> {
   return Array.isArray(value) ? value : []
 }
@@ -49,7 +40,7 @@ function familySearchText(f: ProductFamily): string {
     ...asArray(f.colorNames),
     ...asArray(f.sizeOptions),
   ]
-  return normalizeText(parts.filter(Boolean).join(" "))
+  return normalizeText(parts.filter(Boolean).join(" ")) ?? ""
 }
 
 function compareText(a: string, b: string): number {
@@ -63,16 +54,12 @@ export interface ProductScaffoldOptions {
 }
 
 function titleize(key: string): string {
-  const cleaned = key.replace(/[_-]+/g, " ").trim()
-  if (!cleaned) return key
-  return cleaned
-    .split(/\s+/g)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ")
+  const result = humanizeLabel(key)
+  return result || key
 }
 
 function normalizeGenderKey(value: string | null | undefined): string | null {
-  const key = normalizeKey(value)
+  const key = normalizeText(value)
   if (!key) return null
   if (key === "mens" || key === "men's") return "men"
   if (key === "womens" || key === "women's") return "women"
@@ -95,8 +82,8 @@ export function deriveProductScaffoldOptions(families: ReadonlyArray<ProductFami
 
   for (const f of families) {
     const genderKey = normalizeGenderKey(f.gender ?? null)
-    const typeKey = normalizeKey(f.productType)
-    const subKey = normalizeKey(f.productSubcategory)
+    const typeKey = normalizeText(f.productType)
+    const subKey = normalizeText(f.productSubcategory)
 
     if (genderKey) {
       pushOption(genderLabels, genderKey, titleize)
@@ -146,11 +133,11 @@ export function filterAndSortProductFamilies(
   families: ReadonlyArray<ProductFamily>,
   filters: ProductListFilters,
 ): ProductFamily[] {
-  const q = normalizeText(filters.query)
+  const q = normalizeText(filters.query) ?? ""
   const hasQuery = q.length > 0
   const genderKey = normalizeGenderKey(filters.gender)
-  const typeKey = normalizeKey(filters.productType)
-  const subKey = normalizeKey(filters.productSubcategory ?? filters.category ?? null)
+  const typeKey = normalizeText(filters.productType)
+  const subKey = normalizeText(filters.productSubcategory ?? filters.category ?? null)
 
   const filtered = families.filter((f) => {
     const isDeleted = f.deleted === true
@@ -171,12 +158,12 @@ export function filterAndSortProductFamilies(
     }
 
     if (typeKey) {
-      const famKey = normalizeKey(f.productType)
+      const famKey = normalizeText(f.productType)
       if (famKey !== typeKey) return false
     }
 
     if (subKey) {
-      const famKey = normalizeKey(f.productSubcategory ?? f.category ?? null)
+      const famKey = normalizeText(f.productSubcategory ?? f.category ?? null)
       if (famKey !== subKey) return false
     }
 

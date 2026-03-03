@@ -106,7 +106,7 @@ const RUN_SHEET_PRESET_CONFIG: Record<Exclude<RunSheetPreset, "custom">, RunShee
 }
 
 function recommendedContactDensity(orientation: ShotsPdfOrientation): ContactSheetDensity {
-  return orientation === "landscape" ? "compact" : "compact"
+  return orientation === "landscape" ? "compact" : "standard"
 }
 
 function recommendedHideEmptyMeta(orientation: ShotsPdfOrientation): boolean {

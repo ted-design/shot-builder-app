@@ -29,6 +29,7 @@ import { Package, Plus, X, ChevronLeft, Loader2, Search } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { getTagColorClasses } from "@/shared/lib/tagColors"
+import { normalizeText, humanizeLabel } from "@/shared/lib/textUtils"
 import { toast } from "sonner"
 import type { ProductAssignment, ProductFamily, ProductSku, SizeScope } from "@/shared/types"
 
@@ -64,26 +65,13 @@ function stripUndefined(obj: ProductAssignment): ProductAssignment {
   ) as unknown as ProductAssignment
 }
 
-function normalizeText(value: unknown): string | null {
-  if (typeof value !== "string") return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
 function canonicalGenderKey(value: unknown): string {
-  const raw = normalizeText(value)?.toLowerCase() ?? null
+  const raw = normalizeText(value)
   if (!raw) return "unknown"
   if (raw === "women" || raw === "woman" || raw === "womens" || raw === "female" || raw === "w") return "women"
   if (raw === "men" || raw === "man" || raw === "mens" || raw === "male" || raw === "m") return "men"
   if (raw === "unisex") return "unisex"
   return raw
-}
-
-function humanizeLabel(value: string): string {
-  return value
-    .split(/[\s_-]+/)
-    .map((part) => (part ? part[0]!.toUpperCase() + part.slice(1) : part))
-    .join(" ")
 }
 
 function genderLabel(key: string): string {
@@ -108,7 +96,9 @@ function genderTagClass(key: string): string {
 }
 
 function taxonomyLabelForFamily(family: ProductFamily): string {
-  const parts = [normalizeText(family.productType), normalizeText(family.productSubcategory)].filter(Boolean) as string[]
+  const parts = [normalizeText(family.productType), normalizeText(family.productSubcategory)]
+    .filter(Boolean)
+    .map((s) => humanizeLabel(s!))
   return parts.join(" · ")
 }
 

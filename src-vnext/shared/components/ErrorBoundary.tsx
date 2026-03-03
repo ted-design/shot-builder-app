@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-4 p-8 text-center">
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">
+          <h2 className="heading-section">
             {isChunkLoad ? "Reload required" : "Something went wrong"}
           </h2>
           <p className="max-w-md text-sm text-[var(--color-text-muted)]">
