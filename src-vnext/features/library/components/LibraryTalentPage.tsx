@@ -131,6 +131,13 @@ export default function LibraryTalentPage() {
     })
   }, [filtered, castingMode, castingScoreMap])
 
+  // Clear selection when the selected talent is no longer in the filtered list
+  useEffect(() => {
+    if (!selectedId) return
+    const stillVisible = displayTalent.some((t) => t.id === selectedId)
+    if (!stillVisible) setSelectedId(null)
+  }, [selectedId, displayTalent])
+
   const handleFiltersChange = useCallback((next: TalentSearchFilters) => {
     setFilters(next)
   }, [])

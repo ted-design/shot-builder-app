@@ -132,7 +132,7 @@ export default function PublicShotSharePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
         <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h1 className="text-base font-semibold text-[var(--color-text)]">{errorInfo.heading}</h1>
+          <h1 className="heading-subsection">{errorInfo.heading}</h1>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">{errorInfo.message}</p>
         </div>
       </div>

@@ -247,7 +247,7 @@ export function OnSetScheduleTab({ entries, nowMinute }: OnSetScheduleTabProps) 
   return (
     <div className="px-4 pt-4 pb-3">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)]">
+        <h3 className="heading-subsection">
           Today's Schedule
         </h3>
         <span className="text-2xs text-[var(--color-text-muted)]">

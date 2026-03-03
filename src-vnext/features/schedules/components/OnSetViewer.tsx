@@ -55,14 +55,11 @@ export function OnSetViewer({
 
   // Day number is not in existing Firestore data model — omitted per scope decision.
   return (
-    <div className="relative flex flex-col bg-[var(--color-bg)]" style={{ minHeight: "100dvh" }}>
-      {/* Sticky LIVE banner — z-index 20 (above tab bar at 10) */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20 }}>
+    <div className="relative flex flex-col bg-[var(--color-bg)]" style={{ height: "100dvh" }}>
+      {/* Fixed header: LIVE banner + tab bar stacked — no nested sticky elements */}
+      <div className="shrink-0 z-20">
         <OnSetNowBanner />
-      </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-28" style={{ WebkitOverflowScrolling: "touch" }}>
         {/* Project info line */}
         {schedule.name && (
           <div className="px-5 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -70,11 +67,8 @@ export function OnSetViewer({
           </div>
         )}
 
-        {/* Tab bar — z-index 10, scrolls with content until sticky threshold */}
-        <div
-          className="sticky bg-[var(--color-surface)] border-b border-[var(--color-border)]"
-          style={{ top: 36, zIndex: 10 }}
-        >
+        {/* Tab bar */}
+        <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)]">
           <div
             className="flex gap-6 px-5 overflow-x-auto"
             style={{ scrollbarWidth: "none" }}
@@ -100,8 +94,10 @@ export function OnSetViewer({
             })}
           </div>
         </div>
+      </div>
 
-        {/* Tab content */}
+      {/* Scrollable content — single scroll context, no nested sticky */}
+      <div className="flex-1 overflow-y-auto pb-28">
         {activeTab === "schedule" && (
           <OnSetScheduleTab entries={entries} nowMinute={nowMinute} />
         )}

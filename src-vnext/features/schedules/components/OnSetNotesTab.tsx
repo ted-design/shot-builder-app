@@ -10,7 +10,7 @@ export function OnSetNotesTab({ dayDetails }: OnSetNotesTabProps) {
   return (
     <div className="px-4 pt-6 pb-3">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-[var(--color-text)]">Notes</h3>
+        <h3 className="heading-subsection">Notes</h3>
       </div>
 
       {notes ? (

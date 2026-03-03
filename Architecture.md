@@ -111,53 +111,41 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Route | Page | Notes |
 |-------|------|-------|
 | `/` | Redirect -> `/projects` | |
-| `/projects` | ProjectsPage | Statically imported (post-OAuth landing). Phase 10: ShootReadinessWidget below project grid (admin/producer only). |
-| `/projects/:id` | Redirect -> `dashboard` | |
-| `/projects/:id/dashboard` | ProjectDashboardPage | Readiness overview |
-| `/projects/:id/shots` | ShotsPage | Shot list (table / board / gallery views) |
-| `/projects/:id/shots/:sid` | ShotEditorPageV3 | V3 canvas editor (default) |
-| `/projects/:id/catalogue` | CataloguePage | People + locations |
-| `/projects/:id/catalogue/people` | CataloguePeoplePage | Talent + crew |
-| `/projects/:id/catalogue/locations` | CatalogueLocationsPage | |
+| `/projects` | ProjectDashboard | Project grid + ShootReadinessWidget (admin/producer only). |
+| `/projects/:id` | Redirect -> `shots` | |
+| `/projects/:id/shots` | ShotListPage | Shot list (table / board / gallery views) |
+| `/projects/:id/shots/:sid` | ShotDetailPage | Three-panel shot editor |
+| `/projects/:id/pulls` | PullListPage | Project-scoped pull list |
+| `/projects/:id/pulls/:pid` | PullDetailPage | Pull detail + fulfillment |
 | `/projects/:id/assets` | ProjectAssetsPage | |
-| `/projects/:id/callsheet` | CallSheetPage | Desktop-only |
-| `/projects/:id/departments` | ProjectDepartmentsPage | |
-| `/projects/:id/settings` | ProjectSettingsPage | |
+| `/projects/:id/tags` | TagManagementPage | Desktop-only (RequireDesktop) |
+| `/projects/:id/schedules` | SchedulesRedirect | Redirects to `../callsheet` |
+| `/projects/:id/callsheet` | CallSheetBuilderPage | Desktop-only (RequireDesktop) |
 | `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
-| `/products` | ProductsPage | Org-level product library |
+| `/products` | ProductListPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
-| `/products/:productId` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Files, Requirements, Activity). Phase 10: Requirements tab (chip/table toggle, 5-state asset flags incl. AI Generated). Colorways: hero image with EditableProductImage. Files: documents only (identity images moved to Colorways). Samples: returnDueDate + condition fields. |
+| `/products/:fid` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Files, Requirements, Activity). Phase 10: Requirements tab (chip/table toggle, 5-state asset flags incl. AI Generated). Colorways: hero image with EditableProductImage. Files: documents only (identity images moved to Colorways). Samples: returnDueDate + condition fields. |
 | `/products/:fid/edit` | ProductEditorPage | Edit product (vNext) |
-| `/import-products` | ImportProducts | CSV import |
-| `/library` | LibraryPage | Redirect -> `/library/talent` |
+| `/library` | Redirect -> `/library/talent` | |
 | `/library/talent` | LibraryTalentPage | Full CRUD: card grid, Sheet detail drawer (right on desktop, bottom on mobile), prev/next nav + keyboard arrows. Tabs: Profile / Shot History / Casting Brief. Search/filter toolbar (gender, measurement ranges, agency), auto-match scoring. Project pills read-only with Link navigation. Decomposed: 12 files in `features/library/components/`. Casting brief is top-level collapsible panel (CastingBriefPanel) with data-driven range sliders. |
 | `/library/crew` | LibraryCrewPage | Table list with search, create dialog, row click to detail |
 | `/library/crew/:crewId` | CrewDetailPage | Inline edit all fields, notes, delete with confirmation |
 | `/library/locations` | LibraryLocationsPage | Table list with search, create dialog, row click to detail |
 | `/library/locations/:locationId` | LocationDetailPage | Photo upload, address sub-fields, inline edit, delete |
-| `/library/departments` | DepartmentsPage | |
-| `/library/tags` | TagManagementPage | |
-| `/library/palette` | PalettePage | Color swatches |
-| `/pulls` | PullsPage | Org-level pulls list |
-| `/pulls/:pullId/edit` | PullEditorPage | |
-| `/account` | AccountSettingsPage | |
-| `/admin` | AdminPage | Role-gated: admin only |
+| `/library/palette` | LibraryPalettePage | Color swatches |
+| `/admin` | AdminPage | Role-gated: admin only, desktop-only (RequireDesktop) |
 
 ### Legacy Redirects
 
 | Old Route | Redirects To |
 |-----------|-------------|
-| `/shots` | `/projects/:currentProjectId/shots` |
-| `/projects/:id/schedule` | `../callsheet` |
-| `/talent` | `/library/talent` |
-| `/locations` | `/library/locations` |
-| `/palette` | `/library/palette` |
-| `/tags` | `/library/tags` |
-| `/library/profiles` | `/library/talent` |
+| `/projects/:id/schedules` | `/projects/:id/callsheet` (via SchedulesRedirect) |
+
+**Note:** `/account` existed in the legacy app but is not implemented in vNext. It is not present in the route definitions.
 
 ### Dev-Only Routes (import.meta.env.DEV)
 
-`/dev/richtext`, `/dev/image-diagnostics`, `/dev/brand-lockup-test`, `/dev/page-header-test`
+`/dev/import-q2`, `/dev/import-q2-shots`, `/dev/import-q1-hub-shots`
 
 ---
 
@@ -568,12 +556,39 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `blockColors.ts` | `features/schedules/lib/` | Maps entry type/banner label to CSS var references. Returns `BlockColorVars { borderColorVar, bgColorVar }`. Setup=amber, shooting=blue, HMU=violet, meal=emerald, travel=zinc. |
 | `useOverlapGroups.ts` | `features/schedules/hooks/` | Memoized wrapper around `buildOverlapGroups()` |
 | `useNowMinute.ts` | `shared/hooks/` | System clock hook returning current minute of day (0-1439). Updates every 60s. CANONICAL source — no duplicates. |
+| `CallSheetBuilderPage.tsx` | `features/schedules/components/` | Top-level route page for schedule builder + call sheet output (desktop-only) |
+| `ScheduleListPage.tsx` | `features/schedules/components/` | Schedule list with create/edit/delete |
+| `ScheduleCard.tsx` | `features/schedules/components/` | Schedule card with dropdown actions |
+| `ScheduleEntriesBoard.tsx` | `features/schedules/components/` | Entry board within schedule builder |
+| `ScheduleEntryCard.tsx` | `features/schedules/components/` | Individual schedule entry card |
+| `ScheduleEntryEditor.tsx` | `features/schedules/components/` | Entry editor form |
+| `ScheduleEntryEditSheet.tsx` | `features/schedules/components/` | Sheet-based entry editor |
+| `ScheduleTrackControls.tsx` | `features/schedules/components/` | Track management controls |
+| `CreateScheduleDialog.tsx` | `features/schedules/components/` | Dialog for creating new schedules |
+| `EditScheduleDialog.tsx` | `features/schedules/components/` | Rename/re-date a schedule (ResponsiveDialog + wasOpen ref pattern) |
+| `AddShotToScheduleDialog.tsx` | `features/schedules/components/` | Link shot to schedule entry |
+| `AddCustomEntryDialog.tsx` | `features/schedules/components/` | Add non-shot entry (setup, meal, travel, etc.) |
+| `DayDetailsEditor.tsx` | `features/schedules/components/` | Day-level details (weather, notes, key contacts) |
+| `CallOverridesEditor.tsx` | `features/schedules/components/` | Talent/crew call time overrides |
+| `AdvancedScheduleBlockSection.tsx` | `features/schedules/components/` | Advanced block settings section |
+| `TrustChecks.tsx` | `features/schedules/components/` | Schedule validation trust checks |
+| `TypedTimeInput.tsx` | `features/schedules/components/` | Time input with format enforcement |
 | `TimelineGridView.tsx` | `features/schedules/components/` | Grid orchestrator: TimelineGutter + track columns + NowIndicator + OverlapGroups. min-w-[600px], empty-state guard. |
 | `TimelineGutter.tsx` | `features/schedules/components/` | 60px time label column, 15-min tick marks |
 | `TimelineNowIndicator.tsx` | `features/schedules/components/` | NOW label + pulsing dot + 1px red line across track columns |
 | `TimelineBlockCard.tsx` | `features/schedules/components/` | Single schedule block card. COMPACT_HEIGHT=64px. Uses getBlockColors() CSS vars. |
 | `TimelineBlockGroup.tsx` | `features/schedules/components/` | Renders overlap groups: isolated=full-width 64px, overlapping=side-by-side sub-columns |
 | `TimelinePropertiesDrawer.tsx` | `features/schedules/components/` | Persistent 320px right-side panel for block details (NOT a Sheet/dialog) |
+| `AdaptiveTimelineView.tsx` | `features/schedules/components/` | Adaptive timeline visualization |
+| `AdaptiveTimelineHeader.tsx` | `features/schedules/components/` | Adaptive timeline header bar |
+| `AdaptiveEntryCard.tsx` | `features/schedules/components/` | Density-adaptive entry card |
+| `AdaptiveDenseBlock.tsx` | `features/schedules/components/` | Dense block for compact timeline |
+| `AdaptiveBannerSegment.tsx` | `features/schedules/components/` | Banner segment in adaptive timeline |
+| `AdaptiveGapSegment.tsx` | `features/schedules/components/` | Gap segment in adaptive timeline |
+| `AdaptiveUnscheduledTray.tsx` | `features/schedules/components/` | Tray for unscheduled entries |
+| `CallSheetRenderer.tsx` | `features/schedules/components/` | Call sheet output renderer (HTML for print) |
+| `CallSheetOutputControls.tsx` | `features/schedules/components/` | Controls for call sheet output (print, share) |
+| `CallSheetPrintPortal.tsx` | `features/schedules/components/` | Print portal for call sheet output |
 | `CallSheetPageHeader.tsx` | `features/schedules/components/` | 3-zone modular grid header for call sheet output |
 | `CallSheetCastTable.tsx` | `features/schedules/components/` | Talent table with editorial section label |
 | `CallSheetDeptGrid.tsx` | `features/schedules/components/` | Crew by department with dark headers, break-inside-avoid for print |

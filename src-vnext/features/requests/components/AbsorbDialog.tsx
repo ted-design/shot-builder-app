@@ -149,7 +149,7 @@ export function AbsorbDialog({ open, onOpenChange, request }: AbsorbDialogProps)
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={mode === "existing"
-              ? "bg-[var(--color-status-green-text)] text-white hover:opacity-90"
+              ? "bg-[var(--color-status-green-text)] text-[var(--color-text-inverted)] hover:opacity-90"
               : undefined}
           >
             {buttonLabel}

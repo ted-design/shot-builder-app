@@ -401,7 +401,7 @@ export function DayDetailsEditor({
     <div className="flex flex-col gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       {/* Schedule identity */}
       <div>
-        <h2 className="text-base font-semibold text-[var(--color-text)]">
+        <h2 className="heading-subsection">
           {scheduleName}
         </h2>
         {dateStr && (

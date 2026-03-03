@@ -729,6 +729,44 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S8: Team Audit & Fix Sprint
+
+**Goal:** Comprehensive 6-agent audit of the entire vNext codebase followed by parallel implementation of all critical, high, and medium fixes. Close security vulnerabilities, fix deploy-blocking bugs, adopt the design system properly, consolidate duplicate code, and sync all documentation.
+
+**Status:** COMPLETE (uncommitted — needs git commit).
+
+**Rationale:** Before pushing forward with new features, a full-codebase health check ensures the foundation is solid. The audit found 2 critical bugs, 1 security vulnerability, and 28 UX consistency issues that would compound if left unfixed.
+
+### Research Phase (6 parallel read-only agents)
+
+- [x] **S8-R1 (Researcher):** PRD compliance audit — all 7 user journeys validated end-to-end, zero critical gaps
+- [x] **S8-R2 (UX Auditor):** 28 findings — semantic typography underused, hardcoded colors, dark mode ~60%, touch targets mostly OK
+- [x] **S8-R3 (Systems Architect):** 8.5/10 architecture score — Firestore patterns solid, ShotDetailPage (6 subs) and CallSheetBuilderPage (10+ subs) exceed read budget
+- [x] **S8-R4 (Adversary):** 8 issues — 2 critical (midnight overlap, iOS scroll trap), 4 high, 2 medium
+- [x] **S8-R5 (Code Reviewer):** 9 files over 800 lines, normalizeText x3 duplication, recommendedContactDensity logic bug, strong immutability discipline
+- [x] **S8-R6 (Doc Keeper):** 7 doc inconsistencies (Architecture.md routes, component inventory, MEMORY.md missing)
+
+### Implementation Phase (6 parallel agents, non-overlapping file ownership)
+
+- [x] **S8-1 (Critical Bugs):** Midnight crossing fix in overlapGroups.ts (clampEndMin helper) + iOS scroll trap fix in OnSetViewer.tsx (single scroll context)
+- [x] **S8-2 (Security + Validation):** Public pulls Firestore rule tightened (requires shareToken ≥ 32 chars) + measurement bounds (feet 2-9) + talent selection auto-clear
+- [x] **S8-3 (Typography):** Semantic classes (heading-section, heading-subsection) adopted across 10 page components
+- [x] **S8-4 (Color Tokens):** 5 hardcoded colors replaced with token vars (emerald→success, red→error, amber→warning, white→text-inverted)
+- [x] **S8-5 (Utility Consolidation):** shared/lib/textUtils.ts created, 3 files deduplicated, recommendedContactDensity bug fixed
+- [x] **S8-6 (Documentation):** Architecture.md route map corrected (9 phantom routes removed, 6 added, 30+ S7 components), MEMORY.md created, HANDOFF/CHECKPOINT updated
+
+### Acceptance Criteria
+
+- [x] 2 critical bugs fixed (midnight overlap, iOS scroll trap)
+- [x] 1 security vulnerability closed (pulls enumeration)
+- [x] Semantic typography classes adopted across page components
+- [x] Hardcoded colors replaced with design token vars
+- [x] Duplicate utility functions consolidated into shared/lib/textUtils.ts
+- [x] Architecture.md route map matches actual routes
+- [x] 2370 tests pass, build clean, lint zero warnings
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

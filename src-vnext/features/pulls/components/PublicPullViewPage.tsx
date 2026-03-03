@@ -194,7 +194,7 @@ export default function PublicPullViewPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
         <div className="w-full max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <h1 className="text-base font-semibold text-[var(--color-text)]">Access denied</h1>
+          <h1 className="heading-subsection">Access denied</h1>
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">{error}</p>
         </div>
       </div>

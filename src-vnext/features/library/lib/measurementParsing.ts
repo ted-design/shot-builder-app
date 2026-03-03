@@ -19,6 +19,10 @@ const PLAIN_NUMBER_RE = /^(\d+(?:\.\d+)?)$/
 
 const CM_TO_INCHES = 0.393701
 
+// Human height bounds (feet) for feet+inches format
+const MIN_FEET = 2
+const MAX_FEET = 9
+
 export function parseMeasurementValue(
   value: string | number | null | undefined,
 ): number | null {
@@ -38,6 +42,7 @@ export function parseMeasurementValue(
   if (feetMatch) {
     const feet = Number(feetMatch[1])
     const inches = Number(feetMatch[2])
+    if (feet < MIN_FEET || feet > MAX_FEET) return null
     if (inches >= 12) return null
     return feet * 12 + inches
   }
