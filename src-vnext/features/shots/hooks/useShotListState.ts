@@ -177,7 +177,7 @@ export function useShotListState(params: {
     if (!storageKeyBase) return "gallery"
     try {
       const raw = window.localStorage.getItem(`${storageKeyBase}:view:v1`)
-      return raw === "table" || raw === "gallery" || raw === "visual" || raw === "board" ? raw : "gallery"
+      return raw === "table" || raw === "gallery" || raw === "visual" ? raw : "gallery"
     } catch {
       return "gallery"
     }
@@ -186,7 +186,7 @@ export function useShotListState(params: {
   // -- Derived view/group --
   const viewMode: ViewMode = isMobile
     ? "gallery"
-    : viewParam === "table" || viewParam === "gallery" || viewParam === "visual" || viewParam === "board"
+    : viewParam === "table" || viewParam === "gallery" || viewParam === "visual"
       ? viewParam
       : storedDefaultView
 

@@ -8,7 +8,7 @@ import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 
 export type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
 export type SortDir = "asc" | "desc"
-export type ViewMode = "gallery" | "visual" | "table" | "board"
+export type ViewMode = "gallery" | "visual" | "table"
 export type MissingKey = "products" | "talent" | "location" | "image"
 export type GroupKey = "none" | "status" | "date" | "talent" | "location"
 

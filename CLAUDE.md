@@ -59,6 +59,7 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 
 - **Reuse existing Firestore collections and document shapes.** No new collections, no new fields, no schema changes without overwhelming justification.
 - If a schema change is proposed, you must: (a) present the rationale, (b) present a migration plan (rules/backfill/dual-write), (c) STOP for approval before proceeding.
+- **Approved exception:** `pendingInvitations` subcollection under `clients/{clientId}/` (Sprint S9) — stores pre-signup role invitations keyed by normalized email. Admin-only read/write in `firestore.rules`.
 - Reuse existing `firestore.rules` — do not modify security rules unless the change is required by a new vNext route and has been reviewed.
 - Auth custom claims (`role`, `clientId`) and the 5-role model (admin, producer, crew, warehouse, viewer) are fixed infrastructure.
 - Firestore path helpers from `shared/lib/paths` are the single source for collection references.
@@ -120,7 +121,7 @@ The existing `src/` directory contains the **legacy JavaScript app** (~583 files
 
 ## Project Overview
 
-Shot Builder vNext is a ground-up redesign of the Shot Builder production planning app. It is mobile-first, opinionated, and built as vertical slices. The goal is to materially reduce the time and friction from brief to shoot-ready.
+Production Hub (formerly Shot Builder) is a ground-up redesign of the production planning app. It is mobile-first, opinionated, and built as vertical slices. The goal is to materially reduce the time and friction from brief to shoot-ready.
 
 See `Architecture.md` for tech stack, module structure, routes, data model, auth/RBAC, design system, performance budgets, and security checklist.
 

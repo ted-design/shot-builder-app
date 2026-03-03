@@ -1,10 +1,10 @@
-# Product Requirements -- Shot Builder
+# Product Requirements -- Production Hub
 
 ---
 
 ## Vision
 
-Shot Builder is the production planning tool for fashion and commercial photography. It replaces the chaos of spreadsheets, email chains, Slack threads, paper call sheets, and tribal knowledge with a single source of truth.
+Production Hub is the production planning tool for fashion and commercial photography. It replaces the chaos of spreadsheets, email chains, Slack threads, paper call sheets, and tribal knowledge with a single source of truth.
 
 **Goal:** Materially reduce the time and friction it takes to move from a brief to a fully shoot-ready state.
 
@@ -20,11 +20,11 @@ Shot Builder is the production planning tool for fashion and commercial photogra
 | **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
 | **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 + 10R | **COMPLETE** |
 
-The "Now" tier is complete — Shot Builder is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — expanded asset types (6 canonical + Other + 3 legacy), 5-state flags (including AI Generated), chip-based progressive disclosure, per-colorway launch dates with family inheritance, identity images in Colorways with inline editing, Assets→Files rename, and a 3-tier dashboard shoot readiness widget with scheduling suggestions and confidence indicators.
+The "Now" tier is complete — Production Hub is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — expanded asset types (6 canonical + Other + 3 legacy), 5-state flags (including AI Generated), chip-based progressive disclosure, per-colorway launch dates with family inheritance, identity images in Colorways with inline editing, Assets→Files rename, and a 3-tier dashboard shoot readiness widget with scheduling suggestions and confidence indicators.
 
 ---
 
-## What Shot Builder Eliminates
+## What Production Hub Eliminates
 
 | Problem | How SB Solves It |
 |---------|-----------------|
@@ -161,7 +161,7 @@ Every shot progresses through four statuses. These labels are canonical across a
 ### Journey 6: Product Lifecycle (Aspirational)
 
 - Full lifecycle: catalog entry -> sample tracking -> shoot assignment -> photography -> asset delivery -> return.
-- Product team uses Shot Builder as source of truth for product status.
+- Product team uses Production Hub as source of truth for product status.
 - Track: when products arrive, launch dates, sample availability, when to shoot.
 - Multiple input methods: CSV bulk import, manual entry, API integration (future).
 
@@ -257,7 +257,7 @@ Shot cards with hero images. Product thumbnails in pickers. Gallery view for cre
 
 ## UX Patterns to Adopt
 
-| Pattern | Source | Application in Shot Builder |
+| Pattern | Source | Application in Production Hub |
 |---------|--------|-----------------------------|
 | Command palette (Cmd+K) | Linear | Universal search + action hub across projects, shots, products, talent, locations |
 | Inline field editing | Linear | Click-to-edit title, status, assignments on shot/pull list rows |

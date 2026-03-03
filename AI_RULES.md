@@ -1,4 +1,4 @@
-# AI Rules -- Shot Builder
+# AI Rules -- Production Hub
 
 Rules for all AI agent work on this project. When in doubt, these rules apply.
 

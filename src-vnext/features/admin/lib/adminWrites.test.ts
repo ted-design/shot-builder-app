@@ -106,7 +106,7 @@ describe("inviteOrUpdateUser", () => {
       clientId: "c1",
     })
 
-    expect(result).toBe("uid-abc")
+    expect(result).toEqual({ uid: "uid-abc" })
   })
 
   it("throws when CF response has no uid", async () => {
@@ -122,8 +122,22 @@ describe("inviteOrUpdateUser", () => {
     ).rejects.toThrow("Cloud Function did not return a user id.")
   })
 
-  it("propagates CF errors", async () => {
-    mockCallable.mockRejectedValue(new Error("auth/user-not-found"))
+  it("returns pending result when CF indicates user not found", async () => {
+    mockCallable.mockResolvedValue({ data: { ok: true, pending: true, email: "ghost@example.com" } })
+
+    const result = await inviteOrUpdateUser({
+      targetEmail: "ghost@example.com",
+      displayName: null,
+      role: "producer",
+      clientId: "c1",
+    })
+
+    expect(result).toEqual({ pending: true, email: "ghost@example.com" })
+    expect(mockSetDoc).not.toHaveBeenCalled()
+  })
+
+  it("propagates non-user-not-found CF errors", async () => {
+    mockCallable.mockRejectedValue(new Error("permission-denied"))
 
     await expect(
       inviteOrUpdateUser({
@@ -132,7 +146,7 @@ describe("inviteOrUpdateUser", () => {
         role: "producer",
         clientId: "c1",
       }),
-    ).rejects.toThrow("auth/user-not-found")
+    ).rejects.toThrow("permission-denied")
   })
 })
 

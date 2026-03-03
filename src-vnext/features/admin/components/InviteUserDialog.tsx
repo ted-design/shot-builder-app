@@ -77,32 +77,33 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
 
     setSaving(true)
     try {
-      await inviteOrUpdateUser({
+      const inviteResult = await inviteOrUpdateUser({
         targetEmail: result.data,
         displayName: displayName.trim() || null,
         role,
         clientId,
       })
 
-      toast.success(`Role applied for ${result.data}`, {
-        action: {
-          label: "Copy Login Link",
-          onClick: copyLoginLink,
-        },
-      })
-      onOpenChange(false)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      if (message.includes("user-not-found") || message.includes("USER_NOT_FOUND")) {
-        toast.error("User must sign in once before being assigned a role", {
+      if ("pending" in inviteResult) {
+        toast.success(`Invitation created for ${inviteResult.email}`, {
+          description: "Share the login link so they can sign in.",
           action: {
             label: "Copy Login Link",
             onClick: copyLoginLink,
           },
         })
       } else {
-        toast.error(message)
+        toast.success(`Role applied for ${result.data}`, {
+          action: {
+            label: "Copy Login Link",
+            onClick: copyLoginLink,
+          },
+        })
       }
+      onOpenChange(false)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -113,7 +114,7 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
       open={open}
       onOpenChange={onOpenChange}
       title="Invite User"
-      description="Assign a role to a team member. They must have signed in at least once."
+      description="Invite a team member by email."
       contentClassName="sm:max-w-md"
       footer={
         <>
@@ -121,7 +122,7 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {saving ? "Saving..." : "Apply Role"}
+            {saving ? "Saving..." : "Invite"}
           </Button>
         </>
       }

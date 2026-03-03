@@ -18,7 +18,6 @@ import {
   LayoutGrid,
   Table2,
   Image as ImageIcon,
-  Kanban,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -159,7 +158,6 @@ export function ShotListToolbar({
             { mode: "gallery" as const, icon: LayoutGrid, label: "Gallery view", hint: "1" },
             { mode: "visual" as const, icon: ImageIcon, label: "Visual view", hint: "2" },
             { mode: "table" as const, icon: Table2, label: "Table view", hint: "3" },
-            { mode: "board" as const, icon: Kanban, label: "Board view", hint: "4" },
           ] as const).map(({ mode, icon: Icon, label, hint }) => (
             <Button
               key={mode}

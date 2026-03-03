@@ -1,4 +1,4 @@
-# Architecture -- Shot Builder
+# Architecture -- Production Hub
 
 This document describes the **current reality** of the codebase, not aspirational goals.
 
@@ -113,7 +113,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/` | Redirect -> `/projects` | |
 | `/projects` | ProjectDashboard | Project grid + ShootReadinessWidget (admin/producer only). |
 | `/projects/:id` | Redirect -> `shots` | |
-| `/projects/:id/shots` | ShotListPage | Shot list (table / board / gallery views) |
+| `/projects/:id/shots` | ShotListPage | Shot list (gallery / visual / table views) |
 | `/projects/:id/shots/:sid` | ShotDetailPage | Three-panel shot editor |
 | `/projects/:id/pulls` | PullListPage | Project-scoped pull list |
 | `/projects/:id/pulls/:pid` | PullDetailPage | Pull detail + fulfillment |
@@ -186,7 +186,8 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── colorSwatches/{swatchId}/
   ├── users/{userId}/
   ├── notifications/{notificationId}/
-  └── shotRequests/{requestId}/          # Phase 8/8.5 — Shot Request Inbox + Create Project from Request
+  ├── shotRequests/{requestId}/          # Phase 8/8.5 — Shot Request Inbox + Create Project from Request
+  └── pendingInvitations/{normalizedEmail}/  # Sprint S9 — pre-signup role invitations
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
@@ -400,7 +401,8 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 
 | Function | Type | Purpose |
 |----------|------|---------|
-| `setUserClaims` | Callable | Set role + clientId on Firebase Auth user |
+| `setUserClaims` | Callable | Set role + clientId on Firebase Auth user. Catches `auth/user-not-found` and creates `pendingInvitations` doc instead. |
+| `claimInvitation` | Callable | Auto-called on first sign-in when user has no claims. Queries `pendingInvitations` collection group, sets claims, writes user doc, marks invitation claimed. |
 | `resolvePullShareToken` | HTTP POST | Resolve public pull share token to pull data |
 | `resolveShotShareToken` | HTTP POST | Resolve denormalized shot share doc |
 

@@ -31,7 +31,7 @@ export function MobileTopBar({ onMenuOpen, projectName }: MobileTopBarProps) {
           </div>
         ) : (
           <span className="text-sm font-semibold text-[var(--color-text)]">
-            {projectName ?? "Shot Builder"}
+            {projectName ?? "Production Hub"}
           </span>
         )}
       </div>
