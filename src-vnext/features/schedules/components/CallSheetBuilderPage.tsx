@@ -27,6 +27,7 @@ import { CallOverridesEditor } from "@/features/schedules/components/CallOverrid
 import { CallSheetOutputControls } from "@/features/schedules/components/CallSheetOutputControls"
 import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetPrintPortal"
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
+import { OnSetViewer } from "@/features/schedules/components/OnSetViewer"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
@@ -187,8 +188,22 @@ export default function CallSheetBuilderPage() {
   const dateStr = formatScheduleDate(schedule.date)
   const rendererConfig = callSheetConfig.config
 
+  // Mobile On-Set Viewer: shown for non-managers on mobile, or managers in preview on mobile
+  if (isMobile && (!canManage || isPreviewParam)) {
+    return (
+      <ErrorBoundary>
+        <OnSetViewer
+          schedule={schedule}
+          dayDetails={dayDetails}
+          entries={entries}
+          crewLibrary={crewLibrary}
+        />
+      </ErrorBoundary>
+    )
+  }
+
   const handleExport = () => {
-    toast.info("Tip: enable “Background graphics” in the print dialog to include colors.")
+    toast.info('Tip: enable \u201cBackground graphics\u201d in the print dialog to include colors.')
     setPrintOpen(true)
   }
 
@@ -254,8 +269,8 @@ export default function CallSheetBuilderPage() {
             </div>
           </div>
 
-          {/* Full-width preview */}
-          <div className="rounded-lg doc-canvas p-5">
+          {/* Full-width preview — force light mode so doc tokens are never dark */}
+          <div className="rounded-lg doc-canvas p-5" data-callsheet-doc-light>
             <div className="mx-auto w-full doc-page">
               <div className="doc-page-content">
                 <CallSheetRenderer
@@ -344,7 +359,7 @@ export default function CallSheetBuilderPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto doc-canvas p-5">
+                <div className="flex-1 overflow-y-auto doc-canvas p-5" data-callsheet-doc-light>
                   <div
                     className="mx-auto w-full doc-page"
                     style={{
@@ -418,6 +433,7 @@ export default function CallSheetBuilderPage() {
                   accent: rendererConfig.colors?.accent ?? DEFAULT_CALLSHEET_COLORS.accent,
                   text: rendererConfig.colors?.text ?? DEFAULT_CALLSHEET_COLORS.text,
                 }}
+                headerLayout={rendererConfig.headerLayout ?? "legacy"}
                 onPatchSections={(patch) => {
                   void callSheetConfig.setSectionVisibility(patch)
                 }}
@@ -426,6 +442,9 @@ export default function CallSheetBuilderPage() {
                 }}
                 onPatchColors={(patch) => {
                   void callSheetConfig.setColors(patch)
+                }}
+                onSetHeaderLayout={(layout) => {
+                  void callSheetConfig.setHeaderLayout(layout)
                 }}
               />
 

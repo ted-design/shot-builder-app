@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint S7 — Schedule Builder Design Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            sidebar: '#09090b',
+            'sidebar-border': '#27272a',
+            'sidebar-hover': '#27272a',
+            'sidebar-active': '#3f3f46',
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+            schedule: {
+              setup: { border: '#f59e0b', bg: 'rgba(255,251,235,0.55)' },
+              shooting: { border: '#3b82f6', bg: 'rgba(239,246,255,0.55)' },
+              hmu: { border: '#8b5cf6', bg: 'rgba(245,243,255,0.55)' },
+              meal: { border: '#10b981', bg: 'rgba(236,253,245,0.55)' },
+              travel: { border: '#71717a', bg: 'rgba(244,244,245,0.55)' },
+              banner: { border: '#18181b', bg: 'rgba(244,244,245,0.65)' },
+            },
+          },
+          fontSize: {
+            '2xs': ['10px', { lineHeight: '14px' }],
+            'xs': ['11px', { lineHeight: '16px' }],
+            'sm': ['13px', { lineHeight: '18px' }],
+            'base': ['14px', { lineHeight: '20px' }],
+            'lg': ['16px', { lineHeight: '22px' }],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: #fafafa;
+      color: #18181b;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Option Toggle ---- */
+    .option-toggle {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      height: 44px;
+      background: #09090b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 0 24px;
+      border-bottom: 1px solid #27272a;
+    }
+    .option-toggle button {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      padding: 7px 20px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .option-toggle button.active {
+      background: #3f3f46;
+      color: #fafafa;
+    }
+    .option-toggle button:not(.active) {
+      background: transparent;
+      color: #71717a;
+    }
+    .option-toggle button:not(.active):hover {
+      color: #a1a1aa;
+      background: #27272a;
+    }
+    .option-toggle .toggle-label {
+      font-size: 11px;
+      color: #52525b;
+      margin-right: 12px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* ---- App Shell ---- */
+    .app-shell {
+      margin-top: 44px;
+      display: flex;
+      height: calc(100vh - 44px);
+      overflow: hidden;
+    }
+
+    /* ---- Collapsed Sidebar ---- */
+    .icon-sidebar {
+      width: 64px;
+      background: #09090b;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 4px;
+      border-right: 1px solid #27272a;
+    }
+    .icon-sidebar .sb-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      color: #71717a;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .icon-sidebar .sb-icon:hover {
+      background: #27272a;
+      color: #a1a1aa;
+    }
+    .icon-sidebar .sb-icon.active {
+      background: #3f3f46;
+      color: #fafafa;
+    }
+    .icon-sidebar .sb-icon.active::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: #E31E24;
+    }
+    .icon-sidebar .sb-logo {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .icon-sidebar .sb-spacer { flex: 1; }
+
+    /* ---- Scrollbar Styling ---- */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+    /* ============================================ */
+    /* ---- OPTION A: Vertical Day Timeline ---- */
+    /* ============================================ */
+    .option-a { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* Toolbar */
+    .timeline-toolbar {
+      height: 52px;
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .toolbar-date {
+      font-size: 14px;
+      font-weight: 500;
+      color: #18181b;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .toolbar-date span {
+      color: #71717a;
+      font-weight: 400;
+    }
+    .toolbar-center {
+      flex: 1;
+      text-align: center;
+    }
+    .toolbar-center h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #18181b;
+      letter-spacing: -0.01em;
+    }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Zoom Controls */
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      background: #f4f4f5;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 1px;
+    }
+    .zoom-btn {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .zoom-btn:hover { color: #18181b; }
+    .zoom-btn.active {
+      background: #ffffff;
+      color: #18181b;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+    /* Buttons */
+    .btn-secondary {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #e4e4e7;
+      background: #ffffff;
+      color: #18181b;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-secondary:hover {
+      border-color: #d4d4d8;
+      background: #f4f4f5;
+    }
+    .btn-primary {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #18181b;
+      background: #18181b;
+      color: #fafafa;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: #27272a; }
+
+    /* Timeline Area */
+    .timeline-area {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .timeline-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+    .timeline-grid {
+      position: relative;
+      margin-left: 60px;
+      margin-right: 12px;
+    }
+
+    /* Time Gutter */
+    .time-gutter-label {
+      position: absolute;
+      left: 0;
+      width: 56px;
+      text-align: right;
+      padding-right: 12px;
+      font-size: 11px;
+      font-weight: 400;
+      color: #a1a1aa;
+      font-variant-numeric: tabular-nums;
+      transform: translateY(-7px);
+      user-select: none;
+    }
+
+    /* Grid Lines */
+    .hour-line {
+      position: absolute;
+      left: 60px;
+      right: 12px;
+      height: 1px;
+      background: rgba(228,228,231,0.6);
+    }
+    .half-hour-line {
+      position: absolute;
+      left: 60px;
+      right: 12px;
+      height: 1px;
+      background: rgba(228,228,231,0.3);
+      border-top: 1px dashed rgba(228,228,231,0.35);
+    }
+
+    /* Now Indicator */
+    .now-indicator {
+      position: absolute;
+      left: 44px;
+      right: 12px;
+      height: 2px;
+      background: #E31E24;
+      z-index: 30;
+      pointer-events: none;
+    }
+    .now-dot {
+      position: absolute;
+      left: -5px;
+      top: -4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #E31E24;
+    }
+    .now-label {
+      position: absolute;
+      left: -52px;
+      top: -7px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #E31E24;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Schedule Block */
+    .schedule-block {
+      position: absolute;
+      border-radius: 6px;
+      border-left: 3px solid;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      overflow: hidden;
+      z-index: 10;
+    }
+    .schedule-block:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+      z-index: 15;
+    }
+    .schedule-block .block-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #18181b;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .schedule-block .block-meta {
+      font-size: 11px;
+      font-weight: 400;
+      color: #71717a;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .schedule-block .block-time {
+      font-size: 10px;
+      font-weight: 500;
+      color: #a1a1aa;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+    .schedule-block .status-dot {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    /* Banner Block */
+    .banner-block {
+      position: absolute;
+      left: 60px;
+      right: 12px;
+      height: 28px;
+      background: #f4f4f5;
+      border-left: 3px solid #18181b;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      z-index: 10;
+      cursor: pointer;
+    }
+    .banner-block:hover {
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .banner-block .block-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #18181b;
+      letter-spacing: -0.01em;
+    }
+    .banner-block .block-time-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: #71717a;
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Right Drawer (Option A) */
+    .drawer-overlay {
+      display: none;
+      position: fixed;
+      top: 44px;
+      left: 64px;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.08);
+      z-index: 50;
+    }
+    .drawer-overlay.open { display: block; }
+    .properties-drawer {
+      position: fixed;
+      top: 44px;
+      right: 0;
+      width: 380px;
+      bottom: 0;
+      background: #ffffff;
+      border-left: 1px solid #e4e4e7;
+      z-index: 55;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+    }
+    .properties-drawer.open {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drawer-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #18181b;
+    }
+    .drawer-close {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .drawer-close:hover { background: #f4f4f5; color: #18181b; }
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+    .drawer-footer {
+      padding: 12px 20px;
+      border-top: 1px solid #e4e4e7;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Drawer Form Fields */
+    .field-group {
+      margin-bottom: 16px;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #71717a;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .field-value {
+      font-size: 14px;
+      color: #18181b;
+      padding: 8px 12px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      width: 100%;
+    }
+    .field-value-display {
+      font-size: 14px;
+      color: #18181b;
+      line-height: 1.5;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Category Tag */
+    .cat-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .cat-tag .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    /* Unscheduled Tray (Option A) */
+    .unscheduled-tray {
+      background: #ffffff;
+      border-top: 1px solid #e4e4e7;
+      flex-shrink: 0;
+    }
+    .tray-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tray-header:hover { background: #f4f4f5; }
+    .tray-header h4 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #71717a;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .tray-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: #a1a1aa;
+      background: #f4f4f5;
+      padding: 1px 7px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+    .tray-chevron {
+      margin-left: auto;
+      color: #a1a1aa;
+      transition: transform 0.2s;
+    }
+    .tray-chevron.expanded { transform: rotate(180deg); }
+    .tray-body {
+      display: flex;
+      gap: 8px;
+      padding: 0 20px 12px;
+      overflow-x: auto;
+    }
+    .unscheduled-card {
+      flex-shrink: 0;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: grab;
+      transition: box-shadow 0.15s;
+      min-width: 180px;
+    }
+    .unscheduled-card:hover {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      border-color: #d4d4d8;
+    }
+    .unscheduled-card .card-num {
+      font-size: 11px;
+      font-weight: 600;
+      color: #a1a1aa;
+      margin-bottom: 2px;
+    }
+    .unscheduled-card .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #18181b;
+    }
+
+    /* ============================================ */
+    /* ---- OPTION B: Enhanced Adaptive ---- */
+    /* ============================================ */
+    .option-b { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* Trust Checks Bar */
+    .trust-bar {
+      height: 36px;
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .trust-bar:hover { background: #fafafa; }
+    .trust-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .trust-label {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .trust-details {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Day Details Dashboard */
+    .day-dashboard {
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+      padding: 14px 20px;
+      flex-shrink: 0;
+    }
+    .day-dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .day-dashboard-header h2 {
+      font-size: 28px;
+      font-weight: 300;
+      color: #18181b;
+      letter-spacing: -0.02em;
+    }
+    .day-dashboard-header .sub {
+      font-size: 14px;
+      color: #71717a;
+      font-weight: 400;
+    }
+    .day-details-strip {
+      display: flex;
+      gap: 0;
+      background: #f4f4f5;
+      border-radius: 8px;
+      border: 1px solid #e4e4e7;
+      overflow: hidden;
+    }
+    .detail-cell {
+      flex: 1;
+      padding: 10px 16px;
+      border-right: 1px solid #e4e4e7;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .detail-cell:last-child { border-right: none; }
+    .detail-cell:first-child {
+      background: #ffffff;
+      border-left: 3px solid #18181b;
+    }
+    .detail-cell .cell-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #a1a1aa;
+    }
+    .detail-cell .cell-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #18181b;
+      font-variant-numeric: tabular-nums;
+    }
+    .detail-cell:first-child .cell-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .detail-cell .cell-note {
+      font-size: 10px;
+      color: #a1a1aa;
+      font-weight: 400;
+    }
+
+    /* Option B Toolbar */
+    .adaptive-toolbar {
+      height: 48px;
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .adaptive-toolbar .segment-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #71717a;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    /* Adaptive Timeline Cards */
+    .adaptive-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .adaptive-timeline {
+      flex: 1;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+    }
+    .adaptive-entry {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-left: 3px solid;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      position: relative;
+    }
+    .adaptive-entry:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-color: #d4d4d8;
+    }
+    .adaptive-entry .entry-time {
+      font-size: 12px;
+      font-weight: 600;
+      color: #18181b;
+      font-variant-numeric: tabular-nums;
+      min-width: 55px;
+      flex-shrink: 0;
+      line-height: 1.4;
+    }
+    .adaptive-entry .entry-time .end-time {
+      font-weight: 400;
+      color: #a1a1aa;
+      font-size: 11px;
+      display: block;
+    }
+    .adaptive-entry .entry-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .adaptive-entry .entry-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #18181b;
+      line-height: 1.3;
+    }
+    .adaptive-entry .entry-detail {
+      font-size: 12px;
+      color: #71717a;
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+    .adaptive-entry .entry-pills {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .entry-pill {
+      font-size: 10px;
+      font-weight: 500;
+      color: #52525b;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .adaptive-entry .entry-status {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .adaptive-entry .drag-handle {
+      width: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      cursor: grab;
+      padding: 4px 0;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .adaptive-entry:hover .drag-handle { opacity: 0.5; }
+    .adaptive-entry .drag-handle:hover { opacity: 1 !important; }
+    .drag-dot {
+      width: 3px;
+      height: 3px;
+      background: #a1a1aa;
+      border-radius: 50%;
+    }
+
+    /* Banner Entry (Option B) */
+    .adaptive-banner {
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-left: 3px solid #18181b;
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .adaptive-banner .entry-time {
+      font-size: 12px;
+      font-weight: 600;
+      color: #18181b;
+      font-variant-numeric: tabular-nums;
+      min-width: 55px;
+    }
+    .adaptive-banner .entry-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #18181b;
+    }
+
+    /* Now Line (Option B) */
+    .now-line-b {
+      position: relative;
+      margin: 2px 0;
+      display: flex;
+      align-items: center;
+      height: 16px;
+    }
+    .now-line-b::before {
+      content: '';
+      flex: 1;
+      height: 2px;
+      background: #E31E24;
+    }
+    .now-line-b .now-time-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #E31E24;
+      padding: 0 8px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Split Preview (Option B) */
+    .split-preview {
+      border-top: 1px solid #e4e4e7;
+      height: 240px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+    .split-preview-header {
+      display: flex;
+      align-items: center;
+      padding: 6px 20px;
+      border-bottom: 1px solid #e4e4e7;
+      gap: 10px;
+    }
+    .split-preview-header h4 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #71717a;
+    }
+    .split-preview-header .live-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .split-preview-header .collapse-btn {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 500;
+      color: #a1a1aa;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Inter', sans-serif;
+    }
+    .split-preview-header .collapse-btn:hover { color: #71717a; }
+    .split-preview-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+      background: #fafafa;
+    }
+
+    /* Mini Call Sheet Preview */
+    .mini-callsheet {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      border-radius: 6px;
+      padding: 16px 20px;
+      max-width: 580px;
+      margin: 0 auto;
+      font-size: 11px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .mini-cs-header {
+      text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e4e4e7;
+      margin-bottom: 10px;
+    }
+    .mini-cs-header h5 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #18181b;
+      letter-spacing: -0.01em;
+    }
+    .mini-cs-header p {
+      font-size: 10px;
+      color: #71717a;
+    }
+    .mini-cs-row {
+      display: flex;
+      gap: 12px;
+      padding: 3px 0;
+      border-bottom: 1px solid #f4f4f5;
+      font-size: 10px;
+    }
+    .mini-cs-row .cs-time {
+      width: 60px;
+      font-weight: 600;
+      color: #18181b;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .mini-cs-row .cs-title {
+      flex: 1;
+      font-weight: 500;
+      color: #18181b;
+    }
+    .mini-cs-row .cs-detail {
+      color: #71717a;
+      font-weight: 400;
+      flex: 1;
+    }
+
+    /* Trust Checks Expanded Items */
+    .trust-items {
+      display: none;
+      padding: 8px 20px 10px;
+      background: #ffffff;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    .trust-items.expanded { display: flex; flex-direction: column; gap: 4px; }
+    .trust-item {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .trust-item:hover { background: #f4f4f5; }
+    .trust-icon { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ====== Option Toggle Bar ====== -->
+<div class="option-toggle">
+  <span class="toggle-label">Design Option</span>
+  <button id="toggleA" class="active" onclick="showOption('a')">A : Vertical Day Timeline</button>
+  <button id="toggleB" onclick="showOption('b')">B : Enhanced Adaptive</button>
+</div>
+
+<!-- ====== App Shell ====== -->
+<div class="app-shell">
+  <!-- Collapsed Sidebar -->
+  <nav class="icon-sidebar">
+    <div class="sb-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#E31E24"/>
+        <path d="M7 8h10M7 12h6M7 16h8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <!-- Dashboard -->
+    <div class="sb-icon" title="Dashboard">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    </div>
+    <!-- Shots -->
+    <div class="sb-icon" title="Shots">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M2 9h3M19 9h3M2 15h3M19 15h3"/>
+      </svg>
+    </div>
+    <!-- Calendar (active) -->
+    <div class="sb-icon active" title="Schedules">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="13" width="3" height="3" rx="0.5"/><rect x="14" y="13" width="3" height="3" rx="0.5"/>
+      </svg>
+    </div>
+    <!-- Products -->
+    <div class="sb-icon" title="Products">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+    </div>
+    <!-- Talent -->
+    <div class="sb-icon" title="Talent">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+
+    <div class="sb-spacer"></div>
+
+    <!-- Settings -->
+    <div class="sb-icon" title="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    </div>
+  </nav>
+
+  <!-- ============================================ -->
+  <!-- OPTION A: Vertical Day Timeline              -->
+  <!-- ============================================ -->
+  <div class="option-a" id="optionA">
+    <!-- Toolbar -->
+    <div class="timeline-toolbar">
+      <div class="toolbar-date">
+        Saturday, March 15, 2026 <span>&mdash; Day 2 of 4</span>
+      </div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="setZoom('condensed',this)">Condensed</button>
+        <button class="zoom-btn active" onclick="setZoom('normal',this)">Normal</button>
+        <button class="zoom-btn" onclick="setZoom('expanded',this)">Expanded</button>
+      </div>
+      <div class="toolbar-center">
+        <h2>Day 2 &mdash; SS26 Campaign Shoot</h2>
+      </div>
+      <div class="toolbar-actions">
+        <button class="btn-secondary" onclick="toggleDrawer()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Day Details
+        </button>
+        <button class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Preview Call Sheet
+        </button>
+        <button class="btn-primary" onclick="toggleDrawer()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Entry
+        </button>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-area">
+      <div class="timeline-scroll" id="timelineScroll">
+        <!-- Pixel scale: 1 hour = 80px (normal zoom) -->
+        <!-- Start: 6 AM (top=0), End: 7 PM (13 hours, total height=1040px) -->
+        <div class="timeline-grid" id="timelineGrid" style="height: 1080px; position: relative;">
+
+          <!-- Time gutter labels & hour lines (6 AM - 7 PM) -->
+          <!-- 6 AM -->
+          <div class="time-gutter-label" style="top: 0px;">6 AM</div>
+          <div class="hour-line" style="top: 0px;"></div>
+          <div class="half-hour-line" style="top: 40px;"></div>
+          <!-- 7 AM -->
+          <div class="time-gutter-label" style="top: 80px;">7 AM</div>
+          <div class="hour-line" style="top: 80px;"></div>
+          <div class="half-hour-line" style="top: 120px;"></div>
+          <!-- 8 AM -->
+          <div class="time-gutter-label" style="top: 160px;">8 AM</div>
+          <div class="hour-line" style="top: 160px;"></div>
+          <div class="half-hour-line" style="top: 200px;"></div>
+          <!-- 9 AM -->
+          <div class="time-gutter-label" style="top: 240px;">9 AM</div>
+          <div class="hour-line" style="top: 240px;"></div>
+          <div class="half-hour-line" style="top: 280px;"></div>
+          <!-- 10 AM -->
+          <div class="time-gutter-label" style="top: 320px;">10 AM</div>
+          <div class="hour-line" style="top: 320px;"></div>
+          <div class="half-hour-line" style="top: 360px;"></div>
+          <!-- 11 AM -->
+          <div class="time-gutter-label" style="top: 400px;">11 AM</div>
+          <div class="hour-line" style="top: 400px;"></div>
+          <div class="half-hour-line" style="top: 440px;"></div>
+          <!-- 12 PM -->
+          <div class="time-gutter-label" style="top: 480px;">12 PM</div>
+          <div class="hour-line" style="top: 480px;"></div>
+          <div class="half-hour-line" style="top: 520px;"></div>
+          <!-- 1 PM -->
+          <div class="time-gutter-label" style="top: 560px;">1 PM</div>
+          <div class="hour-line" style="top: 560px;"></div>
+          <div class="half-hour-line" style="top: 600px;"></div>
+          <!-- 2 PM -->
+          <div class="time-gutter-label" style="top: 640px;">2 PM</div>
+          <div class="hour-line" style="top: 640px;"></div>
+          <div class="half-hour-line" style="top: 680px;"></div>
+          <!-- 3 PM -->
+          <div class="time-gutter-label" style="top: 720px;">3 PM</div>
+          <div class="hour-line" style="top: 720px;"></div>
+          <div class="half-hour-line" style="top: 760px;"></div>
+          <!-- 4 PM -->
+          <div class="time-gutter-label" style="top: 800px;">4 PM</div>
+          <div class="hour-line" style="top: 800px;"></div>
+          <div class="half-hour-line" style="top: 840px;"></div>
+          <!-- 5 PM -->
+          <div class="time-gutter-label" style="top: 880px;">5 PM</div>
+          <div class="hour-line" style="top: 880px;"></div>
+          <div class="half-hour-line" style="top: 920px;"></div>
+          <!-- 6 PM -->
+          <div class="time-gutter-label" style="top: 960px;">6 PM</div>
+          <div class="hour-line" style="top: 960px;"></div>
+          <div class="half-hour-line" style="top: 1000px;"></div>
+          <!-- 7 PM -->
+          <div class="time-gutter-label" style="top: 1040px;">7 PM</div>
+          <div class="hour-line" style="top: 1040px;"></div>
+
+          <!-- ===== Now Indicator (10:42 AM) ===== -->
+          <!-- 10:42 AM = 4h42m from 6AM = 4.7h * 80px = 376px -->
+          <div class="now-indicator" style="top: 376px;">
+            <div class="now-dot"></div>
+            <div class="now-label">10:42 AM</div>
+          </div>
+
+          <!-- ===== Schedule Blocks ===== -->
+
+          <!-- 6:30 AM — Crew Arrival (Banner) -->
+          <!-- 6:30 = 0.5h from 6AM = 40px -->
+          <div class="banner-block" style="top: 40px;">
+            <span class="block-title">Crew Arrival</span>
+            <span class="block-time-label">6:30 AM</span>
+          </div>
+
+          <!-- 7:00 AM — HMU: Sarah + Mika (90 min) -->
+          <!-- 7:00 = 1h from 6AM = 80px, 90min = 120px -->
+          <!-- This overlaps with Setup: Studio A, so we split width -->
+          <div class="schedule-block" style="top: 80px; height: 120px; left: 60px; width: calc(50% - 36px); border-color: #8b5cf6; background: rgba(245,243,255,0.55);" onclick="openDrawer('hmu1')">
+            <div class="block-title">HMU: Sarah + Mika</div>
+            <div class="block-meta">Hair, makeup, styling prep</div>
+            <div class="block-time">7:00 AM &ndash; 8:30 AM</div>
+            <div class="status-dot" style="background: #10b981;"></div>
+          </div>
+
+          <!-- 7:00 AM — Setup: Studio A lighting (60 min) -->
+          <!-- 7:00 = 80px, 60min = 80px -->
+          <div class="schedule-block" style="top: 80px; height: 80px; left: calc(50% + 30px); width: calc(50% - 36px); border-color: #f59e0b; background: rgba(255,251,235,0.55);" onclick="openDrawer('setup1')">
+            <div class="block-title">Setup: Studio A Lighting</div>
+            <div class="block-meta">Backdrop + key light rigging</div>
+            <div class="block-time">7:00 AM &ndash; 8:00 AM</div>
+            <div class="status-dot" style="background: #10b981;"></div>
+          </div>
+
+          <!-- 8:00 AM — Setup 1: E-comm Flatlay (120 min) -->
+          <!-- 8:00 = 2h = 160px, 120min = 160px -->
+          <!-- Overlaps with HMU: Jordan + Taylor (8:30-9:30) -->
+          <div class="schedule-block" style="top: 160px; height: 160px; left: 60px; width: calc(60% - 40px); border-color: #3b82f6; background: rgba(239,246,255,0.55);" onclick="openDrawer('shooting1')">
+            <div class="block-title">Setup 1: E-comm Flatlay</div>
+            <div class="block-meta">Spring Dresses &mdash; Studio A</div>
+            <div class="block-time">8:00 AM &ndash; 10:00 AM</div>
+            <div class="status-dot" style="background: #10b981;"></div>
+          </div>
+
+          <!-- 8:30 AM — HMU: Jordan + Taylor (60 min) -->
+          <!-- 8:30 = 2.5h = 200px, 60min = 80px -->
+          <div class="schedule-block" style="top: 200px; height: 80px; left: calc(60% + 24px); width: calc(40% - 30px); border-color: #8b5cf6; background: rgba(245,243,255,0.55);" onclick="openDrawer('hmu2')">
+            <div class="block-title">HMU: Jordan + Taylor</div>
+            <div class="block-meta">Prep for on-figure shoot</div>
+            <div class="block-time">8:30 AM &ndash; 9:30 AM</div>
+            <div class="status-dot" style="background: #f59e0b;"></div>
+          </div>
+
+          <!-- 10:00 AM — Setup 2: On-Figure (150 min) -->
+          <!-- 10:00 = 4h = 320px, 150min = 200px -->
+          <div class="schedule-block" style="top: 320px; height: 200px; left: 60px; right: 12px; border-color: #3b82f6; background: rgba(239,246,255,0.55);" onclick="openDrawer('shooting2')">
+            <div class="block-title">Setup 2: On-Figure</div>
+            <div class="block-meta">Talent: Sarah M., Mika R. &mdash; Spring Dresses + Accessories &mdash; Studio A</div>
+            <div class="block-time">10:00 AM &ndash; 12:30 PM</div>
+            <div class="status-dot" style="background: #10b981;"></div>
+          </div>
+
+          <!-- 12:30 PM — Lunch Break (60 min) -->
+          <!-- 12:30 = 6.5h = 520px, 60min = 80px -->
+          <div class="schedule-block" style="top: 520px; height: 80px; left: 60px; right: 12px; border-color: #10b981; background: rgba(236,253,245,0.55);" onclick="openDrawer('meal')">
+            <div class="block-title">Lunch Break</div>
+            <div class="block-meta">Catering in green room</div>
+            <div class="block-time">12:30 PM &ndash; 1:30 PM</div>
+            <div class="status-dot" style="background: #10b981;"></div>
+          </div>
+
+          <!-- 1:30 PM — Setup 3: Editorial Campaign (180 min) -->
+          <!-- 1:30 = 7.5h = 600px, 180min = 240px -->
+          <div class="schedule-block" style="top: 600px; height: 240px; left: 60px; right: 12px; border-color: #3b82f6; background: rgba(239,246,255,0.55);" onclick="openDrawer('shooting3')">
+            <div class="block-title">Setup 3: Editorial Campaign</div>
+            <div class="block-meta">Talent: All 4 &mdash; Summer Collection &mdash; Studio B</div>
+            <div class="block-time">1:30 PM &ndash; 4:30 PM</div>
+            <div class="status-dot" style="background: #f59e0b;"></div>
+          </div>
+
+          <!-- 4:30 PM — Setup 4: Detail Shots (90 min) -->
+          <!-- 4:30 = 10.5h = 840px, 90min = 120px -->
+          <div class="schedule-block" style="top: 840px; height: 120px; left: 60px; right: 12px; border-color: #3b82f6; background: rgba(239,246,255,0.55);" onclick="openDrawer('shooting4')">
+            <div class="block-title">Setup 4: Detail Shots</div>
+            <div class="block-meta">Accessories Closeups &mdash; Studio A</div>
+            <div class="block-time">4:30 PM &ndash; 6:00 PM</div>
+            <div class="status-dot" style="background: #71717a;"></div>
+          </div>
+
+          <!-- 6:00 PM — Wrap & Cleanup (Banner) -->
+          <!-- 6:00 = 12h = 960px -->
+          <div class="banner-block" style="top: 960px;">
+            <span class="block-title">Wrap &amp; Cleanup</span>
+            <span class="block-time-label">6:00 PM</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Unscheduled Tray -->
+    <div class="unscheduled-tray">
+      <div class="tray-header" onclick="toggleTray()">
+        <h4>Unscheduled</h4>
+        <span class="tray-count">2</span>
+        <svg class="tray-chevron" id="trayChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+      <div class="tray-body" id="trayBody">
+        <div class="unscheduled-card">
+          <div class="card-num">Unscheduled</div>
+          <div class="card-title">Backup Setup: Outdoor if weather permits</div>
+        </div>
+        <div class="unscheduled-card">
+          <div class="card-num">Unscheduled</div>
+          <div class="card-title">BTS Content Capture</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Properties Drawer -->
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+    <div class="properties-drawer" id="propertiesDrawer">
+      <div class="drawer-header">
+        <h3>Edit Entry</h3>
+        <button class="drawer-close" onclick="closeDrawer()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="drawer-body">
+        <!-- Entry Type -->
+        <div class="field-group">
+          <label class="field-label">Entry Type</label>
+          <div>
+            <span class="cat-tag" style="background: rgba(239,246,255,0.7); color: #1d4ed8;">
+              <span class="tag-dot" style="background: #3b82f6;"></span>
+              Shooting
+            </span>
+          </div>
+        </div>
+        <!-- Title -->
+        <div class="field-group">
+          <label class="field-label">Title</label>
+          <input class="field-value" value="Setup 2: On-Figure" />
+        </div>
+        <!-- Time Range -->
+        <div class="field-group">
+          <label class="field-label">Time</label>
+          <div class="field-row">
+            <input class="field-value" type="text" value="10:00 AM" />
+            <input class="field-value" type="text" value="12:30 PM" />
+          </div>
+        </div>
+        <!-- Duration -->
+        <div class="field-group">
+          <label class="field-label">Duration</label>
+          <div class="field-value-display">2h 30min</div>
+        </div>
+        <!-- Talent -->
+        <div class="field-group">
+          <label class="field-label">Talent</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: #18181b; background: #f4f4f5; border: 1px solid #e4e4e7; padding: 3px 10px; border-radius: 4px;">
+              Sarah M.
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: #18181b; background: #f4f4f5; border: 1px solid #e4e4e7; padding: 3px 10px; border-radius: 4px;">
+              Mika R.
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+          </div>
+        </div>
+        <!-- Product -->
+        <div class="field-group">
+          <label class="field-label">Product</label>
+          <div class="field-value-display">Spring Dresses + Accessories</div>
+        </div>
+        <!-- Location -->
+        <div class="field-group">
+          <label class="field-label">Location</label>
+          <input class="field-value" value="Studio A" />
+        </div>
+        <!-- Status -->
+        <div class="field-group">
+          <label class="field-label">Status</label>
+          <div>
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px; background: #ecfdf5; color: #047857;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
+              Confirmed
+            </span>
+          </div>
+        </div>
+        <!-- Notes -->
+        <div class="field-group">
+          <label class="field-label">Notes</label>
+          <textarea class="field-value" rows="3" style="resize: vertical; font-family: 'Inter', sans-serif; font-size: 13px;">Full-length and half-body shots. Stylist will have 3 looks prepped per talent. Use white seamless backdrop.</textarea>
+        </div>
+      </div>
+      <div class="drawer-footer">
+        <button class="btn-secondary" onclick="closeDrawer()">Cancel</button>
+        <button class="btn-primary" onclick="closeDrawer()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- OPTION B: Enhanced Adaptive                  -->
+  <!-- ============================================ -->
+  <div class="option-b" id="optionB">
+
+    <!-- Trust Checks Bar -->
+    <div class="trust-bar" id="trustBar" onclick="toggleTrustDetails()">
+      <div class="trust-dot" style="background: #f59e0b;"></div>
+      <span class="trust-label" style="color: #b45309;">2 warnings</span>
+      <span style="font-size: 11px; color: #a1a1aa; margin-left: 4px;">|</span>
+      <div class="trust-dot" style="background: #10b981; width: 6px; height: 6px;"></div>
+      <span style="font-size: 11px; color: #71717a;">6 checks pass</span>
+      <div class="trust-details">
+        <span>View details</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+
+    <!-- Trust Items (expanded) -->
+    <div class="trust-items" id="trustItems">
+      <div class="trust-item">
+        <svg class="trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span style="font-size: 12px; color: #b45309; font-weight: 500;">HMU: Jordan + Taylor has no confirmed talent assignment</span>
+      </div>
+      <div class="trust-item">
+        <svg class="trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span style="font-size: 12px; color: #b45309; font-weight: 500;">Setup 4: Detail Shots has no talent or crew assigned</span>
+      </div>
+      <div class="trust-item">
+        <svg class="trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span style="font-size: 12px; color: #52525b;">No schedule gaps detected</span>
+      </div>
+      <div class="trust-item">
+        <svg class="trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span style="font-size: 12px; color: #52525b;">Meal break within 6-hour rule</span>
+      </div>
+      <div class="trust-item">
+        <svg class="trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span style="font-size: 12px; color: #52525b;">Est. wrap within 12-hour window</span>
+      </div>
+    </div>
+
+    <!-- Day Details Dashboard -->
+    <div class="day-dashboard">
+      <div class="day-dashboard-header">
+        <div>
+          <h2>Day 2 &mdash; SS26 Campaign Shoot</h2>
+          <div class="sub">Saturday, March 15, 2026 &mdash; 4 setups, 4 talent, 12 crew</div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Preview Call Sheet
+          </button>
+          <button class="btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Entry
+          </button>
+        </div>
+      </div>
+      <div class="day-details-strip">
+        <div class="detail-cell">
+          <span class="cell-label">Crew Call</span>
+          <span class="cell-value">6:30 AM</span>
+        </div>
+        <div class="detail-cell">
+          <span class="cell-label">Shooting Call</span>
+          <span class="cell-value">8:00 AM</span>
+        </div>
+        <div class="detail-cell">
+          <span class="cell-label">First Meal</span>
+          <span class="cell-value">12:30 PM</span>
+          <span class="cell-note">6h from crew call</span>
+        </div>
+        <div class="detail-cell">
+          <span class="cell-label">Est. Wrap</span>
+          <span class="cell-value">6:30 PM</span>
+          <span class="cell-note">12h day</span>
+        </div>
+        <div class="detail-cell">
+          <span class="cell-label">Total Setups</span>
+          <span class="cell-value">4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Adaptive Timeline Content -->
+    <div class="adaptive-content">
+      <div class="adaptive-timeline">
+
+        <!-- 6:30 AM — Crew Arrival (Banner) -->
+        <div class="adaptive-banner">
+          <div class="entry-time">6:30 AM</div>
+          <div class="entry-title">Crew Arrival</div>
+        </div>
+
+        <!-- 7:00 AM — HMU: Sarah + Mika -->
+        <div class="adaptive-entry" style="border-left-color: #8b5cf6;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            7:00 AM
+            <span class="end-time">8:30 AM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">HMU: Sarah + Mika</div>
+            <div class="entry-detail">Hair, makeup, styling prep</div>
+            <div class="entry-pills">
+              <span class="entry-pill">90 min</span>
+              <span class="entry-pill" style="background: rgba(245,243,255,0.8); border-color: rgba(139,92,246,0.2); color: #6d28d9;">HMU</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #10b981;" title="Confirmed"></div>
+        </div>
+
+        <!-- 7:00 AM — Setup: Studio A -->
+        <div class="adaptive-entry" style="border-left-color: #f59e0b;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            7:00 AM
+            <span class="end-time">8:00 AM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">Setup: Studio A Lighting + Backdrop</div>
+            <div class="entry-detail">Key light rigging, white seamless install</div>
+            <div class="entry-pills">
+              <span class="entry-pill">60 min</span>
+              <span class="entry-pill" style="background: rgba(255,251,235,0.8); border-color: rgba(245,158,11,0.2); color: #92400e;">Setup</span>
+              <span class="entry-pill">Studio A</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #10b981;" title="Confirmed"></div>
+        </div>
+
+        <!-- 8:00 AM — Setup 1: E-comm Flatlay -->
+        <div class="adaptive-entry" style="border-left-color: #3b82f6;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            8:00 AM
+            <span class="end-time">10:00 AM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">Setup 1: E-comm Flatlay</div>
+            <div class="entry-detail">Spring Dresses &mdash; Studio A</div>
+            <div class="entry-pills">
+              <span class="entry-pill">120 min</span>
+              <span class="entry-pill" style="background: rgba(239,246,255,0.8); border-color: rgba(59,130,246,0.2); color: #1e40af;">Shooting</span>
+              <span class="entry-pill">Studio A</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #10b981;" title="Confirmed"></div>
+        </div>
+
+        <!-- 8:30 AM — HMU: Jordan + Taylor -->
+        <div class="adaptive-entry" style="border-left-color: #8b5cf6;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            8:30 AM
+            <span class="end-time">9:30 AM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">HMU: Jordan + Taylor</div>
+            <div class="entry-detail">Prep for on-figure shoot</div>
+            <div class="entry-pills">
+              <span class="entry-pill">60 min</span>
+              <span class="entry-pill" style="background: rgba(245,243,255,0.8); border-color: rgba(139,92,246,0.2); color: #6d28d9;">HMU</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #f59e0b;" title="Tentative"></div>
+        </div>
+
+        <!-- Now Line -->
+        <div class="now-line-b">
+          <span class="now-time-label">NOW 10:42 AM</span>
+        </div>
+
+        <!-- 10:00 AM — Setup 2: On-Figure -->
+        <div class="adaptive-entry" style="border-left-color: #3b82f6; border-color: #d4d4d8; box-shadow: 0 0 0 1px rgba(59,130,246,0.1), 0 2px 8px rgba(0,0,0,0.04);">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            10:00 AM
+            <span class="end-time">12:30 PM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title" style="display: flex; align-items: center; gap: 6px;">
+              Setup 2: On-Figure
+              <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #1d4ed8; background: #eff6ff; padding: 1px 6px; border-radius: 3px;">IN PROGRESS</span>
+            </div>
+            <div class="entry-detail">Talent: Sarah M., Mika R. &mdash; Spring Dresses + Accessories &mdash; Studio A</div>
+            <div class="entry-pills">
+              <span class="entry-pill">150 min</span>
+              <span class="entry-pill" style="background: rgba(239,246,255,0.8); border-color: rgba(59,130,246,0.2); color: #1e40af;">Shooting</span>
+              <span class="entry-pill">Studio A</span>
+              <span class="entry-pill">Sarah M.</span>
+              <span class="entry-pill">Mika R.</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #10b981;" title="Confirmed"></div>
+        </div>
+
+        <!-- 12:30 PM — Lunch Break -->
+        <div class="adaptive-entry" style="border-left-color: #10b981;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            12:30 PM
+            <span class="end-time">1:30 PM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">Lunch Break</div>
+            <div class="entry-detail">Catering in green room</div>
+            <div class="entry-pills">
+              <span class="entry-pill">60 min</span>
+              <span class="entry-pill" style="background: rgba(236,253,245,0.8); border-color: rgba(16,185,129,0.2); color: #065f46;">Meal</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #10b981;" title="Confirmed"></div>
+        </div>
+
+        <!-- 1:30 PM — Setup 3: Editorial Campaign -->
+        <div class="adaptive-entry" style="border-left-color: #3b82f6;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            1:30 PM
+            <span class="end-time">4:30 PM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">Setup 3: Editorial Campaign</div>
+            <div class="entry-detail">Talent: All 4 &mdash; Summer Collection &mdash; Studio B</div>
+            <div class="entry-pills">
+              <span class="entry-pill">180 min</span>
+              <span class="entry-pill" style="background: rgba(239,246,255,0.8); border-color: rgba(59,130,246,0.2); color: #1e40af;">Shooting</span>
+              <span class="entry-pill">Studio B</span>
+              <span class="entry-pill">All 4 talent</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #f59e0b;" title="Tentative"></div>
+        </div>
+
+        <!-- 4:30 PM — Setup 4: Detail Shots -->
+        <div class="adaptive-entry" style="border-left-color: #3b82f6;">
+          <div class="drag-handle">
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+            <div class="drag-dot"></div><div class="drag-dot"></div>
+          </div>
+          <div class="entry-time">
+            4:30 PM
+            <span class="end-time">6:00 PM</span>
+          </div>
+          <div class="entry-body">
+            <div class="entry-title">Setup 4: Detail Shots</div>
+            <div class="entry-detail">Accessories Closeups &mdash; Studio A</div>
+            <div class="entry-pills">
+              <span class="entry-pill">90 min</span>
+              <span class="entry-pill" style="background: rgba(239,246,255,0.8); border-color: rgba(59,130,246,0.2); color: #1e40af;">Shooting</span>
+              <span class="entry-pill">Studio A</span>
+            </div>
+          </div>
+          <div class="entry-status" style="background: #71717a;" title="Unassigned"></div>
+        </div>
+
+        <!-- 6:00 PM — Wrap (Banner) -->
+        <div class="adaptive-banner">
+          <div class="entry-time">6:00 PM</div>
+          <div class="entry-title">Wrap &amp; Cleanup</div>
+        </div>
+
+        <!-- Unscheduled section (inline) -->
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e4e4e7;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #a1a1aa;">Unscheduled</span>
+            <span style="font-size: 10px; font-weight: 600; color: #a1a1aa; background: #f4f4f5; padding: 1px 6px; border-radius: 8px;">2</span>
+          </div>
+          <div class="adaptive-entry" style="border-left-color: #d4d4d8; opacity: 0.7;">
+            <div class="drag-handle" style="opacity: 0.3;">
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+            </div>
+            <div class="entry-time" style="color: #a1a1aa;">&mdash;</div>
+            <div class="entry-body">
+              <div class="entry-title" style="color: #71717a;">Backup Setup: Outdoor if weather permits</div>
+            </div>
+          </div>
+          <div class="adaptive-entry" style="border-left-color: #d4d4d8; opacity: 0.7; margin-top: 4px;">
+            <div class="drag-handle" style="opacity: 0.3;">
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+              <div class="drag-dot"></div><div class="drag-dot"></div>
+            </div>
+            <div class="entry-time" style="color: #a1a1aa;">&mdash;</div>
+            <div class="entry-body">
+              <div class="entry-title" style="color: #71717a;">BTS Content Capture</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Split Preview -->
+      <div class="split-preview" id="splitPreview">
+        <div class="split-preview-header">
+          <div class="live-dot"></div>
+          <h4>Live Call Sheet Preview</h4>
+          <button class="collapse-btn" onclick="toggleSplitPreview()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 15 12 9 18 15"/></svg>
+            Collapse
+          </button>
+        </div>
+        <div class="split-preview-body">
+          <div class="mini-callsheet">
+            <div class="mini-cs-header">
+              <h5>SS26 Campaign Shoot &mdash; Day 2</h5>
+              <p>Saturday, March 15, 2026 &bull; Crew Call: 6:30 AM &bull; Est. Wrap: 6:30 PM</p>
+            </div>
+            <div class="mini-cs-row" style="font-weight: 600; background: #f4f4f5; margin: 0 -20px; padding: 4px 20px;">
+              <span class="cs-time" style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: #71717a;">Time</span>
+              <span class="cs-title" style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: #71717a;">Activity</span>
+              <span class="cs-detail" style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: #71717a;">Details</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">6:30 AM</span>
+              <span class="cs-title">Crew Arrival</span>
+              <span class="cs-detail">&mdash;</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">7:00 AM</span>
+              <span class="cs-title">HMU: Sarah + Mika</span>
+              <span class="cs-detail">90 min</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">7:00 AM</span>
+              <span class="cs-title">Setup: Studio A Lighting</span>
+              <span class="cs-detail">60 min</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">8:00 AM</span>
+              <span class="cs-title">Setup 1: E-comm Flatlay</span>
+              <span class="cs-detail">Spring Dresses &mdash; Studio A</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">8:30 AM</span>
+              <span class="cs-title">HMU: Jordan + Taylor</span>
+              <span class="cs-detail">60 min</span>
+            </div>
+            <div class="mini-cs-row" style="background: rgba(239,246,255,0.3);">
+              <span class="cs-time" style="color: #1d4ed8;">10:00 AM</span>
+              <span class="cs-title" style="color: #1d4ed8;">Setup 2: On-Figure</span>
+              <span class="cs-detail">Sarah M., Mika R. &mdash; Studio A</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">12:30 PM</span>
+              <span class="cs-title">Lunch Break</span>
+              <span class="cs-detail">60 min</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">1:30 PM</span>
+              <span class="cs-title">Setup 3: Editorial Campaign</span>
+              <span class="cs-detail">All 4 &mdash; Studio B</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">4:30 PM</span>
+              <span class="cs-title">Setup 4: Detail Shots</span>
+              <span class="cs-detail">Accessories &mdash; Studio A</span>
+            </div>
+            <div class="mini-cs-row">
+              <span class="cs-time">6:00 PM</span>
+              <span class="cs-title">Wrap &amp; Cleanup</span>
+              <span class="cs-detail">&mdash;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Option Toggle
+  function showOption(opt) {
+    const a = document.getElementById('optionA');
+    const b = document.getElementById('optionB');
+    const btnA = document.getElementById('toggleA');
+    const btnB = document.getElementById('toggleB');
+
+    if (opt === 'a') {
+      a.style.display = 'flex';
+      b.style.display = 'none';
+      btnA.classList.add('active');
+      btnB.classList.remove('active');
+    } else {
+      a.style.display = 'none';
+      b.style.display = 'flex';
+      btnA.classList.remove('active');
+      btnB.classList.add('active');
+    }
+  }
+
+  // Zoom controls (Option A)
+  function setZoom(level, btn) {
+    const grid = document.getElementById('timelineGrid');
+    const btns = btn.parentElement.querySelectorAll('.zoom-btn');
+    btns.forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    // Adjust the pixel-per-hour scale
+    var scale = 80; // normal
+    if (level === 'condensed') scale = 50;
+    if (level === 'expanded') scale = 120;
+
+    // Recalculate all positions (simplified: just scale the container height)
+    var ratio = scale / 80;
+    grid.style.transform = 'scaleY(' + ratio + ')';
+    grid.style.transformOrigin = 'top left';
+    // Adjust the container height so scrolling still works
+    grid.style.height = (1080 * ratio) + 'px';
+  }
+
+  // Drawer (Option A)
+  function openDrawer(entryId) {
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.getElementById('propertiesDrawer').classList.add('open');
+  }
+  function closeDrawer() {
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.getElementById('propertiesDrawer').classList.remove('open');
+  }
+  function toggleDrawer() {
+    var d = document.getElementById('propertiesDrawer');
+    if (d.classList.contains('open')) {
+      closeDrawer();
+    } else {
+      openDrawer('new');
+    }
+  }
+
+  // Unscheduled Tray (Option A)
+  function toggleTray() {
+    var body = document.getElementById('trayBody');
+    var chevron = document.getElementById('trayChevron');
+    if (body.style.display === 'none') {
+      body.style.display = 'flex';
+      chevron.classList.add('expanded');
+    } else {
+      body.style.display = 'none';
+      chevron.classList.remove('expanded');
+    }
+  }
+
+  // Trust bar toggle (Option B)
+  function toggleTrustDetails() {
+    var items = document.getElementById('trustItems');
+    items.classList.toggle('expanded');
+  }
+
+  // Split preview toggle (Option B)
+  function toggleSplitPreview() {
+    var preview = document.getElementById('splitPreview');
+    if (preview.style.display === 'none') {
+      preview.style.display = 'flex';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  // Scroll to current time on load (Option A)
+  window.addEventListener('load', function() {
+    var scroll = document.getElementById('timelineScroll');
+    // Now indicator is at 376px, scroll so it's visible with some padding
+    if (scroll) {
+      scroll.scrollTop = 280;
+    }
+  });
+</script>
+
+</body>
+</html>

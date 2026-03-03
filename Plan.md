@@ -681,6 +681,54 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S7: Schedule & Call Sheet Polish
+
+**Goal:** Elevate schedule builder, call sheet output, and mobile on-set viewer to 100% premium quality. Covers Plan.md items 3.5f-g with expanded scope.
+
+**Status:** S7-6, S7-7, S7-8 COMPLETE. S7-9 (E2E) and S7-10 (docs) pending.
+
+**Rationale:** Schedule and call sheet surfaces are the most visible outputs of the app — they go to clients, crew, and stakeholders. Premium polish here directly impacts first impressions and professional credibility.
+
+### Sub-tasks
+
+- [x] **S7-1 (Research):** Competitor analysis — SetHero, StudioBinder, Celtx crew grouping, header layouts, print conventions
+- [x] **S7-2 (Mockups v1):** 3 HTML mockups — call sheet output, schedule builder, mobile on-set viewer
+- [x] **S7-3 (Review Round 1):** User feedback + 3 bug fixes (overflow cropping, text cutoff, off-palette colors)
+- [x] **S7-4 (Review Round 2):** User feedback + 2 design fixes (section band redesign, NOW indicator relocation)
+- [x] **S7-5 (Devil's Advocate):** Cross-mockup consistency audit, token compliance, user feedback compliance
+- [x] **S7-6 (Implementation — Schedule Builder):** Overlap groups compression algorithm, sidebar, properties drawer, NOW indicator
+- [x] **S7-7 (Implementation — Call Sheet Output):** Modular grid header, multi-track schedule, dept-grouped crew, editorial section labels
+- [x] **S7-8 (Implementation — Mobile On-Set Viewer):** LIVE status bar, tab navigation, crew directory, floating action bar
+- [ ] **S7-9 (E2E Testing):** Full schedule -> call sheet flow (covers 3.5f)
+- [ ] **S7-10 (Documentation):** Update Architecture.md, component inventory
+
+### Key Design Decisions (locked in)
+
+- **Compression:** Overlap groups algorithm (proportional heights for overlapping blocks, 64px compact for isolated)
+- **Section labels:** Editorial style (dark text + 2px border rule), NOT full-bleed dark bands
+- **Table headers:** Light gray (#f4f4f5 bg, zinc-600 text), NOT black
+- **NOW indicator:** Time gutter placement, 1px line at 50% opacity, 8px dot
+- **Block colors:** Setup=amber, Shooting=blue, HMU=purple, Meal=green, Travel=gray, Banner=dark
+
+### Mockup Files (approved, ready for implementation)
+
+- `mockups/sprint-s7-callsheet-output-v2.html`
+- `mockups/sprint-s7-schedule-builder-v2.html`
+- `mockups/sprint-s7-mobile-onset-v2.html`
+
+### Acceptance Criteria
+
+- [x] Schedule builder implements overlap groups compression with proportional heights
+- [x] Call sheet output uses editorial section labels + light gray table headers
+- [x] Call sheet prints cleanly on letter-size with dept page breaks
+- [x] Mobile on-set viewer has LIVE indicator + tab navigation
+- [x] NOW indicator is subtle and does not overlap block content
+- [ ] Full schedule -> call sheet E2E flow works (3.5f)
+- [x] All 3 surfaces match approved v2 mockups
+- [x] Build clean, all tests pass
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

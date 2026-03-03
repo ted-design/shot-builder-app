@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Camera, StickyNote, Sparkles } from "lucide-react"
+import { Camera, StickyNote, Sparkles, LayoutList, BarChart2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -10,6 +10,8 @@ import { ScheduleEntryEditSheet } from "@/features/schedules/components/Schedule
 import { AdaptiveBannerSegment } from "@/features/schedules/components/AdaptiveBannerSegment"
 import { AdaptiveGapSegment } from "@/features/schedules/components/AdaptiveGapSegment"
 import { AdaptiveDenseBlock } from "@/features/schedules/components/AdaptiveDenseBlock"
+import { TimelineGridView } from "@/features/schedules/components/TimelineGridView"
+import { TimelinePropertiesDrawer } from "@/features/schedules/components/TimelinePropertiesDrawer"
 import {
   AdaptiveTimelineHeader,
   computeTrackCounts,
@@ -161,6 +163,30 @@ export function AdaptiveTimelineView({
     showNotes: true,
     showTags: true,
   }), [])
+
+  // ─── View mode ───────────────────────────────────────────────────
+
+  type ViewMode = "compressed" | "proportional"
+  const [viewMode, setViewMode] = useState<ViewMode>("compressed")
+
+  // ─── Properties drawer ───────────────────────────────────────────
+
+  const [drawerEntryId, setDrawerEntryId] = useState<string | null>(null)
+  const drawerRow = useMemo(() => {
+    if (!drawerEntryId) return null
+    const allRows = layout.segments.flatMap((s) => {
+      if (s.kind === "dense") {
+        const rows: import("@/features/schedules/lib/projection").ProjectedScheduleRow[] = []
+        for (const trackRows of s.rowsByTrack.values()) {
+          rows.push(...trackRows)
+        }
+        return rows
+      }
+      return []
+    })
+    return allRows.find((r) => r.id === drawerEntryId) ?? null
+  }, [drawerEntryId, layout.segments])
+  const drawerShot = drawerRow?.entry.shotId ? shotMap.get(drawerRow.entry.shotId) : undefined
 
   // ─── Dialog state ────────────────────────────────────────────────
 
@@ -369,13 +395,14 @@ export function AdaptiveTimelineView({
 
   const handleClickEntry = useCallback((entryId: string) => {
     setEditEntryId(entryId)
+    setDrawerEntryId(entryId)
   }, [])
 
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col">
-      {/* Add buttons */}
+      {/* Toolbar: Add buttons + view toggle */}
       <div className="mb-2 flex items-center gap-2">
         <Button
           variant="outline"
@@ -401,64 +428,118 @@ export function AdaptiveTimelineView({
           <Sparkles className="mr-1.5 h-3.5 w-3.5" />
           Add Highlight
         </Button>
-      </div>
 
-      {/* Timeline container */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[900px]">
-          {/* Segments wrapper */}
-          <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-            {/* Track header */}
-            <AdaptiveTimelineHeader tracks={tracks} trackCounts={trackCounts} />
-
-            {/* Segments */}
-            {layout.segments.map((segment) => {
-              switch (segment.kind) {
-                case "banner":
-                  return (
-                    <AdaptiveBannerSegment key={segment.key} segment={segment} />
-                  )
-                case "gap":
-                  return (
-                    <AdaptiveGapSegment key={segment.key} segment={segment} />
-                  )
-                case "dense":
-                  return (
-                    <AdaptiveDenseBlock
-                      key={segment.key}
-                      segment={segment}
-                      tracks={tracks}
-                      shotMap={shotMap}
-                      fields={fields}
-                      onClickEntry={handleClickEntry}
-                    />
-                  )
-              }
-            })}
-
-            {/* Empty state */}
-            {layout.segments.length === 0 && layout.unscheduledRows.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  No schedule entries yet
-                </p>
-                <p className="text-xs text-[var(--color-text-subtle)]">
-                  Add shots or custom entries to build your timeline
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Unscheduled tray */}
-          <AdaptiveUnscheduledTray
-            rows={layout.unscheduledRows}
-            shotMap={shotMap}
-            onClickEntry={handleClickEntry}
-          />
+        {/* View mode toggle */}
+        <div className="ml-auto flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-0.5">
+          <button
+            type="button"
+            className={[
+              "flex items-center gap-1 rounded px-2.5 py-1 text-xxs font-medium transition-colors",
+              viewMode === "compressed"
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
+            ].join(" ")}
+            onClick={() => setViewMode("compressed")}
+          >
+            <LayoutList className="h-3 w-3" />
+            Compressed
+          </button>
+          <button
+            type="button"
+            className={[
+              "flex items-center gap-1 rounded px-2.5 py-1 text-xxs font-medium transition-colors",
+              viewMode === "proportional"
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
+            ].join(" ")}
+            onClick={() => setViewMode("proportional")}
+          >
+            <BarChart2 className="h-3 w-3" />
+            Proportional
+          </button>
         </div>
       </div>
 
-      {/* Edit sheet */}
+      {/* Timeline + Properties Drawer */}
+      <div className="flex min-h-0 gap-0">
+        {/* Timeline container */}
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="min-w-[600px]">
+            {/* Segments wrapper */}
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+              {/* Track header */}
+              <AdaptiveTimelineHeader tracks={tracks} trackCounts={trackCounts} />
+
+              {/* Segments */}
+              {layout.segments.map((segment) => {
+                switch (segment.kind) {
+                  case "banner":
+                    return (
+                      <AdaptiveBannerSegment key={segment.key} segment={segment} />
+                    )
+                  case "gap":
+                    return (
+                      <AdaptiveGapSegment key={segment.key} segment={segment} />
+                    )
+                  case "dense":
+                    return (
+                      <TimelineGridView
+                        key={segment.key}
+                        segment={segment}
+                        tracks={tracks}
+                        shotMap={shotMap}
+                        selectedEntryId={drawerEntryId}
+                        onClickEntry={handleClickEntry}
+                        viewMode={viewMode}
+                      />
+                    )
+                }
+              })}
+
+              {/* Empty state */}
+              {layout.segments.length === 0 && layout.unscheduledRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+                  <p className="text-sm text-[var(--color-text-muted)]">
+                    No schedule entries yet
+                  </p>
+                  <p className="text-xxs text-[var(--color-text-subtle)]">
+                    Add shots or custom entries to build your timeline
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Unscheduled tray */}
+            <AdaptiveUnscheduledTray
+              rows={layout.unscheduledRows}
+              shotMap={shotMap}
+              onClickEntry={handleClickEntry}
+            />
+          </div>
+        </div>
+
+        {/* Properties drawer */}
+        <TimelinePropertiesDrawer
+          row={drawerRow}
+          shot={drawerShot}
+          onClose={() => setDrawerEntryId(null)}
+          onUpdateNotes={async (entryId, notes) => {
+            await handleUpdateNotes(entryId, notes)
+          }}
+          onUpdateStartTime={async (entryId, startTime) => {
+            const current = entries.find((e) => e.id === entryId)
+            if (!current) return
+            await handleUpdateStartTime(current, startTime)
+          }}
+          onUpdateDuration={async (entryId, duration) => {
+            const current = entries.find((e) => e.id === entryId)
+            if (!current) return
+            await handleUpdateDuration(current, duration)
+          }}
+        />
+      </div>
+
+      {/* Edit sheet (full-edit for non-grid interactions) */}
       <ScheduleEntryEditSheet
         open={!!editEntryId}
         entry={editEntry}

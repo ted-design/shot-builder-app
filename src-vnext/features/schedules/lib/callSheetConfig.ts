@@ -1,4 +1,4 @@
-import type { CallSheetConfig, CallSheetSectionVisibility, ScheduleBlockFields, CallSheetColors } from "@/features/schedules/components/CallSheetRenderer"
+import type { CallSheetConfig, CallSheetSectionVisibility, ScheduleBlockFields, CallSheetColors, CallSheetHeaderLayout } from "@/features/schedules/components/CallSheetRenderer"
 
 type LegacySectionType =
   | "header"
@@ -46,8 +46,12 @@ export const DEFAULT_CALLSHEET_COLORS: Required<CallSheetColors> = {
   text: "#111111",
 }
 
+interface LegacyConfigExtended extends LegacyConfig {
+  readonly headerLayout?: string
+}
+
 export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): CallSheetConfig {
-  const legacy = (raw ?? {}) as LegacyConfig
+  const legacy = (raw ?? {}) as LegacyConfigExtended
 
   const sections: { -readonly [K in keyof Required<CallSheetSectionVisibility>]: boolean } = {
     header: true,
@@ -86,10 +90,15 @@ export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): C
     text: legacy.colors?.["text"] as string | undefined,
   }
 
+  const rawHeaderLayout = legacy.headerLayout
+  const headerLayout: CallSheetHeaderLayout =
+    rawHeaderLayout === "grid" ? "grid" : "legacy"
+
   return {
     sections,
     scheduleBlockFields,
     colors,
+    headerLayout,
   }
 }
 
@@ -169,5 +178,15 @@ export function mergeLegacyColors(
   return {
     ...current,
     ...patch,
+  }
+}
+
+export function mergeHeaderLayout(
+  existing: Record<string, unknown> | null,
+  layout: CallSheetHeaderLayout,
+): Record<string, unknown> {
+  return {
+    ...(existing ?? {}),
+    headerLayout: layout,
   }
 }

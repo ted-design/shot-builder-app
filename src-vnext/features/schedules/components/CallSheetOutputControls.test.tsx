@@ -28,9 +28,11 @@ function buildProps() {
       accent: "#10b981",
       text: "#0f172a",
     },
+    headerLayout: "legacy" as const,
     onPatchSections: vi.fn(),
     onPatchScheduleFields: vi.fn(),
     onPatchColors: vi.fn(),
+    onSetHeaderLayout: vi.fn(),
   }
 }
 

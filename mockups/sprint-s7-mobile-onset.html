@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprint S7 — Mobile On-Set Call Sheet Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          fontSize: {
+            '3xs': ['9px', { lineHeight: '12px' }],
+            '2xs': ['10px', { lineHeight: '14px' }],
+            'xxs': ['11px', { lineHeight: '16px' }],
+            'sm': ['13px', { lineHeight: '20px' }],
+            'base': ['14px', { lineHeight: '22px' }],
+            'lg': ['16px', { lineHeight: '24px' }],
+            'xl': ['18px', { lineHeight: '28px' }],
+          },
+          colors: {
+            primary: { DEFAULT: '#18181b', dark: '#09090b' },
+            accent: { DEFAULT: '#E31E24', dark: '#c91920' },
+            neutral: {
+              50: '#fafafa', 100: '#f4f4f5',
+              200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a',
+              600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 900: '#18181b',
+              950: '#09090b',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+
+    /* Device frame */
+    .device-frame {
+      width: 375px;
+      height: 812px;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 2px #1a1a1a,
+        0 0 0 4px #333,
+        0 0 0 5px #1a1a1a,
+        0 20px 60px rgba(0,0,0,.25),
+        0 4px 24px rgba(0,0,0,.12);
+      background: #fafafa;
+    }
+
+    /* Notch */
+    .device-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 34px;
+      background: #1a1a1a;
+      border-radius: 0 0 20px 20px;
+      z-index: 100;
+    }
+
+    /* Home indicator */
+    .home-indicator {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      background: #18181b;
+      border-radius: 100px;
+      z-index: 100;
+    }
+
+    /* Scrollable content area */
+    .scroll-area {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scroll-area::-webkit-scrollbar { display: none; }
+
+    /* Heading styles */
+    .heading-page {
+      font-size: 24px; font-weight: 300; letter-spacing: -0.02em; color: #18181b;
+    }
+    .heading-section {
+      font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #18181b;
+    }
+    .label-meta {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #a1a1aa;
+    }
+
+    /* Touch targets */
+    .touch-target { min-height: 44px; }
+
+    /* Pulse animation for active block */
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3); }
+      70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .pulse-active {
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    /* NOW line glow */
+    @keyframes now-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .now-line-pulse {
+      animation: now-pulse 2s ease-in-out infinite;
+    }
+
+    /* Frosted glass */
+    .frosted {
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    /* Expand/collapse */
+    .expandable-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .expandable-body.expanded {
+      max-height: 500px;
+    }
+    .chevron-rotate {
+      transition: transform 200ms ease;
+    }
+    .chevron-rotate.rotated {
+      transform: rotate(180deg);
+    }
+
+    /* Demo controls */
+    .demo-controls {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 200;
+      display: flex; gap: 6px; padding: 4px; background: #fff; border-radius: 12px;
+      border: 1px solid #e4e4e7; box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    }
+    .demo-btn {
+      padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; background: transparent; color: #71717a;
+      transition: all 150ms ease;
+    }
+    .demo-btn:hover { background: #f4f4f5; color: #18181b; }
+    .demo-btn.active { background: #18181b; color: #fff; }
+
+    /* Progress bar */
+    .progress-track {
+      height: 4px; background: #e4e4e7; border-radius: 100px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 100px; transition: width 300ms ease;
+    }
+
+    /* Bottom sheet */
+    .sheet-backdrop {
+      position: absolute; inset: 0; z-index: 40;
+      background: rgba(0,0,0,.4);
+      opacity: 0; pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .bottom-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 50;
+      transform: translateY(100%);
+      transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 75%;
+      border-radius: 16px 16px 0 0;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    .bottom-sheet.open { transform: translateY(0); }
+
+    .sheet-scroll {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: calc(75vh - 48px);
+    }
+    .sheet-scroll::-webkit-scrollbar { display: none; }
+
+    /* Sticky next up chip */
+    .next-up-chip {
+      position: absolute;
+      top: 220px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .next-up-chip.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Tab bar active indicator */
+    .tab-active {
+      color: #18181b;
+    }
+    .tab-active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: #18181b;
+      border-radius: 50%;
+    }
+
+    /* Pull to refresh indicator */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .ptr-spinner {
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+<body class="bg-neutral-100 min-h-screen flex flex-col items-center justify-center py-20 gap-10">
+
+  <!-- Demo Controls -->
+  <div class="demo-controls">
+    <button class="demo-btn active" id="btn-a" onclick="showOption('a')">Option A: Scrollable Timeline</button>
+    <button class="demo-btn" id="btn-b" onclick="showOption('b')">Option B: Card Stack</button>
+  </div>
+
+  <!-- Title -->
+  <div class="text-center">
+    <p class="label-meta mb-2">Sprint S7 — Mobile On-Set Viewer</p>
+    <h1 class="heading-page">Call Sheet — Crew View</h1>
+    <p class="text-sm text-neutral-500 mt-2">Two design directions for mobile on-set call sheet consumption</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       OPTION A: SCROLLABLE TIMELINE
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="option-a" class="flex flex-col items-center gap-6">
+    <div class="text-center max-w-md">
+      <h2 class="heading-section">Option A: Scrollable Timeline</h2>
+      <p class="text-sm text-neutral-500 mt-1">Vertically scrolling timeline with sticky status bar, hero call card, and floating quick actions. Designed for one-handed, thumb-first navigation.</p>
+    </div>
+
+    <div class="device-frame" id="device-a">
+      <div class="device-notch"></div>
+      <div class="home-indicator"></div>
+
+      <!-- ── Status Bar (iOS chrome) ────────────────────────────── -->
+      <div class="flex items-center justify-between px-8 pt-4 pb-0 bg-white" style="height: 44px; padding-top: 14px;">
+        <span class="text-sm font-semibold text-neutral-900">10:42</span>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-neutral-900" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+          <svg class="w-5 h-3 text-neutral-900" fill="currentColor" viewBox="0 0 28 16"><rect x="0" y="2" width="22" height="12" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="1.5"/><rect x="2" y="4" width="16" height="8" rx="1" fill="currentColor" opacity=".85"/><rect x="23.5" y="5.5" width="2.5" height="5" rx="1" fill="currentColor" opacity=".4"/></svg>
+        </div>
+      </div>
+
+      <!-- ── Shoot Status Bar (sticky) ──────────────────────────── -->
+      <div class="flex items-center justify-between px-4" style="height: 36px; background: #ecfdf5; border-bottom: 1px solid #a7f3d0;">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-emerald-500" style="background: #10b981;"></div>
+          <span class="text-xs font-semibold" style="color: #047857;">On Schedule</span>
+          <span class="text-3xs text-neutral-400 ml-1">Day 2 of 4</span>
+        </div>
+        <span class="text-xs font-medium text-neutral-500">10:42 AM</span>
+      </div>
+
+      <!-- ── Scrollable Content ─────────────────────────────────── -->
+      <div class="scroll-area" id="scroll-a" style="height: calc(812px - 44px - 36px - 52px - 34px);">
+
+        <!-- Hero Call Card -->
+        <div class="m-4 mb-3 rounded-lg overflow-hidden" style="background: #18181b;">
+          <div class="px-5 pt-5 pb-2">
+            <span class="text-3xs font-semibold uppercase tracking-widest" style="color: #a1a1aa;">Your Call Time</span>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span class="text-white font-bold" style="font-size: 48px; line-height: 1; letter-spacing: -0.03em;">6:30</span>
+              <span class="text-white font-light text-xl" style="opacity: 0.6;">AM</span>
+            </div>
+          </div>
+          <div class="px-5 pb-3">
+            <p class="text-sm" style="color: #d4d4d8;">Camera Department</p>
+            <div class="flex items-center gap-1.5 mt-2">
+              <svg class="w-3.5 h-3.5" style="color: #a1a1aa;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+              <span class="text-xs" style="color: #a1a1aa;">Studio A, 245 Fashion Ave, Brooklyn</span>
+              <svg class="w-3 h-3 ml-auto" style="color: #71717a;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+            </div>
+          </div>
+          <div class="px-5 pb-5 pt-2">
+            <button class="w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all" style="background: #ffffff; color: #18181b;">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              Confirm Attendance
+            </button>
+          </div>
+        </div>
+
+        <!-- Project info line -->
+        <div class="px-4 pb-3">
+          <div class="flex items-center gap-2 px-1">
+            <span class="text-2xs font-medium text-neutral-400">SS26 Campaign</span>
+            <span class="text-neutral-300">|</span>
+            <span class="text-2xs text-neutral-400">March 15, 2026</span>
+            <span class="text-neutral-300">|</span>
+            <span class="text-2xs text-neutral-400">Photographer: Alex Thompson</span>
+          </div>
+        </div>
+
+        <!-- Schedule Section -->
+        <div class="px-4 pb-3">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="heading-section" style="font-size: 14px;">Today's Schedule</h3>
+            <span class="text-2xs text-neutral-400">9 blocks</span>
+          </div>
+
+          <div class="flex flex-col gap-0">
+
+            <!-- 6:30 AM — Crew Arrival (past) -->
+            <div class="flex gap-3 opacity-60">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">6:30</span>
+                <span class="text-3xs text-neutral-400">AM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #d4d4d8;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Crew Arrival</span>
+                    <div class="flex items-center gap-1">
+                      <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                      <span class="text-3xs text-neutral-400">Done</span>
+                    </div>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">All departments check in</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 7:00 AM — HMU (past) -->
+            <div class="flex gap-3 opacity-60">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">7:00</span>
+                <span class="text-3xs text-neutral-400">AM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #d4d4d8;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">HMU: Sarah + Mika</span>
+                    <div class="flex items-center gap-1">
+                      <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                      <span class="text-3xs text-neutral-400">Done</span>
+                    </div>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">Hair & makeup for first talent</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 7:00 AM — Setup: Studio A lighting (past) -->
+            <div class="flex gap-3 opacity-60">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">7:00</span>
+                <span class="text-3xs text-neutral-400">AM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #a1a1aa;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Setup: Studio A Lighting</span>
+                    <div class="flex items-center gap-1">
+                      <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                      <span class="text-3xs text-neutral-400">Done</span>
+                    </div>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">Camera dept — grip & electric</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 8:00 AM — Setup 1: E-comm Flatlay (past) -->
+            <div class="flex gap-3 opacity-60">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">8:00</span>
+                <span class="text-3xs text-neutral-400">AM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #3b82f6;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Setup 1: E-comm Flatlay</span>
+                    <div class="flex items-center gap-1">
+                      <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                      <span class="text-3xs text-neutral-400">Done</span>
+                    </div>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">12 looks — overhead rig, c-stand</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── NOW INDICATOR ─────────────────────────────── -->
+            <div class="flex items-center gap-2 py-1 now-line-pulse" style="margin-left: 52px; padding-left: 12px;">
+              <div class="flex-shrink-0 w-2.5 h-2.5 rounded-full" style="background: #E31E24; box-shadow: 0 0 8px rgba(227, 30, 36, 0.4);"></div>
+              <div class="flex-1 h-[2px]" style="background: linear-gradient(to right, #E31E24, transparent);"></div>
+              <span class="text-3xs font-bold uppercase tracking-wider flex-shrink-0 pr-1" style="color: #E31E24;">NOW — 10:42 AM</span>
+            </div>
+
+            <!-- 10:00 AM — Setup 2: On-Figure (CURRENT / ACTIVE) -->
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-bold text-neutral-900 whitespace-nowrap">10:00</span>
+                <span class="text-3xs font-medium" style="color: #10b981;">NOW</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #10b981;">
+                <div class="bg-white rounded-lg border-2 p-3 pulse-active" style="border-color: #10b981;">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-neutral-900">Setup 2: On-Figure</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-semibold" style="background: #ecfdf5; color: #047857;">
+                      <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                      In Progress
+                    </span>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-1">8 looks — Sarah & Mika on-figure</p>
+                  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-neutral-100">
+                    <span class="text-3xs text-neutral-400">Started 42 min ago</span>
+                    <span class="text-neutral-200">|</span>
+                    <span class="text-3xs text-neutral-400">~1h 48m remaining</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 12:30 PM — Lunch (upcoming) -->
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">12:30</span>
+                <span class="text-3xs text-neutral-400">PM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #f59e0b;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Lunch</span>
+                    <span class="text-3xs text-neutral-400">in 1h 48m</span>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">1 hour — catered, Craft Services tent</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 1:30 PM — Setup 3 (upcoming) -->
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">1:30</span>
+                <span class="text-3xs text-neutral-400">PM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #8b5cf6;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Setup 3: Editorial Campaign</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-medium" style="background: #fffbeb; color: #b45309;">Tentative</span>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">6 looks — hero campaign imagery</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4:30 PM — Setup 4 (upcoming) -->
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">4:30</span>
+                <span class="text-3xs text-neutral-400">PM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #3b82f6;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Setup 4: Detail Shots</span>
+                    <span class="text-3xs text-neutral-400">Confirmed</span>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">Accessories, close-ups, textures</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6:00 PM — Wrap (upcoming) -->
+            <div class="flex gap-3">
+              <div class="flex flex-col items-center" style="width: 52px;">
+                <span class="text-xs font-semibold text-neutral-900 whitespace-nowrap">6:00</span>
+                <span class="text-3xs text-neutral-400">PM</span>
+              </div>
+              <div class="flex-1 border-l-[3px] pl-3 pb-4" style="border-color: #e4e4e7;">
+                <div class="bg-white rounded-lg border border-neutral-200 p-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-neutral-900">Wrap</span>
+                    <span class="text-3xs text-neutral-400">Estimated</span>
+                  </div>
+                  <p class="text-xs text-neutral-500 mt-0.5">Breakdown, equipment return, crew release</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expandable Sections -->
+        <div class="px-4 pb-4 space-y-2">
+
+          <!-- Talent Section -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <button class="w-full flex items-center justify-between px-4 h-12 touch-target" onclick="toggleExpandA('talent')">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                <span class="text-sm font-medium text-neutral-900">Talent</span>
+                <span class="text-2xs text-neutral-400">2 models</span>
+              </div>
+              <svg class="w-4 h-4 text-neutral-400 chevron-rotate" id="chevron-talent-a" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div class="expandable-body" id="body-talent-a">
+              <div class="px-4 pb-3 space-y-2 border-t border-neutral-100 pt-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-neutral-600">SM</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Sarah Mitchell</p>
+                    <p class="text-xs text-neutral-500">Call: 7:00 AM — HMU first</p>
+                  </div>
+                  <span class="text-3xs font-medium px-2 py-0.5 rounded-full" style="background: #ecfdf5; color: #047857;">Confirmed</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-neutral-600">MK</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Mika Tanaka</p>
+                    <p class="text-xs text-neutral-500">Call: 7:00 AM — HMU second</p>
+                  </div>
+                  <span class="text-3xs font-medium px-2 py-0.5 rounded-full" style="background: #ecfdf5; color: #047857;">Confirmed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Crew Contacts Section -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <button class="w-full flex items-center justify-between px-4 h-12 touch-target" onclick="toggleExpandA('contacts')">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                <span class="text-sm font-medium text-neutral-900">Crew Contacts</span>
+                <span class="text-2xs text-neutral-400">4 key contacts</span>
+              </div>
+              <svg class="w-4 h-4 text-neutral-400 chevron-rotate" id="chevron-contacts-a" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div class="expandable-body" id="body-contacts-a">
+              <div class="px-4 pb-3 space-y-2.5 border-t border-neutral-100 pt-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white" style="background: #3b82f6;">AT</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Alex Thompson</p>
+                    <p class="text-xs text-neutral-500">Photographer</p>
+                  </div>
+                  <button class="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center touch-target">
+                    <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                  </button>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white" style="background: #E31E24;">RK</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Rachel Kim</p>
+                    <p class="text-xs text-neutral-500">1st AD</p>
+                  </div>
+                  <button class="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center touch-target">
+                    <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                  </button>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white" style="background: #8b5cf6;">JC</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Jamie Chen</p>
+                    <p class="text-xs text-neutral-500">Producer</p>
+                  </div>
+                  <button class="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center touch-target">
+                    <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                  </button>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold text-white" style="background: #f59e0b;">ML</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900">Morgan Lee</p>
+                    <p class="text-xs text-neutral-500">Stylist Lead</p>
+                  </div>
+                  <button class="w-9 h-9 rounded-full bg-neutral-100 flex items-center justify-center touch-target">
+                    <svg class="w-4 h-4 text-neutral-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weather Section -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <button class="w-full flex items-center justify-between px-4 h-12 touch-target" onclick="toggleExpandA('weather')">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
+                <span class="text-sm font-medium text-neutral-900">Weather</span>
+                <span class="text-2xs text-neutral-400">58F Partly Cloudy</span>
+              </div>
+              <svg class="w-4 h-4 text-neutral-400 chevron-rotate" id="chevron-weather-a" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div class="expandable-body" id="body-weather-a">
+              <div class="px-4 pb-3 border-t border-neutral-100 pt-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="flex items-baseline gap-1">
+                      <span class="text-2xl font-light text-neutral-900">58</span>
+                      <span class="text-sm text-neutral-400">F</span>
+                      <span class="text-xs text-neutral-300 mx-1">/</span>
+                      <span class="text-sm text-neutral-500">14C</span>
+                    </div>
+                    <p class="text-xs text-neutral-500 mt-1">Partly Cloudy</p>
+                  </div>
+                  <div class="text-right space-y-1">
+                    <div class="flex items-center gap-1.5 text-xs text-neutral-500">
+                      <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+                      Sunrise 6:42 AM
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-neutral-500">
+                      <svg class="w-3.5 h-3.5 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+                      Sunset 7:14 PM
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes Section -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <button class="w-full flex items-center justify-between px-4 h-12 touch-target" onclick="toggleExpandA('notes')">
+              <div class="flex items-center gap-2.5">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                <span class="text-sm font-medium text-neutral-900">Notes</span>
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-accent text-white text-3xs font-bold">2</span>
+              </div>
+              <svg class="w-4 h-4 text-neutral-400 chevron-rotate" id="chevron-notes-a" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div class="expandable-body" id="body-notes-a">
+              <div class="px-4 pb-3 space-y-2.5 border-t border-neutral-100 pt-3">
+                <div class="p-3 rounded-lg bg-neutral-50">
+                  <p class="text-xs font-medium text-neutral-700">Parking: Use Lot B (west side). Lot A reserved for talent vehicles.</p>
+                  <p class="text-3xs text-neutral-400 mt-1">Posted by Rachel Kim, 6:15 AM</p>
+                </div>
+                <div class="p-3 rounded-lg" style="background: #fef3c7;">
+                  <p class="text-xs font-medium" style="color: #92400e;">Client arriving at 2:00 PM for editorial review. Please ensure Studio A is camera-ready by 1:45 PM.</p>
+                  <p class="text-3xs mt-1" style="color: #b45309;">Posted by Jamie Chen, 9:30 AM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bottom padding for floating bar -->
+        <div class="h-16"></div>
+
+      </div>
+
+      <!-- ── Floating Quick Actions Bar ─────────────────────── -->
+      <div class="absolute bottom-0 left-0 right-0 frosted border-t border-neutral-200" style="padding-bottom: 34px; z-index: 30;">
+        <div class="flex items-center justify-around px-4" style="height: 52px;">
+          <!-- Call AD -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target" style="min-width: 64px;">
+            <div class="w-10 h-10 rounded-full bg-neutral-900 flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+            </div>
+            <span class="text-3xs font-medium text-neutral-600">Call AD</span>
+          </button>
+          <!-- Map -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target" style="min-width: 64px;">
+            <div class="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+              <svg class="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/></svg>
+            </div>
+            <span class="text-3xs font-medium text-neutral-600">Map</span>
+          </button>
+          <!-- Weather -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target" style="min-width: 64px;">
+            <div class="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+              <svg class="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
+            </div>
+            <span class="text-3xs font-medium text-neutral-600">Weather</span>
+          </button>
+          <!-- Share -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target" style="min-width: 64px;">
+            <div class="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+              <svg class="w-5 h-5 text-neutral-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"/></svg>
+            </div>
+            <span class="text-3xs font-medium text-neutral-600">Share</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       OPTION B: CARD STACK
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <div id="option-b" class="flex flex-col items-center gap-6" style="display: none;">
+    <div class="text-center max-w-md">
+      <h2 class="heading-section">Option B: Card Stack</h2>
+      <p class="text-sm text-neutral-500 mt-1">Priority-ordered card layout with bottom tab bar. Information-dense, swipe-friendly, with a bottom sheet for schedule details.</p>
+    </div>
+
+    <div class="device-frame" id="device-b">
+      <div class="device-notch"></div>
+      <div class="home-indicator"></div>
+
+      <!-- ── Status Bar (iOS chrome) ────────────────────────────── -->
+      <div class="flex items-center justify-between px-8 pt-4 pb-0 bg-white" style="height: 44px; padding-top: 14px;">
+        <span class="text-sm font-semibold text-neutral-900">10:42</span>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-neutral-900" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+          <svg class="w-5 h-3 text-neutral-900" fill="currentColor" viewBox="0 0 28 16"><rect x="0" y="2" width="22" height="12" rx="2" ry="2" stroke="currentColor" fill="none" stroke-width="1.5"/><rect x="2" y="4" width="16" height="8" rx="1" fill="currentColor" opacity=".85"/><rect x="23.5" y="5.5" width="2.5" height="5" rx="1" fill="currentColor" opacity=".4"/></svg>
+        </div>
+      </div>
+
+      <!-- ── Header (sticky) ─────────────────────────────────── -->
+      <div class="bg-white border-b border-neutral-200 px-4" style="height: 56px;">
+        <div class="flex items-center justify-between h-full">
+          <div class="min-w-0">
+            <h1 class="text-base font-semibold text-neutral-900 truncate">SS26 Campaign</h1>
+            <p class="text-2xs text-neutral-500 -mt-0.5">Day 2 of 4 — March 15, 2026</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <!-- Day nav -->
+            <button class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-neutral-100 touch-target">
+              <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            </button>
+            <button class="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-neutral-100 touch-target">
+              <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab Content Area ────────────────────────────────── -->
+      <div class="scroll-area bg-neutral-50" id="scroll-b" style="height: calc(812px - 44px - 56px - 83px);">
+
+        <!-- Pull-to-refresh indicator (decorative) -->
+        <div class="flex items-center justify-center py-2">
+          <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-neutral-200">
+            <svg class="w-3 h-3 text-neutral-400 ptr-spinner" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+            <span class="text-3xs text-neutral-400">Updated 2 min ago</span>
+          </div>
+        </div>
+
+        <div class="px-4 pb-4 space-y-3">
+
+          <!-- ── Card 1: My Call (Hero) ─────────────────────── -->
+          <div class="rounded-lg overflow-hidden" style="background: #18181b;">
+            <div class="p-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="text-3xs font-semibold uppercase tracking-widest" style="color: #71717a;">My Call</span>
+                  <div class="flex items-baseline gap-2 mt-1">
+                    <span class="text-white font-bold" style="font-size: 40px; line-height: 1; letter-spacing: -0.03em;">6:30</span>
+                    <span class="text-white font-light text-lg" style="opacity: 0.5;">AM</span>
+                  </div>
+                </div>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-3xs font-semibold" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                  <div class="w-1.5 h-1.5 rounded-full" style="background: #34d399;"></div>
+                  Confirmed
+                </span>
+              </div>
+              <div class="mt-3 pt-3" style="border-top: 1px solid #27272a;">
+                <p class="text-sm font-medium" style="color: #e4e4e7;">Camera Operator</p>
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  <svg class="w-3.5 h-3.5" style="color: #71717a;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                  <span class="text-xs" style="color: #a1a1aa;">Studio A, 245 Fashion Ave, Brooklyn</span>
+                </div>
+                <button class="flex items-center gap-1.5 mt-2 text-xs font-medium" style="color: #60a5fa;">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"/></svg>
+                  Open in Maps
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Card 2: What's Happening Now ───────────────── -->
+          <div class="bg-white rounded-lg border border-neutral-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <span class="label-meta" style="font-size: 11px; color: #71717a;">Happening Now</span>
+              <span class="inline-flex items-center gap-1 text-3xs font-semibold" style="color: #10b981;">
+                <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                On Schedule
+              </span>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-1 rounded-full self-stretch" style="background: #10b981;"></div>
+              <div class="flex-1">
+                <p class="text-sm font-semibold text-neutral-900">Setup 2: On-Figure</p>
+                <p class="text-xs text-neutral-500 mt-0.5">8 looks — Sarah & Mika on-figure</p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="text-3xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">Started 42 min ago</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day progress bar -->
+            <div class="mt-4 pt-3 border-t border-neutral-100">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-3xs text-neutral-400">Day Progress</span>
+                <span class="text-3xs font-medium text-neutral-600">37%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width: 37%; background: #10b981;"></div>
+              </div>
+              <div class="flex items-center justify-between mt-1.5">
+                <span class="text-3xs text-neutral-400">6:30 AM</span>
+                <span class="text-3xs text-neutral-400">6:00 PM</span>
+              </div>
+            </div>
+
+            <!-- Next up teaser -->
+            <div class="mt-3 p-2.5 rounded-lg bg-neutral-50 flex items-center gap-3">
+              <div class="flex items-center justify-center w-8 h-8 rounded-full bg-amber-50">
+                <svg class="w-4 h-4" style="color: #f59e0b;" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-neutral-700">Next: Lunch</p>
+                <p class="text-3xs text-neutral-400">In 1h 48m — 12:30 PM</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Card 3: Today's Schedule (Compact) ──────────── -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <div class="flex items-center justify-between px-4 pt-3 pb-2">
+              <span class="label-meta" style="font-size: 11px; color: #71717a;">Schedule</span>
+              <button class="text-2xs font-medium text-neutral-500" onclick="openScheduleSheet()">See Full</button>
+            </div>
+            <div class="px-4 pb-3 space-y-0">
+
+              <!-- Crew Arrival — done -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 opacity-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">6:30</span>
+                <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                <span class="text-xs text-neutral-600 line-through">Crew Arrival</span>
+              </button>
+
+              <!-- HMU — done -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 opacity-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">7:00</span>
+                <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                <span class="text-xs text-neutral-600 line-through">HMU: Sarah + Mika</span>
+              </button>
+
+              <!-- Setup lighting — done -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 opacity-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">7:00</span>
+                <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                <span class="text-xs text-neutral-600 line-through">Studio A Lighting</span>
+              </button>
+
+              <!-- Setup 1 — done -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 opacity-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">8:00</span>
+                <div class="w-1.5 h-1.5 rounded-full" style="background: #10b981;"></div>
+                <span class="text-xs text-neutral-600 line-through">Setup 1: E-comm Flatlay</span>
+              </button>
+
+              <!-- Setup 2 — ACTIVE -->
+              <button class="w-full flex items-center gap-3 py-2.5 border-b border-neutral-50 touch-target text-left rounded-lg" style="background: #f0fdf4; margin: 0 -8px; padding-left: 8px; padding-right: 8px;" onclick="openScheduleSheet()">
+                <span class="text-2xs font-bold w-12 text-right" style="color: #047857;">10:00</span>
+                <div class="w-2 h-2 rounded-full pulse-active" style="background: #10b981;"></div>
+                <span class="text-xs font-semibold text-neutral-900">Setup 2: On-Figure</span>
+                <span class="text-3xs font-medium ml-auto" style="color: #047857;">NOW</span>
+              </button>
+
+              <!-- Lunch -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">12:30</span>
+                <div class="w-1.5 h-1.5 rounded-full bg-neutral-300"></div>
+                <span class="text-xs text-neutral-700">Lunch</span>
+              </button>
+
+              <!-- Setup 3 -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">1:30</span>
+                <div class="w-1.5 h-1.5 rounded-full bg-neutral-300"></div>
+                <span class="text-xs text-neutral-700">Setup 3: Editorial</span>
+              </button>
+
+              <!-- Setup 4 -->
+              <button class="w-full flex items-center gap-3 py-2 border-b border-neutral-50 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">4:30</span>
+                <div class="w-1.5 h-1.5 rounded-full bg-neutral-300"></div>
+                <span class="text-xs text-neutral-700">Setup 4: Detail Shots</span>
+              </button>
+
+              <!-- Wrap -->
+              <button class="w-full flex items-center gap-3 py-2 touch-target text-left" onclick="openScheduleSheet()">
+                <span class="text-2xs font-medium text-neutral-500 w-12 text-right">6:00</span>
+                <div class="w-1.5 h-1.5 rounded-full bg-neutral-300"></div>
+                <span class="text-xs text-neutral-700">Wrap</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Card 4: Key Contacts ────────────────────────── -->
+          <div class="bg-white rounded-lg border border-neutral-200 p-4">
+            <span class="label-meta" style="font-size: 11px; color: #71717a;">Key Contacts</span>
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <!-- Alex Thompson — Photographer -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #3b82f6;">AT</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Alex Thompson</p>
+                  <p class="text-3xs text-neutral-500">Photographer</p>
+                </div>
+              </button>
+              <!-- Rachel Kim — 1st AD -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #E31E24;">RK</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Rachel Kim</p>
+                  <p class="text-3xs text-neutral-500">1st AD</p>
+                </div>
+              </button>
+              <!-- Jamie Chen — Producer -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #8b5cf6;">JC</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Jamie Chen</p>
+                  <p class="text-3xs text-neutral-500">Producer</p>
+                </div>
+              </button>
+              <!-- Morgan Lee — Stylist Lead -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #f59e0b;">ML</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Morgan Lee</p>
+                  <p class="text-3xs text-neutral-500">Stylist Lead</p>
+                </div>
+              </button>
+              <!-- HMU Lead -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #ec4899;">DP</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Diana Park</p>
+                  <p class="text-3xs text-neutral-500">HMU Lead</p>
+                </div>
+              </button>
+              <!-- Gaffer -->
+              <button class="flex items-center gap-2.5 p-2.5 rounded-lg bg-neutral-50 touch-target text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0" style="background: #14b8a6;">CR</div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium text-neutral-900 truncate">Chris Reeves</p>
+                  <p class="text-3xs text-neutral-500">Gaffer</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Card 5: Location & Weather ─────────────────── -->
+          <div class="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            <div class="px-4 pt-3 pb-2">
+              <span class="label-meta" style="font-size: 11px; color: #71717a;">Location & Weather</span>
+            </div>
+            <!-- Map placeholder -->
+            <div class="mx-4 rounded-lg overflow-hidden" style="height: 120px; background: linear-gradient(135deg, #e4e4e7 0%, #d4d4d8 50%, #e4e4e7 100%);">
+              <div class="w-full h-full flex items-center justify-center" style="background: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 200%22><rect fill=%22%23e4e4e7%22 width=%22400%22 height=%22200%22/><rect fill=%22%23d4d4d8%22 x=%2220%22 y=%2230%22 width=%22120%22 height=%2280%22 rx=%224%22/><rect fill=%22%23d4d4d8%22 x=%22160%22 y=%2250%22 width=%2290%22 height=%22100%22 rx=%224%22/><rect fill=%22%23d4d4d8%22 x=%22270%22 y=%2220%22 width=%22110%22 height=%2260%22 rx=%224%22/><line x1=%220%22 y1=%22120%22 x2=%22400%22 y2=%22120%22 stroke=%22%23a1a1aa%22 stroke-width=%221%22 stroke-dasharray=%224%22/><line x1=%22200%22 y1=%220%22 x2=%22200%22 y2=%22200%22 stroke=%22%23a1a1aa%22 stroke-width=%221%22 stroke-dasharray=%224%22/><circle cx=%22200%22 cy=%22100%22 r=%228%22 fill=%22%23E31E24%22/><circle cx=%22200%22 cy=%22100%22 r=%224%22 fill=%22white%22/></svg>') center/cover no-repeat;">
+              </div>
+            </div>
+            <div class="p-4 space-y-3">
+              <div>
+                <p class="text-sm font-medium text-neutral-900">Studio A</p>
+                <p class="text-xs text-neutral-500">245 Fashion Ave, Brooklyn, NY 11201</p>
+                <p class="text-xs text-neutral-400 mt-0.5">Parking: Lot B (west side entrance)</p>
+              </div>
+              <div class="pt-3 border-t border-neutral-100">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <!-- Weather icon -->
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50">
+                      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-neutral-900">58F / 14C</p>
+                      <p class="text-xs text-neutral-500">Partly Cloudy</p>
+                    </div>
+                  </div>
+                  <div class="text-right space-y-0.5">
+                    <p class="text-3xs text-neutral-400">Sunrise 6:42 AM</p>
+                    <p class="text-3xs text-neutral-400">Sunset 7:14 PM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Production Notes Card ──────────────────────── -->
+          <div class="bg-white rounded-lg border border-neutral-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="label-meta" style="font-size: 11px; color: #71717a;">Notes</span>
+                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full text-white text-3xs font-bold" style="background: #E31E24;">2</span>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="p-3 rounded-lg bg-neutral-50">
+                <p class="text-xs text-neutral-700">Parking: Use Lot B (west side). Lot A reserved for talent vehicles.</p>
+                <p class="text-3xs text-neutral-400 mt-1">Rachel Kim, 6:15 AM</p>
+              </div>
+              <div class="p-3 rounded-lg" style="background: #fef3c7;">
+                <p class="text-xs font-medium" style="color: #92400e;">Client arriving at 2:00 PM for editorial review. Studio A camera-ready by 1:45 PM.</p>
+                <p class="text-3xs mt-1" style="color: #b45309;">Jamie Chen, 9:30 AM</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom spacer -->
+          <div class="h-4"></div>
+        </div>
+      </div>
+
+      <!-- ── Bottom Sheet: Full Schedule Detail ──────────── -->
+      <div class="sheet-backdrop" id="schedule-sheet-backdrop" onclick="closeScheduleSheet()"></div>
+      <div class="bottom-sheet" id="schedule-sheet">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-1 rounded-full bg-neutral-200 mx-auto absolute left-1/2 -translate-x-1/2 -top-0" style="top: 8px;"></div>
+            <h3 class="text-sm font-semibold text-neutral-900">Setup 2: On-Figure</h3>
+          </div>
+          <button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-neutral-100" onclick="closeScheduleSheet()">
+            <svg class="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <!-- Drag handle -->
+        <div class="flex justify-center py-2">
+          <div class="w-8 h-1 rounded-full bg-neutral-200"></div>
+        </div>
+        <div class="sheet-scroll px-4 pb-6">
+          <div class="space-y-4">
+            <div>
+              <span class="label-meta" style="font-size: 10px;">Status</span>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style="background: #ecfdf5; color: #047857;">
+                  <div class="w-2 h-2 rounded-full" style="background: #10b981;"></div>
+                  In Progress
+                </span>
+                <span class="text-xs text-neutral-400">Started at 10:00 AM</span>
+              </div>
+            </div>
+            <div>
+              <span class="label-meta" style="font-size: 10px;">Description</span>
+              <p class="text-sm text-neutral-700 mt-1">8 on-figure looks with Sarah Mitchell and Mika Tanaka. Full-length and 3/4 compositions. Cyclorama wall, beauty dish + fill.</p>
+            </div>
+            <div>
+              <span class="label-meta" style="font-size: 10px;">Talent</span>
+              <div class="flex items-center gap-3 mt-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-3xs font-semibold text-neutral-600">SM</div>
+                  <span class="text-xs text-neutral-700">Sarah Mitchell</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-3xs font-semibold text-neutral-600">MK</div>
+                  <span class="text-xs text-neutral-700">Mika Tanaka</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <span class="label-meta" style="font-size: 10px;">Equipment</span>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span class="px-2 py-1 rounded text-3xs font-medium bg-neutral-100 text-neutral-600">Canon R5</span>
+                <span class="px-2 py-1 rounded text-3xs font-medium bg-neutral-100 text-neutral-600">24-70mm f/2.8</span>
+                <span class="px-2 py-1 rounded text-3xs font-medium bg-neutral-100 text-neutral-600">Beauty Dish</span>
+                <span class="px-2 py-1 rounded text-3xs font-medium bg-neutral-100 text-neutral-600">V-Flat Fill</span>
+                <span class="px-2 py-1 rounded text-3xs font-medium bg-neutral-100 text-neutral-600">Cyclorama</span>
+              </div>
+            </div>
+            <div>
+              <span class="label-meta" style="font-size: 10px;">Notes</span>
+              <p class="text-xs text-neutral-500 mt-1">Client wants high-energy, movement-based poses. Reference deck in shared drive. Prioritize looks 3 & 5 as hero shots.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Bottom Tab Bar ────────────────────────────────── -->
+      <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200" style="z-index: 35; padding-bottom: 34px;">
+        <div class="flex items-center justify-around" style="height: 49px;">
+          <!-- Today (active) -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target relative tab-active" style="min-width: 64px;" onclick="switchTabB('today')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+            <span class="text-3xs font-medium">Today</span>
+          </button>
+          <!-- Schedule -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target relative text-neutral-400" style="min-width: 64px;" onclick="switchTabB('schedule')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+            <span class="text-3xs font-medium">Schedule</span>
+          </button>
+          <!-- Contacts -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target relative text-neutral-400" style="min-width: 64px;" onclick="switchTabB('contacts')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            <span class="text-3xs font-medium">Contacts</span>
+          </button>
+          <!-- Notes -->
+          <button class="flex flex-col items-center justify-center gap-0.5 touch-target relative text-neutral-400" style="min-width: 64px;" onclick="switchTabB('notes')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            <span class="text-3xs font-medium">Notes</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       COMPARISON NOTES
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="max-w-2xl mx-auto px-6 pb-12">
+    <div class="border-t border-neutral-200 pt-8 mt-4">
+      <h2 class="heading-section mb-4">Design Comparison</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg border border-neutral-200 p-5">
+          <h3 class="text-sm font-semibold text-neutral-900 mb-2">Option A: Scrollable Timeline</h3>
+          <ul class="space-y-1.5 text-xs text-neutral-600">
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Familiar vertical scroll pattern</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> NOW indicator shows temporal context at a glance</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Progressive disclosure via expandable sections</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Floating quick actions always accessible (thumb zone)</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Confirms attendance right in the hero card</li>
+            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">-</span> Long scroll to reach contacts or notes</li>
+            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">-</span> Heavier visual density in the schedule section</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-lg border border-neutral-200 p-5">
+          <h3 class="text-sm font-semibold text-neutral-900 mb-2">Option B: Card Stack</h3>
+          <ul class="space-y-1.5 text-xs text-neutral-600">
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Priority-ordered: most important info first</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Day progress bar gives at-a-glance context</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Tab bar gives direct access to all sections</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Bottom sheet for detail drilldown without losing context</li>
+            <li class="flex items-start gap-2"><span class="text-emerald-500 mt-0.5">+</span> Contact grid is more scannable (2-col layout)</li>
+            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">-</span> Tab bar consumes vertical space</li>
+            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">-</span> Schedule is less detailed on the main card</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       JAVASCRIPT
+       ═══════════════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ── Toggle between Option A and B ──────────────────────────
+    function showOption(option) {
+      const optA = document.getElementById('option-a');
+      const optB = document.getElementById('option-b');
+      const btnA = document.getElementById('btn-a');
+      const btnB = document.getElementById('btn-b');
+
+      if (option === 'a') {
+        optA.style.display = 'flex';
+        optB.style.display = 'none';
+        btnA.classList.add('active');
+        btnB.classList.remove('active');
+      } else {
+        optA.style.display = 'none';
+        optB.style.display = 'flex';
+        btnA.classList.remove('active');
+        btnB.classList.add('active');
+      }
+    }
+
+    // ── Option A: Expandable sections ─────────────────────────
+    function toggleExpandA(section) {
+      const body = document.getElementById('body-' + section + '-a');
+      const chevron = document.getElementById('chevron-' + section + '-a');
+      if (body && chevron) {
+        body.classList.toggle('expanded');
+        chevron.classList.toggle('rotated');
+      }
+    }
+
+    // ── Option B: Bottom sheet ────────────────────────────────
+    function openScheduleSheet() {
+      const backdrop = document.getElementById('schedule-sheet-backdrop');
+      const sheet = document.getElementById('schedule-sheet');
+      if (backdrop && sheet) {
+        backdrop.classList.add('open');
+        sheet.classList.add('open');
+      }
+    }
+
+    function closeScheduleSheet() {
+      const backdrop = document.getElementById('schedule-sheet-backdrop');
+      const sheet = document.getElementById('schedule-sheet');
+      if (backdrop && sheet) {
+        backdrop.classList.remove('open');
+        sheet.classList.remove('open');
+      }
+    }
+
+    // ── Option B: Tab switching (visual only) ────────────────
+    function switchTabB(tab) {
+      const tabs = document.querySelectorAll('#device-b .absolute.bottom-0 button');
+      tabs.forEach(function(btn) {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-neutral-400');
+      });
+      // Find the clicked tab and activate it
+      const tabMap = { today: 0, schedule: 1, contacts: 2, notes: 3 };
+      const idx = tabMap[tab];
+      if (idx !== undefined && tabs[idx]) {
+        tabs[idx].classList.add('tab-active');
+        tabs[idx].classList.remove('text-neutral-400');
+      }
+    }
+  </script>
+
+</body>
+</html>
