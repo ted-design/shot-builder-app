@@ -13,7 +13,7 @@ This document describes the **current reality** of the codebase, not aspirationa
 | Build | Vite 7 | Dev server + production builds |
 | Styling | Tailwind CSS 3 + tokens.css | tokens.css is the single source of design truth |
 | Primitives | shadcn/ui (Radix) | Generated in `src/components/ui/`. Never modify inline. |
-| Server State | TanStack Query + Firestore onSnapshot | Hybrid approach (see State Management) |
+| Server State | Firestore onSnapshot (real-time) | vNext uses direct onSnapshot exclusively. Legacy src/ uses TanStack Query (not used in new code). |
 | Client State | React Context + useState | 4 minimal context providers |
 | Backend | Firebase (Auth, Firestore, Storage, Functions) | Multi-tenant, clientId-scoped |
 | Routing | React Router v6 | Lazy-loaded routes via React.lazy |
@@ -26,10 +26,10 @@ This document describes the **current reality** of the codebase, not aspirationa
 
 ### Dependency Notes
 
-- **TanStack Query:** Wraps entire app via `QueryClientProvider` at root. staleTime: 5min, gcTime: 10min, retry: 1. **Policy:** Keep where used; do not introduce to new code. Prefer direct Firestore onSnapshot for new features.
-- **tiptap:** Heavy dependency used in shot notes and product descriptions. Keep where used; evaluate before adding to new surfaces.
-- **react-select:** Used in pickers/dropdowns. Prefer Radix Select for new pickers.
-- **react-easy-crop:** Image cropping. Keep where used.
+- **TanStack Query:** Listed in package.json but **NOT imported in vNext code** (src-vnext/). Only used in legacy src/. Candidate for removal from package.json to reduce vendor chunk.
+- **tiptap:** Heavy dependency used in legacy shot notes and product descriptions. Not yet used in vNext. Evaluate before adding to new surfaces.
+- **react-select:** Listed in package.json but **NOT imported in vNext code**. Candidate for removal. vNext uses Radix Select/Combobox.
+- **react-easy-crop:** Listed in package.json but **NOT imported in vNext code**. Candidate for removal.
 
 ---
 
@@ -330,10 +330,10 @@ All in `src-vnext/features/requests/lib/requestWrites.ts`:
 
 ## State Management
 
-### Hybrid Approach
+### vNext Approach
 
-1. **TanStack Query** -- Wraps app root. Data fetching with caching, loading/error states. Config: staleTime 5min, gcTime 10min, retry 1, refetchOnWindowFocus false.
-2. **Firestore onSnapshot** -- Direct real-time subscriptions for entities needing live updates (shot list, pull fulfillment). Custom hooks: `useFirestoreDoc`, `useFirestoreCollection`.
+1. **Firestore onSnapshot** -- Direct real-time subscriptions via custom hooks: `useFirestoreDoc`, `useFirestoreCollection`. All vNext server state uses this pattern exclusively.
+2. **TanStack Query** -- Legacy only (`src/`). Listed in package.json but NOT imported in vNext code (`src-vnext/`). Candidate for removal to reduce vendor chunk.
 3. **React Context** -- Four providers:
    - `AuthProvider`: user, claims, clientId, role
    - `ProjectScopeProvider`: active projectId, project metadata
@@ -395,8 +395,8 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canSubmitShotRequests` | admin, producer |
 | `canTriageShotRequests` | admin, producer |
 
-- **Project-scoped roles:** Per-project membership stored in `projects/{pid}/members/{uid}` subcollection. Each member doc has `role`, `addedAt`, `addedBy`. Project creation auto-adds creator as member via `writeBatch`. `resolveEffectiveRole()` (not yet implemented) will combine global role + per-project role.
-- **Project visibility:** Projects support a `visibility` field with 3 states: `"team"` (default — producers see without membership), `"restricted"` (only explicit project members), `"private"` (only creator + admins). Producers have global read+write to all `team` visibility projects without requiring per-project membership. For `restricted` and `private` projects, standard membership rules apply. Firestore rules enforce this via `hasGlobalRole()` and `producerCanAccessProject()` helpers cascaded to all sub-collections. Default: `"team"` (field absent = `"team"`). Type: `ProjectVisibility` in `shared/types/index.ts`.
+- **Project-scoped roles:** Per-project membership stored in `projects/{pid}/members/{uid}` subcollection. Each member doc has `role`, `addedAt`, `addedBy`. Project creation auto-adds creator as member via `writeBatch`. `resolveEffectiveRole()` combines global role + per-project role (implemented in `shared/lib/rbac.ts`).
+- **Project visibility:** Projects support a `visibility` field with 3 states: `"team"` (default), `"restricted"` (only explicit project members), `"private"` (only creator + admins). Firestore rules use a **two-tier model**: `allow list` grants producers unconditional access to list all org projects (needed for dashboard); `allow get` enforces full visibility rules per-document (team-only for producers without membership, restricted/private require membership or creator status). Sub-collection access (shots, pulls, schedules) enforces visibility via `producerCanAccessProject()`. This means producers can see project names/metadata for all projects in the dashboard, but cannot access sub-resources of restricted/private projects without membership. Default: `"team"` (field absent = `"team"`). Type: `ProjectVisibility` in `shared/types/index.ts`.
 - **User deactivation:** Admins can deactivate users via `deactivateUser()` Cloud Function, which sets `status: "deactivated"` on the user doc and revokes their custom claims. Reactivation via `reactivateUser()` restores claims with a chosen role. Self-deactivation is prevented client-side. AlertDialog confirmation required.
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)
 - **Email service:** Invitation emails sent via Resend (`functions/email.js`). HTML + plain text templates with Production Hub branding. Non-blocking — invitation is valid without email delivery. Triggered by `handleResendInvitationEmail` Cloud Function handler.
