@@ -91,7 +91,7 @@ exports.setUserClaims = functions
           .doc(normalizedEmail);
 
         await invitationRef.set({
-          email: targetEmail.trim(),
+          email: normalizedEmail,
           role,
           displayName: null,
           invitedBy: context.auth.uid,
@@ -138,23 +138,13 @@ exports.claimInvitation = functions
 
     const invitationsQuery = db.collectionGroup("pendingInvitations")
       .where("status", "==", "pending")
-      .where("email", "==", callerEmail.trim())
+      .where("email", "==", normalizedEmail)
       .limit(1);
 
     const snapshot = await invitationsQuery.get();
 
     if (snapshot.empty) {
-      const normalizedQuery = db.collectionGroup("pendingInvitations")
-        .where("status", "==", "pending")
-        .where("email", "==", normalizedEmail)
-        .limit(1);
-
-      const normalizedSnapshot = await normalizedQuery.get();
-      if (normalizedSnapshot.empty) {
-        return { ok: false, reason: "no-invitation" };
-      }
-
-      return await processInvitation(normalizedSnapshot.docs[0], context.auth);
+      return { ok: false, reason: "no-invitation" };
     }
 
     return await processInvitation(snapshot.docs[0], context.auth);
