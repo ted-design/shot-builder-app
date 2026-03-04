@@ -347,7 +347,7 @@ async function handlePublicUpdatePull(data) {
   const email = data.email;
   const actions = Array.isArray(data.actions) ? data.actions : [];
 
-  if (!shareToken || typeof shareToken !== "string" || shareToken.length < 10) {
+  if (!shareToken || typeof shareToken !== "string" || shareToken.length < 8) {
     throw Object.assign(new Error("Invalid share token."), { code: "invalid-argument" });
   }
 
@@ -430,7 +430,7 @@ async function handlePublicUpdatePull(data) {
 
           const allowedStatuses = new Set(["pending", "fulfilled", "substituted"]);
           const requestedStatus = typeof sizeUpdate.status === "string" ? sizeUpdate.status : null;
-          const derivedStatus = nextFulfilled >= quantity ? "fulfilled" : nextFulfilled > 0 ? "pending" : "pending";
+          const derivedStatus = nextFulfilled >= quantity ? "fulfilled" : nextFulfilled > 0 ? "partial" : "pending";
           const nextStatus = requestedStatus && allowedStatuses.has(requestedStatus)
             ? requestedStatus
             : derivedStatus;
@@ -1044,7 +1044,29 @@ exports.cleanupVersionsAndLocks = functions
       }
 
       console.log(`[cleanupVersionsAndLocks] Cleared ${totalLocksCleared} stale locks`);
-      console.log(`[cleanupVersionsAndLocks] Cleanup complete. Versions: ${totalVersionsDeleted}, Locks: ${totalLocksCleared}`);
+
+      // Clean up expired _functionQueue documents (expiresAt < now)
+      let totalQueueDeleted = 0;
+      const queueQuery = db.collection("_functionQueue")
+        .where("expiresAt", "<=", now)
+        .limit(BATCH_SIZE);
+
+      let hasMoreQueue = true;
+      while (hasMoreQueue) {
+        const queueSnap = await queueQuery.get();
+        if (queueSnap.empty) {
+          hasMoreQueue = false;
+          break;
+        }
+        const queueBatch = db.batch();
+        queueSnap.docs.forEach((d) => queueBatch.delete(d.ref));
+        await queueBatch.commit();
+        totalQueueDeleted += queueSnap.docs.length;
+        if (queueSnap.docs.length < BATCH_SIZE) hasMoreQueue = false;
+      }
+
+      console.log(`[cleanupVersionsAndLocks] Deleted ${totalQueueDeleted} expired queue docs`);
+      console.log(`[cleanupVersionsAndLocks] Cleanup complete. Versions: ${totalVersionsDeleted}, Locks: ${totalLocksCleared}, Queue: ${totalQueueDeleted}`);
 
       return null;
     } catch (error) {

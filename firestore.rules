@@ -85,8 +85,8 @@ service cloud.firestore {
       allow read: if request.auth != null
         && resource.data.createdBy == request.auth.uid;
 
-      // Unauthenticated reads for publicUpdatePull responses only
-      allow read: if resource.data.action == "publicUpdatePull"
+      // Unauthenticated reads for publicUpdatePull responses (get only — no list/enumeration)
+      allow get: if resource.data.action == "publicUpdatePull"
         && resource.data.createdBy == "anonymous";
 
       // No client-side updates or deletes

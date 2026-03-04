@@ -45,6 +45,7 @@ export async function callFunction<TResult = unknown>(
     status: "pending",
     createdBy,
     createdAt: serverTimestamp(),
+    expiresAt: new Date(Date.now() + 3_600_000),
   })
 
   return new Promise<TResult>((resolve, reject) => {

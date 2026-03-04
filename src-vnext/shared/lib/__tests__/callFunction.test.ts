@@ -68,6 +68,7 @@ describe("callFunction (Firestore queue)", () => {
       role: "admin",
       clientId: "client-1",
     })
+    expect(docData.expiresAt).toBeInstanceOf(Date)
     expect(result).toEqual({ ok: true, uid: "target-456" })
   })
 
