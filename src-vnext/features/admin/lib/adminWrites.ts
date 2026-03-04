@@ -65,7 +65,6 @@ export async function inviteOrUpdateUser({
 interface ResendInvitationParams {
   readonly email: string
   readonly role: string
-  readonly clientId: string
 }
 
 export async function resendInvitation({ email, role }: ResendInvitationParams): Promise<void> {

@@ -647,24 +647,24 @@ async function handleDeactivateUser(data, caller) {
 
   // Remove from all project memberships in this client
   const projectsSnap = await db.collection("clients").doc(clientId).collection("projects").get();
-  const memberDeleteBatch = db.batch();
-  let deleteCount = 0;
+  const memberRefs = projectsSnap.docs.map((d) =>
+    d.ref.collection("members").doc(targetUid)
+  );
+  const memberSnaps = await Promise.all(memberRefs.map((ref) => ref.get()));
+  const refsToDelete = memberSnaps.filter((s) => s.exists).map((s) => s.ref);
 
-  for (const projectDoc of projectsSnap.docs) {
-    const memberRef = projectDoc.ref.collection("members").doc(targetUid);
-    const memberSnap = await memberRef.get();
-    if (memberSnap.exists) {
-      memberDeleteBatch.delete(memberRef);
-      deleteCount++;
-    }
+  // Firestore batch limit is 500 — chunk deletes
+  const CHUNK = 499;
+  for (let i = 0; i < refsToDelete.length; i += CHUNK) {
+    const batch = db.batch();
+    refsToDelete.slice(i, i + CHUNK).forEach((ref) => batch.delete(ref));
+    await batch.commit();
   }
 
-  if (deleteCount > 0) {
-    await memberDeleteBatch.commit();
-  }
-
-  // Do NOT revoke tokens — user will get PendingAccessPage on next token refresh
-  console.log(`[deactivateUser] Deactivated ${targetUid} in client ${clientId}, removed from ${deleteCount} projects`);
+  // Revoke refresh tokens to force immediate lockout.
+  // Safe: caller is admin, target is a different user (self-deactivation blocked above).
+  await admin.auth().revokeRefreshTokens(targetUid);
+  console.log(`[deactivateUser] Deactivated ${targetUid} in client ${clientId}, removed from ${refsToDelete.length} projects, tokens revoked`);
 
   return { ok: true };
 }

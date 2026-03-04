@@ -48,7 +48,7 @@ export function PendingInvitationRow({
   const handleResend = async () => {
     setResending(true)
     try {
-      await resendInvitation({ email, role, clientId })
+      await resendInvitation({ email, role })
       toast.success(`Invitation email resent to ${email}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to resend invitation")

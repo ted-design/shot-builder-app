@@ -75,7 +75,7 @@ export function UserDetailPanel({
   const [deactivating, setDeactivating] = useState(false)
   const [confirmDeactivate, setConfirmDeactivate] = useState(false)
   const [showReactivate, setShowReactivate] = useState(false)
-  const [reactivateRole, setReactivateRole] = useState<Role>(role || ROLE.VIEWER)
+  const [reactivateRole, setReactivateRole] = useState<Role>(role ?? ROLE.VIEWER)
   const [reactivating, setReactivating] = useState(false)
   const [showAssignProjects, setShowAssignProjects] = useState(false)
   const [projectAssignments, setProjectAssignments] = useState<readonly ProjectAssignment[]>([])

@@ -14,6 +14,15 @@ function getResendClient() {
   return new Resend(apiKey);
 }
 
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function getRoleLabel(role) {
   const labels = {
     admin: "Admin",
@@ -32,7 +41,9 @@ function getAppUrl() {
 
 function buildInvitationHtml({ inviterName, role, inviterEmail }) {
   const appUrl = getAppUrl();
-  const roleLabel = getRoleLabel(role);
+  const roleLabel = escapeHtml(getRoleLabel(role));
+  const safeName = escapeHtml(inviterName);
+  const safeEmail = escapeHtml(inviterEmail);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -44,7 +55,7 @@ function buildInvitationHtml({ inviterName, role, inviterEmail }) {
         <tr><td style="padding:32px 32px 0">
           <h1 style="margin:0 0 24px;font-size:20px;font-weight:300;color:#18181b;letter-spacing:-0.01em">${APP_NAME}</h1>
           <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3f3f46">
-            ${inviterName} has invited you to join <strong>${APP_NAME}</strong> as a <strong>${roleLabel}</strong>.
+            ${safeName} has invited you to join <strong>${APP_NAME}</strong> as a <strong>${roleLabel}</strong>.
           </p>
           <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#71717a">
             ${APP_NAME} is your team's production planning tool for managing shoots, products, and team coordination.
@@ -57,7 +68,7 @@ function buildInvitationHtml({ inviterName, role, inviterEmail }) {
         </td></tr>
         <tr><td style="padding:0 32px 32px;border-top:1px solid #e4e4e7">
           <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#a1a1aa">
-            If you have questions, contact <a href="mailto:${inviterEmail}" style="color:#71717a">${inviterEmail}</a>.
+            If you have questions, contact <a href="mailto:${safeEmail}" style="color:#71717a">${safeEmail}</a>.
           </p>
         </td></tr>
       </table>

@@ -14,6 +14,8 @@ function mapProject(id: string, data: Record<string, unknown>): Project {
     shootDates: normalizeShootDates(data["shootDates"]),
     notes: data["notes"] as string | undefined,
     briefUrl: data["briefUrl"] as string | undefined,
+    visibility: data["visibility"] as Project["visibility"],
+    createdBy: data["createdBy"] as string | undefined,
     deletedAt: data["deletedAt"],
     createdAt: data["createdAt"] as Project["createdAt"],
     updatedAt: data["updatedAt"] as Project["updatedAt"],
