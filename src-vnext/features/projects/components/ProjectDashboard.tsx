@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -8,7 +9,7 @@ import { ProjectCard } from "@/features/projects/components/ProjectCard"
 import { CreateProjectDialog } from "@/features/projects/components/CreateProjectDialog"
 import { EditProjectDialog } from "@/features/projects/components/EditProjectDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { canManageProjects, canManageProducts, isAdmin } from "@/shared/lib/rbac"
+import { canManageProjects, canManageProducts, isAdmin, roleLabel } from "@/shared/lib/rbac"
 import { ShootReadinessWidget } from "@/features/dashboard/components/ShootReadinessWidget"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
@@ -31,6 +32,7 @@ import {
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { FolderKanban, Plus, Search, SlidersHorizontal } from "lucide-react"
+import type { Role } from "@/shared/types"
 
 type ProjectFilter = "active" | "completed" | "archived" | "all"
 type ProjectSort = "recent" | "shootDate" | "name"
@@ -65,6 +67,24 @@ export default function ProjectDashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+
+  const welcomeShownRef = useRef(false)
+  useEffect(() => {
+    if (welcomeShownRef.current) return
+    try {
+      const welcomeRole = sessionStorage.getItem("ph_welcome_role")
+      if (welcomeRole) {
+        sessionStorage.removeItem("ph_welcome_role")
+        welcomeShownRef.current = true
+        const label = roleLabel(welcomeRole as Role)
+        toast.success(`Welcome to Production Hub! You've been added as ${label}.`, {
+          duration: 6000,
+        })
+      }
+    } catch {
+      // sessionStorage unavailable
+    }
+  }, [])
 
   const canManage = canManageProjects(role)
   const showCreate = canManage
@@ -347,15 +367,15 @@ export default function ProjectDashboard() {
           <EmptyState
             icon={<FolderKanban className="h-12 w-12" />}
             title="No projects yet"
-            description="Create your first project to start planning shots."
-            actionLabel={showCreate ? "Create Project" : undefined}
+            description="Create your first project to start planning shoots, managing products, and coordinating your team."
+            actionLabel={showCreate ? "Create Your First Project" : undefined}
             onAction={showCreate ? () => setCreateOpen(true) : undefined}
           />
         ) : (
           <EmptyState
             icon={<FolderKanban className="h-12 w-12" />}
-            title="No projects assigned"
-            description="Contact your administrator to get access to projects."
+            title="No projects assigned yet"
+            description="Your administrator will add you to projects. You'll see them here once you have access."
           />
         )
       ) : displayProjects.length === 0 ? (

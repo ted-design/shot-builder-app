@@ -86,6 +86,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
               }>("claimInvitation", {})
 
               if (result.ok) {
+                const claimedRole = typeof result.role === "string" ? result.role : null
+                if (claimedRole) {
+                  try {
+                    sessionStorage.setItem("ph_welcome_role", claimedRole)
+                  } catch {
+                    // sessionStorage unavailable — skip welcome toast
+                  }
+                }
                 await firebaseUser.getIdToken(true)
                 return
               }

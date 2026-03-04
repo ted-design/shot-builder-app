@@ -4,7 +4,8 @@ import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ROLE, roleLabel } from "@/shared/lib/rbac"
 import { ROLE_DESCRIPTIONS } from "@/shared/lib/roleDescriptions"
-import { inviteOrUpdateUser } from "@/features/admin/lib/adminWrites"
+import { inviteOrUpdateUser, bulkAddProjectMembers } from "@/features/admin/lib/adminWrites"
+import { ProjectAssignmentPicker, type ProjectAssignment } from "./ProjectAssignmentPicker"
 import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -39,13 +40,14 @@ function copyLoginLink() {
 }
 
 export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) {
-  const { clientId } = useAuth()
+  const { clientId, user } = useAuth()
 
   const [email, setEmail] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [role, setRole] = useState<Role>(ROLE.PRODUCER)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [projectAssignments, setProjectAssignments] = useState<readonly ProjectAssignment[]>([])
 
   useEffect(() => {
     if (open) {
@@ -53,6 +55,7 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
       setDisplayName("")
       setRole(ROLE.PRODUCER)
       setEmailError(null)
+      setProjectAssignments([])
     }
   }, [open])
 
@@ -77,23 +80,44 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
 
     setSaving(true)
     try {
+      const projectIds = projectAssignments.map((a) => a.projectId)
       const inviteResult = await inviteOrUpdateUser({
         targetEmail: result.data,
         displayName: displayName.trim() || null,
         role,
         clientId,
+        assignToProjects: projectIds.length > 0 ? projectIds : undefined,
       })
 
       if ("pending" in inviteResult) {
+        const projectNote = projectAssignments.length > 0
+          ? ` Projects will be assigned when they sign in.`
+          : ""
         toast.success(`Invitation created for ${inviteResult.email}`, {
-          description: "Share the login link so they can sign in.",
+          description: `They'll receive an email with a sign-in link.${projectNote}`,
+          duration: 8000,
           action: {
             label: "Copy Login Link",
             onClick: copyLoginLink,
           },
         })
       } else {
+        if (projectAssignments.length > 0 && clientId && user) {
+          await bulkAddProjectMembers({
+            assignments: projectAssignments,
+            userId: inviteResult.uid,
+            addedBy: user.uid,
+            clientId,
+          })
+        }
+
+        const projectCount = projectAssignments.length
+        const desc = projectCount > 0
+          ? `Added to ${projectCount} project${projectCount > 1 ? "s" : ""}.`
+          : undefined
         toast.success(`Role applied for ${result.data}`, {
+          description: desc,
+          duration: 6000,
           action: {
             label: "Copy Login Link",
             onClick: copyLoginLink,
@@ -184,6 +208,12 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
             {ROLE_DESCRIPTIONS[role]}
           </p>
         </div>
+
+        <ProjectAssignmentPicker
+          assignments={projectAssignments}
+          onChange={setProjectAssignments}
+          defaultRole={role === "admin" ? "producer" : role}
+        />
       </div>
     </ResponsiveDialog>
   )

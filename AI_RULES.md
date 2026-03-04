@@ -501,6 +501,23 @@ Always add test cases for these patterns when writing time/range/filter algorith
 
 Before creating any local utility function (normalizeText, humanizeLabel, parseCsvList, etc.), check `shared/lib/textUtils.ts` first. Sprint S8 found 3 independent implementations of normalizeText across 3 files. The consolidated version lives in `shared/lib/textUtils.ts`.
 
+### Wave-Based Agent Team Pattern (Sprint S10)
+
+For large feature slices requiring multiple agents with non-overlapping file ownership:
+
+1. **Research phase** (parallel, read-only): 2-3 Explore agents investigating permissions, admin UI, and infrastructure. Shut down after reports.
+2. **Plan and task creation**: Orchestrator synthesizes research into a task list with dependencies. User approves scope.
+3. **Wave 1 — Independent foundations** (parallel, 3 agents): Each agent owns distinct files. Example: security-rules-agent (firestore.rules), admin-ui-agent (admin components), cloud-functions-agent (functions/index.js, email.js).
+4. **Wave 2 — Dependent features** (parallel, reassigned agents): Agents pick up tasks unblocked by Wave 1 completion. Same non-overlapping file ownership.
+5. **Integration check**: One agent runs build + lint + full test suite. Fixes any cross-agent conflicts (e.g., test assertions broken by another agent's UI changes).
+6. **Security audit + documentation**: Final pass before marking complete.
+
+Key learnings:
+- **3 agents with wave reassignment** is more efficient than 6 agents with complex dependencies
+- **Non-overlapping file ownership** is mandatory — two agents editing the same file causes conflicts
+- **Agent message delivery is unreliable** — when reassigning agents to new tasks, send the full task brief (don't reference prior messages). If an agent doesn't acknowledge, re-send.
+- **Test conflicts across agents**: When one agent changes UI (e.g., table headers), another agent's test assertions may break. The integration check agent must fix these.
+
 ### Context Budget Rules
 
 - Each Plan.md phase is broken into lettered sub-tasks that fit in one session

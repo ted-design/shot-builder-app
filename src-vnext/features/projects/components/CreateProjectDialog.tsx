@@ -72,9 +72,11 @@ export function CreateProjectDialog({
         name: trimmedName,
         clientId,
         status: "active",
+        visibility: "team",
         shootDates,
         ...(brief ? { briefUrl: brief } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        createdBy: user?.uid ?? null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })

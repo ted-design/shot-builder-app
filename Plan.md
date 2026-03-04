@@ -815,6 +815,38 @@ Admin (role-gated: admin only)
 - [x] Fix: Removed `revokeRefreshTokens` from `processInvitation` (was invalidating caller's own session)
 - [x] Deployed and verified end-to-end (setUserClaims + claimInvitation)
 
+## Sprint S10: User Management Overhaul
+
+**Goal:** Complete the user management lifecycle — project visibility controls, enhanced admin roster with deactivation/reactivation, bulk project assignment, invitation emails via Resend, and first-run experience. Makes the admin panel production-ready for real team onboarding.
+
+**Status:** COMPLETE (uncommitted — needs git commit).
+
+**Rationale:** Real team onboarding requires admins to control who sees which projects, deactivate departed users, bulk-assign projects during invite, and send professional invitation emails. Without these, admins must manually coordinate access outside the app.
+
+### Sub-tasks
+
+- [x] **S10-1:** Firestore rules — producer global read access to all projects, project `visibility` field support (team/restricted/private), `_functionQueue` anonymous create for `publicUpdatePull`
+- [x] **S10-2:** Project visibility UI — 3-state radio (Team/Restricted/Private) in project settings dialog
+- [x] **S10-3:** Enhanced team roster — search/filter bar (debounced search, role filter, status filter), status badges (Active/Deactivated/Pending), expandable user detail panel, improved pending invitation display
+- [x] **S10-4:** Deactivation/reactivation — AlertDialog confirmation, inline role picker for reactivation, Cloud Function handlers (`handleDeactivateUser`, `handleReactivateUser`), resend invitation email button
+- [x] **S10-5:** Bulk project assignment — `ProjectAssignmentPicker` component, `bulkAddProjectMembers` write function, integrated into `UserDetailPanel` and `InviteUserDialog`
+- [x] **S10-6:** Invitation emails via Resend — `email.js` module, HTML+text templates, `handleResendInvitationEmail` Cloud Function, DNS verification
+- [x] **S10-7:** First-run experience — empty states for team roster and project list, welcome toast for new users
+- [x] **S10-8:** QA security audit — tested all role x visibility x membership combinations
+- [x] **S10-9:** Documentation — Plan.md, Architecture.md, HANDOFF.md, CHECKPOINT.md, MEMORY.md updated
+
+### Acceptance Criteria
+
+- [x] Admin can set project visibility to Team, Restricted, or Private
+- [x] Producers see all projects regardless of membership
+- [x] Admin roster supports search by name/email, filter by role/status
+- [x] User detail panel shows role, status, project memberships, last sign-in
+- [x] Deactivation requires AlertDialog confirmation, prevents self-deactivation
+- [x] Reactivation allows role selection before confirming
+- [x] Invitation emails sent via Resend with Production Hub branding
+- [x] Bulk project assignment available during invite and from user detail
+- [x] 2360 tests pass, build clean, lint zero warnings
+
 ---
 
 ## Cross-Phase Requirements

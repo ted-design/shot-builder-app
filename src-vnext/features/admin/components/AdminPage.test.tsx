@@ -21,6 +21,10 @@ vi.mock("@/features/admin/components/InviteUserDialog", () => ({
     open ? <div data-testid="invite-dialog">InviteDialog</div> : null,
 }))
 
+vi.mock("@/features/admin/hooks/usePendingInvitations", () => ({
+  usePendingInvitations: vi.fn(() => ({ data: [], loading: false, error: null })),
+}))
+
 vi.mock("@/features/admin/components/ProjectAccessTab", () => ({
   ProjectAccessTab: () => <div data-testid="project-access-tab">ProjectAccessTab</div>,
 }))
@@ -186,7 +190,7 @@ describe("AdminPage", () => {
       })
       renderPage()
       expect(screen.getByText("Name")).toBeInTheDocument()
-      expect(screen.getByText("Email")).toBeInTheDocument()
+      expect(screen.getByText("Status")).toBeInTheDocument()
       expect(screen.getByText("Role")).toBeInTheDocument()
       expect(screen.getByText("Updated")).toBeInTheDocument()
     })

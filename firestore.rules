@@ -34,6 +34,41 @@ service cloud.firestore {
          role == 'warehouse' || role == 'Warehouse' || role == 'WAREHOUSE');
     }
 
+    // Check if the user's global role (from auth custom claims) is in the provided list.
+    // Unlike hasProjectRole() which checks per-project membership docs,
+    // this checks the org-wide role assigned at signup/invite.
+    // Normalizes case variations to lowercase canonical form.
+    function hasGlobalRole(roles) {
+      let role = request.auth.token.role;
+      let normalizedRole = role == 'Producer' ? 'producer'
+        : role == 'PRODUCER' ? 'producer'
+        : role == 'Wardrobe' ? 'warehouse'
+        : role == 'WARDROBE' ? 'warehouse'
+        : role == 'wardrobe' ? 'warehouse'
+        : role == 'Warehouse' ? 'warehouse'
+        : role == 'WAREHOUSE' ? 'warehouse'
+        : role == 'Viewer' ? 'viewer'
+        : role == 'VIEWER' ? 'viewer'
+        : role == 'Crew' ? 'crew'
+        : role == 'CREW' ? 'crew'
+        : role == 'Admin' ? 'admin'
+        : role == 'ADMIN' ? 'admin'
+        : role;
+      return request.auth != null && roles.hasAny([normalizedRole]);
+    }
+
+    // Check if a producer has global access to a project based on its visibility.
+    // Producers get automatic access to 'team' visibility projects (the default).
+    // Used by project sub-resources that need to look up the parent project's visibility.
+    // Firestore caches get() calls within a single request, so repeated calls to the
+    // same project doc are efficient.
+    function producerCanAccessProject(clientId, projectId) {
+      let projectPath = /databases/$(database)/documents/clients/$(clientId)/projects/$(projectId);
+      let projectData = get(projectPath).data;
+      return hasGlobalRole(['producer']) &&
+        (!('visibility' in projectData) || projectData.visibility == 'team');
+    }
+
     function hasProjectRole(projectId, roles) {
       let clientId = userClient();
       let memberPath = /databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)/members/$(request.auth.uid);
@@ -383,17 +418,57 @@ service cloud.firestore {
     }
 
 	    match /clients/{clientId}/projects/{projectId} {
-	      allow read: if clientMatches(clientId) &&
-	        (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+        // --- Project Visibility Model ---
+        // Projects have an optional 'visibility' field: 'team' (default), 'private', or 'restricted'.
+        // - 'team' (or unset): All producers in the org can read/write. No membership doc needed.
+        // - 'private': Only the creator (createdBy) and admins can access.
+        // - 'restricted': Only explicit project members (via /members subcollection) can access.
+        // Admins always have full access regardless of visibility.
+
+        // Read: admins, producers on team-visible projects, private project creators, or explicit members
+	      allow read: if clientMatches(clientId) && (
+          isAdmin() ||
+          // Producers get read access to 'team' visibility projects (default when field absent)
+          (hasGlobalRole(['producer']) &&
+            (!('visibility' in resource.data) || resource.data.visibility == 'team')) ||
+          // Private projects: creator only (plus admins above)
+          (resource.data.visibility == 'private' && resource.data.createdBy == request.auth.uid) ||
+          // Restricted or any role with explicit membership
+          hasProjectRole(projectId, ['producer', 'warehouse', 'viewer'])
+        );
+
+        // Create: admins and producers can create projects
+        // Note: resource.data doesn't exist for creates, use request.resource.data
 	      allow create: if clientMatches(clientId) && (isAdmin() || isProducer());
-	      allow update, delete: if clientMatches(clientId) &&
-	        (isAdmin() || isProducer() || hasProjectRole(projectId, ['producer', 'warehouse']));
+
+        // Update: admins, producers on team-visible projects, private project creators, or members
+	      allow update: if clientMatches(clientId) && (
+          isAdmin() ||
+          // Producers can update team-visible projects
+          (hasGlobalRole(['producer']) &&
+            (!('visibility' in resource.data) || resource.data.visibility == 'team')) ||
+          // Private projects: creator can update
+          (resource.data.visibility == 'private' && resource.data.createdBy == request.auth.uid) ||
+          // Explicit project membership
+          hasProjectRole(projectId, ['producer', 'warehouse'])
+        );
+
+        // Delete: admins, producers on team-visible projects, private project creators
+        allow delete: if clientMatches(clientId) && (
+          isAdmin() ||
+          (hasGlobalRole(['producer']) &&
+            (!('visibility' in resource.data) || resource.data.visibility == 'team')) ||
+          (resource.data.visibility == 'private' && resource.data.createdBy == request.auth.uid) ||
+          hasProjectRole(projectId, ['producer', 'warehouse'])
+        );
 
         // Project members — per-project access control
         // Explicit rules prevent the wildcard catch-all from granting non-admin writes
         match /members/{memberId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
+            (isAdmin() ||
+            producerCanAccessProject(clientId, projectId) ||
+            hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
           // Admin-only member management
           allow create, update, delete: if clientMatches(clientId) && isAdmin();
           // Self-membership: allow producers to add themselves when creating a project.
@@ -410,33 +485,39 @@ service cloud.firestore {
 	      // Project departments and positions (project-scoped role taxonomy)
 	      match /departments/{departmentId} {
 	        allow read: if clientMatches(clientId) &&
-	          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+	          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+	           hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
 	        allow create, update, delete: if clientMatches(clientId) &&
-	          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+	          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+	           hasProjectRole(projectId, ['producer', 'warehouse']));
 
 	        match /positions/{positionId} {
 	          allow read: if clientMatches(clientId) &&
-	            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+	            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+	             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
 	          allow create, update, delete: if clientMatches(clientId) &&
-	            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+	            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+	             hasProjectRole(projectId, ['producer', 'warehouse']));
 	        }
 	      }
 
 	      // Pulls - project-specific access for authenticated users
 	      // Public sharing is handled by the top-level wildcard rule
 	      match /pulls/{pullId} {
-	        // Authenticated users with proper role
+	        // Authenticated users with proper role or producers on team-visible projects
 	        allow read, write: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
       }
 
       // Activities - project activity feed with 90-day retention
       match /activities/{activityId} {
         // Anyone with project read access can read activities
         allow read: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
 
-        // Only authenticated users with project access can create activities
+        // Authenticated users with project access can create activities
         // Validate that actorId matches authenticated user
         allow create: if clientMatches(clientId) && isAuthed() &&
           request.resource.data.actorId == request.auth.uid &&
@@ -453,11 +534,13 @@ service cloud.firestore {
       match /schedules/{scheduleId} {
         // Anyone with project access can read schedules
         allow read: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
 
         // Producers and above can create/update schedules
         allow create, update: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse']));
 
         // Only admins can delete schedules
         allow delete: if clientMatches(clientId) && isAdmin();
@@ -466,59 +549,74 @@ service cloud.firestore {
         match /entries/{entryId} {
           // Anyone with project access can read entries
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
 
           // Producers and above can create/update/delete entries
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
 
         // Day details - call times, notes, weather (per schedule)
         match /dayDetails/{detailId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
 
         // Talent call overrides (per schedule)
         match /talentCalls/{talentId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
 
         // Crew call overrides (per schedule)
         match /crewCalls/{crewMemberId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
 
         // Client call rows (per schedule)
         match /clientCalls/{clientCallId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
 
         // Call sheet builder state (config/layout/templates) for a schedule.
         match /callSheet/{docId} {
           allow read: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
           allow create, update, delete: if clientMatches(clientId) &&
-            (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+            (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+             hasProjectRole(projectId, ['producer', 'warehouse']));
         }
       }
 
+      // Wildcard catch-all for any other project sub-collections
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse', 'viewer']));
         allow create, update, delete: if clientMatches(clientId) &&
-          (isAdmin() || hasProjectRole(projectId, ['producer', 'warehouse']));
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse']));
       }
     }
   }
