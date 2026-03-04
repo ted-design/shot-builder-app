@@ -771,7 +771,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Rename app from "Shot Builder" to "Production Hub," redesign the login page with premium dark branding, remove unused board view, and implement seamless user onboarding so admins can invite users before they've signed in.
 
-**Status:** COMPLETE (uncommitted — needs git commit).
+**Status:** COMPLETE (committed, included in PR #363).
 
 **Rationale:** Real users cannot onboard without the admin invite flow working for pre-signup emails. The rename and login redesign establish the Production Hub brand identity. Board view removal simplifies from 4 views to 3 (Gallery, Visual, Table) per PRD "Cut/Simplify" guidance.
 
@@ -819,7 +819,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Complete the user management lifecycle — project visibility controls, enhanced admin roster with deactivation/reactivation, bulk project assignment, invitation emails via Resend, and first-run experience. Makes the admin panel production-ready for real team onboarding.
 
-**Status:** COMPLETE (uncommitted — needs git commit).
+**Status:** COMPLETE (PR #363 merged to main). Post-merge hotfix: `firestore.rules` producer list/get split deployed but uncommitted locally.
 
 **Rationale:** Real team onboarding requires admins to control who sees which projects, deactivate departed users, bulk-assign projects during invite, and send professional invitation emails. Without these, admins must manually coordinate access outside the app.
 

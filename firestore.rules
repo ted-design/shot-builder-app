@@ -425,10 +425,23 @@ service cloud.firestore {
         // - 'restricted': Only explicit project members (via /members subcollection) can access.
         // Admins always have full access regardless of visibility.
 
-        // Read: admins, producers on team-visible projects, private project creators, or explicit members
-	      allow read: if clientMatches(clientId) && (
+        // Read: split into list (collection query) vs get (single document) to avoid
+        // Firestore denying entire list queries when any document fails per-document checks.
+        //
+        // List: admins and producers can list all projects in their org.
+        // Producers need to see all projects on the dashboard — visibility is enforced
+        // on sub-resources (shots, pulls, schedules) and on writes, not on listing.
+        // Other roles need explicit project membership to see a project in lists.
+        allow list: if clientMatches(clientId) && (
           isAdmin() ||
-          // Producers get read access to 'team' visibility projects (default when field absent)
+          hasGlobalRole(['producer']) ||
+          hasProjectRole(projectId, ['producer', 'warehouse', 'viewer'])
+        );
+
+        // Get: individual document access applies full visibility rules.
+        allow get: if clientMatches(clientId) && (
+          isAdmin() ||
+          // Producers can read any team-visible project (default when field absent)
           (hasGlobalRole(['producer']) &&
             (!('visibility' in resource.data) || resource.data.visibility == 'team')) ||
           // Private projects: creator only (plus admins above)
