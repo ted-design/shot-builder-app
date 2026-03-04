@@ -73,27 +73,24 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Unbound Merino brand lockup — pinned bottom-left */}
-        <div className="absolute bottom-6 left-7 flex flex-col gap-1.5 md:bottom-10 md:left-10">
-          <img
-            src="/images/brands/unbound-logo-white.png"
-            alt="Unbound Merino"
-            className="h-7 w-auto opacity-90"
-          />
-          <span
-            className="text-xxs font-normal tracking-[0.04em]"
-            style={{ color: "rgba(255,255,255,0.45)" }}
-          >
-            Production Hub
-          </span>
-        </div>
       </div>
 
       {/* RIGHT: Sign-in panel */}
       <div
-        className="relative flex flex-1 flex-col items-center justify-center px-6 py-12 md:items-start md:px-14 md:py-20 lg:items-center lg:px-20"
+        className="relative flex flex-1 flex-col items-center justify-center px-6 py-12 md:px-14 md:py-20 lg:px-20"
         style={{ backgroundColor: "var(--color-bg)" }}
       >
+        {/* Unbound Merino brand logo — centered independently
+            Uses white PNG (properly cropped) with CSS invert for light mode.
+            The black PNG has excessive canvas padding (8860x4725) making it unusable at small sizes. */}
+        <div className="mb-10">
+          <img
+            src="/images/brands/unbound-logo-white.png"
+            alt="Unbound Merino"
+            className="h-auto w-[300px] invert dark:invert-0"
+          />
+        </div>
+
         {/* Sign-in content — constrained max-width */}
         <div className="flex w-full max-w-sm flex-col gap-10">
 
@@ -200,12 +197,12 @@ export default function LoginPage() {
           <img
             src="/images/brands/immediate-logo-black.png"
             alt="Immediate"
-            className="h-4 w-auto opacity-30 dark:hidden"
+            className="h-5 w-auto dark:hidden"
           />
           <img
             src="/images/brands/immediate-logo-white.png"
             alt="Immediate"
-            className="hidden h-4 w-auto opacity-35 dark:block"
+            className="hidden h-5 w-auto dark:block"
           />
         </div>
       </div>
