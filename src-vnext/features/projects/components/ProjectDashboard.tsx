@@ -16,6 +16,7 @@ import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Badge } from "@/ui/badge"
 import { Skeleton } from "@/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -97,6 +98,7 @@ export default function ProjectDashboard() {
   const filter = normalizeFilter(searchParams.get("filter"))
   const sort = normalizeSort(searchParams.get("sort"))
   const queryParam = searchParams.get("q") ?? ""
+  const tab = searchParams.get("tab") ?? "projects"
 
   const [queryDraft, setQueryDraft] = useState(queryParam)
   useEffect(() => setQueryDraft(queryParam), [queryParam])
@@ -124,6 +126,13 @@ export default function ProjectDashboard() {
     const next = new URLSearchParams(searchParams)
     if (value === "recent") next.delete("sort")
     else next.set("sort", value)
+    setSearchParams(next, { replace: true })
+  }
+
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === "projects") next.delete("tab")
+    else next.set("tab", value)
     setSearchParams(next, { replace: true })
   }
 
@@ -270,26 +279,8 @@ export default function ProjectDashboard() {
     )
   }
 
-  return (
-    <ErrorBoundary>
-      <PageHeader
-        title="Projects"
-        actions={
-          showCreate ? (
-            isMobile ? (
-              <Button size="icon" onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Project
-              </Button>
-            )
-          ) : undefined
-        }
-      />
-
+  const projectsContent = (
+    <>
       {baseProjects.length > 0 && (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -398,11 +389,44 @@ export default function ProjectDashboard() {
           ))}
         </div>
       )}
+    </>
+  )
 
-      {canManageProducts(role) && (
-        <div className="mt-6">
-          <ShootReadinessWidget />
-        </div>
+  return (
+    <ErrorBoundary>
+      <PageHeader
+        title="Projects"
+        actions={
+          showCreate ? (
+            isMobile ? (
+              <Button size="icon" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Project
+              </Button>
+            )
+          ) : undefined
+        }
+      />
+
+      {canManageProducts(role) ? (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="mb-4 w-auto">
+            <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="readiness">Shoot Readiness</TabsTrigger>
+          </TabsList>
+          <TabsContent value="projects">
+            {projectsContent}
+          </TabsContent>
+          <TabsContent value="readiness">
+            <ShootReadinessWidget />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        projectsContent
       )}
 
       {showCreate && (

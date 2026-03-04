@@ -65,7 +65,7 @@ describe("inviteOrUpdateUser", () => {
     )
   })
 
-  it("writes user doc after CF call with mergeFields", async () => {
+  it("writes user doc after CF call with merge: true", async () => {
     await inviteOrUpdateUser({
       targetEmail: "user@example.com",
       displayName: "Jane Doe",
@@ -79,8 +79,8 @@ describe("inviteOrUpdateUser", () => {
     expect(data.displayName).toBe("Jane Doe")
     expect(data.role).toBe("producer")
     expect(data.updatedAt).toBe("SERVER_TS")
-    expect(options.mergeFields).toContain("email")
-    expect(options.mergeFields).toContain("role")
+    expect(data.createdAt).toBeUndefined()
+    expect(options.merge).toBe(true)
   })
 
   it("stores null displayName when empty string is provided", async () => {

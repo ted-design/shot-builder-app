@@ -269,7 +269,13 @@ async function handleSetUserClaims(data, caller) {
   const newClaims = { ...(user.customClaims || {}), role, clientId };
 
   await admin.auth().setCustomUserClaims(user.uid, newClaims);
-  await admin.auth().revokeRefreshTokens(user.uid);
+
+  // Only revoke refresh tokens when admin is changing ANOTHER user's claims.
+  // Revoking on self would invalidate the caller's session before the client
+  // can call getIdToken(true) to pick up the new custom claims.
+  if (user.uid !== caller.uid) {
+    await admin.auth().revokeRefreshTokens(user.uid);
+  }
 
   return { ok: true, uid: user.uid, claims: newClaims };
 }

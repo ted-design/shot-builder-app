@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Inbox, Plus } from "lucide-react"
+import { ClipboardCheck, Plus } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useShotRequests } from "@/features/requests/hooks/useShotRequests"
@@ -47,7 +47,7 @@ function sortRequests(requests: readonly ShotRequest[]): readonly ShotRequest[] 
   })
 }
 
-export default function ShotRequestInboxPage() {
+export default function ShotRequestCentrePage() {
   const { user, clientId } = useAuth()
   const isDesktop = useIsDesktop()
   const { data: allRequests, loading, error } = useShotRequests()
@@ -118,7 +118,7 @@ export default function ShotRequestInboxPage() {
   return (
     <div className="flex flex-col">
       <PageHeader
-        title="Inbox"
+        title="Request Centre"
         actions={
           <div className="flex items-center gap-2">
             {submittedCount > 0 && (
@@ -202,7 +202,7 @@ export default function ShotRequestInboxPage() {
         <div>
           {filteredRequests.length === 0 ? (
             <EmptyState
-              icon={<Inbox className="h-12 w-12" />}
+              icon={<ClipboardCheck className="h-12 w-12" />}
               title="No requests"
               description="No shot requests match your current filters."
             />

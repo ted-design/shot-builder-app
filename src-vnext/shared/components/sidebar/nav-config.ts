@@ -7,7 +7,7 @@ import { ROLE } from "@/shared/lib/rbac"
 
 export type NavItemIcon =
   | "layout-grid"
-  | "inbox"
+  | "clipboard-check"
   | "camera"
   | "clipboard-list"
   | "image"
@@ -67,7 +67,7 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
     if (role === ROLE.ADMIN || role === ROLE.PRODUCER) {
       entries.push({
         type: "item",
-        item: { label: "Inbox", to: "/inbox", iconName: "inbox" },
+        item: { label: "Request Centre", to: "/requests", iconName: "clipboard-check" },
       })
     }
 

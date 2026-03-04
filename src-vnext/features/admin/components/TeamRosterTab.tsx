@@ -14,6 +14,7 @@ interface UserEntry {
   readonly role: string
   readonly status?: string
   readonly updatedAt?: unknown
+  readonly lastSignInAt?: unknown
 }
 
 interface TeamRosterTabProps {
@@ -164,6 +165,7 @@ export function TeamRosterTab({
                   role={u.role}
                   status={u.status}
                   updatedAt={u.updatedAt}
+                  lastSignInAt={u.lastSignInAt}
                   currentUserId={currentUserId}
                   clientId={clientId}
                   isExpanded={expandedUserId === u.id}

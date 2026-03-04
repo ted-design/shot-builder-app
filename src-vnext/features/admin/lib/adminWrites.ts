@@ -54,9 +54,8 @@ export async function inviteOrUpdateUser({
       displayName: displayName || null,
       role,
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
     },
-    { mergeFields: ["email", "displayName", "role", "updatedAt"] },
+    { merge: true },
   )
 
   return { uid }

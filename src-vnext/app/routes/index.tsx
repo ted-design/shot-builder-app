@@ -71,8 +71,8 @@ const LibraryPalettePage = lazy(
 const AdminPage = lazy(
   () => import("@/features/admin/components/AdminPage"),
 )
-const ShotRequestInboxPage = lazy(
-  () => import("@/features/requests/components/ShotRequestInboxPage"),
+const ShotRequestCentrePage = lazy(
+  () => import("@/features/requests/components/ShotRequestCentrePage"),
 )
 
 // Dev-only components — only imported in development to keep them out of production bundles
@@ -188,13 +188,14 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="inbox"
+            path="requests"
             element={
               <RequireRole allowed={["admin", "producer"]}>
-                <ShotRequestInboxPage />
+                <ShotRequestCentrePage />
               </RequireRole>
             }
           />
+          <Route path="inbox" element={<Navigate to="/requests" replace />} />
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/new" element={<ProductEditorPage />} />
           <Route path="products/:fid/edit" element={<ProductEditorPage />} />
