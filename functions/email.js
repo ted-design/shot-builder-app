@@ -105,6 +105,7 @@ async function sendInvitationEmail({ to, role, inviterName, inviterEmail }) {
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to,
+      reply_to: "ted@immediategroup.ca",
       subject: `You've been invited to ${APP_NAME}`,
       html: buildInvitationHtml({ inviterName, role, inviterEmail }),
       text: buildInvitationText({ inviterName, role, inviterEmail }),

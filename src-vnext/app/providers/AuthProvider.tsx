@@ -7,7 +7,9 @@ import {
   type ReactNode,
 } from "react"
 import { onIdTokenChanged, type User } from "firebase/auth"
-import { auth } from "@/shared/lib/firebase"
+import { auth, db } from "@/shared/lib/firebase"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { userDocPath } from "@/shared/lib/paths"
 import { callFunction } from "@/shared/lib/callFunction"
 import { normalizeRole } from "@/shared/lib/rbac"
 import type { AuthClaims, AuthUser, Role } from "@/shared/types"
@@ -119,6 +121,10 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
           error: null,
           claimingInvitation: false,
         })
+
+        // Fire-and-forget: record last sign-in time
+        const userRef = doc(db, ...userDocPath(firebaseUser.uid, clientId))
+        setDoc(userRef, { lastSignInAt: serverTimestamp() }, { merge: true }).catch(() => {})
       } catch (err) {
         setState({
           user: mapUser(firebaseUser),

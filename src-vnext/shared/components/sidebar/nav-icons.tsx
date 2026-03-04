@@ -2,10 +2,10 @@ import {
   ArrowLeft,
   CalendarDays,
   Camera,
+  ClipboardCheck,
   ClipboardList,
   HardHat,
   Image,
-  Inbox,
   Landmark,
   LayoutGrid,
   MapPin,
@@ -21,7 +21,7 @@ import type { NavItemIcon } from "./nav-config"
 
 const ICON_MAP: Record<NavItemIcon, LucideIcon> = {
   "layout-grid": LayoutGrid,
-  inbox: Inbox,
+  "clipboard-check": ClipboardCheck,
   camera: Camera,
   "clipboard-list": ClipboardList,
   image: Image,

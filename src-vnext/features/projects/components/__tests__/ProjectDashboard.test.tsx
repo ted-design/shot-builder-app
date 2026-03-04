@@ -31,6 +31,10 @@ vi.mock("@/features/projects/components/EditProjectDialog", () => ({
   EditProjectDialog: () => null,
 }))
 
+vi.mock("@/features/dashboard/components/ShootReadinessWidget", () => ({
+  ShootReadinessWidget: () => <div data-testid="shoot-readiness-widget" />,
+}))
+
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useAuth } from "@/app/providers/AuthProvider"
 import ProjectDashboard from "@/features/projects/components/ProjectDashboard"
@@ -195,6 +199,62 @@ describe("ProjectDashboard", () => {
 
     expect(screen.getByText("Visible")).toBeInTheDocument()
     expect(screen.queryByText("Deleted")).not.toBeInTheDocument()
+  })
+
+  describe("dashboard tabs", () => {
+    it("shows tabs for producer role (canManageProducts)", () => {
+      mockUseAuth.mockReturnValue({ role: "producer" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+
+      renderPage("/projects")
+
+      expect(screen.getByRole("tab", { name: "Projects" })).toBeInTheDocument()
+      expect(screen.getByRole("tab", { name: "Shoot Readiness" })).toBeInTheDocument()
+    })
+
+    it("does not show tabs for crew role", () => {
+      mockUseAuth.mockReturnValue({ role: "crew" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+
+      renderPage("/projects")
+
+      expect(screen.queryByRole("tab", { name: "Projects" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("tab", { name: "Shoot Readiness" })).not.toBeInTheDocument()
+    })
+
+    it("defaults to projects tab (no ShootReadinessWidget visible)", () => {
+      mockUseAuth.mockReturnValue({ role: "producer" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+
+      renderPage("/projects")
+
+      expect(screen.queryByTestId("shoot-readiness-widget")).not.toBeInTheDocument()
+    })
+
+    it("shows ShootReadinessWidget on tab=readiness", () => {
+      mockUseAuth.mockReturnValue({ role: "producer" })
+      ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+        data: [],
+        loading: false,
+        error: null,
+      })
+
+      renderPage("/projects?tab=readiness")
+
+      expect(screen.getByTestId("shoot-readiness-widget")).toBeInTheDocument()
+    })
   })
 })
 

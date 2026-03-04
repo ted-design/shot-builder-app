@@ -23,6 +23,7 @@ interface TeamUserRowProps {
   readonly isExpanded: boolean
   readonly onToggleExpand: () => void
   readonly projectMemberships: ReadonlyArray<ProjectMembership>
+  readonly lastSignInAt: unknown
   readonly formatTimestamp: (ts: unknown) => string
 }
 
@@ -45,6 +46,7 @@ export function TeamUserRow({
   clientId,
   isExpanded,
   onToggleExpand,
+  lastSignInAt,
   projectMemberships,
   formatTimestamp,
 }: TeamUserRowProps) {
@@ -101,7 +103,7 @@ export function TeamUserRow({
           )}
         </td>
         <td className="hidden px-4 py-2.5 text-sm text-[var(--color-text-muted)] sm:table-cell">
-          {"\u2014"}
+          {formatTimestamp(lastSignInAt)}
         </td>
         <td className="hidden px-4 py-2.5 text-sm text-[var(--color-text-muted)] md:table-cell">
           {formatTimestamp(updatedAt)}
@@ -120,7 +122,7 @@ export function TeamUserRow({
               isSelf={isSelf}
               isPending={false}
               isDeactivated={isDeactivated}
-              lastSignIn={"\u2014"}
+              lastSignIn={formatTimestamp(lastSignInAt)}
               projectMemberships={projectMemberships}
             />
           </td>

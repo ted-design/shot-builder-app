@@ -44,7 +44,7 @@ vi.mock("react-router-dom", async () => {
   }
 })
 
-import ShotRequestInboxPage from "./ShotRequestInboxPage"
+import ShotRequestCentrePage from "./ShotRequestCentrePage"
 
 function makeRequest(overrides: Partial<ShotRequest> = {}): ShotRequest {
   return {
@@ -70,7 +70,7 @@ function makeRequest(overrides: Partial<ShotRequest> = {}): ShotRequest {
   }
 }
 
-describe("ShotRequestInboxPage", () => {
+describe("ShotRequestCentrePage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSearchParams.delete("filter")
@@ -78,21 +78,21 @@ describe("ShotRequestInboxPage", () => {
     mockSearchParams.delete("mine")
   })
 
-  it("renders the page header with Inbox title", () => {
+  it("renders the page header with Request Centre title", () => {
     mockUseShotRequests.mockReturnValue({ data: [], loading: false, error: null })
-    render(<ShotRequestInboxPage />)
-    expect(screen.getByText("Inbox")).toBeInTheDocument()
+    render(<ShotRequestCentrePage />)
+    expect(screen.getByText("Request Centre")).toBeInTheDocument()
   })
 
   it("renders New Request button", () => {
     mockUseShotRequests.mockReturnValue({ data: [], loading: false, error: null })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByRole("button", { name: /new request/i })).toBeInTheDocument()
   })
 
   it("renders filter tabs", () => {
     mockUseShotRequests.mockReturnValue({ data: [], loading: false, error: null })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("All")).toBeInTheDocument()
     expect(screen.getByText("Submitted")).toBeInTheDocument()
     expect(screen.getByText("Triaged")).toBeInTheDocument()
@@ -101,7 +101,7 @@ describe("ShotRequestInboxPage", () => {
 
   it("shows empty message when no requests", () => {
     mockUseShotRequests.mockReturnValue({ data: [], loading: false, error: null })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("No requests found")).toBeInTheDocument()
   })
 
@@ -114,7 +114,7 @@ describe("ShotRequestInboxPage", () => {
       loading: false,
       error: null,
     })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("First Request")).toBeInTheDocument()
     expect(screen.getByText("Second Request")).toBeInTheDocument()
   })
@@ -129,7 +129,7 @@ describe("ShotRequestInboxPage", () => {
       loading: false,
       error: null,
     })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("2 pending")).toBeInTheDocument()
   })
 
@@ -139,7 +139,7 @@ describe("ShotRequestInboxPage", () => {
       loading: false,
       error: { message: "Connection failed", isMissingIndex: false },
     })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("Connection failed")).toBeInTheDocument()
   })
 
@@ -149,7 +149,7 @@ describe("ShotRequestInboxPage", () => {
       loading: false,
       error: null,
     })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
     expect(screen.getByText("Select a request to view details")).toBeInTheDocument()
   })
 
@@ -173,7 +173,7 @@ describe("ShotRequestInboxPage", () => {
       loading: false,
       error: null,
     })
-    render(<ShotRequestInboxPage />)
+    render(<ShotRequestCentrePage />)
 
     const cardButtons = screen.getAllByRole("button").filter(
       (btn) =>

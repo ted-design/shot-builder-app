@@ -203,7 +203,7 @@ service cloud.firestore {
 
 	    match /clients/{clientId}/talent/{docId} {
 	      allow read: if clientMatches(clientId);
-	      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+	      allow create, update, delete: if clientMatches(clientId) && (isAdmin() || isProducer());
 
       // Versions - immutable document snapshots for version history
       match /versions/{versionId} {
@@ -222,7 +222,7 @@ service cloud.firestore {
 
     match /clients/{clientId}/locations/{docId} {
       allow read: if clientMatches(clientId);
-      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+      allow create, update, delete: if clientMatches(clientId) && (isAdmin() || isProducer());
 
       // Versions - immutable document snapshots for version history
       match /versions/{versionId} {
@@ -266,7 +266,7 @@ service cloud.firestore {
 
 	    match /clients/{clientId}/shots/{docId} {
 	      allow read: if clientMatches(clientId);
-	      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+	      allow create, update, delete: if clientMatches(clientId) && (isAdmin() || isProducer());
 
       // Comments - subcollection of shots for collaboration
       match /comments/{commentId} {

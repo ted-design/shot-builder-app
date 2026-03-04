@@ -484,6 +484,7 @@ export interface UserProfile {
   readonly projects?: Record<string, unknown>
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp
+  readonly lastSignInAt?: Timestamp
 }
 
 export interface AuthUser {

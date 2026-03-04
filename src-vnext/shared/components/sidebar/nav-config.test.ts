@@ -98,60 +98,60 @@ describe("buildNavConfig", () => {
     expect(admin).toBeUndefined()
   })
 
-  it("includes Inbox entry for admin role in org view", () => {
+  it("includes Request Centre entry for admin role in org view", () => {
     const config = buildNavConfig(undefined, "admin")
-    const inbox = config.entries.find(
-      (e) => e.type === "item" && e.item.label === "Inbox",
+    const reqCentre = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Request Centre",
     )
-    expect(inbox).toBeDefined()
-    if (inbox?.type === "item") {
-      expect(inbox.item.to).toBe("/inbox")
-      expect(inbox.item.iconName).toBe("inbox")
+    expect(reqCentre).toBeDefined()
+    if (reqCentre?.type === "item") {
+      expect(reqCentre.item.to).toBe("/requests")
+      expect(reqCentre.item.iconName).toBe("clipboard-check")
     }
   })
 
-  it("includes Inbox entry for producer role in org view", () => {
+  it("includes Request Centre entry for producer role in org view", () => {
     const config = buildNavConfig(undefined, "producer")
-    const inbox = config.entries.find(
-      (e) => e.type === "item" && e.item.label === "Inbox",
+    const reqCentre = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Request Centre",
     )
-    expect(inbox).toBeDefined()
+    expect(reqCentre).toBeDefined()
   })
 
-  it("excludes Inbox entry for crew role", () => {
+  it("excludes Request Centre entry for crew role", () => {
     const config = buildNavConfig(undefined, "crew")
-    const inbox = config.entries.find(
-      (e) => e.type === "item" && e.item.label === "Inbox",
+    const reqCentre = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Request Centre",
     )
-    expect(inbox).toBeUndefined()
+    expect(reqCentre).toBeUndefined()
   })
 
-  it("excludes Inbox entry for warehouse role", () => {
+  it("excludes Request Centre entry for warehouse role", () => {
     const config = buildNavConfig(undefined, "warehouse")
-    const inbox = config.entries.find(
-      (e) => e.type === "item" && e.item.label === "Inbox",
+    const reqCentre = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Request Centre",
     )
-    expect(inbox).toBeUndefined()
+    expect(reqCentre).toBeUndefined()
   })
 
-  it("excludes Inbox entry for viewer role", () => {
+  it("excludes Request Centre entry for viewer role", () => {
     const config = buildNavConfig(undefined, "viewer")
-    const inbox = config.entries.find(
-      (e) => e.type === "item" && e.item.label === "Inbox",
+    const reqCentre = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Request Centre",
     )
-    expect(inbox).toBeUndefined()
+    expect(reqCentre).toBeUndefined()
   })
 
-  it("places Inbox between Dashboard and Products for admin", () => {
+  it("places Request Centre between Dashboard and Products for admin", () => {
     const config = buildNavConfig(undefined, "admin")
     const items = config.entries
       .filter((e) => e.type === "item")
       .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
     const dashIdx = items.indexOf("Dashboard")
-    const inboxIdx = items.indexOf("Inbox")
+    const reqIdx = items.indexOf("Request Centre")
     const productsIdx = items.indexOf("Products")
-    expect(inboxIdx).toBeGreaterThan(dashIdx)
-    expect(inboxIdx).toBeLessThan(productsIdx)
+    expect(reqIdx).toBeGreaterThan(dashIdx)
+    expect(reqIdx).toBeLessThan(productsIdx)
   })
 })
 

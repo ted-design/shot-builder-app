@@ -7,6 +7,17 @@ import { roleLabel } from "@/shared/lib/rbac"
 import { resendInvitation } from "@/features/admin/lib/adminWrites"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { Button } from "@/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/ui/alert-dialog"
 import type { Role } from "@/shared/types"
 import type { Timestamp } from "firebase/firestore"
 
@@ -98,15 +109,37 @@ export function PendingInvitationRow({
           >
             <RefreshCw className={`h-4 w-4 ${resending ? "animate-spin" : ""}`} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
-            onClick={handleRevoke}
-            title="Revoke invitation"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
+                title="Revoke invitation"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Revoke Invitation</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently revoke the pending invitation for{" "}
+                  <span className="font-medium text-[var(--color-text)]">{email}</span>.
+                  They will no longer be able to join using this invitation.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleRevoke}
+                  className="bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]/90"
+                >
+                  Revoke
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </td>
     </tr>
