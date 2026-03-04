@@ -60,6 +60,8 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - **Reuse existing Firestore collections and document shapes.** No new collections, no new fields, no schema changes without overwhelming justification.
 - If a schema change is proposed, you must: (a) present the rationale, (b) present a migration plan (rules/backfill/dual-write), (c) STOP for approval before proceeding.
 - **Approved exception:** `pendingInvitations` subcollection under `clients/{clientId}/` (Sprint S9) — stores pre-signup role invitations keyed by normalized email. Admin-only read/write in `firestore.rules`.
+- **Approved exception:** `_functionQueue` collection (Sprint S9b) — Firestore Queue pattern for Cloud Function invocation. Client writes request doc, `processQueue` onCreate trigger processes server-side, client reads response via `onSnapshot`. Bypasses GCP org policy IAM restrictions. See Architecture.md "Cloud Functions" section.
+- **Cloud Function invocation:** All callable functions use `callFunction()` from `shared/lib/callFunction.ts` (Firestore queue-based). Do NOT use `httpsCallable` or direct HTTP fetch. The `onRequest` exports in `functions/index.js` are dormant fallback.
 - Reuse existing `firestore.rules` — do not modify security rules unless the change is required by a new vNext route and has been reviewed.
 - Auth custom claims (`role`, `clientId`) and the 5-role model (admin, producer, crew, warehouse, viewer) are fixed infrastructure.
 - Firestore path helpers from `shared/lib/paths` are the single source for collection references.

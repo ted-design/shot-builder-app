@@ -7,8 +7,8 @@ import {
   type ReactNode,
 } from "react"
 import { onIdTokenChanged, type User } from "firebase/auth"
-import { httpsCallable } from "firebase/functions"
-import { auth, functions } from "@/shared/lib/firebase"
+import { auth } from "@/shared/lib/firebase"
+import { callFunction } from "@/shared/lib/callFunction"
 import { normalizeRole } from "@/shared/lib/rbac"
 import type { AuthClaims, AuthUser, Role } from "@/shared/types"
 
@@ -78,13 +78,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
             }))
 
             try {
-              const claimFn = httpsCallable<
-                Record<string, never>,
-                { ok: boolean; reason?: string; role?: string; clientId?: string }
-              >(functions, "claimInvitation")
-              const result = await claimFn({})
+              const result = await callFunction<{
+                ok: boolean
+                reason?: string
+                role?: string
+                clientId?: string
+              }>("claimInvitation", {})
 
-              if (result.data.ok) {
+              if (result.ok) {
                 await firebaseUser.getIdToken(true)
                 return
               }

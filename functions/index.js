@@ -8,20 +8,12 @@ admin.initializeApp();
 // Set SUPER_ADMIN_EMAIL in environment variables for production
 const FALLBACK_SUPER_ADMIN = process.env.SUPER_ADMIN_EMAIL || "ted@immediategroup.ca";
 
-/**
- * Check if the given email is authorized to manage user claims.
- * Checks in order:
- * 1. Firestore /systemAdmins collection
- * 2. Fallback to environment variable or hardcoded super admin
- *
- * @param {string} email - The email to check
- * @returns {Promise<boolean>} - Whether the email is authorized
- */
+// --- Utility functions ---
+
 async function isAuthorizedAdmin(email) {
   if (!email) return false;
 
   try {
-    // Check Firestore for system admins
     const adminDoc = await admin.firestore()
       .collection("systemAdmins")
       .doc(email)
@@ -32,152 +24,66 @@ async function isAuthorizedAdmin(email) {
     }
   } catch (error) {
     console.error("Error checking systemAdmins collection:", error);
-    // Continue to fallback
   }
 
-  // Fallback to super admin
   return email === FALLBACK_SUPER_ADMIN;
 }
 
-/**
- * Callable: setUserClaims (Cloud Functions v1)
- * data: { targetEmail: string, role: "admin"|"editor"|"viewer"|"warehouse"|"producer"|"crew", clientId: string }
- */
-exports.setUserClaims = functions
-  .region("northamerica-northeast1")
-  .https.onCall(async (data, context) => {
-    // Check authentication
-    if (!context.auth || !context.auth.uid) {
-      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
-    }
+function handleCors(req, res) {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-    const callerEmail = context.auth.token.email;
-    const isAuthorized = await isAuthorizedAdmin(callerEmail);
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return true;
+  }
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return true;
+  }
+  return false;
+}
 
-    if (!isAuthorized) {
-      throw new functions.https.HttpsError("permission-denied", "Not authorized.");
-    }
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  const idToken = authHeader.split("Bearer ")[1];
+  try {
+    return await admin.auth().verifyIdToken(idToken);
+  } catch {
+    return null;
+  }
+}
 
-    const targetEmail = data.targetEmail;
-    const role = data.role;
-    const clientId = data.clientId;
-
-    const VALID_ROLES = {
-      admin: true,
-      editor: true,
-      viewer: true,
-      warehouse: true,
-      producer: true,
-      crew: true,
-    };
-
-    if (!targetEmail || !VALID_ROLES[role] || !clientId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Invalid input. Provide targetEmail, role, clientId."
-      );
-    }
-
-    let user;
-    try {
-      user = await admin.auth().getUserByEmail(targetEmail);
-    } catch (lookupErr) {
-      if (lookupErr.code === "auth/user-not-found") {
-        const normalizedEmail = targetEmail.trim().toLowerCase();
-        const invitationRef = admin.firestore()
-          .collection("clients")
-          .doc(clientId)
-          .collection("pendingInvitations")
-          .doc(normalizedEmail);
-
-        await invitationRef.set({
-          email: normalizedEmail,
-          role,
-          displayName: null,
-          invitedBy: context.auth.uid,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          status: "pending",
-          claimedAt: null,
-          claimedByUid: null,
-        }, { merge: true });
-
-        return { ok: true, pending: true, email: targetEmail.trim() };
-      }
-      throw lookupErr;
-    }
-
-    const newClaims = user.customClaims || {};
-    newClaims.role = role;
-    newClaims.clientId = clientId;
-
-    await admin.auth().setCustomUserClaims(user.uid, newClaims);
-    await admin.auth().revokeRefreshTokens(user.uid);
-
-    return { ok: true, uid: user.uid, claims: newClaims };
-  });
-
-/**
- * Callable: claimInvitation (Cloud Functions v1)
- * Called by AuthProvider when a signed-in user has no claims.
- * Looks up a pending invitation by email, sets claims, and marks it claimed.
- */
-exports.claimInvitation = functions
-  .region("northamerica-northeast1")
-  .https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.uid) {
-      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
-    }
-
-    const callerEmail = context.auth.token.email;
-    if (!callerEmail) {
-      return { ok: false, reason: "no-email" };
-    }
-
-    const normalizedEmail = callerEmail.trim().toLowerCase();
-    const db = admin.firestore();
-
-    const invitationsQuery = db.collectionGroup("pendingInvitations")
-      .where("status", "==", "pending")
-      .where("email", "==", normalizedEmail)
-      .limit(1);
-
-    const snapshot = await invitationsQuery.get();
-
-    if (snapshot.empty) {
-      return { ok: false, reason: "no-invitation" };
-    }
-
-    return await processInvitation(snapshot.docs[0], context.auth);
-  });
-
-async function processInvitation(invitationDoc, authContext) {
+async function processInvitation(invitationDoc, caller) {
   const invitation = invitationDoc.data();
-  const uid = authContext.uid;
+  const uid = caller.uid;
 
   const pathParts = invitationDoc.ref.path.split("/");
   const clientId = pathParts[1];
 
   if (!clientId) {
-    throw new functions.https.HttpsError("internal", "Could not determine client from invitation.");
+    throw new Error("Could not determine client from invitation.");
   }
 
-  const existingClaims = {};
+  let baseClaims = {};
   try {
     const userRecord = await admin.auth().getUser(uid);
-    Object.assign(existingClaims, userRecord.customClaims || {});
+    baseClaims = userRecord.customClaims || {};
   } catch {
     // New user, no existing claims
   }
+  const updatedClaims = { ...baseClaims, role: invitation.role, clientId };
 
-  existingClaims.role = invitation.role;
-  existingClaims.clientId = clientId;
-
-  await admin.auth().setCustomUserClaims(uid, existingClaims);
+  await admin.auth().setCustomUserClaims(uid, updatedClaims);
 
   const db = admin.firestore();
   await db.collection("clients").doc(clientId).collection("users").doc(uid).set({
-    email: authContext.token.email,
-    displayName: authContext.token.name || null,
+    email: caller.email,
+    displayName: caller.name || null,
     role: invitation.role,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -189,42 +95,583 @@ async function processInvitation(invitationDoc, authContext) {
     claimedByUid: uid,
   });
 
-  await admin.auth().revokeRefreshTokens(uid);
+  // Note: Do NOT call revokeRefreshTokens here. The caller is claiming their
+  // OWN invitation — revoking would invalidate their session before the client
+  // can call getIdToken(true) to pick up the new custom claims.
 
   return { ok: true, role: invitation.role, clientId };
 }
 
-/**
- * HTTP Endpoint: resolvePullShareToken (Cloud Functions v1)
- * Securely resolves a public share token to pull data without exposing database structure.
- * This prevents client-side collection scanning and rate-limits token resolution.
- * Uses Cloud Functions v1 to work with Firebase Hosting rewrites without IAM policy issues.
- *
- * POST body: { data: { shareToken: string } }
- * returns: { pull: object, clientId: string, projectId: string } | { error: string }
- */
+const isValidEmail = (email) => {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim();
+  if (!trimmed) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+};
+
+const coerceInt = (value, { min = null, max = null } = {}) => {
+  const number = typeof value === "number" ? value : Number(String(value ?? "").trim());
+  if (!Number.isFinite(number)) return null;
+  const rounded = Math.round(number);
+  if (min !== null && rounded < min) return min;
+  if (max !== null && rounded > max) return max;
+  return rounded;
+};
+
+const calculateItemFulfillment = (item) => {
+  if (!item || !Array.isArray(item.sizes) || item.sizes.length === 0) return "pending";
+
+  let totalRequested = 0;
+  let totalFulfilled = 0;
+  let hasSubstitution = false;
+
+  item.sizes.forEach((size) => {
+    totalRequested += size.quantity || 0;
+    totalFulfilled += size.fulfilled || 0;
+    if (size.status === "substituted") hasSubstitution = true;
+  });
+
+  if (hasSubstitution) return "substituted";
+  if (totalFulfilled <= 0) return "pending";
+  if (totalFulfilled >= totalRequested) return "fulfilled";
+  return "partial";
+};
+
+const generatePublicItemId = () => {
+  try {
+    // eslint-disable-next-line global-require
+    const { randomUUID } = require("crypto");
+    if (typeof randomUUID === "function") return `public-${randomUUID()}`;
+  } catch {
+    // Ignore and fall back
+  }
+  return `public-${Math.random().toString(36).slice(2)}`;
+};
+
+// --- Error code to HTTP status mapping (for onRequest fallback) ---
+
+const CODE_TO_STATUS = {
+  "unauthenticated": 401,
+  "permission-denied": 403,
+  "invalid-argument": 400,
+  "not-found": 404,
+  "failed-precondition": 400,
+};
+
+function sendHandlerError(res, error, logTag) {
+  const code = error.code || "internal";
+  const status = CODE_TO_STATUS[code] || 500;
+  const message = status < 500 ? error.message : "Internal error";
+  console.error(`[${logTag}] Error:`, error);
+  res.status(status).json({ error: message, code });
+}
+
+// --- Extracted handler functions (shared by onRequest fallback and processQueue trigger) ---
+
+async function handleSetUserClaims(data, caller) {
+  const targetEmail = data.targetEmail;
+  const role = data.role;
+  const clientId = data.clientId;
+
+  const callerEmail = caller.email;
+  const isAuthorized = await isAuthorizedAdmin(callerEmail);
+
+  if (!isAuthorized) {
+    const callerRole = caller.role;
+    const callerClientId = caller.clientId;
+    if (callerRole === "admin" && callerClientId === clientId) {
+      // App-level admin within the same client — allowed
+    } else {
+      throw Object.assign(new Error("Not authorized."), { code: "permission-denied" });
+    }
+  }
+
+  const VALID_ROLES = {
+    admin: true,
+    editor: true,
+    viewer: true,
+    warehouse: true,
+    producer: true,
+    crew: true,
+  };
+
+  if (!targetEmail || !VALID_ROLES[role] || !clientId) {
+    throw Object.assign(new Error("Invalid input. Provide targetEmail, role, clientId."), { code: "invalid-argument" });
+  }
+
+  let user;
+  try {
+    user = await admin.auth().getUserByEmail(targetEmail);
+  } catch (lookupErr) {
+    if (lookupErr.code === "auth/user-not-found") {
+      const normalizedEmail = targetEmail.trim().toLowerCase();
+      const invitationRef = admin.firestore()
+        .collection("clients")
+        .doc(clientId)
+        .collection("pendingInvitations")
+        .doc(normalizedEmail);
+
+      await invitationRef.set({
+        email: normalizedEmail,
+        role,
+        displayName: null,
+        invitedBy: caller.uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "pending",
+        claimedAt: null,
+        claimedByUid: null,
+      }, { merge: true });
+
+      return { ok: true, pending: true, email: targetEmail.trim() };
+    }
+    throw lookupErr;
+  }
+
+  const newClaims = { ...(user.customClaims || {}), role, clientId };
+
+  await admin.auth().setCustomUserClaims(user.uid, newClaims);
+  await admin.auth().revokeRefreshTokens(user.uid);
+
+  return { ok: true, uid: user.uid, claims: newClaims };
+}
+
+async function handleClaimInvitation(data, caller) {
+  const callerEmail = caller.email;
+  if (!callerEmail) {
+    return { ok: false, reason: "no-email" };
+  }
+
+  const normalizedEmail = callerEmail.trim().toLowerCase();
+  const db = admin.firestore();
+
+  const invitationsQuery = db.collectionGroup("pendingInvitations")
+    .where("status", "==", "pending")
+    .where("email", "==", normalizedEmail)
+    .limit(1);
+
+  const snapshot = await invitationsQuery.get();
+
+  if (snapshot.empty) {
+    return { ok: false, reason: "no-invitation" };
+  }
+
+  return processInvitation(snapshot.docs[0], caller);
+}
+
+async function handleCreateShotShareLink(data, caller) {
+  const rawRole = caller.role;
+  const role = typeof rawRole === "string" ? rawRole.trim().toLowerCase() : "";
+  const rawClientId = caller.clientId ?? caller.orgId;
+  const clientId = typeof rawClientId === "string" ? rawClientId.trim() : "";
+
+  if (!clientId) {
+    throw Object.assign(new Error("Missing client scope."), { code: "failed-precondition" });
+  }
+
+  const canCreate = role === "admin" || role === "producer" || role === "wardrobe";
+  if (!canCreate) {
+    throw Object.assign(new Error("Not authorized to share shots."), { code: "permission-denied" });
+  }
+
+  const projectId = data.projectId;
+  if (!projectId || typeof projectId !== "string" || projectId.trim().length === 0) {
+    throw Object.assign(new Error("Invalid projectId."), { code: "invalid-argument" });
+  }
+
+  const scopeRaw = data.scope;
+  const scope = scopeRaw === "selected" ? "selected" : "project";
+
+  const titleRaw = data.title;
+  const title = typeof titleRaw === "string" ? titleRaw.trim() : "";
+  if (!title) {
+    throw Object.assign(new Error("Title is required."), { code: "invalid-argument" });
+  }
+
+  const shotIdsRaw = data.shotIds;
+  let shotIds = null;
+  if (scope === "selected") {
+    if (!Array.isArray(shotIdsRaw)) {
+      throw Object.assign(new Error("shotIds must be a list when scope is selected."), { code: "invalid-argument" });
+    }
+    const ids = shotIdsRaw
+      .filter((id) => typeof id === "string")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (ids.length === 0) {
+      throw Object.assign(new Error("Select at least one shot to share."), { code: "invalid-argument" });
+    }
+    if (ids.length > 500) {
+      throw Object.assign(new Error("Too many shots selected (max 500)."), { code: "invalid-argument" });
+    }
+    shotIds = ids;
+  }
+
+  const db = admin.firestore();
+
+  const normalizedProjectId = projectId.trim();
+  const projectRef = db.collection("clients").doc(clientId).collection("projects").doc(normalizedProjectId);
+  const projectSnap = await projectRef.get();
+  if (!projectSnap.exists) {
+    throw Object.assign(new Error("Project not found."), { code: "not-found" });
+  }
+
+  if (role !== "admin") {
+    const membersRef = projectRef.collection("members");
+    const [memberSnap, anyMembersSnap] = await Promise.all([
+      membersRef.doc(caller.uid).get(),
+      membersRef.limit(1).get(),
+    ]);
+    const membersConfigured = !anyMembersSnap.empty;
+    if (membersConfigured && !memberSnap.exists) {
+      throw Object.assign(new Error("You don't have access to this project."), { code: "permission-denied" });
+    }
+  }
+
+  const shareRef = db.collection("shotShares").doc();
+  await shareRef.set({
+    clientId,
+    projectId: normalizedProjectId,
+    shotIds,
+    enabled: true,
+    title,
+    expiresAt: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: caller.uid,
+  });
+
+  return { shareToken: shareRef.id };
+}
+
+async function handlePublicUpdatePull(data) {
+  const shareToken = data.shareToken;
+  const email = data.email;
+  const actions = Array.isArray(data.actions) ? data.actions : [];
+
+  if (!shareToken || typeof shareToken !== "string" || shareToken.length < 10) {
+    throw Object.assign(new Error("Invalid share token."), { code: "invalid-argument" });
+  }
+
+  if (!isValidEmail(email)) {
+    throw Object.assign(new Error("A valid email is required."), { code: "invalid-argument" });
+  }
+
+  if (actions.length === 0) {
+    throw Object.assign(new Error("No actions provided."), { code: "invalid-argument" });
+  }
+
+  const db = admin.firestore();
+
+  const pullsQuery = db.collectionGroup("pulls")
+    .where("shareToken", "==", shareToken)
+    .where("shareEnabled", "==", true)
+    .limit(1);
+
+  const snapshot = await pullsQuery.get();
+  if (snapshot.empty) {
+    throw Object.assign(new Error("Pull not found or sharing is disabled."), { code: "not-found" });
+  }
+
+  const pullDoc = snapshot.docs[0];
+
+  const result = await db.runTransaction(async (tx) => {
+    const freshSnap = await tx.get(pullDoc.ref);
+    if (!freshSnap.exists) {
+      throw Object.assign(new Error("Pull not found."), { code: "not-found" });
+    }
+
+    const pullData = freshSnap.data() || {};
+
+    if (!pullData.shareEnabled || pullData.shareToken !== shareToken) {
+      throw Object.assign(new Error("Sharing is disabled for this pull."), { code: "permission-denied" });
+    }
+
+    if (!pullData.shareAllowResponses) {
+      throw Object.assign(new Error("Responses are disabled for this pull."), { code: "permission-denied" });
+    }
+
+    if (pullData.shareExpireAt) {
+      const expireDate = pullData.shareExpireAt.toDate ? pullData.shareExpireAt.toDate() : new Date(pullData.shareExpireAt);
+      if (expireDate < new Date()) {
+        throw Object.assign(new Error("Share link has expired."), { code: "failed-precondition" });
+      }
+    }
+
+    const existingItems = Array.isArray(pullData.items) ? pullData.items.slice() : [];
+    const updatedItems = existingItems.map((item) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [] }));
+
+    const activityEntries = [];
+
+    actions.forEach((action) => {
+      if (!action || typeof action !== "object") return;
+
+      if (action.type === "updateFulfillment") {
+        const itemId = action.itemId;
+        const sizes = Array.isArray(action.sizes) ? action.sizes : [];
+        if (!itemId || typeof itemId !== "string" || sizes.length === 0) return;
+
+        const idx = updatedItems.findIndex((it) => it.id === itemId);
+        if (idx < 0) return;
+
+        const item = updatedItems[idx];
+        const nextSizes = Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [];
+
+        const updatesApplied = [];
+        sizes.forEach((sizeUpdate) => {
+          const sizeLabel = sizeUpdate?.size;
+          if (!sizeLabel || typeof sizeLabel !== "string") return;
+
+          const sizeIdx = nextSizes.findIndex((s) => s.size === sizeLabel);
+          if (sizeIdx < 0) return;
+
+          const current = nextSizes[sizeIdx];
+          const quantity = typeof current.quantity === "number" ? current.quantity : 0;
+          const nextFulfilled = coerceInt(sizeUpdate.fulfilled, { min: 0, max: quantity });
+          if (nextFulfilled === null) return;
+
+          const allowedStatuses = new Set(["pending", "fulfilled", "substituted"]);
+          const requestedStatus = typeof sizeUpdate.status === "string" ? sizeUpdate.status : null;
+          const derivedStatus = nextFulfilled >= quantity ? "fulfilled" : nextFulfilled > 0 ? "pending" : "pending";
+          const nextStatus = requestedStatus && allowedStatuses.has(requestedStatus)
+            ? requestedStatus
+            : derivedStatus;
+
+          nextSizes[sizeIdx] = { ...current, fulfilled: nextFulfilled, status: nextStatus };
+          updatesApplied.push({ size: sizeLabel, fulfilled: nextFulfilled, status: nextStatus });
+        });
+
+        const nextItem = { ...item, sizes: nextSizes };
+        nextItem.fulfillmentStatus = calculateItemFulfillment(nextItem);
+        updatedItems[idx] = nextItem;
+
+        if (updatesApplied.length) {
+          activityEntries.push({
+            type: "fulfillment",
+            itemId,
+            sizes: updatesApplied,
+          });
+        }
+      }
+
+      if (action.type === "addItem") {
+        const itemInput = action.item || {};
+        const familyName = typeof itemInput.familyName === "string" ? itemInput.familyName.trim() : "";
+        const sizesInput = Array.isArray(itemInput.sizes) ? itemInput.sizes : [];
+        if (!familyName || sizesInput.length === 0) return;
+
+        const normalizedSizes = sizesInput
+          .map((entry) => {
+            const sizeLabel = typeof entry.size === "string" ? entry.size.trim() : "";
+            if (!sizeLabel) return null;
+            const quantity = coerceInt(entry.quantity, { min: 1, max: 999 });
+            if (quantity === null) return null;
+            return { size: sizeLabel, quantity, fulfilled: 0, status: "pending" };
+          })
+          .filter(Boolean);
+
+        if (!normalizedSizes.length) return;
+
+        const newItem = {
+          id: generatePublicItemId(),
+          familyId: generatePublicItemId(),
+          familyName,
+          styleNumber: typeof itemInput.styleNumber === "string" && itemInput.styleNumber.trim()
+            ? itemInput.styleNumber.trim()
+            : null,
+          colourId: null,
+          colourName: null,
+          colourImagePath: null,
+          sizes: normalizedSizes,
+          notes: typeof itemInput.notes === "string" ? itemInput.notes.trim() : "",
+          gender: typeof itemInput.gender === "string" && itemInput.gender.trim() ? itemInput.gender.trim() : null,
+          category: null,
+          genderOverride: null,
+          categoryOverride: null,
+          fulfillmentStatus: "pending",
+          shotIds: [],
+          publicCreatedByEmail: String(email).trim(),
+        };
+
+        newItem.fulfillmentStatus = calculateItemFulfillment(newItem);
+        updatedItems.push(newItem);
+
+        activityEntries.push({
+          type: "addItem",
+          itemId: newItem.id,
+          familyName: newItem.familyName,
+          sizes: newItem.sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
+        });
+      }
+    });
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    tx.update(pullDoc.ref, {
+      items: updatedItems,
+      updatedAt: now,
+      lastPublicUpdateAt: now,
+      lastPublicUpdateEmail: String(email).trim(),
+    });
+
+    activityEntries.forEach((entry) => {
+      const ref = pullDoc.ref.collection("publicActivity").doc();
+      tx.set(ref, {
+        createdAt: now,
+        email: String(email).trim(),
+        entry,
+      });
+    });
+
+    return {
+      id: pullDoc.id,
+      title: pullData.title || pullData.name || "",
+      items: updatedItems,
+    };
+  });
+
+  return { ok: true, pull: result };
+}
+
+// --- onRequest exports (dormant fallback — active when IAM is resolved) ---
+
+exports.setUserClaims = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      const caller = await verifyAuth(req);
+      if (!caller) {
+        res.status(401).json({ error: "Authentication required.", code: "unauthenticated" });
+        return;
+      }
+      const result = await handleSetUserClaims(req.body || {}, caller);
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "setUserClaims");
+    }
+  });
+
+exports.claimInvitation = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      const caller = await verifyAuth(req);
+      if (!caller) {
+        res.status(401).json({ error: "Authentication required.", code: "unauthenticated" });
+        return;
+      }
+      const result = await handleClaimInvitation({}, caller);
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "claimInvitation");
+    }
+  });
+
+exports.createShotShareLink = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      const caller = await verifyAuth(req);
+      if (!caller) {
+        res.status(401).json({ error: "Authentication required.", code: "unauthenticated" });
+        return;
+      }
+      const result = await handleCreateShotShareLink(req.body || {}, caller);
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "createShotShareLink");
+    }
+  });
+
+exports.publicUpdatePull = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      const result = await handlePublicUpdatePull(req.body || {});
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "publicUpdatePull");
+    }
+  });
+
+// --- Firestore queue trigger (bypasses HTTP/CORS/IAM) ---
+
+exports.processQueue = functions
+  .region("northamerica-northeast1")
+  .firestore.document("_functionQueue/{docId}")
+  .onCreate(async (snap) => {
+    const { action, data, createdBy } = snap.data();
+    try {
+      let caller = null;
+      if (createdBy && createdBy !== "anonymous") {
+        const userRecord = await admin.auth().getUser(createdBy);
+        caller = {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          name: userRecord.displayName,
+          ...(userRecord.customClaims || {}),
+        };
+      }
+
+      let result;
+      switch (action) {
+        case "setUserClaims":
+          result = await handleSetUserClaims(data, caller);
+          break;
+        case "claimInvitation":
+          result = await handleClaimInvitation(data, caller);
+          break;
+        case "createShotShareLink":
+          result = await handleCreateShotShareLink(data, caller);
+          break;
+        case "publicUpdatePull":
+          result = await handlePublicUpdatePull(data);
+          break;
+        default:
+          throw Object.assign(new Error(`Unknown action: ${action}`), { code: "invalid-argument" });
+      }
+
+      await snap.ref.update({
+        status: "complete",
+        result,
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      console.error(`[processQueue] Error processing ${action}:`, error);
+      await snap.ref.update({
+        status: "error",
+        error: error.message,
+        code: error.code || "internal",
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+
+// --- HTTP endpoints (not queued — these are called directly via hosting rewrites) ---
+
 exports.resolvePullShareToken = functions
   .region("northamerica-northeast1")
   .https.onRequest(async (req, res) => {
-    // Set CORS headers
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type");
 
-    // Handle CORS preflight
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
     }
 
-    // Only allow POST requests
     if (req.method !== "POST") {
       res.status(405).json({ error: "Method not allowed" });
       return;
     }
 
     try {
-      // Parse request body (supports both httpsCallable and fetch formats)
       const body = req.body || {};
       const data = body.data || body;
       const shareToken = data.shareToken;
@@ -236,8 +683,6 @@ exports.resolvePullShareToken = functions
 
       const db = admin.firestore();
 
-      // Use collection group query to find the pull across all clients/projects
-      // This requires a composite index on the pulls collection
       const pullsQuery = db.collectionGroup("pulls")
         .where("shareToken", "==", shareToken)
         .where("shareEnabled", "==", true)
@@ -253,13 +698,10 @@ exports.resolvePullShareToken = functions
       const pullDoc = snapshot.docs[0];
       const pullData = pullDoc.data();
 
-      // Extract client ID and project ID from the document path
-      // Path format: clients/{clientId}/projects/{projectId}/pulls/{pullId}
       const pathParts = pullDoc.ref.path.split("/");
       const clientId = pathParts[1];
       const projectId = pathParts[3];
 
-      // Validate share token hasn't expired (if expireAt field exists)
       if (pullData.shareExpireAt) {
         const expireDate = pullData.shareExpireAt.toDate();
         if (expireDate < new Date()) {
@@ -268,7 +710,6 @@ exports.resolvePullShareToken = functions
         }
       }
 
-      // Return pull data without sensitive information
       res.status(200).json({
         pull: {
           id: pullDoc.id,
@@ -276,8 +717,6 @@ exports.resolvePullShareToken = functions
           items: pullData.items || [],
           createdAt: pullData.createdAt,
           notes: pullData.notes,
-          // Exclude sensitive fields
-          // Don't return: userId, projectId path, etc.
         },
         clientId,
         projectId
@@ -288,36 +727,24 @@ exports.resolvePullShareToken = functions
     }
   });
 
-/**
- * HTTP Endpoint: resolveShotShareToken (Cloud Functions v1)
- * Resolves a share token to a read-only shot list payload.
- * Uses Cloud Functions v1 to work with Firebase Hosting rewrites without IAM policy issues.
- *
- * POST body: { shareToken: string } or { data: { shareToken: string } }
- * returns: { share, project, shots } | { error: string }
- */
 exports.resolveShotShareToken = functions
   .region("northamerica-northeast1")
   .https.onRequest(async (req, res) => {
-    // Set CORS headers
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type");
 
-    // Handle CORS preflight
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
     }
 
-    // Only allow POST requests
     if (req.method !== "POST") {
       res.status(405).json({ error: "Method not allowed" });
       return;
     }
 
     try {
-      // Parse request body (supports both httpsCallable and fetch formats)
       const body = req.body || {};
       const data = body.data || body;
       const shareToken = data.shareToken;
@@ -417,7 +844,6 @@ exports.resolveShotShareToken = functions
         const snaps = await db.getAll(...refs);
         shotDocs = snaps.filter((s) => s.exists).map((s) => ({ id: s.id, data: s.data() || {} }));
       } else {
-        // Match the vNext list query index: projectId + deleted + date
         const snaps = await db
           .collection("clients")
           .doc(clientId)
@@ -429,12 +855,10 @@ exports.resolveShotShareToken = functions
         shotDocs = snaps.docs.map((d) => ({ id: d.id, data: d.data() || {} }));
       }
 
-      // Filter to the intended project and non-deleted (defense-in-depth)
       const shotsRaw = shotDocs
         .map((d) => ({ id: d.id, ...d.data }))
         .filter((s) => s && s.projectId === projectId && s.deleted !== true);
 
-      // Resolve talent + locations for name rendering (batch reads).
       const collectTalentIds = () => {
         const set = new Set();
         shotsRaw.forEach((s) => {
@@ -539,370 +963,8 @@ exports.resolveShotShareToken = functions
     }
   });
 
-/**
- * Callable: createShotShareLink (Cloud Functions v1)
- * Creates a share token doc in /shotShares for a project or selection.
- *
- * data: { projectId: string, scope: "project"|"selected", shotIds?: string[]|null, title: string }
- * returns: { shareToken: string }
- */
-exports.createShotShareLink = functions
-  .region("northamerica-northeast1")
-  .https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.uid) {
-      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
-    }
+// --- Scheduled functions ---
 
-    const rawRole = context.auth.token?.role;
-    const role = typeof rawRole === "string" ? rawRole.trim().toLowerCase() : "";
-    const rawClientId = context.auth.token?.clientId ?? context.auth.token?.orgId;
-    const clientId = typeof rawClientId === "string" ? rawClientId.trim() : "";
-
-    if (!clientId) {
-      throw new functions.https.HttpsError("failed-precondition", "Missing client scope.");
-    }
-
-    const canCreate = role === "admin" || role === "producer" || role === "wardrobe";
-    if (!canCreate) {
-      throw new functions.https.HttpsError("permission-denied", "Not authorized to share shots.");
-    }
-
-    const projectId = data?.projectId;
-    if (!projectId || typeof projectId !== "string" || projectId.trim().length === 0) {
-      throw new functions.https.HttpsError("invalid-argument", "Invalid projectId.");
-    }
-
-    const scopeRaw = data?.scope;
-    const scope = scopeRaw === "selected" ? "selected" : "project";
-
-    const titleRaw = data?.title;
-    const title = typeof titleRaw === "string" ? titleRaw.trim() : "";
-    if (!title) {
-      throw new functions.https.HttpsError("invalid-argument", "Title is required.");
-    }
-
-    const shotIdsRaw = data?.shotIds;
-    let shotIds = null;
-    if (scope === "selected") {
-      if (!Array.isArray(shotIdsRaw)) {
-        throw new functions.https.HttpsError("invalid-argument", "shotIds must be a list when scope is selected.");
-      }
-      const ids = shotIdsRaw
-        .filter((id) => typeof id === "string")
-        .map((id) => id.trim())
-        .filter(Boolean);
-      if (ids.length === 0) {
-        throw new functions.https.HttpsError("invalid-argument", "Select at least one shot to share.");
-      }
-      // Keep payload bounded: long lists degrade link usefulness and response size.
-      if (ids.length > 500) {
-        throw new functions.https.HttpsError("invalid-argument", "Too many shots selected (max 500).");
-      }
-      shotIds = ids;
-    }
-
-    const db = admin.firestore();
-
-    const normalizedProjectId = projectId.trim();
-    const projectRef = db.collection("clients").doc(clientId).collection("projects").doc(normalizedProjectId);
-    const projectSnap = await projectRef.get();
-    if (!projectSnap.exists) {
-      throw new functions.https.HttpsError("not-found", "Project not found.");
-    }
-
-    // Compatibility contract:
-    // - If members are configured, enforce membership.
-    // - If no members exist (legacy projects), fall back to role-based access.
-    if (role !== "admin") {
-      const membersRef = projectRef.collection("members");
-      const [memberSnap, anyMembersSnap] = await Promise.all([
-        membersRef.doc(context.auth.uid).get(),
-        membersRef.limit(1).get(),
-      ]);
-      const membersConfigured = !anyMembersSnap.empty;
-      if (membersConfigured && !memberSnap.exists) {
-        throw new functions.https.HttpsError("permission-denied", "You don't have access to this project.");
-      }
-    }
-
-    const shareRef = db.collection("shotShares").doc();
-    await shareRef.set({
-      clientId,
-      projectId: normalizedProjectId,
-      shotIds,
-      enabled: true,
-      title,
-      expiresAt: null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: context.auth.uid,
-    });
-
-    return { shareToken: shareRef.id };
-  });
-
-const isValidEmail = (email) => {
-  if (!email || typeof email !== "string") return false;
-  const trimmed = email.trim();
-  if (!trimmed) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-};
-
-const coerceInt = (value, { min = null, max = null } = {}) => {
-  const number = typeof value === "number" ? value : Number(String(value ?? "").trim());
-  if (!Number.isFinite(number)) return null;
-  const rounded = Math.round(number);
-  if (min !== null && rounded < min) return min;
-  if (max !== null && rounded > max) return max;
-  return rounded;
-};
-
-const calculateItemFulfillment = (item) => {
-  if (!item || !Array.isArray(item.sizes) || item.sizes.length === 0) return "pending";
-
-  let totalRequested = 0;
-  let totalFulfilled = 0;
-  let hasSubstitution = false;
-
-  item.sizes.forEach((size) => {
-    totalRequested += size.quantity || 0;
-    totalFulfilled += size.fulfilled || 0;
-    if (size.status === "substituted") hasSubstitution = true;
-  });
-
-  if (hasSubstitution) return "substituted";
-  if (totalFulfilled <= 0) return "pending";
-  if (totalFulfilled >= totalRequested) return "fulfilled";
-  return "partial";
-};
-
-const generatePublicItemId = () => {
-  try {
-    // Node 18+ supports crypto.randomUUID
-    // eslint-disable-next-line global-require
-    const { randomUUID } = require("crypto");
-    if (typeof randomUUID === "function") return `public-${randomUUID()}`;
-  } catch {
-    // Ignore and fall back
-  }
-  return `public-${Math.random().toString(36).slice(2)}`;
-};
-
-/**
- * Callable: publicUpdatePull (Cloud Functions v1)
- * Allows unauthenticated updates to a shared pull when:
- * - shareEnabled=true
- * - shareToken matches
- * - shareAllowResponses=true
- * Warehouse crew supplies an email for attribution (not verified).
- *
- * data: {
- *   shareToken: string,
- *   email: string,
- *   actions: Array<
- *     | { type: "updateFulfillment", itemId: string, sizes: Array<{ size: string, fulfilled: number, status?: string }> }
- *     | { type: "addItem", item: { familyName: string, styleNumber?: string|null, gender?: string|null, notes?: string|null, sizes: Array<{ size: string, quantity: number }> } }
- *   >
- * }
- */
-exports.publicUpdatePull = functions
-  .region("northamerica-northeast1")
-  .https.onCall(async (data) => {
-    const payload = data || {};
-    const shareToken = payload.shareToken;
-    const email = payload.email;
-    const actions = Array.isArray(payload.actions) ? payload.actions : [];
-
-    if (!shareToken || typeof shareToken !== "string" || shareToken.length < 10) {
-      throw new functions.https.HttpsError("invalid-argument", "Invalid share token.");
-    }
-
-    if (!isValidEmail(email)) {
-      throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
-    }
-
-    if (actions.length === 0) {
-      throw new functions.https.HttpsError("invalid-argument", "No actions provided.");
-    }
-
-    const db = admin.firestore();
-
-    const pullsQuery = db.collectionGroup("pulls")
-      .where("shareToken", "==", shareToken)
-      .where("shareEnabled", "==", true)
-      .limit(1);
-
-    const snapshot = await pullsQuery.get();
-    if (snapshot.empty) {
-      throw new functions.https.HttpsError("not-found", "Pull not found or sharing is disabled.");
-    }
-
-    const pullDoc = snapshot.docs[0];
-
-    const result = await db.runTransaction(async (tx) => {
-      const freshSnap = await tx.get(pullDoc.ref);
-      if (!freshSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Pull not found.");
-      }
-
-      const pullData = freshSnap.data() || {};
-
-      if (!pullData.shareEnabled || pullData.shareToken !== shareToken) {
-        throw new functions.https.HttpsError("permission-denied", "Sharing is disabled for this pull.");
-      }
-
-      if (!pullData.shareAllowResponses) {
-        throw new functions.https.HttpsError("permission-denied", "Responses are disabled for this pull.");
-      }
-
-      if (pullData.shareExpireAt) {
-        const expireDate = pullData.shareExpireAt.toDate ? pullData.shareExpireAt.toDate() : new Date(pullData.shareExpireAt);
-        if (expireDate < new Date()) {
-          throw new functions.https.HttpsError("failed-precondition", "Share link has expired.");
-        }
-      }
-
-      const existingItems = Array.isArray(pullData.items) ? pullData.items.slice() : [];
-      const updatedItems = existingItems.map((item) => ({ ...item, sizes: Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [] }));
-
-      const activityEntries = [];
-
-      actions.forEach((action) => {
-        if (!action || typeof action !== "object") return;
-
-        if (action.type === "updateFulfillment") {
-          const itemId = action.itemId;
-          const sizes = Array.isArray(action.sizes) ? action.sizes : [];
-          if (!itemId || typeof itemId !== "string" || sizes.length === 0) return;
-
-          const idx = updatedItems.findIndex((it) => it.id === itemId);
-          if (idx < 0) return;
-
-          const item = updatedItems[idx];
-          const nextSizes = Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [];
-
-          const updatesApplied = [];
-          sizes.forEach((sizeUpdate) => {
-            const sizeLabel = sizeUpdate?.size;
-            if (!sizeLabel || typeof sizeLabel !== "string") return;
-
-            const sizeIdx = nextSizes.findIndex((s) => s.size === sizeLabel);
-            if (sizeIdx < 0) return;
-
-            const current = nextSizes[sizeIdx];
-            const quantity = typeof current.quantity === "number" ? current.quantity : 0;
-            const nextFulfilled = coerceInt(sizeUpdate.fulfilled, { min: 0, max: quantity });
-            if (nextFulfilled === null) return;
-
-            const allowedStatuses = new Set(["pending", "fulfilled", "substituted"]);
-            const requestedStatus = typeof sizeUpdate.status === "string" ? sizeUpdate.status : null;
-            const derivedStatus = nextFulfilled >= quantity ? "fulfilled" : nextFulfilled > 0 ? "pending" : "pending";
-            const nextStatus = requestedStatus && allowedStatuses.has(requestedStatus)
-              ? requestedStatus
-              : derivedStatus;
-
-            nextSizes[sizeIdx] = { ...current, fulfilled: nextFulfilled, status: nextStatus };
-            updatesApplied.push({ size: sizeLabel, fulfilled: nextFulfilled, status: nextStatus });
-          });
-
-          const nextItem = { ...item, sizes: nextSizes };
-          nextItem.fulfillmentStatus = calculateItemFulfillment(nextItem);
-          updatedItems[idx] = nextItem;
-
-          if (updatesApplied.length) {
-            activityEntries.push({
-              type: "fulfillment",
-              itemId,
-              sizes: updatesApplied,
-            });
-          }
-        }
-
-        if (action.type === "addItem") {
-          const itemInput = action.item || {};
-          const familyName = typeof itemInput.familyName === "string" ? itemInput.familyName.trim() : "";
-          const sizesInput = Array.isArray(itemInput.sizes) ? itemInput.sizes : [];
-          if (!familyName || sizesInput.length === 0) return;
-
-          const normalizedSizes = sizesInput
-            .map((entry) => {
-              const sizeLabel = typeof entry.size === "string" ? entry.size.trim() : "";
-              if (!sizeLabel) return null;
-              const quantity = coerceInt(entry.quantity, { min: 1, max: 999 });
-              if (quantity === null) return null;
-              return { size: sizeLabel, quantity, fulfilled: 0, status: "pending" };
-            })
-            .filter(Boolean);
-
-          if (!normalizedSizes.length) return;
-
-          const newItem = {
-            id: generatePublicItemId(),
-            familyId: generatePublicItemId(),
-            familyName,
-            styleNumber: typeof itemInput.styleNumber === "string" && itemInput.styleNumber.trim()
-              ? itemInput.styleNumber.trim()
-              : null,
-            colourId: null,
-            colourName: null,
-            colourImagePath: null,
-            sizes: normalizedSizes,
-            notes: typeof itemInput.notes === "string" ? itemInput.notes.trim() : "",
-            gender: typeof itemInput.gender === "string" && itemInput.gender.trim() ? itemInput.gender.trim() : null,
-            category: null,
-            genderOverride: null,
-            categoryOverride: null,
-            fulfillmentStatus: "pending",
-            shotIds: [],
-            publicCreatedByEmail: String(email).trim(),
-          };
-
-          newItem.fulfillmentStatus = calculateItemFulfillment(newItem);
-          updatedItems.push(newItem);
-
-          activityEntries.push({
-            type: "addItem",
-            itemId: newItem.id,
-            familyName: newItem.familyName,
-            sizes: newItem.sizes.map((s) => ({ size: s.size, quantity: s.quantity })),
-          });
-        }
-      });
-
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      tx.update(pullDoc.ref, {
-        items: updatedItems,
-        updatedAt: now,
-        lastPublicUpdateAt: now,
-        lastPublicUpdateEmail: String(email).trim(),
-      });
-
-      activityEntries.forEach((entry) => {
-        const ref = pullDoc.ref.collection("publicActivity").doc();
-        tx.set(ref, {
-          createdAt: now,
-          email: String(email).trim(),
-          entry,
-        });
-      });
-
-      return {
-        id: pullDoc.id,
-        title: pullData.title || pullData.name || "",
-        items: updatedItems,
-      };
-    });
-
-    return { ok: true, pull: result };
-  });
-
-/**
- * Scheduled: cleanupVersionsAndLocks (Cloud Functions v1)
- * Runs every hour to clean up:
- * 1. Expired version snapshots (15-day retention)
- * 2. Stale field locks (60 seconds without heartbeat)
- *
- * This helps manage storage costs and ensure locks don't get stuck.
- */
 exports.cleanupVersionsAndLocks = functions
   .region("northamerica-northeast1")
   .pubsub.schedule("every 60 minutes")
@@ -917,8 +979,6 @@ exports.cleanupVersionsAndLocks = functions
     console.log("[cleanupVersionsAndLocks] Starting cleanup...");
 
     try {
-      // 1. Clean up expired versions using collection group query
-      // Versions have expiresAt field set to 15 days from creation
       const expiredVersionsQuery = db.collectionGroup("versions")
         .where("expiresAt", "<=", now)
         .limit(BATCH_SIZE);
@@ -940,7 +1000,6 @@ exports.cleanupVersionsAndLocks = functions
         await batch.commit();
         totalVersionsDeleted += snapshot.docs.length;
 
-        // If we got less than batch size, we're done
         if (snapshot.docs.length < BATCH_SIZE) {
           hasMoreVersions = false;
         }
@@ -948,12 +1007,8 @@ exports.cleanupVersionsAndLocks = functions
 
       console.log(`[cleanupVersionsAndLocks] Deleted ${totalVersionsDeleted} expired versions`);
 
-      // 2. Clean up stale field locks
-      // Locks expire if heartbeat is older than 60 seconds
       const staleThreshold = new Date(now.getTime() - 60 * 1000);
 
-      // Query all presence documents that might have stale locks
-      // We need to check each presence document and clean up stale locks
       const presenceQuery = db.collectionGroup("presence")
         .where("lastActivity", "<=", staleThreshold)
         .limit(BATCH_SIZE);
@@ -964,7 +1019,6 @@ exports.cleanupVersionsAndLocks = functions
         const data = presenceDoc.data();
         const locks = data.locks || {};
 
-        // Find stale locks
         const staleLockPaths = [];
         for (const [fieldPath, lock] of Object.entries(locks)) {
           if (!lock.heartbeat) {
@@ -978,7 +1032,6 @@ exports.cleanupVersionsAndLocks = functions
           }
         }
 
-        // Remove stale locks
         if (staleLockPaths.length > 0) {
           const updates = {};
           staleLockPaths.forEach((path) => {

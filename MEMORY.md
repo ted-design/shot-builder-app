@@ -4,9 +4,10 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 
 ## Current Phase Status
 
-- **Sprint S8 (Team Audit)** — COMPLETE (uncommitted). All fixes applied.
-- **Sprint S7** — S7-1 through S7-8 COMPLETE (merged). S7-9 (E2E) and S7-10 (docs) pending.
-- **Post-S8 priorities:** E2E tests, file decomposition, Firestore subscription reduction, deferred backlog
+- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified, uncommitted). All 4 callable functions migrated to queue pattern.
+- **Sprint S9 (Rebrand + Onboarding)** — COMPLETE (committed: 968d268).
+- **Sprint S8 (Team Audit)** — COMPLETE (committed: 9e7de7f).
+- **Post-S9b priorities:** Commit changes, toast duration UX, E2E tests, file decomposition
 
 ## Completed Phases
 
@@ -88,6 +89,13 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 - **Semantic classes defined but unused:** The design system defines semantic typography classes that components never reference. After defining tokens/classes, grep to verify adoption.
 - **Print portals are exceptions:** `bg-white` in print-only portals (React-PDF, casting print) is intentional. Document with a comment: `{/* bg-white intentional: print output */}`
 - **Image overlays are exceptions:** `bg-black/50` overlays on images work in both light/dark mode. No `dark:` variant needed.
+
+### Firebase / Cloud Functions Patterns
+- **`revokeRefreshTokens` invalidates the caller's session:** Never call `revokeRefreshTokens(uid)` on the same user who is making the request. The client's subsequent `getIdToken(true)` will fail because the refresh token is revoked. Use it only when an admin changes ANOTHER user's claims.
+- **`onSnapshot` needs an error callback:** Without the error handler, Firestore permission denials cause silent listener failure → the promise hangs until timeout. Always pass both success and error callbacks to `onSnapshot`.
+- **Firestore Queue pattern bypasses GCP org IAM:** When `allUsers` invoker is blocked by org policy, use Firestore document triggers instead of HTTP functions. Client writes to queue collection, `onCreate` trigger processes, client reads via `onSnapshot`. Same-origin — no CORS, no IAM needed.
+- **SA permissions for Firestore triggers:** The App Engine default SA needs `roles/editor` + `roles/serviceusage.serviceUsageConsumer` for `admin.auth().getUser()` and `snap.ref.update()` in Firestore triggers.
+- **Cloud Function cold start after IAM changes:** After granting new IAM roles, redeploy the function to force a cold start that picks up the new permissions.
 
 ### Multi-Agent Team Patterns
 - **Non-overlapping file ownership prevents merge conflicts:** Assign each agent explicit file lists. No two agents touch the same file.

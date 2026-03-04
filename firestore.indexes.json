@@ -27,6 +27,14 @@
       ]
     },
     {
+      "collectionGroup": "pendingInvitations",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "email", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "skus",
       "queryScope": "COLLECTION",
       "fields": [
