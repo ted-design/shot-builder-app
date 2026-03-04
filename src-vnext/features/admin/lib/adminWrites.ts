@@ -13,30 +13,30 @@ interface InviteOrUpdateUserParams {
 
 interface SetUserClaimsResponse {
   readonly ok: boolean
-  readonly uid: string
-  readonly claims: Record<string, unknown>
+  readonly uid?: string
+  readonly claims?: Record<string, unknown>
+  readonly pending?: boolean
+  readonly email?: string
 }
 
-/**
- * Invite a new user or update an existing user's role.
- * Calls the `setUserClaims` Cloud Function then writes/merges the user doc.
- *
- * Throws if the target user has never signed in (`auth/user-not-found`).
- */
 export async function inviteOrUpdateUser({
   targetEmail,
   displayName,
   role,
   clientId,
-}: InviteOrUpdateUserParams): Promise<string> {
+}: InviteOrUpdateUserParams): Promise<{ uid: string } | { pending: true; email: string }> {
   const callable = httpsCallable<
     { targetEmail: string; role: Role; clientId: string },
     SetUserClaimsResponse
   >(functions, "setUserClaims")
 
   const response = await callable({ targetEmail, role, clientId })
-  const uid = response.data.uid
 
+  if (response.data.pending) {
+    return { pending: true, email: response.data.email ?? targetEmail }
+  }
+
+  const uid = response.data.uid
   if (!uid) {
     throw new Error("Cloud Function did not return a user id.")
   }
@@ -54,7 +54,7 @@ export async function inviteOrUpdateUser({
     { mergeFields: ["email", "displayName", "role", "updatedAt"] },
   )
 
-  return uid
+  return { uid }
 }
 
 interface UpdateUserRoleParams {

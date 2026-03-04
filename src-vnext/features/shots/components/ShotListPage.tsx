@@ -16,8 +16,6 @@ import { ShotListFilterSheet } from "@/features/shots/components/ShotListFilterS
 import { ShotListDisplaySheet } from "@/features/shots/components/ShotListDisplaySheet"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShotsTable } from "@/features/shots/components/ShotsTable"
-import { ShotBoardView } from "@/features/shots/components/ShotBoardView"
-import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
@@ -28,7 +26,7 @@ import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
 import { Camera, Plus, Info, BarChart3 } from "lucide-react"
-import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import type { Shot } from "@/shared/types"
 import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
@@ -130,7 +128,6 @@ export default function ShotListPage() {
     { key: "1", handler: () => setViewMode("gallery") },
     { key: "2", handler: () => setViewMode("visual") },
     { key: "3", handler: () => setViewMode("table") },
-    { key: "4", handler: () => setViewMode("board") },
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ], { enabled: !threePanelActive })
 
@@ -152,21 +149,6 @@ export default function ShotListPage() {
         existingTitles={existingShotTitles}
       />
     )
-  }
-
-  // -- Board status change handler --
-  const handleBoardStatusChange = (shotId: string, newStatus: ShotFirestoreStatus, shot: Shot) => {
-    if (!clientId) return
-    void updateShotWithVersion({
-      clientId,
-      shotId,
-      patch: { status: newStatus },
-      shot,
-      user,
-      source: "ShotBoardView",
-    }).catch(() => {
-      toast.error("Failed to update status")
-    })
   }
 
   // -- Selection --
@@ -651,42 +633,6 @@ export default function ShotListPage() {
             </div>
           ))}
         </div>
-      ) : viewMode === "board" ? (
-        <>
-          {hasActiveGrouping && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-              <Info className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Grouping is not available in Board view.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setGroupKey("none")}
-                >
-                  Clear grouping
-                </button>
-              </span>
-            </div>
-          )}
-          {isCustomSort && canReorder && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-              <Info className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Reordering is available in Gallery view.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("gallery")}
-                >
-                  Switch to gallery
-                </button>
-              </span>
-            </div>
-          )}
-          <ShotBoardView
-            shots={displayShots}
-            onStatusChange={handleBoardStatusChange}
-            onOpenShot={handleShotClick}
-          />
-        </>
       ) : viewMode === "table" ? (
         <>
           {hasActiveGrouping && (

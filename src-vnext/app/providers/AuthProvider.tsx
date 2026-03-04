@@ -2,11 +2,13 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
 import { onIdTokenChanged, type User } from "firebase/auth"
-import { auth } from "@/shared/lib/firebase"
+import { httpsCallable } from "firebase/functions"
+import { auth, functions } from "@/shared/lib/firebase"
 import { normalizeRole } from "@/shared/lib/rbac"
 import type { AuthClaims, AuthUser, Role } from "@/shared/types"
 
@@ -15,6 +17,7 @@ interface AuthState {
   readonly claims: AuthClaims | null
   readonly loading: boolean
   readonly error: string | null
+  readonly claimingInvitation: boolean
 }
 
 interface AuthContextValue extends AuthState {
@@ -40,12 +43,16 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     claims: null,
     loading: true,
     error: null,
+    claimingInvitation: false,
   })
+
+  const claimAttemptedRef = useRef(false)
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
-        setState({ user: null, claims: null, loading: false, error: null })
+        claimAttemptedRef.current = false
+        setState({ user: null, claims: null, loading: false, error: null, claimingInvitation: false })
         return
       }
 
@@ -61,11 +68,37 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
             : null
 
         if (!clientId) {
+          if (!claimAttemptedRef.current) {
+            claimAttemptedRef.current = true
+            setState((prev) => ({
+              ...prev,
+              user: mapUser(firebaseUser),
+              loading: false,
+              claimingInvitation: true,
+            }))
+
+            try {
+              const claimFn = httpsCallable<
+                Record<string, never>,
+                { ok: boolean; reason?: string; role?: string; clientId?: string }
+              >(functions, "claimInvitation")
+              const result = await claimFn({})
+
+              if (result.data.ok) {
+                await firebaseUser.getIdToken(true)
+                return
+              }
+            } catch {
+              // Claim failed — fall through to pending access
+            }
+          }
+
           setState({
             user: mapUser(firebaseUser),
             claims: null,
             loading: false,
             error: "No clientId in auth claims. Contact your administrator.",
+            claimingInvitation: false,
           })
           return
         }
@@ -75,6 +108,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
           claims: { role, clientId },
           loading: false,
           error: null,
+          claimingInvitation: false,
         })
       } catch (err) {
         setState({
@@ -82,6 +116,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
           claims: null,
           loading: false,
           error: err instanceof Error ? err.message : "Failed to load auth claims",
+          claimingInvitation: false,
         })
       }
     })

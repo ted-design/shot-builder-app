@@ -78,7 +78,34 @@ exports.setUserClaims = functions
       );
     }
 
-    const user = await admin.auth().getUserByEmail(targetEmail);
+    let user;
+    try {
+      user = await admin.auth().getUserByEmail(targetEmail);
+    } catch (lookupErr) {
+      if (lookupErr.code === "auth/user-not-found") {
+        const normalizedEmail = targetEmail.trim().toLowerCase();
+        const invitationRef = admin.firestore()
+          .collection("clients")
+          .doc(clientId)
+          .collection("pendingInvitations")
+          .doc(normalizedEmail);
+
+        await invitationRef.set({
+          email: normalizedEmail,
+          role,
+          displayName: null,
+          invitedBy: context.auth.uid,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: "pending",
+          claimedAt: null,
+          claimedByUid: null,
+        }, { merge: true });
+
+        return { ok: true, pending: true, email: targetEmail.trim() };
+      }
+      throw lookupErr;
+    }
+
     const newClaims = user.customClaims || {};
     newClaims.role = role;
     newClaims.clientId = clientId;
@@ -88,6 +115,84 @@ exports.setUserClaims = functions
 
     return { ok: true, uid: user.uid, claims: newClaims };
   });
+
+/**
+ * Callable: claimInvitation (Cloud Functions v1)
+ * Called by AuthProvider when a signed-in user has no claims.
+ * Looks up a pending invitation by email, sets claims, and marks it claimed.
+ */
+exports.claimInvitation = functions
+  .region("northamerica-northeast1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth || !context.auth.uid) {
+      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const callerEmail = context.auth.token.email;
+    if (!callerEmail) {
+      return { ok: false, reason: "no-email" };
+    }
+
+    const normalizedEmail = callerEmail.trim().toLowerCase();
+    const db = admin.firestore();
+
+    const invitationsQuery = db.collectionGroup("pendingInvitations")
+      .where("status", "==", "pending")
+      .where("email", "==", normalizedEmail)
+      .limit(1);
+
+    const snapshot = await invitationsQuery.get();
+
+    if (snapshot.empty) {
+      return { ok: false, reason: "no-invitation" };
+    }
+
+    return await processInvitation(snapshot.docs[0], context.auth);
+  });
+
+async function processInvitation(invitationDoc, authContext) {
+  const invitation = invitationDoc.data();
+  const uid = authContext.uid;
+
+  const pathParts = invitationDoc.ref.path.split("/");
+  const clientId = pathParts[1];
+
+  if (!clientId) {
+    throw new functions.https.HttpsError("internal", "Could not determine client from invitation.");
+  }
+
+  const existingClaims = {};
+  try {
+    const userRecord = await admin.auth().getUser(uid);
+    Object.assign(existingClaims, userRecord.customClaims || {});
+  } catch {
+    // New user, no existing claims
+  }
+
+  existingClaims.role = invitation.role;
+  existingClaims.clientId = clientId;
+
+  await admin.auth().setCustomUserClaims(uid, existingClaims);
+
+  const db = admin.firestore();
+  await db.collection("clients").doc(clientId).collection("users").doc(uid).set({
+    email: authContext.token.email,
+    displayName: authContext.token.name || null,
+    role: invitation.role,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { mergeFields: ["email", "displayName", "role", "updatedAt"] });
+
+  await invitationDoc.ref.update({
+    status: "claimed",
+    claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+    claimedByUid: uid,
+  });
+
+  await admin.auth().revokeRefreshTokens(uid);
+
+  return { ok: true, role: invitation.role, clientId };
+}
 
 /**
  * HTTP Endpoint: resolvePullShareToken (Cloud Functions v1)

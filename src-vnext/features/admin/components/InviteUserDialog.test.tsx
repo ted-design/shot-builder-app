@@ -38,7 +38,7 @@ describe("InviteUserDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuth.mockReturnValue({ clientId: "c1", user: { uid: "u1" } })
-    mockInviteOrUpdateUser.mockResolvedValue("uid-new")
+    mockInviteOrUpdateUser.mockResolvedValue({ uid: "uid-new" })
   })
 
   it("renders email, display name, and role fields when open", () => {
@@ -48,25 +48,25 @@ describe("InviteUserDialog", () => {
     expect(screen.getByRole("combobox")).toBeInTheDocument()
   })
 
-  it("Apply Role button is disabled when email field is empty", () => {
+  it("Invite button is disabled when email field is empty", () => {
     renderDialog()
-    expect(screen.getByRole("button", { name: /apply role/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /invite/i })).toBeDisabled()
   })
 
-  it("Apply Role button becomes enabled when email has content", () => {
+  it("Invite button becomes enabled when email has content", () => {
     renderDialog()
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "user@example.com" },
     })
-    expect(screen.getByRole("button", { name: /apply role/i })).toBeEnabled()
+    expect(screen.getByRole("button", { name: /invite/i })).toBeEnabled()
   })
 
-  it("Apply Role button is disabled for whitespace-only email", () => {
+  it("Invite button is disabled for whitespace-only email", () => {
     renderDialog()
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "   " },
     })
-    expect(screen.getByRole("button", { name: /apply role/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /invite/i })).toBeDisabled()
   })
 
   it("shows validation error for invalid email on submit", async () => {
@@ -74,7 +74,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "not-an-email" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
     expect(await screen.findByText(/valid email/i)).toBeInTheDocument()
     expect(mockInviteOrUpdateUser).not.toHaveBeenCalled()
   })
@@ -84,7 +84,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "bad" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
     expect(await screen.findByText(/valid email/i)).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(/email/i), {
@@ -101,7 +101,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Jane Doe" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
       expect(mockInviteOrUpdateUser).toHaveBeenCalledWith({
@@ -118,7 +118,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "jane@example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
       expect(mockInviteOrUpdateUser).toHaveBeenCalledWith(
@@ -132,7 +132,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "jane@example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -143,35 +143,20 @@ describe("InviteUserDialog", () => {
     })
   })
 
-  it("shows user-not-found error toast when CF returns user-not-found", async () => {
-    mockInviteOrUpdateUser.mockRejectedValue(new Error("auth/user-not-found"))
-    renderDialog()
+  it("shows pending invitation toast when user has not signed in yet", async () => {
+    mockInviteOrUpdateUser.mockResolvedValue({ pending: true, email: "ghost@example.com" })
+    renderDialog(true, onOpenChange)
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "ghost@example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith(
-        "User must sign in once before being assigned a role",
-        expect.objectContaining({ action: expect.any(Object) }),
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Invitation created for ghost@example.com",
+        expect.objectContaining({ description: expect.any(String) }),
       )
-    })
-  })
-
-  it("shows USER_NOT_FOUND variant error toast", async () => {
-    mockInviteOrUpdateUser.mockRejectedValue(new Error("USER_NOT_FOUND"))
-    renderDialog()
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "ghost@example.com" },
-    })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
-
-    await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith(
-        "User must sign in once before being assigned a role",
-        expect.objectContaining({ action: expect.any(Object) }),
-      )
+      expect(onOpenChange).toHaveBeenCalledWith(false)
     })
   })
 
@@ -181,7 +166,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "someone@example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith("permission-denied")
@@ -194,7 +179,7 @@ describe("InviteUserDialog", () => {
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: "user@example.com" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+    fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
@@ -226,30 +211,28 @@ describe("InviteUserDialog", () => {
   })
 
   describe("copy link", () => {
-    it("shows copy link toast on user-not-found error", async () => {
-      mockInviteOrUpdateUser.mockRejectedValue(new Error("auth/user-not-found"))
-      renderDialog()
+    it("shows copy link action on pending invitation", async () => {
+      mockInviteOrUpdateUser.mockResolvedValue({ pending: true, email: "new-user@example.com" })
+      renderDialog(true, onOpenChange)
       fireEvent.change(screen.getByLabelText(/email/i), {
         target: { value: "new-user@example.com" },
       })
-      fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+      fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
       await waitFor(() => {
-        // The error toast should include a copy-link action or message
-        expect(mockToast.error).toHaveBeenCalled()
-        const callArgs = mockToast.error.mock.calls[0]!
-        // Check the toast message mentions sign in requirement
-        expect(callArgs[0]).toMatch(/sign in/i)
+        expect(mockToast.success).toHaveBeenCalled()
+        const callArgs = mockToast.success.mock.calls[0]!
+        expect(callArgs[0]).toMatch(/invitation created/i)
       })
     })
 
     it("shows copy link action on successful invite", async () => {
-      mockInviteOrUpdateUser.mockResolvedValue("uid-new")
+      mockInviteOrUpdateUser.mockResolvedValue({ uid: "uid-new" })
       renderDialog(true, onOpenChange)
       fireEvent.change(screen.getByLabelText(/email/i), {
         target: { value: "jane@example.com" },
       })
-      fireEvent.click(screen.getByRole("button", { name: /apply role/i }))
+      fireEvent.click(screen.getByRole("button", { name: /invite/i }))
 
       await waitFor(() => {
         // Success toast should be called — may include copy link action

@@ -1,4 +1,4 @@
-# Plan -- Shot Builder
+# Plan -- Production Hub
 
 Living implementation plan. Iterative phases -- ship improvements every few days. Not a rewrite -- targeted UX improvements to make the app onboarding-ready for the full team.
 
@@ -733,7 +733,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Comprehensive 6-agent audit of the entire vNext codebase followed by parallel implementation of all critical, high, and medium fixes. Close security vulnerabilities, fix deploy-blocking bugs, adopt the design system properly, consolidate duplicate code, and sync all documentation.
 
-**Status:** COMPLETE (uncommitted — needs git commit).
+**Status:** COMPLETE (committed: 9e7de7f).
 
 **Rationale:** Before pushing forward with new features, a full-codebase health check ensures the foundation is solid. The audit found 2 critical bugs, 1 security vulnerability, and 28 UX consistency issues that would compound if left unfixed.
 
@@ -764,6 +764,40 @@ Admin (role-gated: admin only)
 - [x] Duplicate utility functions consolidated into shared/lib/textUtils.ts
 - [x] Architecture.md route map matches actual routes
 - [x] 2370 tests pass, build clean, lint zero warnings
+
+---
+
+## Sprint S9: Production Hub Rebrand + Onboarding + Cleanup
+
+**Goal:** Rename app from "Shot Builder" to "Production Hub," redesign the login page with premium dark branding, remove unused board view, and implement seamless user onboarding so admins can invite users before they've signed in.
+
+**Status:** COMPLETE (uncommitted — needs git commit).
+
+**Rationale:** Real users cannot onboard without the admin invite flow working for pre-signup emails. The rename and login redesign establish the Production Hub brand identity. Board view removal simplifies from 4 views to 3 (Gallery, Visual, Table) per PRD "Cut/Simplify" guidance.
+
+### Sub-tasks
+
+- [x] **S9-1:** App rename — "Shot Builder" → "Production Hub" across 5 files (index.html, package.json, SidebarHeader, MobileTopBar, PendingAccessPage)
+- [x] **S9-2:** Login page redesign — dark zinc-950 background, frosted glass card, Google "G" SVG, "built by Immediate" footer
+- [x] **S9-3:** Board view removal — 5 files deleted (~340 lines), ViewMode narrowed to "gallery" | "visual" | "table", keyboard shortcuts updated
+- [x] **S9-4:** Seamless onboarding — pendingInvitations collection, setUserClaims catches user-not-found, claimInvitation CF, AuthProvider auto-claim, InviteUserDialog pending flow, AdminPage pending table
+- [x] **S9-5:** Test fixes — adminWrites.test.ts and InviteUserDialog.test.tsx updated for new return types and button text
+- [x] **S9-6:** Documentation — all root docs renamed, Architecture.md updated (data model, CFs, ViewMode), MEMORY.md learnings added
+
+### Acceptance Criteria
+
+- [x] `grep -r "Shot Builder" src-vnext/ index.html` returns zero results
+- [x] `grep -rn '"board"' src-vnext/features/shots/` returns zero results
+- [x] Login page shows Production Hub branding with dark theme
+- [x] Admin can invite email that hasn't signed in → pending invitation created
+- [x] 2349 tests pass, build clean, lint zero warnings
+- [x] All root docs (PRD, Architecture, AI_RULES, Plan) renamed to "Production Hub"
+
+### Post-Commit Deployment
+
+- [ ] Deploy Cloud Functions: `firebase deploy --only functions`
+- [ ] Create Firestore index: collection group `pendingInvitations` — status(Asc) + email(Asc)
+- [ ] E2E test: admin invites unknown email → user signs in → auto-gets role
 
 ---
 

@@ -36,7 +36,6 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
       { keys: ["1"], description: "Gallery view" },
       { keys: ["2"], description: "Visual view" },
       { keys: ["3"], description: "Table view" },
-      { keys: ["4"], description: "Board view" },
       { keys: ["?"], description: "Show keyboard shortcuts" },
     ],
   },
