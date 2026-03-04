@@ -819,7 +819,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Complete the user management lifecycle — project visibility controls, enhanced admin roster with deactivation/reactivation, bulk project assignment, invitation emails via Resend, and first-run experience. Makes the admin panel production-ready for real team onboarding.
 
-**Status:** COMPLETE (PR #363 merged to main). Post-merge hotfix: `firestore.rules` producer list/get split deployed but uncommitted locally.
+**Status:** COMPLETE (PR #363 merged to main). Post-merge hotfix: `firestore.rules` producer list/get split (PR #364 merged).
 
 **Rationale:** Real team onboarding requires admins to control who sees which projects, deactivate departed users, bulk-assign projects during invite, and send professional invitation emails. Without these, admins must manually coordinate access outside the app.
 
@@ -846,6 +846,53 @@ Admin (role-gated: admin only)
 - [x] Invitation emails sent via Resend with Production Hub branding
 - [x] Bulk project assignment available during invite and from user detail
 - [x] 2360 tests pass, build clean, lint zero warnings
+
+---
+
+## Sprint S11: Stabilize + Polish
+
+**Goal:** Security hardening, login page redesign, admin UX fixes, navigation rename, dashboard tabs. Comprehensive 6-agent team with research-first then implementation.
+
+**Status:** COMPLETE (PR #365 merged to main). Firestore rules + Cloud Functions deployed.
+
+### Research Phase (6 parallel agents)
+
+- [x] **S11-R1 (Code Reviewer):** 2 CRITICAL (revokeRefreshTokens self-lockout, missing write restrictions), 2 HIGH (createdAt persistence, missing AlertDialog)
+- [x] **S11-R2 (Researcher):** Email audit (no reply-to header), last sign-in (no data source)
+- [x] **S11-R3 (Systems Architect):** Carrier tracking feasibility (Phase 1: links, Phase 2: Ship24 API $3.90/mo)
+- [x] **S11-R4 (Adversary):** Dashboard UX options (chose tabs), Inbox rename changelist
+- [x] **S11-R5 (UX Designer):** 3 HTML login mockups (Option A/B/C), user chose Option A (split screen)
+- [x] **S11-R6 (Doc Keeper):** Runtime docs updated, Plan.md S11 section drafted
+
+### Implementation Phase (6 parallel agents, non-overlapping file ownership)
+
+- [x] **S11-1 (Security):** revokeRefreshTokens guard (`uid !== callerUid`), talent/locations write restrictions (`isAdmin() || isProducer()`), email reply-to header
+- [x] **S11-2 (Admin Fixes):** adminWrites.ts `merge:true` (was mergeFields excluding createdAt), PendingInvitationRow AlertDialog on revoke
+- [x] **S11-3 (Last Sign-In):** `lastSignInAt` field on UserProfile type, AuthProvider fire-and-forget write, TeamRosterTab/TeamUserRow display
+- [x] **S11-4 (Login Page):** Option A split screen rewrite — lifestyle hero WebP, UM logo, Immediate logo IMAGE, CSS custom properties
+- [x] **S11-5 (Request Centre Rename):** ShotRequestInboxPage → ShotRequestCentrePage, route /inbox → /requests with redirect, nav icon ClipboardCheck
+- [x] **S11-6 (Dashboard Tabs):** Projects (default) + Shoot Readiness tabs for admin/producer
+
+### PR Review Fixes
+
+- [x] **P1 fix:** Reverted shots write rule to `isAuthed()` — crew needs write access per rbac.ts
+- [x] **P2 fix:** Removed `createdAt` from client-side merge write — server-side Cloud Function handles it via mergeFields
+
+### Acceptance Criteria
+
+- [x] Login page: UM logo + lifestyle image + Immediate logo IMAGE + design tokens
+- [x] Admin: actual last sign-in timestamps shown
+- [x] Nav: "Request Centre" (not "Inbox"), /inbox redirects to /requests
+- [x] Dashboard: Projects + Shoot Readiness tabs
+- [x] Email: reply-to ted@immediategroup.ca
+- [x] Rules: talent/locations writes = admin/producer only; shots = any authed user
+- [x] Functions: revokeRefreshTokens guarded for non-self UIDs
+- [x] 2364 tests pass, build clean, lint zero warnings
+
+### Post-Sprint Deployment
+
+- [x] `firebase deploy --only firestore:rules,functions` — deployed (2x: initial + corrected shots rule)
+- [x] PR #365 merged to main
 
 ---
 
