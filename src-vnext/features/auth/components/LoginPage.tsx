@@ -87,7 +87,7 @@ export default function LoginPage() {
           <img
             src="/images/brands/unbound-logo-white.png"
             alt="Unbound Merino"
-            className="h-auto w-[300px] invert dark:invert-0"
+            className="h-auto w-[300px] max-w-full invert dark:invert-0"
           />
         </div>
 
