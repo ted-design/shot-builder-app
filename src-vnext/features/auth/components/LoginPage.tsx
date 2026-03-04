@@ -78,7 +78,7 @@ export default function LoginPage() {
           <img
             src="/images/brands/unbound-logo-white.png"
             alt="Unbound Merino"
-            className="h-[22px] w-auto opacity-90"
+            className="h-7 w-auto opacity-90"
           />
           <span
             className="text-xxs font-normal tracking-[0.04em]"
@@ -198,9 +198,14 @@ export default function LoginPage() {
             built by
           </span>
           <img
+            src="/images/brands/immediate-logo-black.png"
+            alt="Immediate"
+            className="h-4 w-auto opacity-30 dark:hidden"
+          />
+          <img
             src="/images/brands/immediate-logo-white.png"
             alt="Immediate"
-            className="h-3.5 w-auto opacity-35"
+            className="hidden h-4 w-auto opacity-35 dark:block"
           />
         </div>
       </div>

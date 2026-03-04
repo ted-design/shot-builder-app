@@ -100,7 +100,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 
 | Route | Page | Notes |
 |-------|------|-------|
-| `/login` | LoginPage | Google sign-in. Statically imported (Safari OAuth). |
+| `/login` | LoginPage | Google sign-in. Split-screen layout (Option A): lifestyle hero left, sign-in right. UM logo + Immediate logo IMAGE. CSS custom properties. Statically imported (Safari OAuth). |
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
 | `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
 | `/shots/shared/:shareToken` | PublicShotSharePage | Public shot share (vNext) |
@@ -111,7 +111,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Route | Page | Notes |
 |-------|------|-------|
 | `/` | Redirect -> `/projects` | |
-| `/projects` | ProjectDashboard | Project grid + ShootReadinessWidget (admin/producer only). |
+| `/projects` | ProjectDashboard | Tabbed: Projects tab (default, project grid) + Shoot Readiness tab (admin/producer only). Tab state via `?tab=readiness` URL param. |
 | `/projects/:id` | Redirect -> `shots` | |
 | `/projects/:id/shots` | ShotListPage | Shot list (gallery / visual / table views) |
 | `/projects/:id/shots/:sid` | ShotDetailPage | Three-panel shot editor |
@@ -121,7 +121,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/tags` | TagManagementPage | Desktop-only (RequireDesktop) |
 | `/projects/:id/schedules` | SchedulesRedirect | Redirects to `../callsheet` |
 | `/projects/:id/callsheet` | CallSheetBuilderPage | Desktop-only (RequireDesktop) |
-| `/inbox` | ShotRequestInboxPage | Org-level shot request inbox. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). |
+| `/requests` | ShotRequestCentrePage | Org-level shot request centre. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). `/inbox` redirects here (Sprint S11). |
 | `/products` | ProductListPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
 | `/products/:fid` | ProductDetailPage | Thin shell + 6 sections (Overview, Colorways, Samples, Files, Requirements, Activity). Phase 10: Requirements tab (chip/table toggle, 5-state asset flags incl. AI Generated). Colorways: hero image with EditableProductImage. Files: documents only (identity images moved to Colorways). Samples: returnDueDate + condition fields. |
@@ -140,6 +140,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Old Route | Redirects To |
 |-----------|-------------|
 | `/projects/:id/schedules` | `/projects/:id/callsheet` (via SchedulesRedirect) |
+| `/inbox` | `/requests` (via Navigate replace, Sprint S11) |
 
 **Note:** `/account` existed in the legacy app but is not implemented in vNext. It is not present in the route definitions.
 
@@ -399,7 +400,7 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 - **Project visibility:** Projects support a `visibility` field with 3 states: `"team"` (default), `"restricted"` (only explicit project members), `"private"` (only creator + admins). Firestore rules use a **two-tier model**: `allow list` grants producers unconditional access to list all org projects (needed for dashboard); `allow get` enforces full visibility rules per-document (team-only for producers without membership, restricted/private require membership or creator status). Sub-collection access (shots, pulls, schedules) enforces visibility via `producerCanAccessProject()`. This means producers can see project names/metadata for all projects in the dashboard, but cannot access sub-resources of restricted/private projects without membership. Default: `"team"` (field absent = `"team"`). Type: `ProjectVisibility` in `shared/types/index.ts`.
 - **User deactivation:** Admins can deactivate users via `deactivateUser()` Cloud Function, which sets `status: "deactivated"` on the user doc and revokes their custom claims. Reactivation via `reactivateUser()` restores claims with a chosen role. Self-deactivation is prevented client-side. AlertDialog confirmation required.
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)
-- **Email service:** Invitation emails sent via Resend (`functions/email.js`). HTML + plain text templates with Production Hub branding. Non-blocking — invitation is valid without email delivery. Triggered by `handleResendInvitationEmail` Cloud Function handler.
+- **Email service:** Invitation emails sent via Resend (`functions/email.js`). From: `Production Hub <noreply@unboundmerino.immediategroup.ca>`. Reply-to: `ted@immediategroup.ca`. HTML + plain text templates with Production Hub branding. Non-blocking — invitation is valid without email delivery. Triggered by `handleResendInvitationEmail` Cloud Function handler and also on initial invitation creation.
 
 ### Cloud Functions
 
