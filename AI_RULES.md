@@ -118,6 +118,7 @@ All new vNext components must work in dark mode:
 5. **Print portals:** Static white — leave as-is
 6. **Activation:** `.dark` CSS class on `<html>`, NOT `data-theme` attribute. localStorage key: `sb:theme`
 7. **FOUC prevention:** Three interconnected pieces must agree — `tokens.css` `.dark` selector, `ThemeProvider` class toggle, FOUC `<script>` in `index.html`. All three use `.dark` CSS class and `sb:theme` localStorage key. A mismatch between any two causes bugs.
+8. **Image/logo assets:** When a logo or image must be visible on both light and dark backgrounds, use `dark:hidden` / `hidden dark:block` to swap between color variants (e.g., `immediate-logo-black.png` for light, `immediate-logo-white.png` for dark). Never hardcode a single color variant if the container respects theme.
 
 ---
 

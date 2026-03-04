@@ -894,6 +894,13 @@ Admin (role-gated: admin only)
 - [x] `firebase deploy --only firestore:rules,functions` — deployed (2x: initial + corrected shots rule)
 - [x] PR #365 merged to main
 
+### Post-Sprint Fix (PR #366)
+
+- [x] UM logo distortion — `h-[22px]` → `h-7` (28px), source PNG was 3928px wide causing 20x downscale artifacts
+- [x] Immediate logo invisible — switched from white to black variant on light sign-in panel
+- [x] Dark theme logo swap — `dark:hidden` / `hidden dark:block` for theme-aware Immediate logo (Codex bot P2 feedback)
+- [x] PR #366 merged to main
+
 ---
 
 ## Cross-Phase Requirements

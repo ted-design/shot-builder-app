@@ -100,7 +100,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 
 | Route | Page | Notes |
 |-------|------|-------|
-| `/login` | LoginPage | Google sign-in. Split-screen layout (Option A): lifestyle hero left, sign-in right. UM logo + Immediate logo IMAGE. CSS custom properties. Statically imported (Safari OAuth). |
+| `/login` | LoginPage | Google sign-in. Split-screen layout: lifestyle hero left, sign-in panel right. UM logo centered on sign-in panel (white PNG + CSS `invert` for light mode, `w-[300px]`). Immediate logo theme-aware (`dark:hidden` / `hidden dark:block`). CSS custom properties. Statically imported (Safari OAuth). |
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
 | `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
 | `/shots/shared/:shareToken` | PublicShotSharePage | Public shot share (vNext) |
