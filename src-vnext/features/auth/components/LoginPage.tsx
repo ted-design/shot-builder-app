@@ -200,7 +200,12 @@ export default function LoginPage() {
           <img
             src="/images/brands/immediate-logo-black.png"
             alt="Immediate"
-            className="h-4 w-auto opacity-30"
+            className="h-4 w-auto opacity-30 dark:hidden"
+          />
+          <img
+            src="/images/brands/immediate-logo-white.png"
+            alt="Immediate"
+            className="hidden h-4 w-auto opacity-35 dark:block"
           />
         </div>
       </div>
