@@ -54,7 +54,6 @@ export async function inviteOrUpdateUser({
       displayName: displayName || null,
       role,
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
     },
     { merge: true },
   )
