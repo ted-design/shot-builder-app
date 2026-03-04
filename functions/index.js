@@ -103,11 +103,14 @@ async function processInvitation(invitationDoc, caller) {
     : [];
 
   if (assignToProjects.length > 0) {
+    // Clamp org-level "admin" to "producer" for project membership — "admin" is
+    // not a valid project-scoped role (hasProjectRole checks producer/crew/warehouse/viewer).
+    const projectRole = invitation.role === "admin" ? "producer" : invitation.role;
     const memberWrites = assignToProjects.map((projectId) =>
       db.collection("clients").doc(clientId).collection("projects")
         .doc(projectId).collection("members").doc(uid)
         .set({
-          role: invitation.role,
+          role: projectRole,
           addedAt: admin.firestore.FieldValue.serverTimestamp(),
           addedBy: invitation.invitedBy || "system",
         }, { merge: true }),
@@ -632,6 +635,12 @@ async function handleDeactivateUser(data, caller) {
   // Prevent self-deactivation
   if (targetUid === caller.uid) {
     throw Object.assign(new Error("Cannot deactivate your own account."), { code: "failed-precondition" });
+  }
+
+  // Verify target user belongs to this client (prevent cross-client deactivation)
+  const targetUser = await admin.auth().getUser(targetUid);
+  if (targetUser.customClaims?.clientId !== clientId) {
+    throw Object.assign(new Error("User does not belong to this client."), { code: "permission-denied" });
   }
 
   // Clear custom claims

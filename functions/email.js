@@ -30,7 +30,6 @@ function getRoleLabel(role) {
     crew: "Crew",
     warehouse: "Warehouse",
     viewer: "Viewer",
-    editor: "Editor",
   };
   return labels[role] || role;
 }

@@ -106,10 +106,11 @@ export function TeamUserRow({
         <td className="hidden px-4 py-2.5 text-sm text-[var(--color-text-muted)] md:table-cell">
           {formatTimestamp(updatedAt)}
         </td>
+        <td className="hidden px-4 py-2.5 sm:table-cell" />
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan={5} className="p-0">
+          <td colSpan={6} className="p-0">
             <UserDetailPanel
               userId={userId}
               email={email}
