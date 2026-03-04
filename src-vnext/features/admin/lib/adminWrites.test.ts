@@ -79,7 +79,7 @@ describe("inviteOrUpdateUser", () => {
     expect(data.displayName).toBe("Jane Doe")
     expect(data.role).toBe("producer")
     expect(data.updatedAt).toBe("SERVER_TS")
-    expect(data.createdAt).toBe("SERVER_TS")
+    expect(data.createdAt).toBeUndefined()
     expect(options.merge).toBe(true)
   })
 
