@@ -3,12 +3,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 vi.mock("@/shared/lib/firebase", () => ({
-  functions: {},
   db: {},
 }))
 
-vi.mock("firebase/functions", () => ({
-  httpsCallable: vi.fn(),
+vi.mock("@/shared/lib/callFunction", () => ({
+  callFunction: vi.fn(),
 }))
 
 vi.mock("firebase/firestore", () => ({
@@ -32,7 +31,7 @@ vi.mock("sonner", () => ({
   },
 }))
 
-import { httpsCallable } from "firebase/functions"
+import { callFunction } from "@/shared/lib/callFunction"
 import { doc, setDoc } from "firebase/firestore"
 import { toast } from "sonner"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
@@ -46,9 +45,10 @@ describe("ShotsShareDialog", () => {
     })
   })
 
-  it("creates a share link via callable and updates the UI", async () => {
-    const callable = vi.fn().mockResolvedValue({ data: { shareToken: "token_1234567890" } })
-    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
+  it("creates a share link via callFunction and updates the UI", async () => {
+    ;(callFunction as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      shareToken: "token_1234567890",
+    })
 
     render(
       <ShotsShareDialog
@@ -65,14 +65,15 @@ describe("ShotsShareDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create link" }))
 
     await waitFor(() => {
-      expect(httpsCallable).toHaveBeenCalledWith({}, "createShotShareLink")
-    })
-
-    expect(callable).toHaveBeenCalledWith({
-      projectId: "p1",
-      scope: "project",
-      shotIds: null,
-      title: "Project 1 — Shots",
+      expect(callFunction).toHaveBeenCalledWith(
+        "createShotShareLink",
+        {
+          projectId: "p1",
+          scope: "project",
+          shotIds: null,
+          title: "Project 1 — Shots",
+        },
+      )
     })
 
     await waitFor(() => {
@@ -84,12 +85,11 @@ describe("ShotsShareDialog", () => {
     ).toBeInTheDocument()
   })
 
-  it("surfaces callable errors with code/message", async () => {
-    const callable = vi.fn().mockRejectedValue({
+  it("surfaces callFunction errors with code/message", async () => {
+    ;(callFunction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue({
       code: "functions/permission-denied",
       message: "Permission denied",
     })
-    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
 
     render(
       <ShotsShareDialog
@@ -115,14 +115,13 @@ describe("ShotsShareDialog", () => {
     })
   })
 
-  it("falls back to Firestore when callable returns internal error (IAM)", async () => {
-    const callable = vi.fn().mockRejectedValue({
+  it("falls back to Firestore when callFunction returns internal error (IAM)", async () => {
+    ;(callFunction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue({
       code: "functions/internal",
       message: "INTERNAL",
     })
-    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
-    ;(doc as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue("doc-ref")
-    ;(setDoc as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(undefined)
+    ;(doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue("doc-ref")
+    ;(setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
     render(
       <ShotsShareDialog
@@ -147,14 +146,13 @@ describe("ShotsShareDialog", () => {
     })
   })
 
-  it("falls back to Firestore when callable is unavailable", async () => {
-    const callable = vi.fn().mockRejectedValue({
+  it("falls back to Firestore when callFunction is unavailable", async () => {
+    ;(callFunction as unknown as ReturnType<typeof vi.fn>).mockRejectedValue({
       code: "functions/not-found",
       message: "Function not found",
     })
-    ;(httpsCallable as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(callable)
-    ;(doc as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue("doc-ref")
-    ;(setDoc as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(undefined)
+    ;(doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue("doc-ref")
+    ;(setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
 
     render(
       <ShotsShareDialog

@@ -2,14 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // ---- Mocks ----
 
-const mockCallable = vi.fn()
-const mockHttpsCallable = vi.fn(() => mockCallable)
+const mockCallFunction = vi.fn()
 const mockSetDoc = vi.fn()
 const mockDeleteDoc = vi.fn()
 const mockDoc = vi.fn((_db: unknown, ...segments: string[]) => segments.join("/"))
 
-vi.mock("firebase/functions", () => ({
-  httpsCallable: (...args: unknown[]) => mockHttpsCallable(...args),
+vi.mock("@/shared/lib/callFunction", () => ({
+  callFunction: (...args: unknown[]) => mockCallFunction(...args),
 }))
 
 vi.mock("firebase/firestore", async () => {
@@ -23,7 +22,7 @@ vi.mock("firebase/firestore", async () => {
   }
 })
 
-vi.mock("@/shared/lib/firebase", () => ({ db: {}, functions: {} }))
+vi.mock("@/shared/lib/firebase", () => ({ db: {} }))
 
 vi.mock("@/shared/lib/paths", () => ({
   userDocPath: (uid: string, clientId: string) => ["clients", clientId, "users", uid],
@@ -41,14 +40,14 @@ import {
 
 // ---- Helpers ----
 
-function makeCallableResponse(uid: string) {
-  return { data: { ok: true, uid, claims: { role: "producer", clientId: "c1" } } }
+function makeCallFunctionResponse(uid: string) {
+  return { ok: true, uid, claims: { role: "producer", clientId: "c1" } }
 }
 
 describe("inviteOrUpdateUser", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCallable.mockResolvedValue(makeCallableResponse("uid-abc"))
+    mockCallFunction.mockResolvedValue(makeCallFunctionResponse("uid-abc"))
     mockSetDoc.mockResolvedValue(undefined)
   })
 
@@ -60,12 +59,10 @@ describe("inviteOrUpdateUser", () => {
       clientId: "c1",
     })
 
-    expect(mockHttpsCallable).toHaveBeenCalledWith({}, "setUserClaims")
-    expect(mockCallable).toHaveBeenCalledWith({
-      targetEmail: "user@example.com",
-      role: "producer",
-      clientId: "c1",
-    })
+    expect(mockCallFunction).toHaveBeenCalledWith(
+      "setUserClaims",
+      { targetEmail: "user@example.com", role: "producer", clientId: "c1" },
+    )
   })
 
   it("writes user doc after CF call with mergeFields", async () => {
@@ -110,7 +107,7 @@ describe("inviteOrUpdateUser", () => {
   })
 
   it("throws when CF response has no uid", async () => {
-    mockCallable.mockResolvedValue({ data: { ok: false, uid: "", claims: {} } })
+    mockCallFunction.mockResolvedValue({ ok: false, uid: "", claims: {} })
 
     await expect(
       inviteOrUpdateUser({
@@ -123,7 +120,7 @@ describe("inviteOrUpdateUser", () => {
   })
 
   it("returns pending result when CF indicates user not found", async () => {
-    mockCallable.mockResolvedValue({ data: { ok: true, pending: true, email: "ghost@example.com" } })
+    mockCallFunction.mockResolvedValue({ ok: true, pending: true, email: "ghost@example.com" })
 
     const result = await inviteOrUpdateUser({
       targetEmail: "ghost@example.com",
@@ -137,7 +134,7 @@ describe("inviteOrUpdateUser", () => {
   })
 
   it("propagates non-user-not-found CF errors", async () => {
-    mockCallable.mockRejectedValue(new Error("permission-denied"))
+    mockCallFunction.mockRejectedValue(new Error("permission-denied"))
 
     await expect(
       inviteOrUpdateUser({
@@ -153,7 +150,7 @@ describe("inviteOrUpdateUser", () => {
 describe("updateUserRole", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCallable.mockResolvedValue(makeCallableResponse("uid-xyz"))
+    mockCallFunction.mockResolvedValue(makeCallFunctionResponse("uid-xyz"))
     mockSetDoc.mockResolvedValue(undefined)
   })
 
@@ -165,12 +162,10 @@ describe("updateUserRole", () => {
       clientId: "c1",
     })
 
-    expect(mockHttpsCallable).toHaveBeenCalledWith({}, "setUserClaims")
-    expect(mockCallable).toHaveBeenCalledWith({
-      targetEmail: "user@example.com",
-      role: "admin",
-      clientId: "c1",
-    })
+    expect(mockCallFunction).toHaveBeenCalledWith(
+      "setUserClaims",
+      { targetEmail: "user@example.com", role: "admin", clientId: "c1" },
+    )
   })
 
   it("writes only role and updatedAt to Firestore with merge", async () => {
@@ -190,7 +185,7 @@ describe("updateUserRole", () => {
   })
 
   it("propagates CF errors without writing Firestore", async () => {
-    mockCallable.mockRejectedValue(new Error("permission-denied"))
+    mockCallFunction.mockRejectedValue(new Error("permission-denied"))
 
     await expect(
       updateUserRole({

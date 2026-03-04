@@ -101,8 +101,21 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
         })
       }
       onOpenChange(false)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+    } catch (err: unknown) {
+      const code = err != null && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : ""
+
+      const friendlyMessages: Record<string, string> = {
+        "functions/permission-denied": "You don't have permission to invite users. Contact your system administrator.",
+        "functions/unauthenticated": "Your session has expired. Please sign in again.",
+        "functions/invalid-argument": "Invalid input. Please check the email and role.",
+        "functions/not-found": "The invitation service is not available. Please try again later.",
+        "functions/internal": "Something went wrong. Please try again.",
+      }
+
+      const message = friendlyMessages[code]
+        ?? (err instanceof Error ? err.message : "Failed to send invitation. Please try again.")
       toast.error(message)
     } finally {
       setSaving(false)

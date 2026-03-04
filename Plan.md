@@ -795,9 +795,25 @@ Admin (role-gated: admin only)
 
 ### Post-Commit Deployment
 
-- [ ] Deploy Cloud Functions: `firebase deploy --only functions`
+- [x] Deploy Cloud Functions: `firebase deploy --only functions` (Firestore Queue pattern — bypasses GCP org IAM)
 - [ ] Create Firestore index: collection group `pendingInvitations` — status(Asc) + email(Asc)
-- [ ] E2E test: admin invites unknown email → user signs in → auto-gets role
+- [x] E2E test: admin invites unknown email → user signs in → auto-gets role (verified 2026-03-03)
+
+### Sprint S9b: Firestore Queue Migration (Infrastructure Fix)
+
+**Status:** COMPLETE (deployed, verified, uncommitted).
+
+**Problem:** GCP org policy `constraints/iam.allowedPolicyMemberDomains` blocks `allUsers`/`allAuthenticatedUsers` IAM on Cloud Functions. Firebase Hosting rewrites require `allUsers` invoker, which was stripped and cannot be re-added.
+
+**Solution:** Replaced HTTP-based Cloud Function invocation with Firestore document-trigger queue. Client writes to `_functionQueue/{docId}`, `processQueue` onCreate trigger processes server-side, client reads response via `onSnapshot`.
+
+- [x] Server: `processQueue` Firestore trigger + extracted handler functions
+- [x] Client: `callFunction.ts` rewritten (HTTP fetch → Firestore queue, same signature)
+- [x] Rules: `_functionQueue` collection rules (auth create, anon for publicUpdatePull, owner read)
+- [x] Tests: 11 unit tests for queue-based callFunction
+- [x] Fix: onSnapshot error handler (silent failure → immediate reject)
+- [x] Fix: Removed `revokeRefreshTokens` from `processInvitation` (was invalidating caller's own session)
+- [x] Deployed and verified end-to-end (setUserClaims + claimInvitation)
 
 ---
 

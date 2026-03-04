@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { collectionGroup, getDocs, limit, query, where } from "firebase/firestore"
-import { httpsCallable } from "firebase/functions"
 import { toast } from "sonner"
-import { db, functions } from "@/shared/lib/firebase"
+import { db } from "@/shared/lib/firebase"
+import { callFunction } from "@/shared/lib/callFunction"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Button } from "@/ui/button"
@@ -151,12 +151,11 @@ export default function PublicPullViewPage() {
 
     setSaving(true)
     try {
-      const callable = httpsCallable(functions, "publicUpdatePull")
-      await callable({
-        shareToken,
-        email: trimmedEmail,
-        actions,
-      } satisfies PublicUpdatePullPayload)
+      await callFunction<{ ok: boolean; pull: unknown }>(
+        "publicUpdatePull",
+        { shareToken, email: trimmedEmail, actions } satisfies PublicUpdatePullPayload,
+        { skipAuth: true },
+      )
       toast.success("Updates submitted.")
       // Reload from Firestore (single query) to confirm canonical state.
       setLoading(true)

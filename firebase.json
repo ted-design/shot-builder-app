@@ -32,6 +32,34 @@
         }
       },
       {
+        "source": "/setUserClaims",
+        "function": {
+          "functionId": "setUserClaims",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/claimInvitation",
+        "function": {
+          "functionId": "claimInvitation",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/createShotShareLink",
+        "function": {
+          "functionId": "createShotShareLink",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/publicUpdatePull",
+        "function": {
+          "functionId": "publicUpdatePull",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

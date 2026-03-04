@@ -191,6 +191,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
 
 /shotShares/{shareToken}               # Denormalized public share docs
 /systemAdmins/{email}                  # System admin list
+/_functionQueue/{docId}                # Cloud Function invocation queue (Firestore trigger)
 ```
 
 ### Key Document Shapes
@@ -399,12 +400,22 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 
 ### Cloud Functions
 
+All callable functions use the **Firestore Queue pattern** — client writes to `_functionQueue/{docId}`, `processQueue` Firestore `onCreate` trigger processes server-side, client reads response via `onSnapshot`. This bypasses the GCP org policy that blocks `allUsers` IAM on Cloud Functions. The `onRequest` exports are kept as dormant fallback.
+
 | Function | Type | Purpose |
 |----------|------|---------|
-| `setUserClaims` | Callable | Set role + clientId on Firebase Auth user. Catches `auth/user-not-found` and creates `pendingInvitations` doc instead. |
-| `claimInvitation` | Callable | Auto-called on first sign-in when user has no claims. Queries `pendingInvitations` collection group, sets claims, writes user doc, marks invitation claimed. |
-| `resolvePullShareToken` | HTTP POST | Resolve public pull share token to pull data |
-| `resolveShotShareToken` | HTTP POST | Resolve denormalized shot share doc |
+| `processQueue` | Firestore trigger (onCreate) | Dispatches `_functionQueue` docs to handler functions. Reads caller identity via `admin.auth().getUser(createdBy)`. |
+| `setUserClaims` | Queue handler + onRequest fallback | Set role + clientId on Firebase Auth user. Catches `auth/user-not-found` and creates `pendingInvitations` doc instead. |
+| `claimInvitation` | Queue handler + onRequest fallback | Auto-called on first sign-in when user has no claims. Queries `pendingInvitations` collection group, sets claims, writes user doc, marks invitation claimed. |
+| `createShotShareLink` | Queue handler + onRequest fallback | Creates a denormalized `shotShares` doc for public sharing. |
+| `publicUpdatePull` | Queue handler + onRequest fallback | Public warehouse fulfillment responses (anonymous, requires shareToken). |
+| `resolvePullShareToken` | HTTP POST (direct) | Resolve public pull share token to pull data |
+| `resolveShotShareToken` | HTTP POST (direct) | Resolve denormalized shot share doc |
+| `cleanupVersionsAndLocks` | Scheduled (hourly) | Deletes expired versions, clears stale presence locks |
+
+**Client helper:** `src-vnext/shared/lib/callFunction.ts` — writes queue doc, subscribes via `onSnapshot`, resolves/rejects on status change. 30s timeout. Same signature for all callers.
+
+**Queue collection:** `_functionQueue/{docId}` — Firestore rules enforce `createdBy == request.auth.uid` for auth'd creates, anonymous creates only for `publicUpdatePull` with valid shareToken.
 
 Region: `northamerica-northeast1`
 

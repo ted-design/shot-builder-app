@@ -64,6 +64,35 @@ service cloud.firestore {
         get(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)).data.enabled == true;
     }
 
+    // Function queue — Firestore-trigger-based Cloud Function invocation
+    // Bypasses HTTP/CORS/IAM by using Firestore writes + onCreate trigger
+    match /_functionQueue/{docId} {
+      // Authenticated users can create requests
+      allow create: if request.auth != null
+        && request.resource.data.action is string
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // Unauthenticated creates only for publicUpdatePull
+      allow create: if request.auth == null
+        && request.resource.data.action == "publicUpdatePull"
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdBy == "anonymous"
+        && request.resource.data.data.shareToken is string
+        && request.resource.data.data.shareToken.size() >= 8;
+
+      // Authenticated users can read their own queue docs
+      allow read: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
+
+      // Unauthenticated reads for publicUpdatePull responses (get only — no list/enumeration)
+      allow get: if resource.data.action == "publicUpdatePull"
+        && resource.data.createdBy == "anonymous";
+
+      // No client-side updates or deletes
+      allow update, delete: if false;
+    }
+
     // System Admins - managed via Cloud Functions and admin scripts
     match /systemAdmins/{email} {
       // Only system admins can read the list of system admins

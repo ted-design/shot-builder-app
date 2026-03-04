@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
-import { httpsCallable } from "firebase/functions"
 import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore"
-import { db, functions } from "@/shared/lib/firebase"
+import { db } from "@/shared/lib/firebase"
+import { callFunction } from "@/shared/lib/callFunction"
 import { resolveShotsForShare } from "@/features/shots/lib/resolveShotsForShare"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
@@ -135,9 +135,8 @@ export function ShotsShareDialog({
       }
       let shareToken: string
       try {
-        const callable = httpsCallable(functions, "createShotShareLink")
-        const res = await callable(payload)
-        const callableToken = (res.data as { shareToken?: unknown } | null)?.shareToken
+        const res = await callFunction<{ shareToken: string }>("createShotShareLink", payload)
+        const callableToken = res.shareToken
         if (typeof callableToken !== "string" || callableToken.trim().length < 10) {
           throw new Error("Invalid share response")
         }

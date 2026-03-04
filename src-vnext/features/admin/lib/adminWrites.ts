@@ -1,6 +1,6 @@
 import { deleteDoc, doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { httpsCallable } from "firebase/functions"
-import { db, functions } from "@/shared/lib/firebase"
+import { callFunction } from "@/shared/lib/callFunction"
+import { db } from "@/shared/lib/firebase"
 import { projectMemberDocPath, userDocPath } from "@/shared/lib/paths"
 import type { Role } from "@/shared/types"
 
@@ -25,18 +25,16 @@ export async function inviteOrUpdateUser({
   role,
   clientId,
 }: InviteOrUpdateUserParams): Promise<{ uid: string } | { pending: true; email: string }> {
-  const callable = httpsCallable<
-    { targetEmail: string; role: Role; clientId: string },
-    SetUserClaimsResponse
-  >(functions, "setUserClaims")
+  const response = await callFunction<SetUserClaimsResponse>(
+    "setUserClaims",
+    { targetEmail, role, clientId },
+  )
 
-  const response = await callable({ targetEmail, role, clientId })
-
-  if (response.data.pending) {
-    return { pending: true, email: response.data.email ?? targetEmail }
+  if (response.pending) {
+    return { pending: true, email: response.email ?? targetEmail }
   }
 
-  const uid = response.data.uid
+  const uid = response.uid
   if (!uid) {
     throw new Error("Cloud Function did not return a user id.")
   }
@@ -74,12 +72,11 @@ export async function updateUserRole({
   newRole,
   clientId,
 }: UpdateUserRoleParams): Promise<void> {
-  const callable = httpsCallable<
-    { targetEmail: string; role: Role; clientId: string },
-    SetUserClaimsResponse
-  >(functions, "setUserClaims")
-
-  await callable({ targetEmail: userEmail, role: newRole, clientId })
+  await callFunction("setUserClaims", {
+    targetEmail: userEmail,
+    role: newRole,
+    clientId,
+  })
 
   const ref = doc(db, ...userDocPath(userId, clientId))
   await setDoc(
