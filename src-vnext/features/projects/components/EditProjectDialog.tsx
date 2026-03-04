@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/app/providers/AuthProvider"
-import type { Project, ProjectStatus } from "@/shared/types"
+import type { Project, ProjectStatus, ProjectVisibility } from "@/shared/types"
 import { updateProjectField } from "@/features/projects/lib/updateProject"
+import { canManageProjects } from "@/shared/lib/rbac"
 import { deleteField } from "firebase/firestore"
 import {
   projectNameSchema,
@@ -14,6 +15,7 @@ import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/ui/radio-group"
 import { ShootDatesField } from "@/features/projects/components/ShootDatesField"
 import {
   Select,
@@ -37,18 +39,42 @@ const STATUS_OPTIONS: ReadonlyArray<{ readonly value: ProjectStatus; readonly la
   { value: "archived", label: "Archived" },
 ]
 
+const VISIBILITY_OPTIONS: ReadonlyArray<{
+  readonly value: ProjectVisibility
+  readonly label: string
+  readonly description: string
+}> = [
+  {
+    value: "team",
+    label: "Team",
+    description: "All producers in your organization can access this project.",
+  },
+  {
+    value: "restricted",
+    label: "Restricted",
+    description: "Only members explicitly added to this project can access it.",
+  },
+  {
+    value: "private",
+    label: "Private",
+    description: "Only you and admins can see this project.",
+  },
+]
+
 export function EditProjectDialog({
   open,
   onOpenChange,
   project,
 }: EditProjectDialogProps) {
-  const { clientId } = useAuth()
+  const { clientId, role } = useAuth()
+  const showVisibility = canManageProjects(role)
 
   const [name, setName] = useState("")
   const [shootDates, setShootDates] = useState<string[]>([])
   const [briefUrl, setBriefUrl] = useState("")
   const [notes, setNotes] = useState("")
   const [status, setStatus] = useState<ProjectStatus>("active")
+  const [visibility, setVisibility] = useState<ProjectVisibility>("team")
   const [expanded, setExpanded] = useState(false)
 
   const [saving, setSaving] = useState(false)
@@ -66,6 +92,7 @@ export function EditProjectDialog({
       setBriefUrl(project.briefUrl ?? "")
       setNotes(project.notes ?? "")
       setStatus(project.status ?? "active")
+      setVisibility(project.visibility ?? "team")
       setFieldErrors({})
 
       const hasOptionalData = !!project.briefUrl || !!project.notes
@@ -107,6 +134,7 @@ export function EditProjectDialog({
       await updateProjectField(project.id, clientId, {
         name: trimmedName,
         status,
+        visibility,
         shootDates: [...shootDates].sort(),
         briefUrl: brief || deleteField(),
         notes: notes.trim() || deleteField(),
@@ -205,6 +233,39 @@ export function EditProjectDialog({
         {/* Collapsible optional fields */}
         {expanded && (
           <div className="flex flex-col gap-4" data-testid="optional-fields">
+            {/* Visibility — only shown to admin/producer */}
+            {showVisibility && (
+              <div className="flex flex-col gap-3" data-testid="visibility-field">
+                <Label>Visibility</Label>
+                <RadioGroup
+                  value={visibility}
+                  onValueChange={(v) => setVisibility(v as ProjectVisibility)}
+                  disabled={saving}
+                >
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex items-start gap-3 cursor-pointer"
+                    >
+                      <RadioGroupItem
+                        value={opt.value}
+                        id={`visibility-${opt.value}`}
+                        className="mt-0.5"
+                      />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium leading-none">
+                          {opt.label}
+                        </span>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {opt.description}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-project-brief-url">Brief URL</Label>
               <Input

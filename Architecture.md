@@ -396,7 +396,10 @@ Defined in `src/lib/flags.js`. Overridable via localStorage and URL params.
 | `canTriageShotRequests` | admin, producer |
 
 - **Project-scoped roles:** Per-project membership stored in `projects/{pid}/members/{uid}` subcollection. Each member doc has `role`, `addedAt`, `addedBy`. Project creation auto-adds creator as member via `writeBatch`. `resolveEffectiveRole()` (not yet implemented) will combine global role + per-project role.
+- **Project visibility:** Projects support a `visibility` field with 3 states: `"team"` (default — producers see without membership), `"restricted"` (only explicit project members), `"private"` (only creator + admins). Producers have global read+write to all `team` visibility projects without requiring per-project membership. For `restricted` and `private` projects, standard membership rules apply. Firestore rules enforce this via `hasGlobalRole()` and `producerCanAccessProject()` helpers cascaded to all sub-collections. Default: `"team"` (field absent = `"team"`). Type: `ProjectVisibility` in `shared/types/index.ts`.
+- **User deactivation:** Admins can deactivate users via `deactivateUser()` Cloud Function, which sets `status: "deactivated"` on the user doc and revokes their custom claims. Reactivation via `reactivateUser()` restores claims with a chosen role. Self-deactivation is prevented client-side. AlertDialog confirmation required.
 - **Cloud Function:** `setUserClaims` (admin-only, sets role + clientId on user)
+- **Email service:** Invitation emails sent via Resend (`functions/email.js`). HTML + plain text templates with Production Hub branding. Non-blocking — invitation is valid without email delivery. Triggered by `handleResendInvitationEmail` Cloud Function handler.
 
 ### Cloud Functions
 
@@ -408,6 +411,9 @@ All callable functions use the **Firestore Queue pattern** — client writes to 
 | `setUserClaims` | Queue handler + onRequest fallback | Set role + clientId on Firebase Auth user. Catches `auth/user-not-found` and creates `pendingInvitations` doc instead. |
 | `claimInvitation` | Queue handler + onRequest fallback | Auto-called on first sign-in when user has no claims. Queries `pendingInvitations` collection group, sets claims, writes user doc, marks invitation claimed. |
 | `createShotShareLink` | Queue handler + onRequest fallback | Creates a denormalized `shotShares` doc for public sharing. |
+| `deactivateUser` | Queue handler | Sets `status: "deactivated"` on user doc, revokes custom claims. Admin-only. |
+| `reactivateUser` | Queue handler | Restores claims with chosen role, sets `status: "active"`. Admin-only. |
+| `resendInvitationEmail` | Queue handler | Re-sends invitation email via Resend for pending invitations. Admin-only. |
 | `publicUpdatePull` | Queue handler + onRequest fallback | Public warehouse fulfillment responses (anonymous, requires shareToken). |
 | `resolvePullShareToken` | HTTP POST (direct) | Resolve public pull share token to pull data |
 | `resolveShotShareToken` | HTTP POST (direct) | Resolve denormalized shot share doc |
@@ -521,6 +527,12 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `AddProjectMemberDialog.tsx` | `features/admin/components/` | Add existing user to project with role selection |
 | `InviteUserDialog.tsx` | `features/admin/components/` | ResponsiveDialog for inviting/updating users + copy-link |
 | `UserRoleSelect.tsx` | `features/admin/components/` | Inline role dropdown with immediate save |
+| `TeamRosterTab.tsx` | `features/admin/components/` | Orchestrator: merges users + pending invitations, applies search/filter, renders unified table |
+| `TeamSearchFilterBar.tsx` | `features/admin/components/` | Debounced search (250ms) + role filter + status filter (All/Active/Pending/Deactivated) |
+| `TeamUserRow.tsx` | `features/admin/components/` | Enhanced user row with StatusBadge, role dropdown, expand chevron, detail panel |
+| `UserDetailPanel.tsx` | `features/admin/components/` | Expandable detail: inline name editing, deactivate/reactivate with AlertDialog, project assignment picker, resend invitation |
+| `PendingInvitationRow.tsx` | `features/admin/components/` | Pending invitation display with relative timestamp, resend button, revoke button |
+| `ProjectAssignmentPicker.tsx` | `features/admin/components/` | Multi-select project picker for bulk assignment during invite/edit |
 | `PendingAccessPage.tsx` | `shared/components/` | Standalone page for users awaiting admin role assignment |
 
 ### Mobile & Tablet Components (Phase 5)

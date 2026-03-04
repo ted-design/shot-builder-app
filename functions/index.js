@@ -4,6 +4,8 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+const { sendInvitationEmail } = require("./email");
+
 // FALLBACK: Only used if Firestore admin collection is not accessible
 // Set SUPER_ADMIN_EMAIL in environment variables for production
 const FALLBACK_SUPER_ADMIN = process.env.SUPER_ADMIN_EMAIL || "ted@immediategroup.ca";
@@ -94,6 +96,28 @@ async function processInvitation(invitationDoc, caller) {
     claimedAt: admin.firestore.FieldValue.serverTimestamp(),
     claimedByUid: uid,
   });
+
+  // Auto-assign to projects if specified on the invitation
+  const assignToProjects = Array.isArray(invitation.assignToProjects)
+    ? invitation.assignToProjects.filter((id) => typeof id === "string" && id.trim().length > 0)
+    : [];
+
+  if (assignToProjects.length > 0) {
+    // Clamp org-level "admin" to "producer" for project membership — "admin" is
+    // not a valid project-scoped role (hasProjectRole checks producer/crew/warehouse/viewer).
+    const projectRole = invitation.role === "admin" ? "producer" : invitation.role;
+    const memberWrites = assignToProjects.map((projectId) =>
+      db.collection("clients").doc(clientId).collection("projects")
+        .doc(projectId).collection("members").doc(uid)
+        .set({
+          role: projectRole,
+          addedAt: admin.firestore.FieldValue.serverTimestamp(),
+          addedBy: invitation.invitedBy || "system",
+        }, { merge: true }),
+    );
+    await Promise.all(memberWrites);
+    console.log(`[processInvitation] Auto-assigned ${uid} to ${assignToProjects.length} projects`);
+  }
 
   // Note: Do NOT call revokeRefreshTokens here. The caller is claiming their
   // OWN invitation — revoking would invalidate their session before the client
@@ -211,6 +235,10 @@ async function handleSetUserClaims(data, caller) {
         .collection("pendingInvitations")
         .doc(normalizedEmail);
 
+      const assignToProjects = Array.isArray(data.assignToProjects)
+        ? data.assignToProjects.filter((id) => typeof id === "string" && id.trim().length > 0)
+        : [];
+
       await invitationRef.set({
         email: normalizedEmail,
         role,
@@ -220,7 +248,18 @@ async function handleSetUserClaims(data, caller) {
         status: "pending",
         claimedAt: null,
         claimedByUid: null,
+        ...(assignToProjects.length > 0 ? { assignToProjects } : {}),
       }, { merge: true });
+
+      // Send invitation email (non-blocking — failure does not affect the invitation)
+      const inviterName = caller.name || caller.email || "A team member";
+      const inviterEmail = caller.email || "";
+      await sendInvitationEmail({
+        to: normalizedEmail,
+        role,
+        inviterName,
+        inviterEmail,
+      });
 
       return { ok: true, pending: true, email: targetEmail.trim() };
     }
@@ -530,6 +569,164 @@ async function handlePublicUpdatePull(data) {
   return { ok: true, pull: result };
 }
 
+async function handleResendInvitationEmail(data, caller) {
+  if (!caller) {
+    throw Object.assign(new Error("Authentication required."), { code: "unauthenticated" });
+  }
+
+  const callerEmail = caller.email;
+  const isAuthorized = await isAuthorizedAdmin(callerEmail);
+
+  if (!isAuthorized) {
+    const callerRole = caller.role;
+    if (callerRole !== "admin") {
+      throw Object.assign(new Error("Not authorized."), { code: "permission-denied" });
+    }
+  }
+
+  const targetEmail = data.targetEmail;
+  const role = data.role;
+
+  if (!targetEmail || typeof targetEmail !== "string") {
+    throw Object.assign(new Error("targetEmail is required."), { code: "invalid-argument" });
+  }
+  if (!role || typeof role !== "string") {
+    throw Object.assign(new Error("role is required."), { code: "invalid-argument" });
+  }
+
+  const inviterName = caller.name || caller.email || "A team member";
+  const inviterEmail = caller.email || "";
+
+  await sendInvitationEmail({
+    to: targetEmail.trim().toLowerCase(),
+    role,
+    inviterName,
+    inviterEmail,
+  });
+
+  return { ok: true };
+}
+
+async function handleDeactivateUser(data, caller) {
+  if (!caller) {
+    throw Object.assign(new Error("Authentication required."), { code: "unauthenticated" });
+  }
+
+  const callerEmail = caller.email;
+  const clientId = data.clientId;
+  const targetUid = data.targetUid;
+
+  if (!clientId || typeof clientId !== "string") {
+    throw Object.assign(new Error("clientId is required."), { code: "invalid-argument" });
+  }
+  if (!targetUid || typeof targetUid !== "string") {
+    throw Object.assign(new Error("targetUid is required."), { code: "invalid-argument" });
+  }
+
+  const isAuthorized = await isAuthorizedAdmin(callerEmail);
+  if (!isAuthorized) {
+    const callerRole = caller.role;
+    const callerClientId = caller.clientId;
+    if (callerRole !== "admin" || callerClientId !== clientId) {
+      throw Object.assign(new Error("Not authorized."), { code: "permission-denied" });
+    }
+  }
+
+  // Prevent self-deactivation
+  if (targetUid === caller.uid) {
+    throw Object.assign(new Error("Cannot deactivate your own account."), { code: "failed-precondition" });
+  }
+
+  // Verify target user belongs to this client (prevent cross-client deactivation)
+  const targetUser = await admin.auth().getUser(targetUid);
+  if (targetUser.customClaims?.clientId !== clientId) {
+    throw Object.assign(new Error("User does not belong to this client."), { code: "permission-denied" });
+  }
+
+  // Clear custom claims
+  await admin.auth().setCustomUserClaims(targetUid, {});
+
+  const db = admin.firestore();
+
+  // Update user doc status
+  await db.collection("clients").doc(clientId).collection("users").doc(targetUid).update({
+    status: "deactivated",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Remove from all project memberships in this client
+  const projectsSnap = await db.collection("clients").doc(clientId).collection("projects").get();
+  const memberRefs = projectsSnap.docs.map((d) =>
+    d.ref.collection("members").doc(targetUid)
+  );
+  const memberSnaps = await Promise.all(memberRefs.map((ref) => ref.get()));
+  const refsToDelete = memberSnaps.filter((s) => s.exists).map((s) => s.ref);
+
+  // Firestore batch limit is 500 — chunk deletes
+  const CHUNK = 499;
+  for (let i = 0; i < refsToDelete.length; i += CHUNK) {
+    const batch = db.batch();
+    refsToDelete.slice(i, i + CHUNK).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+
+  // Revoke refresh tokens to force immediate lockout.
+  // Safe: caller is admin, target is a different user (self-deactivation blocked above).
+  await admin.auth().revokeRefreshTokens(targetUid);
+  console.log(`[deactivateUser] Deactivated ${targetUid} in client ${clientId}, removed from ${refsToDelete.length} projects, tokens revoked`);
+
+  return { ok: true };
+}
+
+async function handleReactivateUser(data, caller) {
+  if (!caller) {
+    throw Object.assign(new Error("Authentication required."), { code: "unauthenticated" });
+  }
+
+  const callerEmail = caller.email;
+  const clientId = data.clientId;
+  const targetUid = data.targetUid;
+  const role = data.role;
+
+  if (!clientId || typeof clientId !== "string") {
+    throw Object.assign(new Error("clientId is required."), { code: "invalid-argument" });
+  }
+  if (!targetUid || typeof targetUid !== "string") {
+    throw Object.assign(new Error("targetUid is required."), { code: "invalid-argument" });
+  }
+  if (!role || typeof role !== "string") {
+    throw Object.assign(new Error("role is required."), { code: "invalid-argument" });
+  }
+
+  const isAuthorized = await isAuthorizedAdmin(callerEmail);
+  if (!isAuthorized) {
+    const callerRole = caller.role;
+    const callerClientId = caller.clientId;
+    if (callerRole !== "admin" || callerClientId !== clientId) {
+      throw Object.assign(new Error("Not authorized."), { code: "permission-denied" });
+    }
+  }
+
+  // Set custom claims with provided role and clientId
+  await admin.auth().setCustomUserClaims(targetUid, { role, clientId });
+
+  const db = admin.firestore();
+
+  // Update user doc status
+  await db.collection("clients").doc(clientId).collection("users").doc(targetUid).update({
+    status: "active",
+    role,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Revoke refresh tokens to force re-auth with new claims
+  await admin.auth().revokeRefreshTokens(targetUid);
+
+  console.log(`[reactivateUser] Reactivated ${targetUid} in client ${clientId} with role ${role}`);
+
+  return { ok: true };
+}
+
 // --- onRequest exports (dormant fallback — active when IAM is resolved) ---
 
 exports.setUserClaims = functions
@@ -631,6 +828,15 @@ exports.processQueue = functions
           break;
         case "publicUpdatePull":
           result = await handlePublicUpdatePull(data);
+          break;
+        case "resendInvitationEmail":
+          result = await handleResendInvitationEmail(data, caller);
+          break;
+        case "deactivateUser":
+          result = await handleDeactivateUser(data, caller);
+          break;
+        case "reactivateUser":
+          result = await handleReactivateUser(data, caller);
           break;
         default:
           throw Object.assign(new Error(`Unknown action: ${action}`), { code: "invalid-argument" });

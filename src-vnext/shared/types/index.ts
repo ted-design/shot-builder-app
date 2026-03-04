@@ -4,11 +4,21 @@ export type Role = "admin" | "producer" | "crew" | "warehouse" | "viewer"
 
 export type ProjectStatus = "active" | "completed" | "archived"
 
+export type ProjectVisibility = "team" | "restricted" | "private"
+
 export interface Project {
   readonly id: string
   readonly name: string
   readonly clientId: string
   readonly status: ProjectStatus
+  /**
+   * Controls who can see this project.
+   * - 'team' (default when absent): all producers in the org
+   * - 'restricted': only explicit project members
+   * - 'private': only the creator and admins
+   */
+  readonly visibility?: ProjectVisibility
+  readonly createdBy?: string
   /**
    * Legacy-compatible shoot dates (YYYY-MM-DD).
    * Stored as date-only strings to avoid timezone shifts.

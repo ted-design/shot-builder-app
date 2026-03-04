@@ -9,6 +9,7 @@ interface InviteOrUpdateUserParams {
   readonly displayName: string | null
   readonly role: Role
   readonly clientId: string
+  readonly assignToProjects?: readonly string[]
 }
 
 interface SetUserClaimsResponse {
@@ -24,10 +25,16 @@ export async function inviteOrUpdateUser({
   displayName,
   role,
   clientId,
+  assignToProjects,
 }: InviteOrUpdateUserParams): Promise<{ uid: string } | { pending: true; email: string }> {
+  const data: Record<string, unknown> = { targetEmail, role, clientId }
+  if (assignToProjects && assignToProjects.length > 0) {
+    data.assignToProjects = assignToProjects
+  }
+
   const response = await callFunction<SetUserClaimsResponse>(
     "setUserClaims",
-    { targetEmail, role, clientId },
+    data,
   )
 
   if (response.pending) {
@@ -53,6 +60,34 @@ export async function inviteOrUpdateUser({
   )
 
   return { uid }
+}
+
+interface ResendInvitationParams {
+  readonly email: string
+  readonly role: string
+}
+
+export async function resendInvitation({ email, role }: ResendInvitationParams): Promise<void> {
+  await callFunction("resendInvitationEmail", { targetEmail: email, role })
+}
+
+interface DeactivateUserParams {
+  readonly targetUid: string
+  readonly clientId: string
+}
+
+export async function deactivateUser({ targetUid, clientId }: DeactivateUserParams): Promise<void> {
+  await callFunction("deactivateUser", { targetUid, clientId })
+}
+
+interface ReactivateUserParams {
+  readonly targetUid: string
+  readonly role: Role
+  readonly clientId: string
+}
+
+export async function reactivateUser({ targetUid, role, clientId }: ReactivateUserParams): Promise<void> {
+  await callFunction("reactivateUser", { targetUid, role, clientId })
 }
 
 interface UpdateUserRoleParams {
@@ -112,6 +147,35 @@ export async function addProjectMember({
     addedAt: serverTimestamp(),
     addedBy,
   }, { merge: true })
+}
+
+interface BulkAddProjectMembersParams {
+  readonly assignments: ReadonlyArray<{
+    readonly projectId: string
+    readonly role: Role
+  }>
+  readonly userId: string
+  readonly addedBy: string
+  readonly clientId: string
+}
+
+export async function bulkAddProjectMembers({
+  assignments,
+  userId,
+  addedBy,
+  clientId,
+}: BulkAddProjectMembersParams): Promise<void> {
+  await Promise.all(
+    assignments.map((a) =>
+      addProjectMember({
+        projectId: a.projectId,
+        userId,
+        role: a.role,
+        addedBy,
+        clientId,
+      }),
+    ),
+  )
 }
 
 interface RemoveProjectMemberParams {

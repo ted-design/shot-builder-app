@@ -200,7 +200,10 @@ Every shot progresses through four statuses. These labels are canonical across a
 | Priority | Features | Status |
 |----------|----------|--------|
 | **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations, admin/settings + user onboarding | Shipped (Phases 2-7E, S1-S3) |
-| **Active** | Shot request inbox (admin+producer submit + triage) | Phase 8 — not started |
+| **Must-Have** | User management: project visibility (team/restricted/private), enhanced admin roster, deactivation/reactivation, bulk project assignment, invitation emails (Resend), first-run experience | Shipped (Sprint S10) |
+| **Shipped** | Shot request inbox (admin+producer submit + triage), create project from request | Shipped (Phases 8, 8.5) |
+| **Shipped** | Casting engine (measurement search, auto-match, shot history) | Shipped (Phase 9) |
+| **Shipped** | Asset requirements & PLM (asset flags, launch dates, samples, shoot readiness) | Shipped (Phase 10) |
 | **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, board column reorder + show/hide | Largely shipped; notifications + board config outstanding |
 | **Nice-to-Have** | PDF export, CSV import/export, color palette/swatches, department management, demo mode | PDF shipped; others outstanding |
 | **Cut / Simplify** | Planner/drag-and-drop board (users don't use it), advanced theming, deep versioning UI, offline writes, V2/V3 parallel surfaces | Cut / consolidated (Phase 7E) |

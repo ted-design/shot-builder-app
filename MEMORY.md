@@ -4,10 +4,11 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 
 ## Current Phase Status
 
-- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified, uncommitted). All 4 callable functions migrated to queue pattern.
+- **Sprint S10 (User Management Overhaul)** — COMPLETE (uncommitted). Project visibility, enhanced admin roster, deactivation/reactivation, bulk project assignment, Resend emails, first-run experience.
+- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified, uncommitted). All 7 callable functions use queue pattern.
 - **Sprint S9 (Rebrand + Onboarding)** — COMPLETE (committed: 968d268).
 - **Sprint S8 (Team Audit)** — COMPLETE (committed: 9e7de7f).
-- **Post-S9b priorities:** Commit changes, toast duration UX, E2E tests, file decomposition
+- **Post-S10 priorities:** Commit all uncommitted changes, toast duration UX, E2E tests, file decomposition
 
 ## Completed Phases
 
@@ -37,6 +38,9 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 | Sprint S6 | Talent page improvements (Sheet layout, casting brief panel, range sliders) |
 | Sprint S7 | Schedule & call sheet polish (overlap groups, call sheet output, mobile on-set viewer) |
 | Sprint S8 | Team audit & fix sprint (critical bugs, security, UX, code quality, docs) |
+| Sprint S9 | Production Hub rebrand, login redesign, board removal, seamless onboarding |
+| Sprint S9b | Firestore Queue migration (all callable functions) |
+| Sprint S10 | User management overhaul (visibility, roster, deactivation, bulk assign, emails) |
 
 ## Deferred Items
 
