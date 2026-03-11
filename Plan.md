@@ -901,6 +901,17 @@ Admin (role-gated: admin only)
 - [x] Dark theme logo swap — `dark:hidden` / `hidden dark:block` for theme-aware Immediate logo (Codex bot P2 feedback)
 - [x] PR #366 merged to main
 
+### Login Page Redesign (PR #367)
+
+- [x] Figma-driven redesign: UM logo moved from hero image overlay to sign-in panel (centered, prominent)
+- [x] UM logo: white PNG (`unbound-logo-white.png`) with CSS `invert dark:invert-0` — width-based sizing `w-[300px] max-w-full`
+- [x] Black UM logo PNG unusable (8860x4725 canvas padding vs white 3928x453) — documented in MEMORY.md
+- [x] Immediate logo: full opacity (removed `opacity-30`), `h-5`, theme-aware (`dark:hidden` / `hidden dark:block`)
+- [x] Sign-in panel always vertically centered (`items-center`, removed `md:items-start`)
+- [x] Hero image: clean lifestyle photo, no overlay branding
+- [x] Mobile overflow safety: `max-w-full` alongside `w-[300px]` (Codex bot P2 feedback)
+- [x] PR #367 merged to main
+
 ---
 
 ## Cross-Phase Requirements

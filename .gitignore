@@ -101,6 +101,9 @@ test-results/
 # Context Sentry runtime artifacts
 docs/_runtime/
 
+# Import data files
+data/
+
 # Debug artifacts (root level only)
 /*.png
 /*.txt
