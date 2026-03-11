@@ -83,6 +83,12 @@ function parseArgs(): { clientId: string | null; write: boolean } {
       continue
     }
 
+    // Gender exists but normalizeGender returned null (unsupported value)
+    if (!normalized) {
+      missing.push(`${data.name} (id: ${doc.id}, current: "${currentGender}")`)
+      continue
+    }
+
     console.info(
       '%s %s (id: %s) "%s" → "%s"',
       prefix,

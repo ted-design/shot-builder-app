@@ -384,9 +384,23 @@ function buildImportActions(
   imagesByRow: ReadonlyMap<number, Buffer>,
   existingTalent: ReadonlyMap<string, ExistingTalent>,
 ): readonly ImportAction[] {
+  const seenNames = new Set<string>()
+
   return rows.map((row) => {
     const normalized = normalizeName(row.name)
     const imageBuffer = imagesByRow.get(row.rowNumber)
+
+    // Dedup within the workbook: skip if same name already processed
+    if (seenNames.has(normalized)) {
+      console.warn(
+        "[import] WARNING: Duplicate name '%s' in workbook — skipping second occurrence (row %d)",
+        row.name,
+        row.rowNumber,
+      )
+      return { type: "SKIP", row }
+    }
+    seenNames.add(normalized)
+
     const existing = existingTalent.get(normalized)
 
     if (!existing) {
