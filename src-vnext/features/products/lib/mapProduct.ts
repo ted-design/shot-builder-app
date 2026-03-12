@@ -65,6 +65,7 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
     styleName,
     styleNumber: asString(data["styleNumber"]),
     previousStyleNumber: asString(data["previousStyleNumber"]),
+    styleNumbers: asStringArray(data["styleNumbers"]),
     gender: asString(data["gender"]) ?? null,
     productType,
     productSubcategory,

@@ -23,6 +23,7 @@ import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { parseReturnToParam } from "@/shared/lib/returnTo"
 import { toast } from "@/shared/hooks/use-toast"
+import { compressSizeRange } from "@/shared/lib/sizeRange"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
@@ -176,14 +177,33 @@ export default function ProductDetailPage() {
         />
         <div className="flex flex-col gap-2">
           <h2 className="heading-section">{family.styleName}</h2>
-          {family.styleNumber && <span className="text-sm text-[var(--color-text-muted)]">Style {family.styleNumber}</span>}
-          {family.previousStyleNumber && <span className="text-xs text-[var(--color-text-subtle)]">Previously: {family.previousStyleNumber}</span>}
+          {(() => {
+            const dominant = family.styleNumbers?.[0] ?? family.styleNumber
+            const aliases = (family.styleNumbers ?? []).slice(1)
+            const prev = family.previousStyleNumber
+            // Combine aliases and previousStyleNumber, deduplicating
+            const alsoNumbers = [...new Set([...aliases, ...(prev && prev !== dominant ? [prev] : [])])]
+            return (
+              <>
+                {dominant && <span className="text-sm font-mono text-[var(--color-text-muted)]">{dominant}</span>}
+                {alsoNumbers.length > 0 && (
+                  <span className="text-xs text-[var(--color-text-subtle)]">Also: {alsoNumbers.join(", ")}</span>
+                )}
+              </>
+            )
+          })()}
           <div className="flex flex-wrap items-center gap-2">
             {categoryLabel && <Badge variant="outline" className="w-fit text-xs font-normal text-[var(--color-text-muted)]">{categoryLabel}</Badge>}
             {family.gender && family.gender.trim().length > 0 && <Badge variant="outline" className="w-fit text-xs font-normal text-[var(--color-text-muted)]">{family.gender}</Badge>}
             {family.archived && <Badge variant="outline" className="w-fit text-xs font-normal text-[var(--color-text-subtle)]">Archived</Badge>}
             {status !== "active" && <Badge variant="outline" className="w-fit text-xs font-normal text-[var(--color-text-subtle)]">{status.split("_").join(" ")}</Badge>}
           </div>
+          {(() => {
+            const sizeRange = compressSizeRange(family.sizeOptions ?? [])
+            return sizeRange ? (
+              <span className="text-xs text-[var(--color-text-muted)]">Sizes: {sizeRange}</span>
+            ) : null
+          })()}
           <span className="text-xs text-[var(--color-text-subtle)]">
             {skuLoading ? "Loading colorways..." : `${activeSkus.length} ${activeSkus.length === 1 ? "colorway" : "colorways"}${deletedSkus.length > 0 ? ` · ${deletedSkus.length} deleted` : ""}`}
           </span>

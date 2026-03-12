@@ -240,6 +240,8 @@ export interface ProductFamily {
   readonly styleName: string
   readonly styleNumber?: string
   readonly previousStyleNumber?: string
+  /** All style numbers associated with this family (written by import scripts). */
+  readonly styleNumbers?: ReadonlyArray<string>
   readonly gender?: string | null
   readonly productType?: string
   readonly productSubcategory?: string

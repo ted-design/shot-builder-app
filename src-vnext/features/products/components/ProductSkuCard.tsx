@@ -3,6 +3,7 @@ import type { ProductSku } from "@/shared/types"
 import { EditableProductImage } from "@/features/products/components/EditableProductImage"
 import { replaceProductSkuImage, removeProductSkuImage } from "@/features/products/lib/productWorkspaceWrites"
 import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
+import { compressSizeRange } from "@/shared/lib/sizeRange"
 import { toast } from "@/shared/hooks/use-toast"
 import { Badge } from "@/ui/badge"
 
@@ -10,6 +11,8 @@ interface ProductSkuCardProps {
   readonly sku: ProductSku
   readonly familyImageUrl?: string
   readonly familyLaunchDate?: Timestamp | null
+  /** Family-level sizeOptions for comparison — if SKU sizes match, they are hidden. */
+  readonly familySizeOptions?: ReadonlyArray<string>
   readonly canEdit?: boolean
   readonly clientId?: string | null
   readonly userId?: string | null
@@ -20,6 +23,7 @@ export function ProductSkuCard({
   sku,
   familyImageUrl,
   familyLaunchDate,
+  familySizeOptions,
   canEdit = false,
   clientId,
   userId,
@@ -28,9 +32,11 @@ export function ProductSkuCard({
   const name = sku.colorName ?? sku.name
   const hex = sku.hexColor ?? sku.colourHex
   const sizes = sku.sizes ?? []
-  const sizesLabel = sizes.length > 0
-    ? `${sizes.slice(0, 6).join(", ")}${sizes.length > 6 ? ` +${sizes.length - 6}` : ""}`
-    : null
+
+  // Only show size on the card if it differs from the family-level range
+  const skuSizeRange = compressSizeRange(sizes)
+  const familySizeRange = compressSizeRange([...(familySizeOptions ?? [])])
+  const showSize = skuSizeRange !== null && skuSizeRange !== familySizeRange
 
   const status = (sku.status ?? "active").toLowerCase()
 
@@ -113,14 +119,9 @@ export function ProductSkuCard({
             </Badge>
           )}
         </div>
-        {sku.skuCode && (
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {sku.skuCode}
-          </span>
-        )}
-        {sizesLabel && (
+        {showSize && skuSizeRange && (
           <span className="text-xs text-[var(--color-text-subtle)]">
-            Sizes: {sizesLabel}
+            {skuSizeRange}
           </span>
         )}
         {hasCustomLaunchDate && sku.launchDate && (
