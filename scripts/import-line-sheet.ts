@@ -292,6 +292,7 @@ function matchFamily(
     const match = existing.find(
       (f) =>
         f.styleNumber === sn ||
+        f.previousStyleNumber === sn ||
         (f.styleNumbers && f.styleNumbers.includes(sn)),
     )
     if (match) return { family: match, matchedBy: "styleNumber" }
@@ -302,6 +303,7 @@ function matchFamily(
     const match = existing.find(
       (f) =>
         f.styleNumber === psn ||
+        f.previousStyleNumber === psn ||
         (f.styleNumbers && f.styleNumbers.includes(psn)),
     )
     if (match) return { family: match, matchedBy: "previousStyleNumber" }

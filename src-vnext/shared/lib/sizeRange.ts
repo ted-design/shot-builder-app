@@ -17,11 +17,12 @@ export function compressSizeRange(sizes: ReadonlyArray<string>): string | null {
   if (sizes.length === 0) return null
   if (sizes.length === 1) return sizes[0]
 
-  // Detect inseam composite sizes (contain "/" with a known base size AND a numeric inseam)
+  // Detect inseam composite sizes (contain "/" with a known base size or numeric base AND a numeric inseam)
   const hasInseamComposite = sizes.some((s) => {
     if (!s.includes("/")) return false
     const [base, inseam] = s.split("/")
-    return SIZE_INDEX.has(base) && Number.isFinite(parseFloat(inseam))
+    const baseIsKnown = SIZE_INDEX.has(base) || Number.isFinite(parseFloat(base))
+    return baseIsKnown && Number.isFinite(parseFloat(inseam))
   })
 
   if (hasInseamComposite) {
@@ -45,7 +46,11 @@ function compressCompositeSizes(sizes: ReadonlyArray<string>): string {
     inseams.add(s.slice(slashIdx + 1))
   }
 
-  const baseRange = compressOrderedRange([...bases])
+  const baseArr = [...bases]
+  const allBasesNumeric = baseArr.every((b) => Number.isFinite(parseFloat(b)))
+  const baseRange = allBasesNumeric
+    ? compressNumericRange(baseArr)
+    : compressOrderedRange(baseArr)
   if (inseams.size === 0) return baseRange
 
   const sortedInseams = [...inseams].sort((a, b) => {
@@ -78,6 +83,11 @@ function compressSimpleSizes(sizes: string[]): string {
     return `${sizes.slice(0, 5).join(", ")} +${sizes.length - 5}`
   }
   return sizes.join(", ")
+}
+
+function compressNumericRange(sizes: string[]): string {
+  const sorted = [...sizes].sort((a, b) => parseFloat(a) - parseFloat(b))
+  return sorted.length >= 2 ? `${sorted[0]} - ${sorted[sorted.length - 1]}` : sorted[0]
 }
 
 function compressOrderedRange(sizes: string[]): string {

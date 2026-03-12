@@ -75,4 +75,10 @@ describe("compressSizeRange", () => {
   it("handles non-contiguous range with gap (skips XXL)", () => {
     expect(compressSizeRange(["S", "M", "L", "XL", "2XL", "3XL"])).toBe("S, M, L, XL, 2XL +1")
   })
+
+  it("treats numeric slash sizes as composites, not plain numerics", () => {
+    expect(compressSizeRange(["30/30", "30/32", "32/30", "32/32"])).toBe(
+      '30 - 32 / 30", 32"',
+    )
+  })
 })
