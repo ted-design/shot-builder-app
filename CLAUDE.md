@@ -71,6 +71,9 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - Auth custom claims (`role`, `clientId`) and the 5-role model (admin, producer, crew, warehouse, viewer) are fixed infrastructure.
 - Firestore path helpers from `shared/lib/paths` are the single source for collection references.
 - Shared text utilities in `shared/lib/textUtils.ts` (normalizeText, normalizeWhitespace, humanizeLabel, parseCsvList) — do not create local duplicates.
+- **SKU colorName deduplication:** When importing SKUs into families that already have legacy SKUs, match by BASE color name (strip vendor code suffix via regex `\s*\([^)]*\)$`). Legacy SKUs use simple names ("Black"), imports use vendor-coded names ("Black (0101)"). Always merge into the existing legacy SKU to preserve doc IDs that may be referenced by project product selections. Never create a new SKU if a legacy one with the same base color already exists.
+- **Approved field:** `styleNumbers` on ProductFamily documents (Line Sheet Import, 2026-03-12). Already written to Firestore by import scripts — TypeScript type formalized to match. Display: `styleNumbers[0]` as dominant, `styleNumbers.slice(1)` as aliases. **Anti-pattern:** Before proposing new Firestore fields, check if import scripts already write the data. TypeScript types may lag behind what's actually in documents.
+- **Shared utility:** `shared/lib/sizeRange.ts` — pure `compressSizeRange()` function for display. Compresses `["S","M","L","XL"]` → `"S - XL"`, composite inseam sizes `["S/30","S/32","M/30"]` → `"S - M / 30", 32"`, sock composites pass through. Do not store computed size ranges — always compute at render time.
 
 ### 5. State Strategy
 

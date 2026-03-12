@@ -5,6 +5,7 @@ import { ProductImage } from "@/features/products/components/ProductImage"
 import type { ProductCardPropertyVisibility } from "@/features/products/lib/productPreferences"
 import type { ProductFamily } from "@/shared/types"
 import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
+import { compressSizeRange } from "@/shared/lib/sizeRange"
 
 interface ProductFamilyCardProps {
   readonly family: ProductFamily
@@ -22,10 +23,8 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
   const navigate = useNavigate()
   const location = useLocation()
 
-  const skuCount = family.skuCount ?? null
-  const activeSkuCount = family.activeSkuCount ?? null
-  const colorCount = family.colorNames?.length ?? null
-  const sizeCount = family.sizeOptions?.length ?? null
+  const activeSkuCount = family.activeSkuCount ?? family.skuCount ?? null
+  const sizeRange = compressSizeRange(family.sizeOptions ?? [])
 
   const categoryRaw = family.productSubcategory ?? family.productType ?? family.category
   const categoryLabel = categoryRaw ? humanizeClassificationKey(categoryRaw) : null
@@ -56,9 +55,9 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
           {family.styleName}
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          {properties.styleNumber && family.styleNumber && (
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {family.styleNumber}
+          {properties.styleNumber && (family.styleNumbers?.[0] ?? family.styleNumber) && (
+            <span className="font-mono text-xs text-[var(--color-text-muted)]">
+              {family.styleNumbers?.[0] ?? family.styleNumber}
             </span>
           )}
           {properties.category && categoryLabel && (
@@ -100,12 +99,9 @@ export function ProductFamilyCard({ family, returnTo, properties = DEFAULT_PROPE
         </div>
         <span className="text-xs text-[var(--color-text-subtle)]">
           {activeSkuCount !== null
-            ? `${activeSkuCount} active ${activeSkuCount === 1 ? "colorway" : "colorways"}`
-            : skuCount !== null
-              ? `${skuCount} ${skuCount === 1 ? "colorway" : "colorways"}`
-              : "—"}
-          {colorCount !== null && ` · ${colorCount} ${colorCount === 1 ? "color" : "colors"}`}
-          {sizeCount !== null && ` · ${sizeCount} ${sizeCount === 1 ? "size" : "sizes"}`}
+            ? `${activeSkuCount} ${activeSkuCount === 1 ? "colorway" : "colorways"}`
+            : "—"}
+          {sizeRange && ` · ${sizeRange}`}
         </span>
       </CardContent>
     </Card>
