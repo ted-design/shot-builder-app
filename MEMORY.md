@@ -4,11 +4,11 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 
 ## Current Phase Status
 
-- **Sprint S10 (User Management Overhaul)** — COMPLETE (uncommitted). Project visibility, enhanced admin roster, deactivation/reactivation, bulk project assignment, Resend emails, first-run experience.
-- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified, uncommitted). All 7 callable functions use queue pattern.
-- **Sprint S9 (Rebrand + Onboarding)** — COMPLETE (committed: 968d268).
-- **Sprint S8 (Team Audit)** — COMPLETE (committed: 9e7de7f).
-- **Post-S10 priorities:** Commit all uncommitted changes, toast duration UX, E2E tests, file decomposition
+- **Sprint S12 (Request Notifications + Overhaul + Bulk Shots)** — COMPLETE (PR #370 merged, Firebase deployed). 107 new tests (2488 total). 15/15 review fixes applied.
+- **Sprint S11 (Stabilize + Polish)** — COMPLETE (PR #365 merged).
+- **Sprint S10 (User Management Overhaul)** — COMPLETE (PR #363 merged).
+- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified).
+- **Post-S12 priorities:** Remove banned deps from package.json, vendor chunk splitting, audit for workflow improvements
 
 ## Completed Phases
 
@@ -41,6 +41,8 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 | Sprint S9 | Production Hub rebrand, login redesign, board removal, seamless onboarding |
 | Sprint S9b | Firestore Queue migration (all callable functions) |
 | Sprint S10 | User management overhaul (visibility, roster, deactivation, bulk assign, emails) |
+| Sprint S11 | Stabilize + polish (security, login redesign, Request Centre rename, dashboard tabs) |
+| Sprint S12 | Request notifications, request overhaul (comments, products, references), bulk shot generation |
 
 ## Deferred Items
 

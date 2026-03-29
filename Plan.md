@@ -914,6 +914,68 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S12: Request Notifications + Request Overhaul + Bulk Shot Generation
+
+**Goal:** Three vertical slices that close the loop on shot requests (notifications, collaborative briefs) and unlock bulk shot creation from the product library.
+
+**Status:** COMPLETE (PR #370 merged to main). Firebase rules, storage, and functions deployed.
+
+### S12A: Request Centre Notifications
+
+- [x] **S12A-1:** `notifyUserIds` field on ShotRequest type
+- [x] **S12A-2:** RecipientPicker component in SubmitShotRequestDialog (multi-select admin/producer users)
+- [x] **S12A-3:** requestWrites.ts — fire-and-forget `callFunction('sendRequestNotification', ...)` after submit
+- [x] **S12A-4:** Cloud Function `handleSendRequestNotification` — cross-tenant guard, recipient resolution, Resend email
+- [x] **S12A-5:** Email template `buildRequestNotificationHtml/Text` in functions/email.js
+- [x] **S12A-6:** `useSubmittedRequestCount` hook + sidebar badge on Request Centre nav item
+- [x] **S12A-7:** Tests (43 new)
+
+### S12B: Request Centre Overhaul
+
+- [x] **S12B-1:** Types (`ShotRequestReference`, `ShotRequestComment`) + `shotRequestCommentsPath` in paths.ts
+- [x] **S12B-2:** Firestore rules (comments subcollection: admin+producer read, authorId binding, 5000 char limit) + Storage rules (request-references with isValidUpload)
+- [x] **S12B-3:** `useRequestComments` hook + `addRequestComment` write function (MAX_COMMENT_CHARS = 2000)
+- [x] **S12B-4:** CommentThread UI (smart auto-scroll, Enter-to-send, empty state)
+- [x] **S12B-5:** Product picker (ProductPickerPopover) in submit dialog using `relatedFamilyIds`
+- [x] **S12B-6:** ReferenceInput component (structured references + Firebase Storage upload, filename sanitization, MAX_REFERENCES = 10)
+- [x] **S12B-7:** TriagePanel overhaul (products, references, conversation thread) + tests (34 new)
+
+### S12C: Bulk Product-to-Shot Generation
+
+- [x] **S12C-1:** `useProductSelection` hook (prefixed Set state: `fam:` / `sku:`)
+- [x] **S12C-2:** Multi-select mode on ShootReadinessWidget (admin+producer gated)
+- [x] **S12C-3:** Multi-select mode on ProductListPage (checkboxes, Select All)
+- [x] **S12C-4:** BulkSelectionBar floating action bar component
+- [x] **S12C-5:** BulkAddToProjectDialog (project picker + family/SKU granularity toggle)
+- [x] **S12C-6:** `bulkCreateShotsFromProducts` (writeBatch with 250-doc chunking, MAX_BULK_ITEMS = 500, client-side deleted filter)
+- [x] **S12C-7:** Tests (46 new)
+
+### Review Fixes (15/15 applied)
+
+- [x] Cross-tenant clientId validation in Cloud Function
+- [x] Client-side deleted filter (not `where("deleted","==",false)`)
+- [x] Storage rules content-type via `isValidUpload()`
+- [x] Comment body max length (5000 rules, 2000 client)
+- [x] ReferenceInput error surfacing via toast
+- [x] TriagePanel product links use React Router `<Link>`
+- [x] Notification creates restricted to admin+producer
+- [x] Smart auto-scroll in CommentThread
+- [x] RecipientPicker empty state + scroll constraint
+- [x] Filename sanitization + MAX_REFERENCES cap
+- [x] SidebarNavItem badge uses `var(--color-accent)` token
+- [x] BulkAddToProjectDialog empty projects state
+- [x] MAX_BULK_ITEMS = 500 cap in bulkShotWrites
+
+### Acceptance Criteria
+
+- [x] 2488 tests passing, build clean, lint zero warnings
+- [x] Visual QA: all 10 UI checkpoints verified in browser
+- [x] CI: build + vitest + claude-review all pass
+- [x] PR #370 merged to main
+- [x] Firebase deployed: firestore:rules, storage, functions
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:
