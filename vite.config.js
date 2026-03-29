@@ -45,9 +45,29 @@ export default defineConfig({
             return; // Return undefined to keep in entry chunk
           }
 
-          // PDF libraries - only loaded when exporting (defer large dependency)
+          // PDF libraries - only loaded when exporting (defer large dependency).
+          // @react-pdf/renderer and its internal sub-packages all use the @react-pdf scope.
           if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) {
             return 'pdf-lib';
+          }
+
+          // Transitive deps of @react-pdf/renderer that don't carry the react-pdf prefix.
+          // Grouped separately so the pdf-lib chunk stays below 500 kB (pdf-lib itself is
+          // already ~668 kB). Both chunks are only loaded on PDF export paths.
+          if (
+            id.includes('/fontkit/') ||
+            id.includes('/yoga-layout/') ||
+            id.includes('/crypto-js/') ||
+            id.includes('/browserify-zlib/') ||
+            id.includes('/vite-compatible-readable-stream/') ||
+            id.includes('/jay-peg/') ||
+            id.includes('/cross-fetch/') ||
+            id.includes('/is-url/') ||
+            id.includes('/emoji-regex/') ||
+            id.includes('/queue/') ||
+            id.includes('/pako/')
+          ) {
+            return 'pdf-deps';
           }
 
           // Firebase - separate chunk (large and rarely updated)
@@ -65,9 +85,38 @@ export default defineConfig({
             return 'dnd';
           }
 
-          // TanStack Query - data fetching library
-          if (id.includes('@tanstack/react-query')) {
-            return 'query';
+          // React Router and Remix run-time - needed for every authenticated route
+          if (
+            id.includes('react-router') ||
+            id.includes('@remix-run')
+          ) {
+            return 'router-vendor';
+          }
+
+          // Rich text / panel libraries - only loaded in ShotDetailPage / CallSheetBuilderPage
+          if (id.includes('react-resizable-panels')) {
+            return 'panels-vendor';
+          }
+
+          // Validation, sanitisation, and search utilities
+          if (
+            id.includes('/zod/') ||
+            id.includes('/dompurify/') ||
+            id.includes('/fuse.js/') ||
+            id.includes('/fuse/')
+          ) {
+            return 'utils-vendor';
+          }
+
+          // UI utilities - toast, command palette, styling helpers
+          if (
+            id.includes('/sonner/') ||
+            id.includes('/cmdk/') ||
+            id.includes('class-variance-authority') ||
+            id.includes('/tailwind-merge/') ||
+            id.includes('/clsx/')
+          ) {
+            return 'ui-utils-vendor';
           }
 
           // Other node_modules - catch-all vendor chunk
