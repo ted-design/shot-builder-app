@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S12C — Bulk Shot Generation · Production Hub Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontSize: {
+            '3xs': '9px',
+            '2xs': '10px',
+            'xxs': '11px',
+            'xs': '12px',
+            'sm': '13px',
+            'base': '14px',
+            'lg': '16px',
+            'xl': '18px',
+            '2xl': '20px',
+            '3xl': '24px',
+          },
+          colors: {
+            zinc: {
+              50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 850: '#1c1c1f', 900: '#18181b', 950: '#09090b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-accent: #E31E24;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --color-status-amber-bg: rgba(245,158,11,0.08);
+      --color-status-amber-text: #b45309;
+      --color-status-red-bg: rgba(239,68,68,0.08);
+      --color-status-red-text: #b91c1c;
+      --color-status-green-bg: rgba(34,197,94,0.08);
+      --color-status-green-text: #15803d;
+      --color-status-blue-bg: rgba(59,130,246,0.10);
+      --color-status-blue-text: #1d4ed8;
+    }
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #1c1c1f;
+      --color-text: #fafafa;
+      --color-text-secondary: #d4d4d8;
+      --color-text-muted: #a1a1aa;
+      --color-text-subtle: #71717a;
+      --color-border: #3f3f46;
+      --color-border-strong: #52525b;
+      --color-primary: #fafafa;
+      --color-primary-text: #09090b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.5;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* Semantic classes */
+    .heading-page   { font-size: 18px; font-weight: 300; color: var(--color-text); letter-spacing: -0.01em; }
+    .heading-section { font-size: 13px; font-weight: 500; color: var(--color-text); letter-spacing: 0; }
+    .heading-subsection { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); }
+    .label-meta  { font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
+    .body-text   { font-size: 14px; font-weight: 400; color: var(--color-text); }
+    .caption     { font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+    .mono        { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+    /* Tokens as CSS vars */
+    .surface       { background: var(--color-surface); }
+    .surface-subtle { background: var(--color-surface-subtle); }
+    .bordered      { border: 1px solid var(--color-border); }
+    .bordered-strong { border: 1px solid var(--color-border-strong); }
+
+    /* Status badges */
+    .badge-amber { background: var(--color-status-amber-bg); color: var(--color-status-amber-text); }
+    .badge-red   { background: var(--color-status-red-bg);   color: var(--color-status-red-text); }
+    .badge-green { background: var(--color-status-green-bg); color: var(--color-status-green-text); }
+    .badge-blue  { background: var(--color-status-blue-bg);  color: var(--color-status-blue-text); }
+
+    /* Checkbox custom */
+    .cb {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--color-border-strong);
+      background: var(--color-surface);
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .cb.checked {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .cb.checked svg { display: block; }
+    .cb svg { display: none; }
+
+    /* Card */
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+    .card:hover { border-color: var(--color-border-strong); }
+
+    /* Product image placeholder */
+    .img-placeholder {
+      width: 48px; height: 48px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 4px;
+      background: var(--color-surface-subtle);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--color-status-green-text);
+      border-radius: 9999px;
+      transition: width 0.3s;
+    }
+
+    /* Confidence dot */
+    .dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }
+    .dot-green { background: #22c55e; }
+    .dot-amber { background: #f59e0b; }
+    .dot-red   { background: #ef4444; }
+
+    /* Button styles */
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border-radius: var(--radius-md);
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border-radius: var(--radius-md);
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 400;
+      border: 1px solid var(--color-border);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s;
+    }
+    .btn-ghost:hover { background: var(--color-surface-subtle); }
+
+    .btn-ghost-bare {
+      background: transparent;
+      color: var(--color-text-muted);
+      border-radius: var(--radius-md);
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 400;
+      border: none;
+      cursor: pointer;
+      transition: color 0.12s;
+    }
+    .btn-ghost-bare:hover { color: var(--color-text); }
+
+    /* Floating action bar */
+    .fab {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* Segmented control */
+    .seg-control {
+      display: flex;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+    .seg-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--color-text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: background 0.12s, color 0.12s;
+      white-space: nowrap;
+    }
+    .seg-btn.active {
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* Dialog overlay */
+    .dialog-overlay {
+      background: rgba(9,9,11,0.5);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .dialog {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.14);
+      width: 100%;
+    }
+
+    /* Color circle */
+    .color-circle { width: 14px; height: 14px; border-radius: 9999px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+
+    /* Toast */
+    .toast {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: 360px;
+    }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--color-border); }
+
+    /* Phone frame */
+    .phone-frame {
+      border-radius: 28px;
+      border: 8px solid #27272a;
+      background: var(--color-bg);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      position: relative;
+    }
+
+    /* Section header */
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(227,30,36,0.08);
+      color: var(--color-accent);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* Dropdown */
+    .dropdown {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+      overflow: hidden;
+    }
+    .dropdown-item {
+      padding: 9px 12px;
+      font-size: 13px;
+      color: var(--color-text);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: background 0.1s;
+    }
+    .dropdown-item:hover, .dropdown-item.selected { background: var(--color-surface-subtle); }
+    .dropdown-item.selected { font-weight: 500; }
+
+    /* Select trigger */
+    .select-trigger {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--color-text);
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer;
+      transition: border-color 0.12s;
+    }
+    .select-trigger:focus-within, .select-trigger.open { border-color: var(--color-primary); }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--color-border);
+      white-space: nowrap;
+    }
+    .data-table td {
+      font-size: 13px;
+      color: var(--color-text);
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--color-surface-subtle); }
+    .data-table tr.checked td { background: rgba(59,130,246,0.04); }
+    .data-table tr.sku-row td {
+      padding: 6px 10px 6px 28px;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      background: var(--color-surface-subtle);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    /* Smooth transitions */
+    .card, button, .cb, input { transition: all 0.15s; }
+
+    /* Scrollbar minimal */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+<div class="sticky top-0 z-50 surface border-b bordered" style="border-color: var(--color-border);">
+  <div class="max-w-[1440px] mx-auto px-6 h-12 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="section-label">S12C — BULK SHOT GENERATION</span>
+      <span class="caption" style="color: var(--color-text-subtle);">Production Hub · UX Mockup · 2026-03-28</span>
+    </div>
+    <button
+      id="theme-toggle"
+      onclick="document.documentElement.classList.toggle('dark')"
+      class="btn-ghost flex items-center gap-2"
+      style="padding: 5px 10px; font-size: 12px;"
+    >
+      <svg id="sun-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      Dark mode
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ CONTENT ═══════════════════════════ -->
+<div class="max-w-[1440px] mx-auto px-6 py-10 space-y-16">
+
+  <!-- ═══════════ SECTION 1: SHOOT READINESS — NORMAL vs SELECTION ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">01</span>
+        <h2 class="heading-page">Shoot Readiness Tab — Normal vs Selection Mode</h2>
+      </div>
+      <p class="caption ml-7">Dashboard tab showing product-level shoot confidence. "Select" enters multi-select mode for bulk shot generation.</p>
+    </div>
+
+    <div class="flex gap-6 flex-wrap">
+
+      <!-- LEFT: Normal mode -->
+      <div class="flex-1 min-w-[560px] max-w-[640px]">
+        <div class="caption mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-zinc-400 inline-block"></span>
+          Normal mode
+        </div>
+        <div class="card p-0 overflow-hidden" style="max-width: 600px;">
+          <!-- Tab bar -->
+          <div class="px-4 pt-4 pb-0 flex items-center justify-between border-b" style="border-color: var(--color-border);">
+            <div class="flex gap-1">
+              <button class="px-3 py-2 text-sm font-medium border-b-2 -mb-px" style="color: var(--color-text); border-color: var(--color-primary);">Shoot Readiness</button>
+              <button class="px-3 py-2 text-sm" style="color: var(--color-text-muted); border-bottom: 2px solid transparent;">Recent Activity</button>
+              <button class="px-3 py-2 text-sm" style="color: var(--color-text-muted); border-bottom: 2px solid transparent;">Projects</button>
+            </div>
+            <button class="btn-ghost" style="padding: 4px 10px; font-size: 12px; margin-bottom: 6px;">Select</button>
+          </div>
+          <!-- Product grid -->
+          <div class="p-4 grid grid-cols-2 gap-3">
+            <!-- Card 1 -->
+            <div class="card p-3 cursor-pointer">
+              <div class="flex items-start gap-3">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Merino Crewneck</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-1042</div>
+                  <div class="mt-2 flex items-center gap-1.5 flex-wrap">
+                    <span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Mar 15</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="label-meta">Samples</span>
+                  <span class="label-meta">3 / 4</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width: 75%;"></div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-green"></div>
+                <span class="label-meta">Ready</span>
+              </div>
+            </div>
+            <!-- Card 2 -->
+            <div class="card p-3 cursor-pointer">
+              <div class="flex items-start gap-3">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Cashmere Turtleneck</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-1078</div>
+                  <div class="mt-2">
+                    <span class="badge-red text-xxs font-medium rounded px-1.5 py-0.5">Overdue</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="label-meta">Samples</span>
+                  <span class="label-meta">1 / 5</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width: 20%;"></div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-red"></div>
+                <span class="label-meta">Not ready</span>
+              </div>
+            </div>
+            <!-- Card 3 -->
+            <div class="card p-3 cursor-pointer">
+              <div class="flex items-start gap-3">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Wool Overshirt</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-2031</div>
+                  <div class="mt-2">
+                    <span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Apr 2</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="label-meta">Samples</span>
+                  <span class="label-meta">2 / 3</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width: 66%;"></div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-amber"></div>
+                <span class="label-meta">Partial</span>
+              </div>
+            </div>
+            <!-- Card 4 -->
+            <div class="card p-3 cursor-pointer">
+              <div class="flex items-start gap-3">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Linen Trousers</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-3014</div>
+                  <div class="mt-2">
+                    <span class="badge-green text-xxs font-medium rounded px-1.5 py-0.5">On track</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="label-meta">Samples</span>
+                  <span class="label-meta">4 / 4</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width: 100%;"></div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-green"></div>
+                <span class="label-meta">Ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Selection mode -->
+      <div class="flex-1 min-w-[560px] max-w-[640px]">
+        <div class="caption mb-3 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full" style="background: var(--color-status-blue-text);"></span>
+          Selection mode — 2 selected
+        </div>
+        <div class="card p-0 overflow-hidden relative" style="max-width: 600px;">
+          <!-- Tab bar -->
+          <div class="px-4 pt-4 pb-0 flex items-center justify-between border-b" style="border-color: var(--color-border);">
+            <div class="flex gap-1">
+              <button class="px-3 py-2 text-sm font-medium border-b-2 -mb-px" style="color: var(--color-text); border-color: var(--color-primary);">Shoot Readiness</button>
+              <button class="px-3 py-2 text-sm" style="color: var(--color-text-muted); border-bottom: 2px solid transparent;">Recent Activity</button>
+              <button class="px-3 py-2 text-sm" style="color: var(--color-text-muted); border-bottom: 2px solid transparent;">Projects</button>
+            </div>
+            <button class="btn-ghost-bare" style="margin-bottom: 6px; color: var(--color-text-secondary);">Cancel</button>
+          </div>
+          <!-- Product grid — selection mode -->
+          <div class="p-4 grid grid-cols-2 gap-3 pb-20">
+            <!-- Card 1 — checked -->
+            <div class="card p-3 cursor-pointer relative" style="border-color: var(--color-status-blue-text); box-shadow: 0 0 0 1px rgba(59,130,246,0.3);" onclick="toggleCard(this)">
+              <div class="absolute top-2.5 right-2.5">
+                <div class="cb checked" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 pr-6">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Merino Crewneck</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-1042</div>
+                  <div class="mt-2">
+                    <span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Mar 15</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="progress-track"><div class="progress-fill" style="width: 75%;"></div></div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-green"></div>
+                <span class="label-meta">Ready</span>
+              </div>
+            </div>
+            <!-- Card 2 — unchecked -->
+            <div class="card p-3 cursor-pointer relative" onclick="toggleCard(this)">
+              <div class="absolute top-2.5 right-2.5">
+                <div class="cb"></div>
+              </div>
+              <div class="flex items-start gap-3 pr-6">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Cashmere Turtleneck</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-1078</div>
+                  <div class="mt-2">
+                    <span class="badge-red text-xxs font-medium rounded px-1.5 py-0.5">Overdue</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="progress-track"><div class="progress-fill" style="width: 20%;"></div></div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-red"></div>
+                <span class="label-meta">Not ready</span>
+              </div>
+            </div>
+            <!-- Card 3 — checked -->
+            <div class="card p-3 cursor-pointer relative" style="border-color: var(--color-status-blue-text); box-shadow: 0 0 0 1px rgba(59,130,246,0.3);" onclick="toggleCard(this)">
+              <div class="absolute top-2.5 right-2.5">
+                <div class="cb checked" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 pr-6">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Wool Overshirt</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-2031</div>
+                  <div class="mt-2">
+                    <span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Apr 2</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="progress-track"><div class="progress-fill" style="width: 66%;"></div></div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-amber"></div>
+                <span class="label-meta">Partial</span>
+              </div>
+            </div>
+            <!-- Card 4 — unchecked -->
+            <div class="card p-3 cursor-pointer relative" onclick="toggleCard(this)">
+              <div class="absolute top-2.5 right-2.5">
+                <div class="cb"></div>
+              </div>
+              <div class="flex items-start gap-3 pr-6">
+                <div class="img-placeholder"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="heading-subsection truncate">Linen Trousers</div>
+                  <div class="mono mt-0.5" style="color: var(--color-text-muted);">UM-3014</div>
+                  <div class="mt-2">
+                    <span class="badge-green text-xxs font-medium rounded px-1.5 py-0.5">On track</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="progress-track"><div class="progress-fill" style="width: 100%;"></div></div>
+              </div>
+              <div class="mt-2 flex items-center gap-1.5">
+                <div class="dot dot-green"></div>
+                <span class="label-meta">Ready</span>
+              </div>
+            </div>
+          </div>
+          <!-- Floating action bar inside the card -->
+          <div class="absolute bottom-0 left-0 right-0 p-3">
+            <div class="fab">
+              <span class="body-text font-medium" style="font-size: 13px;">2 products selected</span>
+              <div class="flex items-center gap-2">
+                <button class="btn-ghost-bare" style="padding: 5px 8px;">Clear</button>
+                <button class="btn-primary" style="font-size: 12px; padding: 6px 12px;">Add to Project</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SECTION 2: PRODUCTS PAGE TABLE ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">02</span>
+        <h2 class="heading-page">Products Page — Table with Selection</h2>
+      </div>
+      <p class="caption ml-7">Products library table. Rows are individually selectable. One row is expanded to show SKU sub-rows.</p>
+    </div>
+
+    <div class="card overflow-hidden" style="max-width: 900px;">
+      <!-- Table toolbar -->
+      <div class="px-4 py-3 flex items-center justify-between border-b" style="border-color: var(--color-border);">
+        <div class="flex items-center gap-3">
+          <h3 class="heading-section">All Products</h3>
+          <span class="badge-blue text-xxs font-medium rounded px-1.5 py-0.5">217 families</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="table-fab" class="hidden">
+            <div class="fab" style="padding: 6px 10px;">
+              <span style="font-size: 12px; font-weight: 500; color: var(--color-text);" id="table-selected-label">3 selected</span>
+              <div class="flex items-center gap-2">
+                <button class="btn-ghost-bare" style="font-size: 11px; padding: 4px 8px;" onclick="clearTableSelection()">Clear</button>
+                <button class="btn-primary" style="font-size: 12px; padding: 5px 10px;">Add to Project</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead>
+            <tr style="background: var(--color-surface-subtle);">
+              <th style="width: 36px; padding: 8px 10px;">
+                <div class="cb checked" id="select-all-cb" onclick="toggleSelectAll()" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </th>
+              <th style="width: 48px;">Image</th>
+              <th>Name</th>
+              <th>Style #</th>
+              <th>Gender</th>
+              <th>SKUs</th>
+              <th>Launch Date</th>
+              <th style="width: 32px;"></th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <!-- Row 1 — checked -->
+            <tr class="checked product-row" data-checked="true" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td>
+                <div class="cb checked row-cb" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Merino Crewneck</span></td>
+              <td><span class="mono">UM-1042</span></td>
+              <td><span class="caption">Men's</span></td>
+              <td><span class="caption">4</span></td>
+              <td><span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Mar 15</span></td>
+              <td>
+                <button class="btn-ghost-bare" style="padding: 2px 6px; font-size: 11px;" onclick="event.stopPropagation(); toggleExpand(this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </td>
+            </tr>
+            <!-- Row 2 — checked, expanded with SKU rows -->
+            <tr class="checked product-row" data-checked="true" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td>
+                <div class="cb checked row-cb" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Wool Overshirt</span></td>
+              <td><span class="mono">UM-2031</span></td>
+              <td><span class="caption">Men's</span></td>
+              <td><span class="caption">3</span></td>
+              <td><span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Apr 2</span></td>
+              <td>
+                <button class="btn-ghost-bare" style="padding: 2px 6px; font-size: 11px; transform: rotate(90deg);" onclick="event.stopPropagation(); toggleExpand(this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </td>
+            </tr>
+            <!-- SKU sub-row 1 — checked -->
+            <tr class="sku-row" data-sku="true" data-sku-checked="true">
+              <td colspan="2" style="padding-left: 36px;">
+                <div class="flex items-center gap-2">
+                  <div class="cb checked sku-cb" style="width:13px; height:13px; background: #1d4ed8; border-color: #1d4ed8;" onclick="event.stopPropagation(); toggleSkuCb(this)">
+                    <svg width="8" height="7" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <div class="color-circle" style="background: #2d2d2d;"></div>
+                </div>
+              </td>
+              <td><span style="font-size:12px; color: var(--color-text-secondary);">Black (0101)</span></td>
+              <td><span class="mono" style="font-size:11px;">UM-2031-BLK</span></td>
+              <td></td>
+              <td><span style="font-size:11px; color: var(--color-text-muted);">S – XL</span></td>
+              <td colspan="2"></td>
+            </tr>
+            <!-- SKU sub-row 2 — checked -->
+            <tr class="sku-row" data-sku="true" data-sku-checked="true">
+              <td colspan="2" style="padding-left: 36px;">
+                <div class="flex items-center gap-2">
+                  <div class="cb checked sku-cb" style="width:13px; height:13px; background: #1d4ed8; border-color: #1d4ed8;" onclick="event.stopPropagation(); toggleSkuCb(this)">
+                    <svg width="8" height="7" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <div class="color-circle" style="background: #8B7355;"></div>
+                </div>
+              </td>
+              <td><span style="font-size:12px; color: var(--color-text-secondary);">Camel (0305)</span></td>
+              <td><span class="mono" style="font-size:11px;">UM-2031-CAM</span></td>
+              <td></td>
+              <td><span style="font-size:11px; color: var(--color-text-muted);">S – XL</span></td>
+              <td colspan="2"></td>
+            </tr>
+            <!-- SKU sub-row 3 — unchecked -->
+            <tr class="sku-row" data-sku="true" data-sku-checked="false">
+              <td colspan="2" style="padding-left: 36px;">
+                <div class="flex items-center gap-2">
+                  <div class="cb sku-cb" style="width:13px; height:13px;" onclick="event.stopPropagation(); toggleSkuCb(this)"></div>
+                  <div class="color-circle" style="background: #4a5568;"></div>
+                </div>
+              </td>
+              <td><span style="font-size:12px; color: var(--color-text-secondary);">Navy (0202)</span></td>
+              <td><span class="mono" style="font-size:11px;">UM-2031-NVY</span></td>
+              <td></td>
+              <td><span style="font-size:11px; color: var(--color-text-muted);">S – XL</span></td>
+              <td colspan="2"></td>
+            </tr>
+            <!-- Row 3 — checked -->
+            <tr class="checked product-row" data-checked="true" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td>
+                <div class="cb checked row-cb" style="background: #1d4ed8; border-color: #1d4ed8;">
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+              </td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Linen Trousers</span></td>
+              <td><span class="mono">UM-3014</span></td>
+              <td><span class="caption">Men's</span></td>
+              <td><span class="caption">2</span></td>
+              <td><span class="badge-green text-xxs font-medium rounded px-1.5 py-0.5">On track</span></td>
+              <td></td>
+            </tr>
+            <!-- Row 4 — unchecked -->
+            <tr class="product-row" data-checked="false" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td><div class="cb row-cb"></div></td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Cashmere Turtleneck</span></td>
+              <td><span class="mono">UM-1078</span></td>
+              <td><span class="caption">Women's</span></td>
+              <td><span class="caption">5</span></td>
+              <td><span class="badge-red text-xxs font-medium rounded px-1.5 py-0.5">Overdue</span></td>
+              <td></td>
+            </tr>
+            <!-- Row 5 — unchecked -->
+            <tr class="product-row" data-checked="false" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td><div class="cb row-cb"></div></td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Cotton Poplin Shirt</span></td>
+              <td><span class="mono">UM-1089</span></td>
+              <td><span class="caption">Men's</span></td>
+              <td><span class="caption">6</span></td>
+              <td><span class="badge-amber text-xxs font-medium rounded px-1.5 py-0.5">Apr 10</span></td>
+              <td></td>
+            </tr>
+            <!-- Row 6 — unchecked -->
+            <tr class="product-row" data-checked="false" onclick="toggleTableRow(this)" style="cursor:pointer;">
+              <td><div class="cb row-cb"></div></td>
+              <td><div class="img-placeholder" style="width:36px;height:36px;"></div></td>
+              <td><span class="font-medium">Silk Dress</span></td>
+              <td><span class="mono">UM-4002</span></td>
+              <td><span class="caption">Women's</span></td>
+              <td><span class="caption">3</span></td>
+              <td><span class="badge-green text-xxs font-medium rounded px-1.5 py-0.5">On track</span></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Floating action bar below table -->
+      <div class="p-3 border-t" style="border-color: var(--color-border);" id="table-action-bar">
+        <div class="fab">
+          <span style="font-size: 13px; font-weight: 500; color: var(--color-text);">3 products selected</span>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost-bare" style="font-size: 12px; padding: 5px 8px;" onclick="clearTableSelection()">Clear</button>
+            <button class="btn-primary" style="font-size: 12px; padding: 6px 12px;">Add to Project</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SECTION 3: BULK ADD TO PROJECT DIALOG ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">03</span>
+        <h2 class="heading-page">Bulk Add to Project Dialog</h2>
+      </div>
+      <p class="caption ml-7">Triggered from either entry point. Granularity toggle controls how many shots get created.</p>
+    </div>
+
+    <div class="dialog-overlay" style="max-width: 560px; background: rgba(9,9,11,0.45); border-radius: 12px;">
+      <div class="dialog" style="max-width: 480px;">
+        <!-- Dialog header -->
+        <div class="px-5 pt-5 pb-4 border-b" style="border-color: var(--color-border);">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 class="heading-section" style="font-size: 15px; font-weight: 500;">Add to Project</h2>
+              <p class="caption mt-0.5">Create shots from selected products</p>
+            </div>
+            <button class="btn-ghost-bare" style="padding: 2px; margin-top: -2px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dialog body -->
+        <div class="px-5 py-4 space-y-4">
+
+          <!-- Selection summary -->
+          <div class="rounded-md p-3" style="background: var(--color-surface-subtle); border: 1px solid var(--color-border);">
+            <div class="flex items-center gap-2 mb-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-text-muted);"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span style="font-size: 13px; font-weight: 500; color: var(--color-text);">4 products selected</span>
+            </div>
+            <ul class="space-y-1">
+              <li class="flex items-center gap-2">
+                <div class="w-1 h-1 rounded-full" style="background: var(--color-text-muted);"></div>
+                <span style="font-size: 12px; color: var(--color-text-secondary);">Merino Crewneck <span class="mono" style="color: var(--color-text-muted);">UM-1042</span></span>
+              </li>
+              <li class="flex items-center gap-2">
+                <div class="w-1 h-1 rounded-full" style="background: var(--color-text-muted);"></div>
+                <span style="font-size: 12px; color: var(--color-text-secondary);">Wool Overshirt <span class="mono" style="color: var(--color-text-muted);">UM-2031</span></span>
+              </li>
+              <li class="flex items-center gap-2">
+                <div class="w-1 h-1 rounded-full" style="background: var(--color-text-muted);"></div>
+                <span style="font-size: 12px; color: var(--color-text-secondary);">Linen Trousers <span class="mono" style="color: var(--color-text-muted);">UM-3014</span></span>
+              </li>
+              <li class="flex items-center gap-2">
+                <div class="w-1 h-1 rounded-full" style="background: var(--color-text-muted);"></div>
+                <span style="font-size: 12px; color: var(--color-text-secondary);">+ 1 more product</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Project picker -->
+          <div>
+            <label class="label-meta mb-1.5 block">Project</label>
+            <div class="select-trigger open">
+              <span style="font-size: 13px; color: var(--color-text);">Spring / Summer 2026 Lookbook</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+            </div>
+            <!-- Dropdown expanded -->
+            <div class="dropdown mt-1">
+              <div class="dropdown-item selected">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #1d4ed8;"><polyline points="20 6 9 17 4 12"/></svg>
+                Spring / Summer 2026 Lookbook
+              </div>
+              <div class="dropdown-item">
+                <div style="width: 12px;"></div>
+                AW 2026 Campaign
+              </div>
+              <div class="dropdown-item">
+                <div style="width: 12px;"></div>
+                Resort 2026 Editorial
+              </div>
+            </div>
+          </div>
+
+          <!-- Granularity -->
+          <div>
+            <label class="label-meta mb-1.5 block">Shot granularity</label>
+            <div class="seg-control" id="granularity-seg">
+              <button class="seg-btn active" onclick="setGranularity('family', this)">Per family (4 shots)</button>
+              <button class="seg-btn" onclick="setGranularity('sku', this)">Per SKU (11 shots)</button>
+            </div>
+            <p class="caption mt-1.5" id="gran-help">One shot per product family. Good for planning overview shots.</p>
+          </div>
+
+          <!-- Preview list -->
+          <div>
+            <label class="label-meta mb-2 block">Preview</label>
+            <div class="space-y-1" id="preview-list">
+              <div class="flex items-center justify-between py-1.5 px-2 rounded" style="background: var(--color-surface-subtle);">
+                <div class="flex items-center gap-2">
+                  <div class="img-placeholder" style="width:24px; height:24px;"></div>
+                  <span style="font-size:12px; color: var(--color-text);">Merino Crewneck</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="label-meta" id="preview-shot-1">1 shot</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between py-1.5 px-2 rounded" style="background: var(--color-surface-subtle);">
+                <div class="flex items-center gap-2">
+                  <div class="img-placeholder" style="width:24px; height:24px;"></div>
+                  <span style="font-size:12px; color: var(--color-text);">Wool Overshirt</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="label-meta" id="preview-shot-2">1 shot</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between py-1.5 px-2 rounded" style="background: var(--color-surface-subtle);">
+                <div class="flex items-center gap-2">
+                  <div class="img-placeholder" style="width:24px; height:24px;"></div>
+                  <span style="font-size:12px; color: var(--color-text);">Linen Trousers</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="label-meta" id="preview-shot-3">1 shot</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between py-1.5 px-2 rounded" style="background: var(--color-surface-subtle);">
+                <div class="flex items-center gap-2">
+                  <div class="img-placeholder" style="width:24px; height:24px;"></div>
+                  <span style="font-size:12px; color: var(--color-text);">Cotton Poplin Shirt</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="label-meta" id="preview-shot-4">1 shot</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialog footer -->
+        <div class="px-5 py-4 border-t flex items-center justify-between" style="border-color: var(--color-border);">
+          <button class="btn-ghost">Cancel</button>
+          <button class="btn-primary" id="create-btn">Create 4 Shots</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SECTION 4: FLOATING ACTION BAR (ISOLATED) ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">04</span>
+        <h2 class="heading-page">Floating Action Bar — Isolated</h2>
+      </div>
+      <p class="caption ml-7">Persistent context bar that appears when any items are selected. Full-width within its container.</p>
+    </div>
+
+    <div style="max-width: 900px; padding: 0 2px;">
+      <div class="fab">
+        <div class="flex items-center gap-3">
+          <!-- Selection count pill -->
+          <div class="flex items-center gap-1.5">
+            <div style="
+              width: 20px; height: 20px;
+              border-radius: 9999px;
+              background: #1d4ed8;
+              color: #fff;
+              font-size: 11px;
+              font-weight: 600;
+              display: flex; align-items: center; justify-content: center;
+            ">3</div>
+            <span style="font-size: 13px; font-weight: 500; color: var(--color-text);">items selected</span>
+          </div>
+          <div style="height: 14px; width: 1px; background: var(--color-border-strong);"></div>
+          <span class="caption">Merino Crewneck, Wool Overshirt, Linen Trousers</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-ghost-bare">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline; margin-right: 4px; vertical-align: middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Clear
+          </button>
+          <button class="btn-primary" style="display: flex; align-items: center; gap: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add to Project
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SECTION 5: SUCCESS TOAST ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">05</span>
+        <h2 class="heading-page">Success Toast</h2>
+      </div>
+      <p class="caption ml-7">Sonner-style toast. Appears bottom-right after batch shot creation completes.</p>
+    </div>
+
+    <!-- Simulated bottom-right positioning within a bounded container -->
+    <div style="position: relative; height: 120px; max-width: 600px; background: var(--color-surface-subtle); border-radius: var(--radius-lg); border: 1px solid var(--color-border);">
+      <span class="label-meta" style="position: absolute; top: 12px; left: 14px;">App viewport (simulated)</span>
+      <div style="position: absolute; bottom: 16px; right: 16px;">
+        <div class="toast">
+          <!-- Checkmark icon -->
+          <div style="
+            width: 28px; height: 28px;
+            border-radius: 9999px;
+            background: var(--color-status-green-bg);
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+          ">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--color-status-green-text);"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <!-- Text -->
+          <div class="flex-1">
+            <p style="font-size: 13px; font-weight: 500; color: var(--color-text); line-height: 1.4;">Created 4 shots in Spring/Summer 2026 Lookbook</p>
+            <a href="#" style="font-size: 12px; color: #1d4ed8; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; margin-top: 3px;">
+              View Project
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+          </div>
+          <!-- Dismiss -->
+          <button class="btn-ghost-bare" style="padding: 2px; align-self: flex-start; margin-top: -2px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SECTION 6: MOBILE SHOOT READINESS (375px frame) ═══════════ -->
+  <section>
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="mono" style="color: var(--color-text-subtle);">06</span>
+        <h2 class="heading-page">Mobile Shoot Readiness — 375px Frame</h2>
+      </div>
+      <p class="caption ml-7">Single-column layout. Checkbox overlays top-right corner of each card. Sticky full-width action bar at bottom.</p>
+    </div>
+
+    <!-- Phone frame -->
+    <div class="phone-frame" style="width: 375px; height: 700px; overflow: hidden;">
+      <!-- Status bar -->
+      <div style="height: 44px; background: var(--color-surface); display: flex; align-items: center; justify-between; padding: 0 20px;">
+        <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; gap: 6px;">
+          <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor" style="color: var(--color-text); opacity: 0.9;"><rect x="0" y="4" width="3" height="7" rx="1"/><rect x="4" y="2" width="3" height="9" rx="1"/><rect x="8" y="0" width="3" height="11" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: var(--color-text); opacity: 0.9;"><path d="M1.213 8.91a13.83 13.83 0 0 1 21.574 0M5.07 12.764a9.21 9.21 0 0 1 13.86 0M8.927 16.617a4.59 4.59 0 0 1 6.928 0M12 20.47h.01"/></svg>
+          <span style="font-size: 12px; font-weight: 600; color: var(--color-text);">9:41</span>
+        </div>
+      </div>
+
+      <!-- App header -->
+      <div style="background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 10px 16px 0;">
+        <div class="flex items-center justify-between pb-2">
+          <h1 class="heading-page" style="font-size: 16px;">Dashboard</h1>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost-bare" style="padding: 4px; color: var(--color-text-muted);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Tab bar -->
+        <div class="flex gap-0 -mb-px">
+          <button class="px-3 py-1.5 text-sm font-medium border-b-2" style="color: var(--color-text); border-color: var(--color-primary); font-size: 12px;">Shoot Readiness</button>
+          <button class="px-3 py-1.5 text-sm border-b-2 border-transparent" style="color: var(--color-text-muted); font-size: 12px;">Activity</button>
+        </div>
+      </div>
+
+      <!-- Scrollable content -->
+      <div style="height: calc(700px - 44px - 56px - 56px); overflow-y: auto; padding: 12px 16px; padding-bottom: 0; background: var(--color-bg);">
+
+        <!-- Select mode hint bar -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="label-meta">4 products</span>
+          <span style="font-size: 11px; font-weight: 500; color: #1d4ed8;">2 selected</span>
+        </div>
+
+        <!-- Mobile cards — single column -->
+        <div class="space-y-2.5">
+
+          <!-- Card 1 — checked -->
+          <div class="card p-3 relative" style="border-color: #1d4ed8; box-shadow: 0 0 0 1px rgba(29,78,216,0.25);" onclick="toggleMobileCard(this)">
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1;">
+              <div style="
+                width: 22px; height: 22px;
+                border-radius: 9999px;
+                background: #1d4ed8;
+                border: 2px solid #1d4ed8;
+                display: flex; align-items: center; justify-content: center;
+                box-shadow: 0 1px 4px rgba(29,78,216,0.3);
+              ">
+                <svg width="11" height="9" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pr-8">
+              <div class="img-placeholder" style="width: 52px; height: 52px; flex-shrink: 0;"></div>
+              <div class="flex-1 min-w-0">
+                <div class="heading-subsection" style="font-size: 13px;">Merino Crewneck</div>
+                <div class="mono mt-0.5" style="color: var(--color-text-muted); font-size: 10px;">UM-1042</div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track flex-1"><div class="progress-fill" style="width: 75%;"></div></div>
+                  <span class="label-meta">3/4</span>
+                </div>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <div class="dot dot-green"></div>
+                  <span class="label-meta">Ready</span>
+                  <span class="badge-amber ml-1" style="font-size: 10px; padding: 1px 5px; border-radius: 3px;">Mar 15</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 — unchecked -->
+          <div class="card p-3 relative" onclick="toggleMobileCard(this)">
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1;">
+              <div style="
+                width: 22px; height: 22px;
+                border-radius: 9999px;
+                background: var(--color-surface);
+                border: 1.5px solid var(--color-border-strong);
+                display: flex; align-items: center; justify-content: center;
+              ">
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pr-8">
+              <div class="img-placeholder" style="width: 52px; height: 52px; flex-shrink: 0;"></div>
+              <div class="flex-1 min-w-0">
+                <div class="heading-subsection" style="font-size: 13px;">Cashmere Turtleneck</div>
+                <div class="mono mt-0.5" style="color: var(--color-text-muted); font-size: 10px;">UM-1078</div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track flex-1"><div class="progress-fill" style="width: 20%;"></div></div>
+                  <span class="label-meta">1/5</span>
+                </div>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <div class="dot dot-red"></div>
+                  <span class="label-meta">Not ready</span>
+                  <span class="badge-red ml-1" style="font-size: 10px; padding: 1px 5px; border-radius: 3px;">Overdue</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 — checked -->
+          <div class="card p-3 relative" style="border-color: #1d4ed8; box-shadow: 0 0 0 1px rgba(29,78,216,0.25);" onclick="toggleMobileCard(this)">
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1;">
+              <div style="
+                width: 22px; height: 22px;
+                border-radius: 9999px;
+                background: #1d4ed8;
+                border: 2px solid #1d4ed8;
+                display: flex; align-items: center; justify-content: center;
+                box-shadow: 0 1px 4px rgba(29,78,216,0.3);
+              ">
+                <svg width="11" height="9" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pr-8">
+              <div class="img-placeholder" style="width: 52px; height: 52px; flex-shrink: 0;"></div>
+              <div class="flex-1 min-w-0">
+                <div class="heading-subsection" style="font-size: 13px;">Wool Overshirt</div>
+                <div class="mono mt-0.5" style="color: var(--color-text-muted); font-size: 10px;">UM-2031</div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track flex-1"><div class="progress-fill" style="width: 66%;"></div></div>
+                  <span class="label-meta">2/3</span>
+                </div>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <div class="dot dot-amber"></div>
+                  <span class="label-meta">Partial</span>
+                  <span class="badge-amber ml-1" style="font-size: 10px; padding: 1px 5px; border-radius: 3px;">Apr 2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4 — unchecked -->
+          <div class="card p-3 relative" onclick="toggleMobileCard(this)">
+            <div style="position: absolute; top: 10px; right: 10px; z-index: 1;">
+              <div style="
+                width: 22px; height: 22px;
+                border-radius: 9999px;
+                background: var(--color-surface);
+                border: 1.5px solid var(--color-border-strong);
+                display: flex; align-items: center; justify-content: center;
+              ">
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pr-8">
+              <div class="img-placeholder" style="width: 52px; height: 52px; flex-shrink: 0;"></div>
+              <div class="flex-1 min-w-0">
+                <div class="heading-subsection" style="font-size: 13px;">Linen Trousers</div>
+                <div class="mono mt-0.5" style="color: var(--color-text-muted); font-size: 10px;">UM-3014</div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track flex-1"><div class="progress-fill" style="width: 100%;"></div></div>
+                  <span class="label-meta">4/4</span>
+                </div>
+                <div class="mt-1 flex items-center gap-1.5">
+                  <div class="dot dot-green"></div>
+                  <span class="label-meta">Ready</span>
+                  <span class="badge-green ml-1" style="font-size: 10px; padding: 1px 5px; border-radius: 3px;">On track</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Sticky bottom bar -->
+      <div style="
+        position: absolute; bottom: 0; left: 0; right: 0;
+        background: var(--color-surface);
+        border-top: 1px solid var(--color-border);
+        padding: 10px 16px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+      ">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <div style="
+              width: 20px; height: 20px;
+              border-radius: 9999px;
+              background: #1d4ed8;
+              color: #fff;
+              font-size: 11px; font-weight: 600;
+              display: flex; align-items: center; justify-content: center;
+            ">2</div>
+            <span style="font-size: 13px; font-weight: 500; color: var(--color-text);">selected</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost-bare" style="font-size: 12px;">Clear</button>
+            <button class="btn-primary" style="font-size: 12px; padding: 7px 14px;">Add to Project</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="caption mt-3" style="max-width: 375px;">Tap a card anywhere to toggle selection. The selection count updates live in the sticky bar.</p>
+  </section>
+
+</div>
+
+<!-- ═══════════ JS ═══════════ -->
+<script>
+  // ── Dark mode icon swap ───────────────────────────────────────
+  const themeBtn = document.getElementById('theme-toggle')
+  const sunIcon = document.getElementById('sun-icon')
+  const moonIcon = document.getElementById('moon-icon')
+
+  const updateThemeIcon = () => {
+    const isDark = document.documentElement.classList.contains('dark')
+    sunIcon.style.display = isDark ? 'none' : 'block'
+    moonIcon.style.display = isDark ? 'block' : 'none'
+    themeBtn.childNodes[themeBtn.childNodes.length - 1].textContent = isDark ? ' Light mode' : ' Dark mode'
+  }
+
+  themeBtn.addEventListener('click', () => {
+    setTimeout(updateThemeIcon, 10)
+  })
+
+  // ── Section 1: Card checkboxes (selection mode grid) ─────────
+  function toggleCard(cardEl) {
+    const cb = cardEl.querySelector('.cb')
+    const isChecked = cb.classList.contains('checked')
+    if (isChecked) {
+      cb.classList.remove('checked')
+      cb.style.background = ''
+      cb.style.borderColor = ''
+      cb.innerHTML = ''
+      cardEl.style.borderColor = ''
+      cardEl.style.boxShadow = ''
+    } else {
+      cb.classList.add('checked')
+      cb.style.background = '#1d4ed8'
+      cb.style.borderColor = '#1d4ed8'
+      cb.innerHTML = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      cardEl.style.borderColor = '#1d4ed8'
+      cardEl.style.boxShadow = '0 0 0 1px rgba(29,78,216,0.3)'
+    }
+  }
+
+  // ── Section 2: Table row checkboxes ──────────────────────────
+  let tableSelectedCount = 3
+
+  function updateTableFab() {
+    const rows = document.querySelectorAll('.product-row')
+    tableSelectedCount = 0
+    rows.forEach(r => { if (r.dataset.checked === 'true') tableSelectedCount++ })
+    const label = document.getElementById('table-selected-label')
+    if (label) label.textContent = `${tableSelectedCount} selected`
+    const bar = document.getElementById('table-action-bar')
+    if (bar) {
+      const inner = bar.querySelector('.fab span')
+      if (inner) inner.textContent = `${tableSelectedCount} products selected`
+    }
+  }
+
+  function toggleTableRow(rowEl) {
+    const skuRows = []
+    let nextSibling = rowEl.nextElementSibling
+    while (nextSibling && nextSibling.dataset.sku === 'true') {
+      skuRows.push(nextSibling)
+      nextSibling = nextSibling.nextElementSibling
+    }
+
+    const isChecked = rowEl.dataset.checked === 'true'
+    const cb = rowEl.querySelector('.row-cb')
+    if (isChecked) {
+      rowEl.dataset.checked = 'false'
+      rowEl.classList.remove('checked')
+      if (cb) {
+        cb.classList.remove('checked')
+        cb.style.background = ''
+        cb.style.borderColor = ''
+        cb.innerHTML = ''
+      }
+    } else {
+      rowEl.dataset.checked = 'true'
+      rowEl.classList.add('checked')
+      if (cb) {
+        cb.classList.add('checked')
+        cb.style.background = '#1d4ed8'
+        cb.style.borderColor = '#1d4ed8'
+        cb.innerHTML = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      }
+    }
+    updateTableFab()
+  }
+
+  function toggleSkuCb(cbEl) {
+    const isChecked = cbEl.classList.contains('checked')
+    if (isChecked) {
+      cbEl.classList.remove('checked')
+      cbEl.style.background = ''
+      cbEl.style.borderColor = ''
+      cbEl.innerHTML = ''
+    } else {
+      cbEl.classList.add('checked')
+      cbEl.style.background = '#1d4ed8'
+      cbEl.style.borderColor = '#1d4ed8'
+      cbEl.innerHTML = '<svg width="8" height="7" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    }
+  }
+
+  function clearTableSelection() {
+    const rows = document.querySelectorAll('.product-row')
+    rows.forEach(r => {
+      r.dataset.checked = 'false'
+      r.classList.remove('checked')
+      const cb = r.querySelector('.row-cb')
+      if (cb) { cb.classList.remove('checked'); cb.style.background = ''; cb.style.borderColor = ''; cb.innerHTML = '' }
+    })
+    updateTableFab()
+    // deselect all-cb
+    const allCb = document.getElementById('select-all-cb')
+    if (allCb) { allCb.classList.remove('checked'); allCb.style.background = ''; allCb.style.borderColor = ''; allCb.innerHTML = '' }
+  }
+
+  let selectAllState = true
+  function toggleSelectAll() {
+    selectAllState = !selectAllState
+    const allCb = document.getElementById('select-all-cb')
+    const rows = document.querySelectorAll('.product-row')
+
+    if (selectAllState) {
+      allCb.classList.add('checked')
+      allCb.style.background = '#1d4ed8'
+      allCb.style.borderColor = '#1d4ed8'
+      allCb.innerHTML = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      rows.forEach(r => {
+        r.dataset.checked = 'true'
+        r.classList.add('checked')
+        const cb = r.querySelector('.row-cb')
+        if (cb) {
+          cb.classList.add('checked')
+          cb.style.background = '#1d4ed8'
+          cb.style.borderColor = '#1d4ed8'
+          cb.innerHTML = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        }
+      })
+    } else {
+      allCb.classList.remove('checked')
+      allCb.style.background = ''
+      allCb.style.borderColor = ''
+      allCb.innerHTML = ''
+      rows.forEach(r => {
+        r.dataset.checked = 'false'
+        r.classList.remove('checked')
+        const cb = r.querySelector('.row-cb')
+        if (cb) { cb.classList.remove('checked'); cb.style.background = ''; cb.style.borderColor = ''; cb.innerHTML = '' }
+      })
+    }
+    updateTableFab()
+  }
+
+  function toggleExpand(btn) {
+    // visual-only expand toggle for the expand button
+    const isExpanded = btn.style.transform === 'rotate(90deg)'
+    btn.style.transform = isExpanded ? '' : 'rotate(90deg)'
+  }
+
+  // ── Section 3: Granularity toggle ────────────────────────────
+  // familyCounts: each product has 1 shot in family mode
+  // skuCounts: [4, 3, 2, 2] = 11 total
+  const familyCounts = [1, 1, 1, 1]
+  const skuCounts = [4, 3, 2, 2]
+  const skuLabels = ['4 shots', '3 shots', '2 shots', '2 shots']
+  const familyLabels = ['1 shot', '1 shot', '1 shot', '1 shot']
+  let currentGranularity = 'family'
+
+  function setGranularity(mode, btnEl) {
+    currentGranularity = mode
+    const segBtns = document.querySelectorAll('#granularity-seg .seg-btn')
+    segBtns.forEach(b => b.classList.remove('active'))
+    btnEl.classList.add('active')
+
+    const helpEl = document.getElementById('gran-help')
+    const createBtn = document.getElementById('create-btn')
+
+    if (mode === 'family') {
+      if (helpEl) helpEl.textContent = 'One shot per product family. Good for planning overview shots.'
+      if (createBtn) createBtn.textContent = 'Create 4 Shots'
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`preview-shot-${i}`)
+        if (el) el.textContent = familyLabels[i - 1]
+      }
+    } else {
+      if (helpEl) helpEl.textContent = 'One shot per colorway (SKU). Best for detailed lookbook production.'
+      if (createBtn) createBtn.textContent = 'Create 11 Shots'
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`preview-shot-${i}`)
+        if (el) el.textContent = skuLabels[i - 1]
+      }
+    }
+  }
+
+  // ── Section 6: Mobile card toggle ────────────────────────────
+  function toggleMobileCard(cardEl) {
+    const circleEl = cardEl.querySelector('div[style*="border-radius: 9999px"]')
+    if (!circleEl) return
+    const isChecked = circleEl.style.background === 'rgb(29, 78, 216)' || circleEl.style.background === '#1d4ed8'
+    if (isChecked) {
+      circleEl.style.background = 'var(--color-surface)'
+      circleEl.style.border = '1.5px solid var(--color-border-strong)'
+      circleEl.style.boxShadow = ''
+      circleEl.innerHTML = ''
+      cardEl.style.borderColor = ''
+      cardEl.style.boxShadow = ''
+    } else {
+      circleEl.style.background = '#1d4ed8'
+      circleEl.style.border = '2px solid #1d4ed8'
+      circleEl.style.boxShadow = '0 1px 4px rgba(29,78,216,0.3)'
+      circleEl.innerHTML = '<svg width="11" height="9" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      cardEl.style.borderColor = '#1d4ed8'
+      cardEl.style.boxShadow = '0 0 0 1px rgba(29,78,216,0.25)'
+    }
+  }
+</script>
+
+</body>
+</html>

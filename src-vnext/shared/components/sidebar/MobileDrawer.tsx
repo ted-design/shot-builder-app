@@ -11,6 +11,7 @@ interface MobileDrawerProps {
   readonly onOpenChange: (open: boolean) => void
   readonly config: NavConfig
   readonly projectName?: string
+  readonly requestBadgeCount?: number
 }
 
 export function MobileDrawer({
@@ -18,6 +19,7 @@ export function MobileDrawer({
   onOpenChange,
   config,
   projectName,
+  requestBadgeCount,
 }: MobileDrawerProps) {
   const isTablet = useIsTablet()
   const close = () => onOpenChange(false)
@@ -52,6 +54,7 @@ export function MobileDrawer({
               collapsed={false}
               onNavigate={close}
               showBadges={isTablet}
+              requestBadgeCount={requestBadgeCount}
             />
           </div>
 

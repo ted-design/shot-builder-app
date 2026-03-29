@@ -250,3 +250,8 @@ export const shotRequestDocPath = (
   requestId: string,
   clientId: string,
 ): string[] => [...shotRequestsPath(clientId), requestId]
+
+export const shotRequestCommentsPath = (
+  clientId: string,
+  requestId: string,
+): string[] => [...shotRequestDocPath(requestId, clientId), "comments"]

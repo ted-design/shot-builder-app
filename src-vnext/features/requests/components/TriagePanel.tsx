@@ -1,15 +1,19 @@
 import { useState } from "react"
-import { ExternalLink, CheckCircle2, XCircle } from "lucide-react"
+import { Link } from "react-router-dom"
+import { ExternalLink, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react"
 import { ShotRequestStatusBadge } from "./ShotRequestStatusBadge"
 import { AbsorbDialog } from "./AbsorbDialog"
 import { RejectDialog } from "./RejectDialog"
+import { CommentThread } from "./CommentThread"
 import { formatRelativeTime } from "@/features/requests/lib/formatRelativeTime"
+import { useAuth } from "@/app/providers/AuthProvider"
 import { Button } from "@/ui/button"
-import type { ShotRequest } from "@/shared/types"
+import type { ShotRequest, ShotRequestReference } from "@/shared/types"
 
 interface TriagePanelProps {
   readonly request: ShotRequest
   readonly projectName?: string | null
+  readonly familyNames?: Readonly<Record<string, string>>
 }
 
 function SectionLabel({ children }: { readonly children: string }) {
@@ -18,7 +22,42 @@ function SectionLabel({ children }: { readonly children: string }) {
   )
 }
 
-export function TriagePanel({ request, projectName }: TriagePanelProps) {
+function ReferenceCard({ reference }: { readonly reference: ShotRequestReference }) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-[var(--color-border)] p-3">
+      {reference.imageUrl ? (
+        <img
+          src={reference.imageUrl}
+          alt={reference.caption ?? "Reference image"}
+          className="h-14 w-14 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-[var(--color-surface-subtle)]">
+          <ImageIcon className="h-5 w-5 text-[var(--color-text-subtle)]" />
+        </div>
+      )}
+      <div className="flex min-w-0 flex-col gap-1">
+        {reference.url && (
+          <a
+            href={reference.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-primary)] hover:underline"
+          >
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">{reference.url}</span>
+          </a>
+        )}
+        {reference.caption && (
+          <p className="text-xs text-[var(--color-text-muted)]">{reference.caption}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function TriagePanel({ request, projectName, familyNames = {} }: TriagePanelProps) {
+  const { user, clientId } = useAuth()
   const [absorbOpen, setAbsorbOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
 
@@ -26,6 +65,20 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
   const canTriage = request.status === "submitted" || request.status === "triaged"
   const isAbsorbed = request.status === "absorbed"
   const isRejected = request.status === "rejected"
+
+  // Prefer structured references; fall back to legacy referenceUrls
+  const hasStructuredRefs =
+    Array.isArray(request.references) && request.references.length > 0
+  const hasLegacyUrls =
+    !hasStructuredRefs &&
+    Array.isArray(request.referenceUrls) &&
+    (request.referenceUrls?.length ?? 0) > 0
+
+  const hasProducts =
+    Array.isArray(request.relatedFamilyIds) &&
+    (request.relatedFamilyIds?.length ?? 0) > 0
+
+  const showComments = !!clientId && !!user
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -60,11 +113,24 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
         </div>
       )}
 
-      {request.referenceUrls && request.referenceUrls.length > 0 && (
+      {/* Structured references */}
+      {hasStructuredRefs && (
+        <div>
+          <SectionLabel>References</SectionLabel>
+          <div className="flex flex-col gap-2">
+            {request.references!.map((ref, index) => (
+              <ReferenceCard key={index} reference={ref} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy URL fallback */}
+      {hasLegacyUrls && (
         <div>
           <SectionLabel>References</SectionLabel>
           <ul className="flex flex-col gap-1">
-            {request.referenceUrls.map((url, index) => (
+            {request.referenceUrls!.map((url, index) => (
               <li key={index}>
                 <a
                   href={url}
@@ -78,6 +144,27 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Products */}
+      {hasProducts && (
+        <div>
+          <SectionLabel>Products</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {request.relatedFamilyIds!.map((familyId) => {
+              const name = familyNames[familyId] ?? familyId
+              return (
+                <Link
+                  key={familyId}
+                  to={`/products/${familyId}`}
+                  className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-0.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-surface)] hover:underline"
+                >
+                  {name}
+                </Link>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -141,6 +228,17 @@ export function TriagePanel({ request, projectName }: TriagePanelProps) {
           >
             Reject
           </Button>
+        </div>
+      )}
+
+      {/* Comment thread */}
+      {showComments && (
+        <div className="border-t border-[var(--color-border)] pt-5">
+          <CommentThread
+            clientId={clientId}
+            requestId={request.id}
+            currentUser={{ uid: user.uid, displayName: user.displayName }}
+          />
         </div>
       )}
 

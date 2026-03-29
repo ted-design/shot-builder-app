@@ -6,14 +6,16 @@ import {
   serverTimestamp,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
+import { callFunction } from "@/shared/lib/callFunction"
 import {
   projectMemberDocPath,
   projectsPath,
+  shotRequestCommentsPath,
   shotRequestDocPath,
   shotRequestsPath,
   shotsPath,
 } from "@/shared/lib/paths"
-import type { ShotRequestPriority } from "@/shared/types"
+import type { ShotRequestPriority, ShotRequestReference } from "@/shared/types"
 
 // --- Submit ---
 
@@ -22,11 +24,16 @@ interface SubmitShotRequestParams {
   readonly title: string
   readonly priority: ShotRequestPriority
   readonly description?: string | null
+  /** Legacy plain URLs. Pass null when using structured `references`. */
   readonly referenceUrls?: readonly string[] | null
+  /** Structured references with optional image and caption (S12B). */
+  readonly references?: readonly ShotRequestReference[] | null
   readonly deadline?: string | null
   readonly notes?: string | null
   readonly submittedBy: string
   readonly submittedByName?: string | null
+  readonly relatedFamilyIds?: readonly string[] | null
+  readonly notifyUserIds?: readonly string[] | null
 }
 
 export async function submitShotRequest(
@@ -40,13 +47,26 @@ export async function submitShotRequest(
     title: params.title.trim(),
     description: params.description ?? null,
     referenceUrls: params.referenceUrls ?? null,
+    references: params.references ?? null,
     deadline: params.deadline ?? null,
     notes: params.notes ?? null,
     submittedBy: params.submittedBy,
     submittedByName: params.submittedByName ?? null,
+    relatedFamilyIds: params.relatedFamilyIds ?? null,
+    notifyUserIds: params.notifyUserIds ?? null,
     submittedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+
+  // Fire-and-forget: trigger notification email after successful write.
+  // Failure here must not block the submission from completing.
+  void callFunction("sendRequestNotification", {
+    requestId: docRef.id,
+    clientId: params.clientId,
+  }).catch(() => {
+    // Intentionally swallowed — email notification is non-blocking
+  })
+
   return docRef.id
 }
 
@@ -209,5 +229,35 @@ export async function triageRejectRequest(
       rejectionReason: params.rejectionReason ?? null,
       updatedAt: serverTimestamp(),
     })
+  })
+}
+
+// --- Add Comment ---
+
+const MAX_COMMENT_CHARS = 2000
+
+interface AddRequestCommentAuthor {
+  readonly uid: string
+  readonly displayName: string | null
+}
+
+export async function addRequestComment(
+  clientId: string,
+  requestId: string,
+  body: string,
+  author: AddRequestCommentAuthor,
+): Promise<void> {
+  const trimmed = body.trim()
+  if (!trimmed) throw new Error("Comment body is empty.")
+  if (trimmed.length > MAX_COMMENT_CHARS) {
+    throw new Error(`Comment exceeds ${MAX_COMMENT_CHARS} characters.`)
+  }
+  const pathSegments = shotRequestCommentsPath(clientId, requestId)
+  const collRef = collection(db, pathSegments[0]!, ...pathSegments.slice(1))
+  await addDoc(collRef, {
+    authorId: author.uid,
+    authorName: author.displayName ?? "Unknown",
+    body: trimmed,
+    createdAt: serverTimestamp(),
   })
 }

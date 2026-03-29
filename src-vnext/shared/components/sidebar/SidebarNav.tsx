@@ -2,11 +2,14 @@ import type { NavConfig, NavEntry } from "./nav-config"
 import { SidebarNavItem } from "./SidebarNavItem"
 import { SidebarNavGroup } from "./SidebarNavGroup"
 
+const REQUESTS_ROUTE = "/requests"
+
 interface SidebarNavProps {
   readonly config: NavConfig
   readonly collapsed: boolean
   readonly onNavigate?: () => void
   readonly showBadges?: boolean
+  readonly requestBadgeCount?: number
 }
 
 export function SidebarNav({
@@ -14,6 +17,7 @@ export function SidebarNav({
   collapsed,
   onNavigate,
   showBadges = false,
+  requestBadgeCount,
 }: SidebarNavProps) {
   return (
     <nav className="flex flex-col gap-0.5 px-2">
@@ -24,6 +28,7 @@ export function SidebarNav({
           collapsed={collapsed}
           onNavigate={onNavigate}
           showBadges={showBadges}
+          requestBadgeCount={requestBadgeCount}
         />
       ))}
     </nav>
@@ -35,22 +40,27 @@ function NavEntryRenderer({
   collapsed,
   onNavigate,
   showBadges,
+  requestBadgeCount,
 }: {
   readonly entry: NavEntry
   readonly collapsed: boolean
   readonly onNavigate?: () => void
   readonly showBadges: boolean
+  readonly requestBadgeCount?: number
 }) {
   switch (entry.type) {
-    case "item":
+    case "item": {
+      const isRequestsCentre = entry.item.to === REQUESTS_ROUTE
       return (
         <SidebarNavItem
           item={entry.item}
           collapsed={collapsed}
           onNavigate={onNavigate}
           showBadge={showBadges}
+          badgeCount={isRequestsCentre ? requestBadgeCount : undefined}
         />
       )
+    }
     case "group":
       return (
         <SidebarNavGroup

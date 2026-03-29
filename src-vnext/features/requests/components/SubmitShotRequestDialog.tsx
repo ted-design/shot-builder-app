@@ -1,21 +1,143 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId } from "react"
 import { z } from "zod"
 import { toast } from "sonner"
-import { ChevronRight, Plus, X } from "lucide-react"
+import { ChevronRight, X, Check, ChevronsUpDown } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { submitShotRequest } from "@/features/requests/lib/requestWrites"
+import { RecipientPicker } from "@/features/requests/components/RecipientPicker"
+import { ReferenceInput } from "@/features/requests/components/ReferenceInput"
+import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ResponsiveDialog } from "@/shared/components/ResponsiveDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { Textarea } from "@/ui/textarea"
-import type { ShotRequestPriority } from "@/shared/types"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/ui/popover"
+import type { ShotRequestPriority, ShotRequestReference } from "@/shared/types"
 
 const titleSchema = z.string().min(1, "Title is required")
 
 interface SubmitShotRequestDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
+}
+
+function ProductPickerPopover({
+  selectedIds,
+  onToggle,
+}: {
+  readonly selectedIds: readonly string[]
+  readonly onToggle: (id: string) => void
+}) {
+  const { data: families } = useProductFamilies()
+  const [search, setSearch] = useState("")
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const searchId = useId()
+
+  const filtered = families.filter((f) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      f.styleName.toLowerCase().includes(q) ||
+      (f.styleNumbers?.[0] ?? f.styleNumber ?? "").toLowerCase().includes(q)
+    )
+  })
+
+  const selectedFamilies = families.filter((f) => selectedIds.includes(f.id))
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-1.5">
+        {selectedFamilies.map((f) => (
+          <span
+            key={f.id}
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-0.5 text-xs text-[var(--color-text)]"
+          >
+            {f.styleName}
+            <button
+              type="button"
+              onClick={() => onToggle(f.id)}
+              aria-label={`Remove ${f.styleName}`}
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
+            >
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)]"
+          >
+            {selectedIds.length > 0
+              ? `${selectedIds.length} product${selectedIds.length === 1 ? "" : "s"} selected`
+              : "Search products..."}
+            <ChevronsUpDown size={14} className="shrink-0" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-2" align="start">
+          <label htmlFor={searchId} className="sr-only">
+            Search products
+          </label>
+          <Input
+            id={searchId}
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or style number..."
+            className="mb-2 h-8 text-sm"
+            autoFocus
+          />
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 && (
+              <p className="px-2 py-3 text-center text-xs text-[var(--color-text-muted)]">
+                No products found
+              </p>
+            )}
+            {filtered.map((f) => {
+              const isSelected = selectedIds.includes(f.id)
+              const styleNum = f.styleNumbers?.[0] ?? f.styleNumber
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => onToggle(f.id)}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-[var(--color-surface-subtle)]"
+                >
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                      isSelected
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
+                        : "border-[var(--color-border)]"
+                    }`}
+                  >
+                    {isSelected && (
+                      <Check size={10} className="text-[var(--color-text-inverted)]" />
+                    )}
+                  </span>
+                  <span className="flex-1 truncate text-[var(--color-text)]">
+                    {f.styleName}
+                  </span>
+                  {styleNum && (
+                    <span className="shrink-0 text-xxs text-[var(--color-text-muted)]">
+                      {styleNum}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
 }
 
 export function SubmitShotRequestDialog({
@@ -27,21 +149,28 @@ export function SubmitShotRequestDialog({
   const [title, setTitle] = useState("")
   const [priority, setPriority] = useState<ShotRequestPriority>("normal")
   const [description, setDescription] = useState("")
-  const [referenceUrls, setReferenceUrls] = useState<readonly string[]>([""])
+  const [references, setReferences] = useState<readonly ShotRequestReference[]>([])
   const [deadline, setDeadline] = useState("")
   const [notes, setNotes] = useState("")
+  const [relatedFamilyIds, setRelatedFamilyIds] = useState<readonly string[]>([])
+  const [notifyUserIds, setNotifyUserIds] = useState<readonly string[]>([])
   const [titleError, setTitleError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
+
+  // Stable requestId placeholder for Storage path during composition
+  const [draftRequestId] = useState(() => `draft-${Date.now()}`)
 
   useEffect(() => {
     if (open) {
       setTitle("")
       setPriority("normal")
       setDescription("")
-      setReferenceUrls([""])
+      setReferences([])
       setDeadline("")
       setNotes("")
+      setRelatedFamilyIds([])
+      setNotifyUserIds([])
       setTitleError(null)
       setSaving(false)
       setDetailsOpen(false)
@@ -53,18 +182,12 @@ export function SubmitShotRequestDialog({
     setTitleError(null)
   }
 
-  const handleUrlChange = (index: number, value: string) => {
-    setReferenceUrls((prev) =>
-      prev.map((url, i) => (i === index ? value : url)),
+  const handleToggleFamily = (familyId: string) => {
+    setRelatedFamilyIds((prev) =>
+      prev.includes(familyId)
+        ? prev.filter((id) => id !== familyId)
+        : [...prev, familyId],
     )
-  }
-
-  const handleAddUrl = () => {
-    setReferenceUrls((prev) => [...prev, ""])
-  }
-
-  const handleRemoveUrl = (index: number) => {
-    setReferenceUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const canSubmit = title.trim().length > 0 && !saving
@@ -83,18 +206,21 @@ export function SubmitShotRequestDialog({
 
     setSaving(true)
     try {
-      const filteredUrls = referenceUrls.filter((u) => u.trim().length > 0)
+      const validReferences = references.filter((r) => r.url.trim().length > 0)
 
       await submitShotRequest({
         clientId,
         title: result.data,
         priority,
         description: description.trim() || null,
-        referenceUrls: filteredUrls.length > 0 ? filteredUrls : null,
+        referenceUrls: null,
+        references: validReferences.length > 0 ? validReferences : null,
         deadline: deadline || null,
         notes: notes.trim() || null,
         submittedBy: user.uid,
         submittedByName: user.displayName ?? null,
+        relatedFamilyIds: relatedFamilyIds.length > 0 ? [...relatedFamilyIds] : null,
+        notifyUserIds: notifyUserIds.length > 0 ? [...notifyUserIds] : null,
       })
 
       toast.success("Shot request submitted")
@@ -119,7 +245,7 @@ export function SubmitShotRequestDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
+          <Button onClick={() => void handleSubmit()} disabled={!canSubmit}>
             {saving ? "Submitting..." : "Submit Request"}
           </Button>
         </>
@@ -173,6 +299,29 @@ export function SubmitShotRequestDialog({
           </div>
         </div>
 
+        {/* Notify */}
+        {clientId && (
+          <RecipientPicker
+            clientId={clientId}
+            value={notifyUserIds}
+            onChange={(uids) => setNotifyUserIds(uids)}
+          />
+        )}
+
+        {/* Products */}
+        <div className="flex flex-col gap-2">
+          <Label>
+            Products{" "}
+            <span className="text-xs font-normal text-[var(--color-text-muted)]">
+              (optional)
+            </span>
+          </Label>
+          <ProductPickerPopover
+            selectedIds={relatedFamilyIds}
+            onToggle={handleToggleFamily}
+          />
+        </div>
+
         {/* Progressive disclosure */}
         <button
           type="button"
@@ -204,45 +353,22 @@ export function SubmitShotRequestDialog({
               />
             </div>
 
-            {/* Reference URLs */}
+            {/* Structured References */}
             <div className="flex flex-col gap-2">
               <Label>
-                Reference URLs{" "}
+                References{" "}
                 <span className="text-xs font-normal text-[var(--color-text-muted)]">
                   (optional)
                 </span>
               </Label>
-              <div className="flex flex-col gap-2">
-                {referenceUrls.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      type="url"
-                      value={url}
-                      onChange={(e) => handleUrlChange(index, e.target.value)}
-                      placeholder="https://..."
-                      className="flex-1"
-                    />
-                    {referenceUrls.length > 1 && (
-                      <button
-                        type="button"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-red-50 hover:text-[var(--color-error)]"
-                        onClick={() => handleRemoveUrl(index)}
-                        aria-label="Remove URL"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
-                  onClick={handleAddUrl}
-                >
-                  <Plus size={14} />
-                  Add another URL
-                </button>
-              </div>
+              {clientId && (
+                <ReferenceInput
+                  clientId={clientId}
+                  requestId={draftRequestId}
+                  references={references}
+                  onChange={setReferences}
+                />
+              )}
             </div>
 
             {/* Deadline */}

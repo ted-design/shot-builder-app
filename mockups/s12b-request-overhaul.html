@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S12B — Request Centre Overhaul · Production Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ─── Design Tokens ─── */
+    :root {
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-surface-muted: #e4e4e7;
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+      --color-primary: #18181b;
+      --color-primary-text: #ffffff;
+      --color-accent: #E31E24;
+      --color-error: #ef4444;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+
+      --color-status-blue-bg: #eff6ff;
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: #bfdbfe;
+
+      --color-status-amber-bg: #fffbeb;
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: #fde68a;
+
+      --color-status-green-bg: #ecfdf5;
+      --color-status-green-text: #047857;
+      --color-status-green-border: #a7f3d0;
+
+      --color-status-gray-bg: #f4f4f5;
+      --color-status-gray-text: #3f3f46;
+      --color-status-gray-border: #e4e4e7;
+    }
+
+    /* Dark mode tokens */
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #27272a;
+      --color-surface-muted: #3f3f46;
+      --color-text: #fafafa;
+      --color-text-secondary: #a1a1aa;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #52525b;
+      --color-border: #27272a;
+      --color-border-strong: #3f3f46;
+      --color-primary: #fafafa;
+      --color-primary-text: #18181b;
+
+      --color-status-blue-bg: #1e3a5f;
+      --color-status-blue-text: #93c5fd;
+      --color-status-blue-border: #1d4ed8;
+
+      --color-status-amber-bg: #451a03;
+      --color-status-amber-text: #fcd34d;
+      --color-status-amber-border: #92400e;
+
+      --color-status-green-bg: #052e16;
+      --color-status-green-text: #6ee7b7;
+      --color-status-green-border: #065f46;
+
+      --color-status-gray-bg: #27272a;
+      --color-status-gray-text: #a1a1aa;
+      --color-status-gray-border: #3f3f46;
+    }
+
+    /* ─── Base ─── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    /* ─── Typography classes ─── */
+    .heading-page {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+    }
+
+    .heading-section {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+    }
+
+    .body-text {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--color-text);
+    }
+
+    .label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    .caption {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* ─── Surfaces ─── */
+    .surface {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+    }
+
+    .surface-subtle {
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    /* ─── Buttons ─── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border-color: var(--color-primary);
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border-color: var(--color-border);
+    }
+    .btn-ghost:hover {
+      background: var(--color-surface-subtle);
+      border-color: var(--color-border-strong);
+    }
+
+    .btn-destructive {
+      background: transparent;
+      color: var(--color-error);
+      border-color: var(--color-border);
+    }
+    .btn-destructive:hover {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+
+    .btn-green {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+      border-color: var(--color-status-green-border);
+    }
+    .btn-green:hover { filter: brightness(0.96); }
+
+    .btn-sm {
+      height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+    }
+
+    /* ─── Inputs ─── */
+    .input {
+      height: 36px;
+      padding: 0 12px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgba(24,24,27,0.08);
+    }
+    .dark .input:focus {
+      box-shadow: 0 0 0 2px rgba(250,250,250,0.1);
+    }
+
+    .textarea {
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      outline: none;
+      width: 100%;
+      resize: vertical;
+      line-height: 1.5;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .textarea:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgba(24,24,27,0.08);
+    }
+
+    /* ─── Status badges ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .badge-blue {
+      background: var(--color-status-blue-bg);
+      color: var(--color-status-blue-text);
+      border-color: var(--color-status-blue-border);
+    }
+
+    .badge-amber {
+      background: var(--color-status-amber-bg);
+      color: var(--color-status-amber-text);
+      border-color: var(--color-status-amber-border);
+    }
+
+    .badge-green {
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+      border-color: var(--color-status-green-border);
+    }
+
+    .badge-gray {
+      background: var(--color-status-gray-bg);
+      color: var(--color-status-gray-text);
+      border-color: var(--color-status-gray-border);
+    }
+
+    /* ─── Avatar ─── */
+    .avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #3f3f46;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .avatar-sm {
+      width: 28px;
+      height: 28px;
+      font-size: 11px;
+    }
+
+    .avatar-xs {
+      width: 22px;
+      height: 22px;
+      font-size: 10px;
+    }
+
+    /* Avatar accent colors for variety */
+    .av-rose   { background: #be123c; }
+    .av-violet { background: #6d28d9; }
+    .av-sky    { background: #0369a1; }
+    .av-emerald { background: #065f46; }
+    .av-amber  { background: #92400e; }
+
+    /* ─── Priority indicator ─── */
+    .priority-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .priority-urgent { background: var(--color-accent); }
+    .priority-normal { background: var(--color-text-subtle); }
+
+    /* ─── Product thumbnail ─── */
+    .product-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .product-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px 3px 6px;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
+    }
+
+    .chip-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      transition: all 0.12s ease;
+    }
+    .chip-remove:hover {
+      background: var(--color-surface-muted);
+      color: var(--color-text);
+    }
+
+    /* ─── Reference card ─── */
+    .reference-card {
+      display: flex;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      align-items: flex-start;
+    }
+
+    .ref-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ─── Priority toggle ─── */
+    .priority-toggle {
+      display: flex;
+      gap: 4px;
+      padding: 3px;
+      background: var(--color-surface-subtle);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+    }
+
+    .priority-option {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--color-text-muted);
+    }
+
+    .priority-option.active {
+      background: var(--color-surface);
+      color: var(--color-text);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+    }
+
+    .priority-option.active.urgent {
+      color: var(--color-accent);
+    }
+
+    /* ─── Conversation message ─── */
+    .message {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .message-body {
+      background: var(--color-surface-subtle);
+      border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+      padding: 10px 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--color-text);
+      flex: 1;
+    }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .message-author {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .message-time {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    /* ─── Comment input ─── */
+    .comment-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .comment-input {
+      flex: 1;
+      height: 36px;
+      padding: 0 12px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .comment-input::placeholder { color: var(--color-text-subtle); }
+    .comment-input:focus { border-color: var(--color-border-strong); }
+
+    .send-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: var(--color-primary-text);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity 0.15s ease;
+    }
+    .send-btn:hover { opacity: 0.85; }
+
+    /* ─── Filter tabs ─── */
+    .filter-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .filter-tab {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .filter-tab:hover { color: var(--color-text); }
+
+    .filter-tab.active {
+      color: var(--color-text);
+      border-bottom-color: var(--color-text);
+    }
+
+    .tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--color-surface-muted);
+      color: var(--color-text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .filter-tab.active .tab-count {
+      background: var(--color-text);
+      color: var(--color-primary-text);
+    }
+
+    /* ─── Request list card ─── */
+    .request-card {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--color-border);
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .request-card:hover { background: var(--color-surface-subtle); }
+    .request-card.selected { background: var(--color-surface-subtle); }
+    .dark .request-card.selected { background: #27272a; }
+
+    /* ─── Dropdown ─── */
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .dropdown-item:hover { background: var(--color-surface-subtle); }
+
+    /* ─── Form field ─── */
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .form-label .optional {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--color-text-subtle);
+    }
+
+    .form-label .required {
+      color: var(--color-accent);
+      font-size: 13px;
+    }
+
+    /* ─── Section divider ─── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 40px 0 24px;
+      margin: 0 auto;
+      max-width: 1400px;
+    }
+
+    .section-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--color-border);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-subtle);
+      white-space: nowrap;
+      padding: 4px 10px;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+    }
+
+    /* ─── Recipient avatars ─── */
+    .recipient-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .recipient-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 10px 5px 6px;
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      background: var(--color-surface);
+    }
+
+    .recipient-item.selected {
+      background: var(--color-surface-subtle);
+      border-color: var(--color-border-strong);
+    }
+
+    .recipient-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--color-border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s ease;
+      flex-shrink: 0;
+    }
+
+    .recipient-item.selected .recipient-check {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    .recipient-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+    }
+
+    /* ─── Triage actions ─── */
+    .triage-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    /* ─── Empty state ─── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 36px 24px;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ─── Scrollbars ─── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--color-surface-muted); border-radius: 3px; }
+
+    /* ─── Dark mode toggle ─── */
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      transition: all 0.15s ease;
+    }
+    .theme-toggle:hover { border-color: var(--color-border-strong); }
+
+    /* ─── Page wrapper ─── */
+    .page-wrapper {
+      padding: 60px 32px 80px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      padding-bottom: 32px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    /* ─── Dialog ─── */
+    .dialog-backdrop {
+      background: var(--color-bg);
+      padding: 24px;
+    }
+
+    .dialog {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .dialog-header {
+      padding: 18px 20px 16px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .dialog-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-height: 72vh;
+      overflow-y: auto;
+    }
+
+    .dialog-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      background: var(--color-surface);
+    }
+
+    /* ─── Two-panel layout ─── */
+    .two-panel {
+      display: flex;
+      height: 680px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .panel-left {
+      width: 360px;
+      min-width: 360px;
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      background: var(--color-surface);
+      overflow: hidden;
+    }
+
+    .panel-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-surface);
+      overflow: hidden;
+    }
+
+    .panel-left-scroll {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .detail-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ─── Detail header ─── */
+    .detail-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--color-surface);
+    }
+
+    /* ─── Products row ─── */
+    .products-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .product-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    /* ─── Conversation divider ─── */
+    .convo-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    .convo-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--color-border);
+    }
+
+    .convo-divider-label {
+      font-size: 11px;
+      color: var(--color-text-subtle);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Mobile simulation ─── */
+    .mobile-frame {
+      width: 375px;
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      height: 720px;
+      margin: 0 auto;
+      background: var(--color-surface);
+    }
+
+    .mobile-topbar {
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--color-surface);
+    }
+
+    .mobile-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .mobile-sticky-bottom {
+      border-top: 1px solid var(--color-border);
+      padding: 10px 14px;
+      background: var(--color-surface);
+    }
+
+    /* ─── Section block inside detail ─── */
+    .detail-block {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .detail-block-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+    }
+
+    /* ─── Shadows ─── */
+    .shadow-card {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    /* ─── Search input wrap ─── */
+    .input-icon-wrap {
+      position: relative;
+    }
+    .input-icon-wrap .input { padding-left: 34px; }
+    .input-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-text-subtle);
+      pointer-events: none;
+    }
+
+    /* ─── Absorb project select ─── */
+    .project-select {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .select-el {
+      height: 36px;
+      padding: 0 32px 0 10px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Dark mode toggle ─── -->
+  <button class="theme-toggle" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    Dark mode
+  </button>
+
+  <div class="page-wrapper">
+
+    <!-- ─── Page header ─── -->
+    <div class="page-header">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-accent); margin-bottom:6px;">S12B — Request Overhaul</div>
+          <h1 class="heading-page">Request Centre Overhaul</h1>
+          <p class="caption" style="margin-top:4px;">Enhanced submit dialog · Two-panel desktop view · Mobile detail · Empty conversation state</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge badge-amber">In Review</span>
+          <span class="badge badge-gray">Sprint S12B</span>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 1: ENHANCED SUBMIT DIALOG
+    ════════════════════════════════════════════════════ -->
+
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <span class="section-label">Section 1 — Enhanced Submit Dialog</span>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div style="display:flex; align-items:flex-start; gap:24px; flex-wrap:wrap;">
+
+      <!-- Simulated dialog overlay context -->
+      <div style="flex:1; min-width:320px; max-width:620px; margin:0 auto;">
+        <div style="font-size:12px; font-weight:500; color:var(--color-text-muted); margin-bottom:12px; text-align:center; letter-spacing:0.02em;">NEW REQUEST — FULL FEATURED FORM</div>
+
+        <div class="dialog shadow-card">
+
+          <!-- Dialog header -->
+          <div class="dialog-header">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <div style="font-size:16px; font-weight:500; color:var(--color-text);">New Request</div>
+                <div class="caption" style="margin-top:2px;">Describe what you need for the shoot</div>
+              </div>
+              <button class="btn btn-icon btn-ghost" style="border:none; color:var(--color-text-muted);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dialog body -->
+          <div class="dialog-body">
+
+            <!-- 1. Title -->
+            <div class="form-field">
+              <label class="form-label">Title <span class="required">*</span></label>
+              <input type="text" class="input" value="Spring Lookbook — Knitwear Selection" placeholder="What is this request about?" />
+            </div>
+
+            <!-- 2. Priority -->
+            <div class="form-field">
+              <label class="form-label">Priority</label>
+              <div class="priority-toggle" style="display:inline-flex; width:fit-content;">
+                <div class="priority-option active">
+                  <div class="priority-dot priority-normal"></div>
+                  Normal
+                </div>
+                <div class="priority-option active urgent" style="background:var(--color-surface); box-shadow:0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);">
+                  <div class="priority-dot priority-urgent"></div>
+                  Urgent
+                </div>
+              </div>
+              <!-- Show both states side by side for mockup clarity -->
+              <div class="caption" style="color:var(--color-text-subtle);">Urgent selected — affects scheduling priority</div>
+            </div>
+
+            <!-- 3. Products -->
+            <div class="form-field">
+              <label class="form-label">Products <span class="optional">(optional)</span></label>
+
+              <!-- Selected chips -->
+              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+                <div class="product-chip">
+                  <div class="product-thumb" style="width:20px; height:20px; border-radius:4px; font-size:11px;">
+                    <span style="font-size:12px;">👕</span>
+                  </div>
+                  Merino Wool Crew Neck
+                  <div class="chip-remove">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </div>
+                </div>
+                <div class="product-chip">
+                  <div class="product-thumb" style="width:20px; height:20px; border-radius:4px; font-size:11px;">
+                    <span style="font-size:12px;">🧥</span>
+                  </div>
+                  Tech Fleece Hoodie
+                  <div class="chip-remove">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </div>
+                </div>
+                <div class="product-chip">
+                  <div class="product-thumb" style="width:20px; height:20px; border-radius:4px; font-size:11px;">
+                    <span style="font-size:12px;">👖</span>
+                  </div>
+                  Stretch Chino Pant
+                  <div class="chip-remove">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Search + dropdown -->
+              <div style="position:relative;">
+                <div class="input-icon-wrap">
+                  <div class="input-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  </div>
+                  <input type="text" class="input" placeholder="Search products…" value="fleece" />
+                </div>
+
+                <!-- Dropdown -->
+                <div class="dropdown" style="position:relative; top:4px; margin-top:4px;">
+                  <div class="dropdown-item" style="opacity:0.5;">
+                    <div class="product-thumb">
+                      <span style="font-size:18px;">🧥</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div class="label" style="font-size:13px;">Tech Fleece Hoodie</div>
+                      <div class="caption">Style No. TF-2024-001</div>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-green-text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div class="dropdown-item">
+                    <div class="product-thumb">
+                      <span style="font-size:18px;">🧤</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div class="label" style="font-size:13px;">Polar Fleece Quarter-Zip</div>
+                      <div class="caption">Style No. PF-2024-012</div>
+                    </div>
+                  </div>
+                  <div class="dropdown-item">
+                    <div class="product-thumb">
+                      <span style="font-size:18px;">🧣</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div class="label" style="font-size:13px;">Sherpa Fleece Vest</div>
+                      <div class="caption">Style No. SV-2024-007</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. References -->
+            <div class="form-field">
+              <label class="form-label">References <span class="optional">(optional)</span></label>
+
+              <div style="display:flex; flex-direction:column; gap:8px;">
+
+                <!-- Reference 1: URL only -->
+                <div class="reference-card shadow-card">
+                  <div class="ref-thumb" style="background:var(--color-surface-subtle);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+                    <input type="text" class="input" style="height:30px; font-size:12px;" value="https://www.pinterest.com/pin/editorial-knitwear-2024" placeholder="Paste URL…" />
+                    <input type="text" class="input" style="height:28px; font-size:12px;" placeholder="Caption (optional)…" />
+                  </div>
+                  <button class="btn btn-icon btn-ghost btn-sm" style="border:none; color:var(--color-text-subtle); margin-top:2px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+
+                <!-- Reference 2: URL + image + caption -->
+                <div class="reference-card shadow-card">
+                  <div class="ref-thumb" style="background:linear-gradient(135deg, #d4c5b0 0%, #b8a898 100%); border-color:var(--color-border);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                  </div>
+                  <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+                    <input type="text" class="input" style="height:30px; font-size:12px;" value="https://vogue.com/gallery/spring-knitwear-trends" placeholder="Paste URL…" />
+                    <input type="text" class="input" style="height:28px; font-size:12px;" value="Mood board — warm tones" placeholder="Caption (optional)…" />
+                  </div>
+                  <button class="btn btn-icon btn-ghost btn-sm" style="border:none; color:var(--color-text-subtle); margin-top:2px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+
+                <!-- Add reference -->
+                <button class="btn btn-ghost btn-sm" style="align-self:flex-start; gap:5px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Add reference
+                </button>
+              </div>
+            </div>
+
+            <!-- 5. Description -->
+            <div class="form-field">
+              <label class="form-label">Description <span class="optional">(optional)</span></label>
+              <textarea class="textarea" rows="3" placeholder="Describe the visual direction, context, or specific requirements…">We're looking for editorial-style imagery that highlights the texture and craftsmanship of the knitwear. Prefer clean, minimal backgrounds — white or warm off-white. The client wants strong close-up detail shots alongside full-look styling.</textarea>
+            </div>
+
+            <!-- 6. Deadline -->
+            <div class="form-field">
+              <label class="form-label">Deadline <span class="optional">(optional)</span></label>
+              <input type="date" class="input" value="2026-04-15" />
+            </div>
+
+            <!-- 7. Notify -->
+            <div class="form-field">
+              <label class="form-label">Notify</label>
+              <div class="recipient-picker">
+                <div class="recipient-item selected">
+                  <div class="avatar avatar-xs av-violet">T</div>
+                  <span class="recipient-name">Ted G.</span>
+                  <div class="recipient-check">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </div>
+                <div class="recipient-item selected">
+                  <div class="avatar avatar-xs av-rose">S</div>
+                  <span class="recipient-name">Sarah C.</span>
+                  <div class="recipient-check">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </div>
+                <div class="recipient-item">
+                  <div class="avatar avatar-xs av-sky">M</div>
+                  <span class="recipient-name">Marcus L.</span>
+                  <div class="recipient-check"></div>
+                </div>
+                <div class="recipient-item">
+                  <div class="avatar avatar-xs av-emerald">J</div>
+                  <span class="recipient-name">Jamie K.</span>
+                  <div class="recipient-check"></div>
+                </div>
+                <div class="recipient-item">
+                  <div class="avatar avatar-xs av-amber">R</div>
+                  <span class="recipient-name">Rachel M.</span>
+                  <div class="recipient-check"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 8. Notes -->
+            <div class="form-field">
+              <label class="form-label">Notes <span class="optional">(optional)</span></label>
+              <textarea class="textarea" rows="2" placeholder="Internal notes for the production team…"></textarea>
+            </div>
+
+          </div>
+
+          <!-- Dialog footer -->
+          <div class="dialog-footer">
+            <button class="btn btn-ghost">Cancel</button>
+            <button class="btn btn-primary">
+              Submit request
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Priority toggle states annotation -->
+      <div style="flex-shrink:0; width:200px; padding-top:40px;">
+        <div style="font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:12px;">Priority States</div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div class="caption" style="margin-bottom:6px; color:var(--color-text-subtle);">Normal (default)</div>
+            <div class="priority-toggle" style="display:inline-flex;">
+              <div class="priority-option active">
+                <div class="priority-dot priority-normal"></div>
+                Normal
+              </div>
+              <div class="priority-option" style="color:var(--color-text-subtle);">
+                <div class="priority-dot" style="background:var(--color-border-strong);"></div>
+                Urgent
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="caption" style="margin-bottom:6px; color:var(--color-text-subtle);">Urgent selected</div>
+            <div class="priority-toggle" style="display:inline-flex;">
+              <div class="priority-option" style="color:var(--color-text-subtle);">
+                <div class="priority-dot" style="background:var(--color-border-strong);"></div>
+                Normal
+              </div>
+              <div class="priority-option active urgent">
+                <div class="priority-dot priority-urgent"></div>
+                Urgent
+              </div>
+            </div>
+          </div>
+
+          <div style="height:1px; background:var(--color-border); margin:4px 0;"></div>
+
+          <div>
+            <div class="caption" style="margin-bottom:8px; color:var(--color-text-subtle);">Badge examples</div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge badge-blue">Submitted</span>
+                <span class="caption">→ new</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge badge-amber">Triaged</span>
+                <span class="caption">→ in review</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge badge-green">Absorbed</span>
+                <span class="caption">→ done</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="badge badge-gray">Rejected</span>
+                <span class="caption">→ closed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 2: TWO-PANEL DESKTOP VIEW
+    ════════════════════════════════════════════════════ -->
+
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <span class="section-label">Section 2 — Two-Panel Desktop View (1280px)</span>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div style="font-size:12px; font-weight:500; color:var(--color-text-muted); margin-bottom:16px; text-align:center; letter-spacing:0.02em;">REQUEST CENTRE — FULL PAGE LAYOUT</div>
+
+    <div class="two-panel">
+
+      <!-- LEFT PANEL -->
+      <div class="panel-left">
+
+        <!-- Panel header -->
+        <div style="padding:14px 14px 0; border-bottom:0;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div class="heading-section" style="font-size:12px;">Requests</div>
+            <button class="btn btn-primary btn-sm" style="gap:4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              New
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="filter-tabs" style="padding:0 14px;">
+          <div class="filter-tab">All <span class="tab-count">5</span></div>
+          <div class="filter-tab active">Submitted <span class="tab-count">3</span></div>
+          <div class="filter-tab">Triaged</div>
+          <div class="filter-tab">Done</div>
+        </div>
+
+        <!-- Request list -->
+        <div class="panel-left-scroll">
+
+          <!-- Card 1 -->
+          <div class="request-card">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <div class="priority-dot priority-urgent" style="margin-top:5px;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:500; color:var(--color-text); line-height:1.3; margin-bottom:3px;">Campaign Hero — Outerwear Selects</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span class="caption">Sarah Chen · 3h ago</span>
+                  <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                  <span class="caption" style="color:var(--color-text-subtle);">5 products</span>
+                </div>
+                <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                  <span class="badge badge-blue" style="font-size:11px; padding:1px 6px;">Submitted</span>
+                  <span style="font-size:11px; font-weight:500; color:var(--color-accent); display:flex; align-items:center; gap:3px;">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    Urgent
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 — SELECTED -->
+          <div class="request-card selected" style="border-left:3px solid var(--color-primary); padding-left:11px;">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <div class="priority-dot priority-urgent" style="margin-top:5px;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:500; color:var(--color-text); line-height:1.3; margin-bottom:3px;">Spring Lookbook — Knitwear Selection</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span class="caption">Sarah Chen · 2h ago</span>
+                  <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                  <span class="caption" style="color:var(--color-text-subtle);">3 products</span>
+                </div>
+                <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                  <span class="badge badge-blue" style="font-size:11px; padding:1px 6px;">Submitted</span>
+                  <span style="font-size:11px; font-weight:500; color:var(--color-accent); display:flex; align-items:center; gap:3px;">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    Urgent
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="request-card">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <div class="priority-dot priority-normal" style="margin-top:5px;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:500; color:var(--color-text); line-height:1.3; margin-bottom:3px;">Resort Drop — Swimwear Coordination</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span class="caption">Marcus Lee · 5h ago</span>
+                  <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                  <span class="caption" style="color:var(--color-text-subtle);">7 products</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span class="badge badge-blue" style="font-size:11px; padding:1px 6px;">Submitted</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4 — Triaged -->
+          <div class="request-card">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <div class="priority-dot priority-normal" style="margin-top:5px;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:500; color:var(--color-text); line-height:1.3; margin-bottom:3px;">Accessories Detail Shots — Q2</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span class="caption">Jamie Kim · 1d ago</span>
+                  <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                  <span class="caption" style="color:var(--color-text-subtle);">2 products</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span class="badge badge-amber" style="font-size:11px; padding:1px 6px;">Triaged</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5 — Absorbed -->
+          <div class="request-card" style="border-bottom:none;">
+            <div style="display:flex; align-items:flex-start; gap:8px;">
+              <div class="priority-dot priority-normal" style="margin-top:5px;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:500; color:var(--color-text-muted); line-height:1.3; margin-bottom:3px;">Fall Preview — Denim Lineup</div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span class="caption">Rachel Moore · 3d ago</span>
+                  <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                  <span class="caption" style="color:var(--color-text-subtle);">4 products</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span class="badge badge-green" style="font-size:11px; padding:1px 6px;">Absorbed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="panel-right">
+
+        <!-- Detail header -->
+        <div class="detail-header">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+            <div style="flex:1; min-width:0;">
+              <h2 style="font-size:16px; font-weight:500; color:var(--color-text); margin:0 0 6px; line-height:1.3;">Spring Lookbook — Knitwear Selection</h2>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="badge badge-blue">Submitted</span>
+                <span style="display:flex; align-items:center; gap:3px; font-size:12px; font-weight:500; color:var(--color-accent);">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                  Urgent
+                </span>
+                <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                <div style="display:flex; align-items:center; gap:5px;" class="caption">
+                  <div class="avatar avatar-xs av-rose">S</div>
+                  Sarah Chen · 2 hours ago
+                </div>
+                <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+                <span class="caption">Deadline Apr 15, 2026</span>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+              Actions
+            </button>
+          </div>
+        </div>
+
+        <!-- Detail body -->
+        <div class="detail-scroll">
+
+          <!-- Products section -->
+          <div class="detail-block">
+            <div class="detail-block-label">Products (3)</div>
+            <div class="products-row">
+              <div class="product-item">
+                <div class="product-thumb shadow-card">
+                  <span style="font-size:20px;">👕</span>
+                </div>
+                <div>
+                  <div style="font-size:13px; font-weight:500; color:var(--color-text);">Merino Wool Crew Neck</div>
+                  <div class="caption">Style No. MW-2024-001</div>
+                </div>
+              </div>
+              <div style="width:1px; height:36px; background:var(--color-border); flex-shrink:0;"></div>
+              <div class="product-item">
+                <div class="product-thumb shadow-card">
+                  <span style="font-size:20px;">🧥</span>
+                </div>
+                <div>
+                  <div style="font-size:13px; font-weight:500; color:var(--color-text);">Tech Fleece Hoodie</div>
+                  <div class="caption">Style No. TF-2024-001</div>
+                </div>
+              </div>
+              <div style="width:1px; height:36px; background:var(--color-border); flex-shrink:0;"></div>
+              <div class="product-item">
+                <div class="product-thumb shadow-card">
+                  <span style="font-size:20px;">👖</span>
+                </div>
+                <div>
+                  <div style="font-size:13px; font-weight:500; color:var(--color-text);">Stretch Chino Pant</div>
+                  <div class="caption">Style No. SC-2024-003</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- References section -->
+          <div class="detail-block">
+            <div class="detail-block-label">References (2)</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div class="reference-card shadow-card">
+                <div class="ref-thumb">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <a href="#" style="font-size:13px; color:var(--color-status-blue-text); text-decoration:none; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">pinterest.com/pin/editorial-knitwear-2024</a>
+                  <div class="caption" style="margin-top:2px; color:var(--color-text-subtle);">No caption</div>
+                </div>
+              </div>
+              <div class="reference-card shadow-card">
+                <div class="ref-thumb" style="background:linear-gradient(135deg, #d4c5b0 0%, #b8a898 100%); border-color:var(--color-border);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <a href="#" style="font-size:13px; color:var(--color-status-blue-text); text-decoration:none; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">vogue.com/gallery/spring-knitwear-trends</a>
+                  <div class="caption" style="margin-top:2px;">Mood board — warm tones</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="detail-block">
+            <div class="detail-block-label">Description</div>
+            <p class="body-text" style="line-height:1.6; color:var(--color-text-secondary); margin:0;">We're looking for editorial-style imagery that highlights the texture and craftsmanship of the knitwear. Prefer clean, minimal backgrounds — white or warm off-white. The client wants strong close-up detail shots alongside full-look styling.</p>
+          </div>
+
+          <!-- Conversation divider -->
+          <div class="convo-divider">
+            <div class="convo-divider-line"></div>
+            <span class="convo-divider-label">Conversation · 3 comments</span>
+            <div class="convo-divider-line"></div>
+          </div>
+
+          <!-- Messages -->
+          <div style="display:flex; flex-direction:column; gap:14px;">
+
+            <!-- Message 1 -->
+            <div class="message">
+              <div class="avatar avatar-sm av-rose">S</div>
+              <div style="flex:1; min-width:0;">
+                <div class="message-meta">
+                  <span class="message-author">Sarah Chen</span>
+                  <span class="message-time">2 hours ago</span>
+                </div>
+                <div class="message-body">
+                  Can we prioritize the crew neck? Client wants it for the spring lookbook.
+                </div>
+              </div>
+            </div>
+
+            <!-- Message 2 -->
+            <div class="message">
+              <div class="avatar avatar-sm av-violet">T</div>
+              <div style="flex:1; min-width:0;">
+                <div class="message-meta">
+                  <span class="message-author">Ted Ghanime</span>
+                  <span class="message-time">1 hour ago</span>
+                </div>
+                <div class="message-body">
+                  Yes, I'll schedule it for next week's shoot. Which colorway?
+                </div>
+              </div>
+            </div>
+
+            <!-- Message 3 -->
+            <div class="message">
+              <div class="avatar avatar-sm av-rose">S</div>
+              <div style="flex:1; min-width:0;">
+                <div class="message-meta">
+                  <span class="message-author">Sarah Chen</span>
+                  <span class="message-time">45 min ago</span>
+                </div>
+                <div class="message-body">
+                  Black and Navy. The samples arrived yesterday.
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Comment input -->
+        <div class="comment-input-wrap">
+          <div class="avatar avatar-sm av-violet">T</div>
+          <input type="text" class="comment-input" placeholder="Add a comment…" />
+          <button class="send-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+
+        <!-- Triage actions -->
+        <div class="triage-strip">
+          <div class="project-select">
+            <span class="label" style="white-space:nowrap; font-size:13px;">Absorb into:</span>
+            <select class="select-el" style="flex:1;">
+              <option>Select project…</option>
+              <option>Spring 2026 Campaign</option>
+              <option>Resort Drop Q2</option>
+              <option>Brand Editorial — May</option>
+            </select>
+          </div>
+          <button class="btn btn-green">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Absorb
+          </button>
+          <button class="btn btn-destructive">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            Reject
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 3: MOBILE DETAIL VIEW
+    ════════════════════════════════════════════════════ -->
+
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <span class="section-label">Section 3 — Mobile Detail View (375px)</span>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div style="font-size:12px; font-weight:500; color:var(--color-text-muted); margin-bottom:20px; text-align:center; letter-spacing:0.02em;">REQUEST DETAIL — MOBILE</div>
+
+    <!-- Mobile frame -->
+    <div class="mobile-frame shadow-card">
+
+      <!-- Mobile top bar -->
+      <div class="mobile-topbar">
+        <button style="background:none; border:none; padding:0; color:var(--color-text-muted); cursor:pointer; display:flex; align-items:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:14px; font-weight:500; color:var(--color-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Spring Lookbook — Knitwear</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="badge badge-blue" style="font-size:11px; padding:1px 6px;">Submitted</span>
+        </div>
+      </div>
+
+      <!-- Scrollable content -->
+      <div class="mobile-scroll">
+
+        <!-- Request meta -->
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="display:flex; align-items:center; gap:3px; font-size:12px; font-weight:500; color:var(--color-accent);">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+              Urgent
+            </span>
+            <span class="caption">by Sarah Chen · 2h ago</span>
+          </div>
+          <div class="caption" style="display:flex; align-items:center; gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            Deadline: April 15, 2026
+          </div>
+        </div>
+
+        <!-- Products — horizontal scroll -->
+        <div class="detail-block">
+          <div class="detail-block-label">Products (3)</div>
+          <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; width:64px;">
+              <div class="product-thumb shadow-card" style="width:48px; height:48px;">
+                <span style="font-size:22px;">👕</span>
+              </div>
+              <div style="font-size:11px; font-weight:500; color:var(--color-text); text-align:center; line-height:1.3;">Merino Crew Neck</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; width:64px;">
+              <div class="product-thumb shadow-card" style="width:48px; height:48px;">
+                <span style="font-size:22px;">🧥</span>
+              </div>
+              <div style="font-size:11px; font-weight:500; color:var(--color-text); text-align:center; line-height:1.3;">Tech Fleece Hoodie</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; width:64px;">
+              <div class="product-thumb shadow-card" style="width:48px; height:48px;">
+                <span style="font-size:22px;">👖</span>
+              </div>
+              <div style="font-size:11px; font-weight:500; color:var(--color-text); text-align:center; line-height:1.3;">Stretch Chino Pant</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- References — stacked -->
+        <div class="detail-block">
+          <div class="detail-block-label">References (2)</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="reference-card shadow-card">
+              <div class="ref-thumb" style="width:36px; height:36px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div style="flex:1; min-width:0;">
+                <a href="#" style="font-size:12px; color:var(--color-status-blue-text); text-decoration:none; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">pinterest.com/pin/editorial-knitwear-2024</a>
+              </div>
+            </div>
+            <div class="reference-card shadow-card">
+              <div class="ref-thumb" style="width:36px; height:36px; background:linear-gradient(135deg, #d4c5b0 0%, #b8a898 100%);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              </div>
+              <div style="flex:1; min-width:0;">
+                <a href="#" style="font-size:12px; color:var(--color-status-blue-text); text-decoration:none; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">vogue.com/gallery/spring-knitwear-trends</a>
+                <div class="caption" style="margin-top:1px;">Mood board — warm tones</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="detail-block">
+          <div class="detail-block-label">Description</div>
+          <p class="body-text" style="line-height:1.6; color:var(--color-text-secondary); margin:0; font-size:13px;">We're looking for editorial-style imagery that highlights texture and craftsmanship. Prefer clean, minimal backgrounds — white or warm off-white.</p>
+        </div>
+
+        <!-- Conversation thread -->
+        <div class="convo-divider">
+          <div class="convo-divider-line"></div>
+          <span class="convo-divider-label">3 comments</span>
+          <div class="convo-divider-line"></div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+
+          <div class="message">
+            <div class="avatar avatar-xs av-rose">S</div>
+            <div style="flex:1; min-width:0;">
+              <div class="message-meta">
+                <span class="message-author">Sarah Chen</span>
+                <span class="message-time">2h ago</span>
+              </div>
+              <div class="message-body" style="font-size:13px; border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md); padding:8px 10px;">
+                Can we prioritize the crew neck? Client wants it for the spring lookbook.
+              </div>
+            </div>
+          </div>
+
+          <div class="message">
+            <div class="avatar avatar-xs av-violet">T</div>
+            <div style="flex:1; min-width:0;">
+              <div class="message-meta">
+                <span class="message-author">Ted Ghanime</span>
+                <span class="message-time">1h ago</span>
+              </div>
+              <div class="message-body" style="font-size:13px; border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md); padding:8px 10px;">
+                Yes, I'll schedule it for next week's shoot. Which colorway?
+              </div>
+            </div>
+          </div>
+
+          <div class="message">
+            <div class="avatar avatar-xs av-rose">S</div>
+            <div style="flex:1; min-width:0;">
+              <div class="message-meta">
+                <span class="message-author">Sarah Chen</span>
+                <span class="message-time">45m ago</span>
+              </div>
+              <div class="message-body" style="font-size:13px; border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md); padding:8px 10px;">
+                Black and Navy. The samples arrived yesterday.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Extra padding at bottom for sticky bar -->
+        <div style="height:8px;"></div>
+
+      </div>
+
+      <!-- Sticky comment input at bottom -->
+      <div class="mobile-sticky-bottom">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="avatar avatar-xs av-violet">T</div>
+          <input type="text" class="comment-input" style="font-size:13px;" placeholder="Add a comment…" />
+          <button class="send-btn" style="width:28px; height:28px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Mobile annotations -->
+    <div style="max-width:375px; margin:12px auto 0; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; align-items:center; gap:6px;" class="caption">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        Products scroll horizontally on mobile
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;" class="caption">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        Triage actions not shown on mobile (producer-only, desktop)
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;" class="caption">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        Comment input is sticky, stays at bottom of viewport
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 4: EMPTY CONVERSATION STATE
+    ════════════════════════════════════════════════════ -->
+
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <span class="section-label">Section 4 — Conversation Empty State</span>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div style="font-size:12px; font-weight:500; color:var(--color-text-muted); margin-bottom:20px; text-align:center; letter-spacing:0.02em;">CONVERSATION THREAD — NO COMMENTS YET</div>
+
+    <div style="max-width:680px; margin:0 auto;">
+      <div class="surface shadow-card" style="border-radius:var(--radius-lg); overflow:hidden;">
+
+        <!-- Conversation section header -->
+        <div style="padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between;">
+          <div class="heading-section">Conversation</div>
+          <span class="caption">0 comments</span>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary);">No comments yet</div>
+          <div class="caption">Start the conversation with your team.</div>
+        </div>
+
+        <!-- Comment input area -->
+        <div style="padding:16px 20px; border-top:1px solid var(--color-border); background:var(--color-surface);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar avatar-sm av-violet">T</div>
+            <div style="flex:1; position:relative;">
+              <input type="text" class="comment-input" style="width:100%; background:var(--color-surface-subtle); border-radius:var(--radius-md);" placeholder="Add a comment…" />
+            </div>
+            <button class="send-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Side-by-side comparison -->
+      <div style="margin-top:32px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+        <!-- Populated state -->
+        <div class="surface shadow-card" style="border-radius:var(--radius-lg); overflow:hidden;">
+          <div style="padding:12px 14px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between;">
+            <div class="heading-section" style="font-size:11px;">Populated (3 comments)</div>
+          </div>
+          <div style="padding:14px; display:flex; flex-direction:column; gap:10px;">
+            <div class="message">
+              <div class="avatar avatar-xs av-rose">S</div>
+              <div style="flex:1;">
+                <div style="font-size:11px; font-weight:600; color:var(--color-text); margin-bottom:2px;">Sarah Chen <span style="font-weight:400; color:var(--color-text-muted);">· 2h ago</span></div>
+                <div style="background:var(--color-surface-subtle); border-radius:0 4px 4px 4px; padding:6px 8px; font-size:12px; color:var(--color-text); line-height:1.4;">Can we prioritize the crew neck?</div>
+              </div>
+            </div>
+            <div class="message">
+              <div class="avatar avatar-xs av-violet">T</div>
+              <div style="flex:1;">
+                <div style="font-size:11px; font-weight:600; color:var(--color-text); margin-bottom:2px;">Ted Ghanime <span style="font-weight:400; color:var(--color-text-muted);">· 1h ago</span></div>
+                <div style="background:var(--color-surface-subtle); border-radius:0 4px 4px 4px; padding:6px 8px; font-size:12px; color:var(--color-text); line-height:1.4;">Yes. Which colorway?</div>
+              </div>
+            </div>
+            <div class="message">
+              <div class="avatar avatar-xs av-rose">S</div>
+              <div style="flex:1;">
+                <div style="font-size:11px; font-weight:600; color:var(--color-text); margin-bottom:2px;">Sarah Chen <span style="font-weight:400; color:var(--color-text-muted);">· 45m ago</span></div>
+                <div style="background:var(--color-surface-subtle); border-radius:0 4px 4px 4px; padding:6px 8px; font-size:12px; color:var(--color-text); line-height:1.4;">Black and Navy.</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:10px 14px; border-top:1px solid var(--color-border); display:flex; gap:8px;">
+            <input type="text" class="comment-input" style="font-size:12px;" placeholder="Reply…" />
+            <button class="send-btn" style="width:28px; height:28px; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty state compact -->
+        <div class="surface shadow-card" style="border-radius:var(--radius-lg); overflow:hidden;">
+          <div style="padding:12px 14px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between;">
+            <div class="heading-section" style="font-size:11px;">Empty (0 comments)</div>
+          </div>
+          <div class="empty-state" style="padding:24px 16px;">
+            <div class="empty-icon" style="width:36px; height:36px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div style="font-size:13px; font-weight:500; color:var(--color-text-secondary);">No comments yet</div>
+            <div style="font-size:12px; color:var(--color-text-muted);">Start the conversation.</div>
+          </div>
+          <div style="padding:10px 14px; border-top:1px solid var(--color-border); display:flex; gap:8px;">
+            <input type="text" class="comment-input" style="font-size:12px;" placeholder="Add a comment…" />
+            <button class="send-btn" style="width:28px; height:28px; flex-shrink:0;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ─── Footer ─── -->
+    <div style="margin-top:64px; padding-top:24px; border-top:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:12px; font-weight:700; letter-spacing:-0.01em; color:var(--color-text);">Production Hub</span>
+        <span style="width:1px; height:12px; background:var(--color-border);"></span>
+        <span class="caption">Sprint S12B — Request Overhaul</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="caption">4 sections</span>
+        <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+        <span class="caption">Near-Black Editorial visual identity</span>
+        <span style="width:3px; height:3px; border-radius:50%; background:var(--color-border-strong); display:inline-block;"></span>
+        <span class="badge badge-gray" style="font-size:11px; padding:1px 6px;">Mockup only</span>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

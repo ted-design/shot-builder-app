@@ -7,6 +7,8 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { FloatingActionBar } from "@/shared/components/FloatingActionBar"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProject } from "@/features/projects/hooks/useProject"
+import { useSubmittedRequestCount } from "@/features/requests/hooks/useSubmittedRequestCount"
+import { ROLE } from "@/shared/lib/rbac"
 import { buildNavConfig, getMobileNavConfig } from "./sidebar/nav-config"
 import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
@@ -20,9 +22,14 @@ export function AppShell() {
   const { collapsed, toggle } = useSidebarState()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const { role } = useAuth()
+  const { role, clientId } = useAuth()
   const { data: project } = useProject(projectId ?? null)
   const projectName = project?.name
+
+  const canSeeRequestBadge = role === ROLE.ADMIN || role === ROLE.PRODUCER
+  const { count: submittedRequestCount } = useSubmittedRequestCount(
+    canSeeRequestBadge ? clientId : null,
+  )
 
   const isCallSheetPreview =
     pathname.includes("/callsheet") &&
@@ -54,6 +61,7 @@ export function AppShell() {
           collapsed={collapsed}
           onToggleCollapse={toggle}
           projectName={projectName}
+          requestBadgeCount={submittedRequestCount}
         />
       ) : (
         <>
@@ -66,6 +74,7 @@ export function AppShell() {
             onOpenChange={setDrawerOpen}
             config={mobileConfig}
             projectName={projectName}
+            requestBadgeCount={submittedRequestCount}
           />
         </>
       )}

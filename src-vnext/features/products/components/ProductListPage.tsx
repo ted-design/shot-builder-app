@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import { canManageProducts } from "@/shared/lib/rbac"
+import { canManageProducts, canManageProjects } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
@@ -11,6 +11,12 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { ProductFamilyCard } from "@/features/products/components/ProductFamilyCard"
 import { ProductFamiliesTable } from "@/features/products/components/ProductFamiliesTable"
+import {
+  useProductSelection,
+  makeFamilySelectionId,
+} from "@/features/products/hooks/useProductSelection"
+import { BulkSelectionBar } from "@/shared/components/BulkSelectionBar"
+import { BulkAddToProjectDialog } from "@/features/products/components/BulkAddToProjectDialog"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
@@ -27,6 +33,7 @@ import {
 } from "@/ui/dropdown-menu"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { LayoutGrid, Package, Plus, Search, SlidersHorizontal, Table, X } from "lucide-react"
+import { cn } from "@/shared/lib/utils"
 import {
   deriveProductScaffoldOptions,
   filterAndSortProductFamilies,
@@ -68,9 +75,14 @@ export default function ProductListPage() {
   const isMobile = useIsMobile()
   const canCreate = canManageProducts(role)
   const canEdit = !isMobile && canCreate
+  const canBulkAdd = canManageProjects(role)
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [showBulkDialog, setShowBulkDialog] = useState(false)
+  const selection = useProductSelection()
 
   const navigateToCreate = () => {
     const returnTo = `${location.pathname}${location.search}`
@@ -236,7 +248,36 @@ export default function ProductListPage() {
               </div>
             )}
 
-            {canCreate && (
+            {canBulkAdd && !selectionMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectionMode(true)
+                  selection.clearAll()
+                }}
+                data-testid="product-list-select-btn"
+              >
+                Select
+              </Button>
+            )}
+            {selectionMode && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectionMode(false)
+                  selection.clearAll()
+                }}
+                data-testid="product-list-cancel-btn"
+              >
+                Cancel
+              </Button>
+            )}
+
+            {canCreate && !selectionMode && (
               isMobile ? (
                 <Button size="icon" aria-label="New product" onClick={navigateToCreate}>
                   <Plus className="h-4 w-4" />
@@ -624,6 +665,31 @@ export default function ProductListPage() {
             )}
           </div>
 
+          {selectionMode && (
+            <div className="flex items-center gap-3 text-sm text-[var(--color-text-muted)]">
+              <button
+                type="button"
+                className="text-sm underline underline-offset-2"
+                onClick={() =>
+                  selection.selectAll(
+                    filtered.map((f) => makeFamilySelectionId(f.id, f.styleName)),
+                  )
+                }
+              >
+                Select all ({filtered.length})
+              </button>
+              {selection.count > 0 && (
+                <button
+                  type="button"
+                  className="text-sm underline underline-offset-2"
+                  onClick={() => selection.clearAll()}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+
           {filtered.length === 0 ? (
             <EmptyState
               icon={<Search className="h-8 w-8" />}
@@ -634,18 +700,69 @@ export default function ProductListPage() {
             <ProductFamiliesTable families={filtered} columns={tableColumns} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {filtered.map((family) => (
-                <ProductFamilyCard
-                  key={family.id}
-                  family={family}
-                  properties={cardProperties}
-                />
-              ))}
+              {filtered.map((family) => {
+                const selId = makeFamilySelectionId(family.id, family.styleName)
+                const isSelected = selection.isSelected(selId)
+                return (
+                  <div key={family.id} className="relative">
+                    {selectionMode && (
+                      <button
+                        type="button"
+                        aria-label={`Select ${family.styleName}`}
+                        className={cn(
+                          "absolute inset-0 z-10 rounded-[inherit] border-2 transition-colors",
+                          isSelected
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+                            : "border-transparent bg-transparent hover:border-[var(--color-border)]",
+                        )}
+                        onClick={() => selection.toggle(selId)}
+                      >
+                        <span className="absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)]">
+                          {isSelected && (
+                            <svg className="h-3 w-3 text-[var(--color-primary)]" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </span>
+                      </button>
+                    )}
+                    <ProductFamilyCard
+                      family={family}
+                      properties={cardProperties}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )}
         </>
       )}
     </div>
+
+    {selectionMode && (
+      <BulkSelectionBar
+        count={selection.count}
+        onAction={() => setShowBulkDialog(true)}
+        onClear={() => {
+          setSelectionMode(false)
+          selection.clearAll()
+        }}
+        actionLabel="Add to Project"
+      />
+    )}
+
+    {showBulkDialog && (
+      <BulkAddToProjectDialog
+        selectedFamilies={selection.getSelectedFamilies()}
+        selectedSkus={selection.getSelectedSkus()}
+        onClose={() => setShowBulkDialog(false)}
+        onSuccess={() => {
+          setShowBulkDialog(false)
+          setSelectionMode(false)
+          selection.clearAll()
+        }}
+      />
+    )}
     </ErrorBoundary>
   )
 }

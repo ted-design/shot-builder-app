@@ -25,6 +25,31 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useMediaQuery: () => true,
 }))
 
+// Mock RecipientPicker to avoid Firestore dependency in dialog tests
+vi.mock("@/features/requests/components/RecipientPicker", () => ({
+  RecipientPicker: ({ onChange }: { onChange: (uids: string[]) => void }) => (
+    <div data-testid="recipient-picker">
+      <button
+        type="button"
+        onClick={() => onChange(["uid-admin"])}
+        data-testid="select-admin"
+      >
+        Select Admin
+      </button>
+    </div>
+  ),
+}))
+
+// Mock ReferenceInput to avoid Storage dependency in dialog tests
+vi.mock("@/features/requests/components/ReferenceInput", () => ({
+  ReferenceInput: () => <div data-testid="reference-input" />,
+}))
+
+// Mock useProductFamilies to avoid Firestore dependency
+vi.mock("@/features/products/hooks/useProducts", () => ({
+  useProductFamilies: () => ({ data: [], loading: false }),
+}))
+
 import { useAuth } from "@/app/providers/AuthProvider"
 import { toast } from "sonner"
 import { SubmitShotRequestDialog } from "./SubmitShotRequestDialog"
@@ -89,38 +114,20 @@ describe("SubmitShotRequestDialog", () => {
     ).toBeDisabled()
   })
 
-  it("shows title validation error on empty submit attempt", async () => {
-    renderDialog()
-    // Type something then clear to enable/disable cycle
-    fireEvent.change(screen.getByLabelText(/title/i), {
-      target: { value: "x" },
-    })
-    fireEvent.change(screen.getByLabelText(/title/i), {
-      target: { value: "" },
-    })
-    // Button is disabled so we can't click, but let's verify state
-    expect(
-      screen.getByRole("button", { name: /submit request/i }),
-    ).toBeDisabled()
-  })
-
   it("clears title validation error when user types", async () => {
     renderDialog()
-    // Force a validation error by typing then clearing
     fireEvent.change(screen.getByLabelText(/title/i), {
       target: { value: "test" },
     })
-    // Submit to trigger validation path
     fireEvent.click(screen.getByRole("button", { name: /submit request/i }))
 
     await waitFor(() => {
       expect(mockSubmitShotRequest).toHaveBeenCalled()
     })
-    // No error should be visible since title was valid
     expect(screen.queryByText(/title is required/i)).not.toBeInTheDocument()
   })
 
-  it("calls submitShotRequest with correct params on submit", async () => {
+  it("calls submitShotRequest with correct core params on submit", async () => {
     renderDialog(true, onOpenChange)
     fireEvent.change(screen.getByLabelText(/title/i), {
       target: { value: "Spring Campaign" },
@@ -128,29 +135,47 @@ describe("SubmitShotRequestDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /submit request/i }))
 
     await waitFor(() => {
-      expect(mockSubmitShotRequest).toHaveBeenCalledWith({
-        clientId: "c1",
-        title: "Spring Campaign",
-        priority: "normal",
-        description: null,
-        referenceUrls: null,
-        deadline: null,
-        notes: null,
-        submittedBy: "u1",
-        submittedByName: "Test User",
-      })
+      expect(mockSubmitShotRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "c1",
+          title: "Spring Campaign",
+          priority: "normal",
+          description: null,
+          referenceUrls: null,
+          deadline: null,
+          notes: null,
+          submittedBy: "u1",
+          submittedByName: "Test User",
+          notifyUserIds: null,
+        }),
+      )
+    })
+  })
+
+  it("includes notifyUserIds from RecipientPicker when selected", async () => {
+    renderDialog(true, onOpenChange)
+
+    // Select admin via the mocked picker
+    fireEvent.click(screen.getByTestId("select-admin"))
+
+    fireEvent.change(screen.getByLabelText(/title/i), {
+      target: { value: "Notify Test" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: /submit request/i }))
+
+    await waitFor(() => {
+      expect(mockSubmitShotRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notifyUserIds: ["uid-admin"],
+        }),
+      )
     })
   })
 
   it("shows progressive disclosure on click", () => {
     renderDialog()
-    // Initially, description field should not be visible
     expect(screen.queryByLabelText(/description/i)).not.toBeInTheDocument()
-
-    // Click "More details"
     fireEvent.click(screen.getByText(/more details/i))
-
-    // Now description field should be visible
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/notes/i)).toBeInTheDocument()
   })
@@ -173,14 +198,11 @@ describe("SubmitShotRequestDialog", () => {
     const urgentBtn = screen.getByRole("button", { name: /urgent/i })
     const normalBtn = screen.getByRole("button", { name: /normal/i })
 
-    // Default is normal — normal button should have active styling
     expect(normalBtn.className).toContain("shadow")
 
-    // Click urgent
     fireEvent.click(urgentBtn)
     expect(urgentBtn.className).toContain("red")
 
-    // Click normal again
     fireEvent.click(normalBtn)
     expect(normalBtn.className).toContain("shadow")
   })
@@ -239,13 +261,8 @@ describe("SubmitShotRequestDialog", () => {
       target: { value: "Old Title" },
     })
 
-    // Close then reopen
-    rerender(
-      <SubmitShotRequestDialog open={false} onOpenChange={onOpenChange} />,
-    )
-    rerender(
-      <SubmitShotRequestDialog open={true} onOpenChange={onOpenChange} />,
-    )
+    rerender(<SubmitShotRequestDialog open={false} onOpenChange={onOpenChange} />)
+    rerender(<SubmitShotRequestDialog open={true} onOpenChange={onOpenChange} />)
 
     expect(screen.getByLabelText(/title/i)).toHaveValue("")
   })
@@ -256,53 +273,8 @@ describe("SubmitShotRequestDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it("includes reference URLs and optional fields when provided", async () => {
-    renderDialog(true, onOpenChange)
-
-    // Fill title
-    fireEvent.change(screen.getByLabelText(/title/i), {
-      target: { value: "Full Request" },
-    })
-
-    // Open progressive disclosure
-    fireEvent.click(screen.getByText(/more details/i))
-
-    // Fill description
-    fireEvent.change(screen.getByLabelText(/description/i), {
-      target: { value: "Detailed description" },
-    })
-
-    // Fill first URL
-    const urlInputs = screen.getAllByPlaceholderText("https://...")
-    fireEvent.change(urlInputs[0]!, {
-      target: { value: "https://example.com/ref" },
-    })
-
-    // Fill deadline
-    fireEvent.change(screen.getByLabelText(/deadline/i), {
-      target: { value: "2026-04-01" },
-    })
-
-    // Fill notes
-    fireEvent.change(screen.getByLabelText(/notes/i), {
-      target: { value: "Some notes" },
-    })
-
-    // Submit
-    fireEvent.click(screen.getByRole("button", { name: /submit request/i }))
-
-    await waitFor(() => {
-      expect(mockSubmitShotRequest).toHaveBeenCalledWith({
-        clientId: "c1",
-        title: "Full Request",
-        priority: "normal",
-        description: "Detailed description",
-        referenceUrls: ["https://example.com/ref"],
-        deadline: "2026-04-01",
-        notes: "Some notes",
-        submittedBy: "u1",
-        submittedByName: "Test User",
-      })
-    })
+  it("renders RecipientPicker inside the dialog", () => {
+    renderDialog()
+    expect(screen.getByTestId("recipient-picker")).toBeInTheDocument()
   })
 })

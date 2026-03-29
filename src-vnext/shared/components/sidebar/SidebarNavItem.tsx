@@ -14,6 +14,7 @@ interface SidebarNavItemProps {
   readonly onNavigate?: () => void
   readonly variant?: "default" | "back"
   readonly showBadge?: boolean
+  readonly badgeCount?: number
 }
 
 export function SidebarNavItem({
@@ -22,6 +23,7 @@ export function SidebarNavItem({
   onNavigate,
   variant = "default",
   showBadge = false,
+  badgeCount,
 }: SidebarNavItemProps) {
   const { pathname } = useLocation()
   const active = pathname === item.to || pathname.startsWith(item.to + "/")
@@ -48,6 +50,11 @@ export function SidebarNavItem({
       {!collapsed && showBadge && item.surfaceBadge && (
         <span className="ml-auto rounded bg-[var(--color-sidebar-active)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-sidebar-text)]">
           {item.surfaceBadge}
+        </span>
+      )}
+      {!collapsed && badgeCount != null && badgeCount > 0 && (
+        <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-accent)] px-1 text-2xs font-semibold text-[var(--color-text-inverted)]">
+          {badgeCount > 99 ? "99+" : badgeCount}
         </span>
       )}
     </Link>
