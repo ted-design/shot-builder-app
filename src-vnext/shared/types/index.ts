@@ -665,6 +665,22 @@ export type ShotRequestStatus = "submitted" | "triaged" | "absorbed" | "rejected
 
 export type ShotRequestPriority = "normal" | "urgent"
 
+/** A structured reference attached to a shot request. */
+export interface ShotRequestReference {
+  readonly url: string
+  readonly imageUrl?: string | null
+  readonly caption?: string | null
+}
+
+/** A comment on a shot request. */
+export interface ShotRequestComment {
+  readonly id: string
+  readonly authorId: string
+  readonly authorName: string
+  readonly body: string
+  readonly createdAt: Timestamp
+}
+
 export interface ShotRequest {
   readonly id: string
   readonly clientId: string
@@ -672,7 +688,10 @@ export interface ShotRequest {
   readonly priority: ShotRequestPriority
   readonly title: string
   readonly description?: string | null
+  /** Legacy plain URL list. Read path falls back to this when `references` is absent. */
   readonly referenceUrls?: readonly string[] | null
+  /** Structured references with optional image and caption (S12B). */
+  readonly references?: readonly ShotRequestReference[] | null
   readonly deadline?: string | null
   readonly notes?: string | null
   readonly submittedBy: string
@@ -686,4 +705,6 @@ export interface ShotRequest {
   readonly rejectionReason?: string | null
   /** Product families linked to this request (Phase 10 refinement). */
   readonly relatedFamilyIds?: readonly string[] | null
+  /** UIDs to notify on submission. If empty/null, all admins and producers are notified. */
+  readonly notifyUserIds?: readonly string[] | null
 }

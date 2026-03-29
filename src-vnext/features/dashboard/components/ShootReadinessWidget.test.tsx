@@ -19,6 +19,23 @@ vi.mock("@/features/products/hooks/useShootReadiness", () => ({
   useShootReadiness: () => ({ items: mockItems, loading: mockLoading }),
 }))
 
+vi.mock("@/app/providers/AuthProvider", () => ({
+  useAuth: () => ({
+    role: "producer",
+    clientId: "c1",
+    user: { uid: "u1", email: "u1@test.com", displayName: "Test User", photoURL: null },
+  }),
+}))
+
+vi.mock("@/shared/hooks/useMediaQuery", () => ({
+  useIsMobile: () => false,
+  useIsDesktop: () => true,
+}))
+
+vi.mock("@/features/products/components/BulkAddToProjectDialog", () => ({
+  BulkAddToProjectDialog: () => null,
+}))
+
 function renderWidget() {
   return render(
     <MemoryRouter>

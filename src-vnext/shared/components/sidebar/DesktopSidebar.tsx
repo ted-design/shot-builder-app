@@ -10,6 +10,7 @@ interface DesktopSidebarProps {
   readonly collapsed: boolean
   readonly onToggleCollapse: () => void
   readonly projectName?: string
+  readonly requestBadgeCount?: number
 }
 
 export function DesktopSidebar({
@@ -17,6 +18,7 @@ export function DesktopSidebar({
   collapsed,
   onToggleCollapse,
   projectName,
+  requestBadgeCount,
 }: DesktopSidebarProps) {
   return (
     <TooltipProvider delayDuration={200}>
@@ -35,7 +37,7 @@ export function DesktopSidebar({
         )}
 
         <div className="flex-1 overflow-y-auto py-3">
-          <SidebarNav config={config} collapsed={collapsed} />
+          <SidebarNav config={config} collapsed={collapsed} requestBadgeCount={requestBadgeCount} />
         </div>
 
         <SidebarUserSection collapsed={collapsed} />

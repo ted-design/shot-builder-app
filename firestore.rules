@@ -262,6 +262,16 @@ service cloud.firestore {
 	        (isAdmin() || isProducer());
 
 	      allow delete: if clientMatches(clientId) && isAdmin();
+
+	      // Comments on shot requests — visible to admins and producers only
+	      match /comments/{commentId} {
+	        allow read: if clientMatches(clientId) && (isAdmin() || isProducer());
+	        allow create: if clientMatches(clientId) && (isAdmin() || isProducer()) &&
+	          request.resource.data.authorId == request.auth.uid &&
+	          request.resource.data.body is string &&
+	          request.resource.data.body.size() > 0 &&
+	          request.resource.data.body.size() <= 5000;
+	      }
 	    }
 
 	    match /clients/{clientId}/shots/{docId} {
@@ -311,6 +321,7 @@ service cloud.firestore {
       allow read: if clientMatches(clientId) && isAuthed() &&
         resource.data.userId == request.auth.uid;
       allow create: if clientMatches(clientId) && isAuthed() &&
+        (isAdmin() || isProducer()) &&
         request.resource.data.userId is string;
       allow update, delete: if clientMatches(clientId) && isAuthed() &&
         resource.data.userId == request.auth.uid;

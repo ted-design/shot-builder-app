@@ -21,10 +21,17 @@ vi.mock("firebase/firestore", async () => {
 
 vi.mock("@/shared/lib/firebase", () => ({ db: {} }))
 
+vi.mock("@/shared/lib/callFunction", () => ({
+  callFunction: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock("@/shared/lib/paths", () => ({
   shotRequestsPath: (clientId: string) => ["clients", clientId, "shotRequests"],
   shotRequestDocPath: (requestId: string, clientId: string) => [
     "clients", clientId, "shotRequests", requestId,
+  ],
+  shotRequestCommentsPath: (clientId: string, requestId: string) => [
+    "clients", clientId, "shotRequests", requestId, "comments",
   ],
   shotsPath: (clientId: string) => ["clients", clientId, "shots"],
   projectsPath: (clientId: string) => ["clients", clientId, "projects"],
@@ -34,6 +41,7 @@ vi.mock("@/shared/lib/paths", () => ({
 }))
 
 import {
+  addRequestComment,
   createProjectFromRequest,
   submitShotRequest,
   triageAbsorbRequest,
@@ -342,5 +350,70 @@ describe("createProjectFromRequest", () => {
         createdBy: "admin-1",
       }),
     ).rejects.toThrow('Cannot absorb request with status "absorbed"')
+  })
+})
+
+describe("addRequestComment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAddDoc.mockResolvedValue({ id: "comment-1" })
+  })
+
+  it("calls addDoc with correct collection path", async () => {
+    await addRequestComment("c1", "req-1", "Great idea", {
+      uid: "user-1",
+      displayName: "Alice",
+    })
+
+    expect(mockCollection).toHaveBeenCalledWith(
+      {},
+      "clients",
+      "c1",
+      "shotRequests",
+      "req-1",
+      "comments",
+    )
+    expect(mockAddDoc).toHaveBeenCalledTimes(1)
+  })
+
+  it("writes correct document shape", async () => {
+    await addRequestComment("c1", "req-1", "  Hello world  ", {
+      uid: "user-1",
+      displayName: "Alice",
+    })
+
+    const [, data] = mockAddDoc.mock.calls[0]!
+    expect(data.authorId).toBe("user-1")
+    expect(data.authorName).toBe("Alice")
+    expect(data.body).toBe("Hello world")
+    expect(data.createdAt).toBe("SERVER_TS")
+  })
+
+  it("trims body whitespace before writing", async () => {
+    await addRequestComment("c1", "req-1", "   trimmed   ", {
+      uid: "user-1",
+      displayName: "Alice",
+    })
+
+    const [, data] = mockAddDoc.mock.calls[0]!
+    expect(data.body).toBe("trimmed")
+  })
+
+  it("falls back to 'Unknown' when displayName is null", async () => {
+    await addRequestComment("c1", "req-1", "A comment", {
+      uid: "user-1",
+      displayName: null,
+    })
+
+    const [, data] = mockAddDoc.mock.calls[0]!
+    expect(data.authorName).toBe("Unknown")
+  })
+
+  it("propagates Firestore errors", async () => {
+    mockAddDoc.mockRejectedValue(new Error("permission-denied"))
+
+    await expect(
+      addRequestComment("c1", "req-1", "Hello", { uid: "user-1", displayName: "Alice" }),
+    ).rejects.toThrow("permission-denied")
   })
 })

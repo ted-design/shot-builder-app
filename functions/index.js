@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-const { sendInvitationEmail } = require("./email");
+const { sendInvitationEmail, sendRequestNotificationEmail } = require("./email");
 
 // FALLBACK: Only used if Firestore admin collection is not accessible
 // Set SUPER_ADMIN_EMAIL in environment variables for production
@@ -575,6 +575,81 @@ async function handlePublicUpdatePull(data) {
   return { ok: true, pull: result };
 }
 
+async function handleSendRequestNotification(data, caller) {
+  if (!caller) {
+    throw Object.assign(new Error("Authentication required."), { code: "unauthenticated" });
+  }
+
+  const requestId = data.requestId;
+  const clientId = data.clientId;
+
+  if (!requestId || typeof requestId !== "string" || requestId.trim().length === 0) {
+    throw Object.assign(new Error("requestId is required."), { code: "invalid-argument" });
+  }
+  if (!clientId || typeof clientId !== "string" || clientId.trim().length === 0) {
+    throw Object.assign(new Error("clientId is required."), { code: "invalid-argument" });
+  }
+
+  const callerClientId = caller.clientId || caller.orgId;
+  if (callerClientId !== clientId) {
+    throw Object.assign(new Error("Client mismatch."), { code: "permission-denied" });
+  }
+
+  const db = admin.firestore();
+
+  const requestRef = db.collection("clients").doc(clientId).collection("shotRequests").doc(requestId);
+  const requestSnap = await requestRef.get();
+  if (!requestSnap.exists) {
+    throw Object.assign(new Error("Request not found."), { code: "not-found" });
+  }
+
+  const requestData = requestSnap.data();
+  const notifyUserIds = Array.isArray(requestData.notifyUserIds) && requestData.notifyUserIds.length > 0
+    ? requestData.notifyUserIds
+    : null;
+
+  let recipientUids;
+  if (notifyUserIds) {
+    recipientUids = notifyUserIds.filter((id) => typeof id === "string" && id.trim().length > 0);
+  } else {
+    const usersSnap = await db.collection("clients").doc(clientId).collection("users").get();
+    recipientUids = usersSnap.docs
+      .filter((d) => d.data().role === "admin" || d.data().role === "producer")
+      .map((d) => d.id);
+  }
+
+  if (recipientUids.length === 0) {
+    return { notified: 0 };
+  }
+
+  const userDocs = await Promise.all(
+    recipientUids.map((uid) =>
+      db.collection("clients").doc(clientId).collection("users").doc(uid).get()
+    )
+  );
+
+  const toAddresses = userDocs
+    .filter((snap) => snap.exists && typeof snap.data().email === "string" && snap.data().email.trim().length > 0)
+    .map((snap) => snap.data().email.trim());
+
+  if (toAddresses.length === 0) {
+    return { notified: 0 };
+  }
+
+  const appUrl = process.env.APP_URL || "https://um-shotbuilder.web.app";
+  const requestUrl = `${appUrl}/requests`;
+
+  await sendRequestNotificationEmail({
+    to: toAddresses,
+    requestTitle: String(requestData.title || "Untitled"),
+    submitterName: String(requestData.submittedByName || requestData.submittedBy || "A team member"),
+    priority: String(requestData.priority || "normal"),
+    requestUrl,
+  });
+
+  return { notified: toAddresses.length };
+}
+
 async function handleResendInvitationEmail(data, caller) {
   if (!caller) {
     throw Object.assign(new Error("Authentication required."), { code: "unauthenticated" });
@@ -843,6 +918,9 @@ exports.processQueue = functions
           break;
         case "reactivateUser":
           result = await handleReactivateUser(data, caller);
+          break;
+        case "sendRequestNotification":
+          result = await handleSendRequestNotification(data, caller);
           break;
         default:
           throw Object.assign(new Error(`Unknown action: ${action}`), { code: "invalid-argument" });
