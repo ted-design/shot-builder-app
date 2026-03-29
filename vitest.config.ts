@@ -18,24 +18,11 @@ export default defineConfig({
     // Use process forks instead of worker threads to avoid tinypool issues
     // on certain local environments (e.g. paths with spaces on macOS).
     pool: "forks",
-    include: [
-      "src/**/*.test.{js,jsx,ts,tsx}",
-      "src/**/__tests__/**/*.{js,jsx,ts,tsx}",
-      "src-vnext/**/*.test.{ts,tsx}",
-    ],
-    // Skip slow/flaky integration tests in CI
-    // These tests have historically been flaky in CI; keep excluded until fixed.
-    exclude: [
-      "**/node_modules/**",
-      ...(process.env.CI
-        ? [
-            "**/ProjectScopeContext.test.jsx",
-            "**/useImageLoader.test.ts",
-            "**/LocationsPage.test.jsx",
-            "**/ShotEditModal.portal.test.jsx",
-            "**/SearchCommand.test.jsx",
-          ]
-        : []),
-    ],
+    // Only include src-vnext tests. Legacy src/ tests are excluded because
+    // src/ is read-only reference code that is not built by vite and its
+    // banned legacy deps (react-select, react-easy-crop, reactjs-tiptap-editor,
+    // @tanstack/react-query) have been removed from package.json.
+    include: ["src-vnext/**/*.test.{ts,tsx}"],
+    exclude: ["**/node_modules/**"],
   },
 });
