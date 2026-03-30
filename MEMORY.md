@@ -4,11 +4,10 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 
 ## Current Phase Status
 
+- **Sprint S14 (Cmd+K Command Palette)** — COMPLETE (PR #374 merged). 20 new tests (1215 total passing in src-vnext/).
+- **Sprint S13 (Cleanup + Quick Wins)** — COMPLETE (PRs #372 + #373 merged). Vendor chunk 891kB → 276kB, banned deps removed.
 - **Sprint S12 (Request Notifications + Overhaul + Bulk Shots)** — COMPLETE (PR #370 merged, Firebase deployed). 107 new tests (2488 total). 15/15 review fixes applied.
-- **Sprint S11 (Stabilize + Polish)** — COMPLETE (PR #365 merged).
-- **Sprint S10 (User Management Overhaul)** — COMPLETE (PR #363 merged).
-- **Sprint S9b (Firestore Queue)** — COMPLETE (deployed, verified).
-- **Post-S12 priorities:** Remove banned deps from package.json, vendor chunk splitting, audit for workflow improvements
+- **Post-S14 priorities:** Remove ~25 console.log statements, S9 Firestore index for pendingInvitations, S7-9 E2E schedule→call-sheet flow
 
 ## Completed Phases
 
@@ -43,12 +42,14 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 | Sprint S10 | User management overhaul (visibility, roster, deactivation, bulk assign, emails) |
 | Sprint S11 | Stabilize + polish (security, login redesign, Request Centre rename, dashboard tabs) |
 | Sprint S12 | Request notifications, request overhaul (comments, products, references), bulk shot generation |
+| Sprint S13 | Cleanup — banned dep removal (react-select, react-easy-crop, reactjs-tiptap-editor, @tanstack/react-query), vendor chunk split (891kB→276kB), on-set standalone route, theme toggle, shoot readiness for all roles |
+| Sprint S14 | Cmd+K command palette — Fuse.js universal search (projects, products, talent, crew), quick actions, recent items, zero Firestore subs when closed |
 
 ## Deferred Items
 
 - **2i:** Consolidate library routes + remove legacy redirects (routes work as-is)
 - **3v:** Board column reorder + show/hide configuration
-- **Cmd+K:** Command palette implementation (deferred from Phase 2)
+- **Cmd+K:** SHIPPED in Sprint S14 (PR #374)
 - **3.5f-g:** E2E testing of schedule-to-call-sheet flow (→ S7-9)
 - **File decomposition:** 5 files over 800 lines (shotsPdfTemplates 1416, ProductEditorPage 1226, ShotsPdfExportDialog 1082, ProductAssignmentPicker 1077, ScheduleEntriesBoard 1012)
 - **Subscription reduction:** ShotDetailPage (6 subs), CallSheetBuilderPage (10+ subs) exceed <5 budget

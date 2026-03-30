@@ -173,10 +173,11 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Admin or producer submits a shot request: title required, products / deadline / notes optional (progressive disclosure).
 - Requests land in a producer/admin inbox at `/inbox` (org-level, between Projects and Products in nav) sorted by priority then date.
 - Producer triages: absorb into an existing project (creates shot via `runTransaction`) or reject with an optional reason.
-- No image uploads at request stage — references are URL strings only.
-- Requesters see their own submission history and current status via the `/inbox` view.
-- No push notifications in Phase 8 — status visible on next app visit.
-- Data model: `clients/{clientId}/shotRequests/{requestId}`.
+- Image uploads supported at request stage via structured references (Firebase Storage, Sprint S12B).
+- Requesters see their own submission history and current status via the `/requests` view.
+- Email notifications on submission via Resend (Sprint S12A). Submitter picks specific recipients or defaults to all admin+producer users via RecipientPicker.
+- Conversation threads on each request via comments subcollection (Sprint S12B).
+- Data model: `clients/{clientId}/shotRequests/{requestId}`, with `comments` subcollection.
 - "Create new project from request" — AbsorbDialog has a mode toggle: absorb into existing project OR create a new project atomically (Phase 8.5, complete).
 
 ### Journey 8: Casting Engine (Phase 9 — future)
@@ -199,9 +200,9 @@ Every shot progresses through four statuses. These labels are canonical across a
 
 | Priority | Features | Status |
 |----------|----------|--------|
-| **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations, admin/settings + user onboarding | Shipped (Phases 2-7E, S1-S3) |
+| **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations, admin/settings + user onboarding | Shipped (Phases 2-7E, S1-S3, S14) |
 | **Must-Have** | User management: project visibility (team/restricted/private), enhanced admin roster, deactivation/reactivation, bulk project assignment, invitation emails (Resend), first-run experience | Shipped (Sprint S10) |
-| **Shipped** | Shot request inbox (admin+producer submit + triage), create project from request | Shipped (Phases 8, 8.5) |
+| **Shipped** | Shot request inbox (admin+producer submit + triage), create project from request, request notifications (email via Resend), conversation threads, product/reference attachments, bulk shot generation from product library | Shipped (Phases 8, 8.5, Sprint S12) |
 | **Shipped** | Casting engine (measurement search, auto-match, shot history) | Shipped (Phase 9) |
 | **Shipped** | Asset requirements & PLM (asset flags, launch dates, samples, shoot readiness) | Shipped (Phase 10) |
 | **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, board column reorder + show/hide | Largely shipped; notifications + board config outstanding |

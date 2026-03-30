@@ -62,18 +62,21 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - **Approved exception:** `pendingInvitations` subcollection under `clients/{clientId}/` (Sprint S9) — stores pre-signup role invitations keyed by normalized email. Admin-only read/write in `firestore.rules`.
 - **Approved exception:** `_functionQueue` collection (Sprint S9b) — Firestore Queue pattern for Cloud Function invocation. Client writes request doc, `processQueue` onCreate trigger processes server-side, client reads response via `onSnapshot`. Bypasses GCP org policy IAM restrictions. See Architecture.md "Cloud Functions" section.
 - **Approved exception:** `visibility` and `createdBy` fields on project documents (Sprint S10). `visibility` is `"team"` | `"restricted"` | `"private"` (default `"team"`, field absent = `"team"`). `createdBy` stores the UID of the project creator. Type: `ProjectVisibility` in `shared/types/index.ts`.
-- **Cloud Function invocation:** All callable functions use `callFunction()` from `shared/lib/callFunction.ts` (Firestore queue-based). Do NOT use `httpsCallable` or direct HTTP fetch. The `onRequest` exports in `functions/index.js` are dormant fallback. There are 7 queue handlers: `setUserClaims`, `claimInvitation`, `createShotShareLink`, `publicUpdatePull`, `deactivateUser`, `reactivateUser`, `resendInvitationEmail`.
+- **Approved exception:** `comments` subcollection under `shotRequests/{requestId}/` (Sprint S12B) — `clients/{clientId}/shotRequests/{requestId}/comments/{commentId}` stores conversation threads. Admin+producer read/write in `firestore.rules`. `authorId` binding enforced on create. Body limit: 5000 chars in rules, 2000 chars (`MAX_COMMENT_CHARS`) client-side.
+- **Approved exception:** `request-references` Storage path (Sprint S12B) — `clients/{clientId}/request-references/{requestId}/{filename}` for image uploads on structured references. Gated by `isValidUpload()` helper (image/* content-type + 10MB size limit) in `storage.rules`.
+- **Cloud Function invocation:** All callable functions use `callFunction()` from `shared/lib/callFunction.ts` (Firestore queue-based). Do NOT use `httpsCallable` or direct HTTP fetch. The `onRequest` exports in `functions/index.js` are dormant fallback. There are 8 queue handlers: `setUserClaims`, `claimInvitation`, `createShotShareLink`, `publicUpdatePull`, `deactivateUser`, `reactivateUser`, `resendInvitationEmail`, `sendRequestNotification`.
 - **Email service:** `functions/email.js` sends invitation emails via Resend. Non-blocking — email failures are logged but do not block invitation creation. From: `Production Hub <noreply@unboundmerino.immediategroup.ca>`. Reply-to: `ted@immediategroup.ca`.
 - **Approved field:** `lastSignInAt` on user documents (Sprint S11). Written by AuthProvider on each sign-in (fire-and-forget `setDoc` with `merge: true`). Displayed in admin team roster.
 - **Firestore rules — shots vs talent/locations:** Shots allow write for any authed user (`isAuthed()`). Talent and locations restrict writes to `isAdmin() || isProducer()`. Do NOT restrict shots writes — crew users have `canManageShots` in rbac.ts.
 - Reuse existing `firestore.rules` — do not modify security rules unless the change is required by a new vNext route and has been reviewed.
 - **Firestore rules helpers (Sprint S10):** `hasGlobalRole(roles)` checks user's auth claim role against a list. `producerCanAccessProject(clientId, projectId)` grants producers access to projects with `visibility == "team"` or absent visibility field. These are cascaded to all sub-collections. Do not modify or duplicate these patterns.
 - Auth custom claims (`role`, `clientId`) and the 5-role model (admin, producer, crew, warehouse, viewer) are fixed infrastructure.
-- Firestore path helpers from `shared/lib/paths` are the single source for collection references.
+- Firestore path helpers from `shared/lib/paths` are the single source for collection references. Key helpers include `shotRequestsPath`, `shotRequestDocPath`, and `shotRequestCommentsPath`.
 - Shared text utilities in `shared/lib/textUtils.ts` (normalizeText, normalizeWhitespace, humanizeLabel, parseCsvList) — do not create local duplicates.
 - **SKU colorName deduplication:** When importing SKUs into families that already have legacy SKUs, match by BASE color name (strip vendor code suffix via regex `\s*\([^)]*\)$`). Legacy SKUs use simple names ("Black"), imports use vendor-coded names ("Black (0101)"). Always merge into the existing legacy SKU to preserve doc IDs that may be referenced by project product selections. Never create a new SKU if a legacy one with the same base color already exists.
 - **Approved field:** `styleNumbers` on ProductFamily documents (Line Sheet Import, 2026-03-12). Already written to Firestore by import scripts — TypeScript type formalized to match. Display: `styleNumbers[0]` as dominant, `styleNumbers.slice(1)` as aliases. **Anti-pattern:** Before proposing new Firestore fields, check if import scripts already write the data. TypeScript types may lag behind what's actually in documents.
 - **Shared utility:** `shared/lib/sizeRange.ts` — pure `compressSizeRange()` function for display. Compresses `["S","M","L","XL"]` → `"S - XL"`, composite inseam sizes `["S/30","S/32","M/30"]` → `"S - M / 30", 32"`, sock composites pass through. Do not store computed size ranges — always compute at render time.
+- **Bulk shot creation:** `features/requests/lib/bulkShotWrites.ts` (Sprint S12C). Uses `writeBatch` with `BATCH_CHUNK_SIZE = 250` (Firestore limit) and enforces `MAX_BULK_ITEMS = 500` cap. Always filter deleted products client-side (`deleted !== true`) — never use `where("deleted","==",false)` which excludes docs missing the field.
 
 ### 5. State Strategy
 
@@ -83,7 +86,7 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - Readiness indicators (e.g., shots planned, products assigned) must be denormalized aggregates on the parent document, not computed via client-side fan-out queries.
 - No duplicate state. Never cache Firestore data in React state. Subscribe and render.
 - No custom offline sync engine. Firestore's default IndexedDB persistence is relied upon for offline reads. No custom mutation queue, conflict resolution UI, or sync status system.
-- Context providers are minimal: Auth, ProjectScope, Theme, SearchCommand.
+- Context providers are minimal: Auth, ProjectScope, Theme, SearchCommand. `SearchCommandProvider` (Sprint S14) is a real useState-backed provider powering the Cmd+K command palette (`CommandPalette` component in AppShell). Uses `cmdk` + Fuse.js (threshold 0.35) for universal search across projects, products, talent, crew. Recent items in `sb:cmd-recent` localStorage key (last 5). Zero Firestore subscriptions when palette is closed.
 
 ### 6. No Over-Engineering
 
@@ -127,7 +130,7 @@ The existing `src/` directory contains the **legacy JavaScript app** (~583 files
 - **Do not modify legacy `src/` files** unless porting specific utilities to `shared/lib/`.
 - Legacy code is reference material for understanding existing Firestore patterns, auth flows, and data shapes.
 - The legacy `src/lib/paths.js` hardcodes a `CLIENT_ID` constant. vNext must always resolve `clientId` from Firebase Auth custom claims via `AuthProvider` — never from a hardcoded value.
-- Legacy deps like `@tanstack/react-query`, `react-select`, `react-easy-crop`, `reactjs-tiptap-editor` are not part of the vNext stack. Do not import them in new code.
+- Legacy deps `@tanstack/react-query`, `react-select`, `react-easy-crop`, `reactjs-tiptap-editor` were removed from `package.json` in Sprint S13. Do not add them back or import them in any code.
 
 ## Project Overview
 

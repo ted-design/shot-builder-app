@@ -976,6 +976,71 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S13: Cleanup + Quick Wins
+
+**Goal:** Remove banned dependencies that inflate the vendor chunk, add missing UX quick wins (on-set standalone route, theme toggle, role-gating fix).
+
+**Status:** COMPLETE (PRs #372 + #373 merged to main).
+
+### Sub-tasks
+
+- [x] **S13-1:** Remove banned deps from package.json (react-select, react-easy-crop, reactjs-tiptap-editor, @tanstack/react-query)
+- [x] **S13-2:** Promote class-variance-authority to direct dependency
+- [x] **S13-3:** Narrow vitest config to src-vnext/ only
+- [x] **S13-4:** Vendor chunk splitting via manual chunks in vite.config (891kB → 276kB)
+- [x] **S13-5:** On-set viewer standalone route (`/projects/:id/schedules/:scheduleId/onset`) — `OnSetViewerPage` wrapper, no `RequireDesktop`, all roles
+- [x] **S13-6:** Theme toggle in sidebar (light/dark/system cycle button in `SidebarUserSection`)
+- [x] **S13-7:** Shoot Readiness tab visible to all authenticated roles (was admin/producer only)
+
+### Acceptance Criteria
+
+- [x] `package.json` contains no react-select, react-easy-crop, reactjs-tiptap-editor, @tanstack/react-query
+- [x] Vendor chunk ≤ 300kB gzipped
+- [x] On-set viewer accessible via standalone URL without RequireDesktop guard
+- [x] Theme toggle cycles light → dark → system in sidebar footer
+- [x] Shoot Readiness tab visible to crew, warehouse, and viewer roles
+- [x] Build clean, lint zero warnings, tests pass
+
+---
+
+## Sprint S14: Cmd+K Command Palette
+
+**Goal:** Ship the Cmd+K command palette deferred from Phase 2. Fulfils PRD UX Principle #1 ("command palette as primary discovery").
+
+**Status:** COMPLETE (PR #374 merged to main).
+
+**Rationale:** PRD lists Cmd+K as a MUST-HAVE feature. The `SearchCommandProvider` stub was already wired into App.tsx but held no real state. This sprint replaces the stub with a full implementation using Fuse.js for fuzzy search and cmdk for the keyboard-navigable UI.
+
+### Sub-tasks
+
+- [x] **S14-1:** Replace `SearchCommandProvider` stub with real useState-backed provider (`src-vnext/app/providers/SearchCommandProvider.tsx`)
+- [x] **S14-2:** `CommandPalette.tsx` — Dialog + Command, Fuse.js search, grouped results (Projects, Products, Talent, Crew, max 5 per group), recent items section, quick actions when empty
+- [x] **S14-3:** `commandPaletteUtils.ts` — Fuse index builder, entity mappers, `sb:cmd-recent` localStorage helpers, `groupByType()`
+- [x] **S14-4:** Mount in App.tsx (wrap AppRoutes with SearchCommandProvider) + AppShell (render `<CommandPalette />`)
+- [x] **S14-5:** Tests (20 new) in `CommandPalette.test.tsx`
+
+### Key Decisions
+
+- Used `Dialog` + `Command shouldFilter={false}` instead of `CommandDialog` — `CommandDialog` hardcodes `Command` without `shouldFilter`, which hides Fuse results
+- Cmd+K bound via direct `document.addEventListener` — `useKeyboardShortcuts` blocks inputs; meta+k must work from any focused element including inputs
+- `CommandPaletteInner` only renders when `open === true` — zero Firestore subscriptions when palette is closed
+- Fuse threshold 0.35 — fuzzy but not too loose
+- Recent items capped at 5, localStorage key `sb:cmd-recent`
+- "Go to Admin" quick action shown only for admin role
+
+### Acceptance Criteria
+
+- [x] Cmd+K / Ctrl+K opens palette from any focused element including inputs
+- [x] Empty query shows Recent (if any) + Quick Actions sections
+- [x] Search query shows grouped results (Projects, Products, Talent, Crew)
+- [x] Clicking or pressing Enter navigates to entity and closes palette
+- [x] Recent items persist across sessions in localStorage
+- [x] Zero Firestore subscriptions when palette is closed
+- [x] 1215 tests passing, build clean, lint zero warnings
+- [x] PR #374 merged to main
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:
