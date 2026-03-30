@@ -14,6 +14,7 @@ import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
 import { MobileTopBar } from "./sidebar/MobileTopBar"
 import { MobileDrawer } from "./sidebar/MobileDrawer"
+import { CommandPalette } from "./CommandPalette"
 
 export function AppShell() {
   const { pathname, search } = useLocation()
@@ -95,6 +96,7 @@ export function AppShell() {
       </main>
 
       {!isDesktop && <FloatingActionBar />}
+      <CommandPalette />
     </div>
   )
 }
