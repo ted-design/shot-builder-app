@@ -36,7 +36,14 @@ export function loadRecentItems(): ReadonlyArray<RecentItem> {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed as RecentItem[]
+    return (parsed as unknown[]).filter(
+      (r): r is RecentItem =>
+        typeof r === "object" &&
+        r !== null &&
+        typeof (r as Record<string, unknown>).id === "string" &&
+        typeof (r as Record<string, unknown>).name === "string" &&
+        typeof (r as Record<string, unknown>).navigateTo === "string",
+    )
   } catch {
     return []
   }
@@ -134,26 +141,24 @@ export interface GroupedResults {
 }
 
 export function groupByType(entries: ReadonlyArray<SearchEntry>): GroupedResults {
-  const groups: {
-    projects: SearchEntry[]
-    products: SearchEntry[]
-    talent: SearchEntry[]
-    crew: SearchEntry[]
-  } = { projects: [], products: [], talent: [], crew: [] }
-
-  for (const entry of entries) {
-    if (entry.type === "project" && groups.projects.length < MAX_PER_GROUP) {
-      groups.projects = [...groups.projects, entry]
-    } else if (entry.type === "product" && groups.products.length < MAX_PER_GROUP) {
-      groups.products = [...groups.products, entry]
-    } else if (entry.type === "talent" && groups.talent.length < MAX_PER_GROUP) {
-      groups.talent = [...groups.talent, entry]
-    } else if (entry.type === "crew" && groups.crew.length < MAX_PER_GROUP) {
-      groups.crew = [...groups.crew, entry]
-    }
-  }
-
-  return groups
+  return entries.reduce<GroupedResults>(
+    (acc, entry) => {
+      if (entry.type === "project" && acc.projects.length < MAX_PER_GROUP) {
+        return { ...acc, projects: [...acc.projects, entry] }
+      }
+      if (entry.type === "product" && acc.products.length < MAX_PER_GROUP) {
+        return { ...acc, products: [...acc.products, entry] }
+      }
+      if (entry.type === "talent" && acc.talent.length < MAX_PER_GROUP) {
+        return { ...acc, talent: [...acc.talent, entry] }
+      }
+      if (entry.type === "crew" && acc.crew.length < MAX_PER_GROUP) {
+        return { ...acc, crew: [...acc.crew, entry] }
+      }
+      return acc
+    },
+    { projects: [], products: [], talent: [], crew: [] },
+  )
 }
 
 export function hasAnyResults(grouped: GroupedResults): boolean {

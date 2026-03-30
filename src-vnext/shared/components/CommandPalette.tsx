@@ -268,7 +268,7 @@ export function CommandPalette() {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
-        setOpen(true)
+        setOpen((prev: boolean) => !prev)
       }
     }
 
