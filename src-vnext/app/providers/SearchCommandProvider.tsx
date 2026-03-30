@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 
 interface SearchCommandContextValue {
   readonly open: boolean
@@ -15,10 +15,10 @@ export function SearchCommandProvider({
 }: {
   readonly children: ReactNode
 }) {
-  // Palette UI is deferred to slice 7.
-  // This provider exists so the context shape is stable for consumers.
+  const [open, setOpen] = useState(false)
+
   return (
-    <SearchCommandContext.Provider value={{ open: false, setOpen: () => {} }}>
+    <SearchCommandContext.Provider value={{ open, setOpen }}>
       {children}
     </SearchCommandContext.Provider>
   )

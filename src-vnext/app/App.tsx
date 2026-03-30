@@ -2,6 +2,7 @@ import { BrowserRouter } from "react-router-dom"
 import { Toaster } from "sonner"
 import { AuthProvider } from "@/app/providers/AuthProvider"
 import { ThemeProvider } from "@/app/providers/ThemeProvider"
+import { SearchCommandProvider } from "@/app/providers/SearchCommandProvider"
 import { AppRoutes } from "@/app/routes"
 
 export function App() {
@@ -9,8 +10,10 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <AppRoutes />
-          <Toaster position="bottom-right" richColors closeButton />
+          <SearchCommandProvider>
+            <AppRoutes />
+            <Toaster position="bottom-right" richColors closeButton />
+          </SearchCommandProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
