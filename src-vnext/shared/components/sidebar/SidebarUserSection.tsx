@@ -1,9 +1,30 @@
-import { LogOut } from "lucide-react"
+import { LogOut, Monitor, Moon, Sun } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/avatar"
 import { Button } from "@/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useTheme } from "@/app/providers/ThemeProvider"
 import { toast } from "sonner"
+
+type Theme = "light" | "dark" | "system"
+
+const THEME_CYCLE: Record<Theme, Theme> = {
+  light: "dark",
+  dark: "system",
+  system: "light",
+}
+
+const THEME_ICONS: Record<Theme, typeof Sun> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+}
+
+const THEME_LABELS: Record<Theme, string> = {
+  light: "Switch to dark mode",
+  dark: "Switch to system theme",
+  system: "Switch to light mode",
+}
 
 interface SidebarUserSectionProps {
   readonly collapsed: boolean
@@ -11,6 +32,13 @@ interface SidebarUserSectionProps {
 
 export function SidebarUserSection({ collapsed }: SidebarUserSectionProps) {
   const { user, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
+
+  const ThemeIcon = THEME_ICONS[theme]
+
+  function handleThemeCycle() {
+    setTheme(THEME_CYCLE[theme])
+  }
 
   return (
     <div className="mt-auto border-t border-[var(--color-sidebar-border)] p-3">
@@ -36,6 +64,15 @@ export function SidebarUserSection({ collapsed }: SidebarUserSectionProps) {
                 {user?.email ?? ""}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-text-active)]"
+              onClick={handleThemeCycle}
+              aria-label={THEME_LABELS[theme]}
+            >
+              <ThemeIcon className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"

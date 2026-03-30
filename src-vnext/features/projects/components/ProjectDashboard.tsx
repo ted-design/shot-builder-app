@@ -9,7 +9,7 @@ import { ProjectCard } from "@/features/projects/components/ProjectCard"
 import { CreateProjectDialog } from "@/features/projects/components/CreateProjectDialog"
 import { EditProjectDialog } from "@/features/projects/components/EditProjectDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { canManageProjects, canManageProducts, isAdmin, roleLabel } from "@/shared/lib/rbac"
+import { canManageProjects, isAdmin, roleLabel } from "@/shared/lib/rbac"
 import { ShootReadinessWidget } from "@/features/dashboard/components/ShootReadinessWidget"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
@@ -412,22 +412,18 @@ export default function ProjectDashboard() {
         }
       />
 
-      {canManageProducts(role) ? (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="mb-4 w-auto">
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="readiness">Shoot Readiness</TabsTrigger>
-          </TabsList>
-          <TabsContent value="projects">
-            {projectsContent}
-          </TabsContent>
-          <TabsContent value="readiness">
-            <ShootReadinessWidget />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        projectsContent
-      )}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4 w-auto">
+          <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="readiness">Shoot Readiness</TabsTrigger>
+        </TabsList>
+        <TabsContent value="projects">
+          {projectsContent}
+        </TabsContent>
+        <TabsContent value="readiness">
+          <ShootReadinessWidget />
+        </TabsContent>
+      </Tabs>
 
       {showCreate && (
         <CreateProjectDialog

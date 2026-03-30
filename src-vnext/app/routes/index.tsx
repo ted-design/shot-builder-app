@@ -41,6 +41,9 @@ const WarehousePickGuidePage = lazy(
 const CallSheetBuilderPage = lazy(
   () => import("@/features/schedules/components/CallSheetBuilderPage"),
 )
+const OnSetViewerPage = lazy(
+  () => import("@/features/schedules/components/OnSetViewerPage"),
+)
 const ProductListPage = lazy(
   () => import("@/features/products/components/ProductListPage"),
 )
@@ -186,6 +189,10 @@ export function AppRoutes() {
                 </RequireDesktop>
               </ProjectScopeProvider>
             }
+          />
+          <Route
+            path="projects/:id/schedules/:scheduleId/onset"
+            element={<OnSetViewerPage />}
           />
           <Route
             path="requests"

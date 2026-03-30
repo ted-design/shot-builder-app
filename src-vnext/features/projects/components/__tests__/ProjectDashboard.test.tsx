@@ -216,7 +216,7 @@ describe("ProjectDashboard", () => {
       expect(screen.getByRole("tab", { name: "Shoot Readiness" })).toBeInTheDocument()
     })
 
-    it("does not show tabs for crew role", () => {
+    it("shows tabs for crew role (read-only readiness view)", () => {
       mockUseAuth.mockReturnValue({ role: "crew" })
       ;(useProjects as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
         data: [],
@@ -226,8 +226,8 @@ describe("ProjectDashboard", () => {
 
       renderPage("/projects")
 
-      expect(screen.queryByRole("tab", { name: "Projects" })).not.toBeInTheDocument()
-      expect(screen.queryByRole("tab", { name: "Shoot Readiness" })).not.toBeInTheDocument()
+      expect(screen.getByRole("tab", { name: "Projects" })).toBeInTheDocument()
+      expect(screen.getByRole("tab", { name: "Shoot Readiness" })).toBeInTheDocument()
     })
 
     it("defaults to projects tab (no ShootReadinessWidget visible)", () => {
