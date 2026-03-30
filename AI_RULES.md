@@ -146,10 +146,10 @@ All new vNext components must work in dark mode:
 
 | Debt | Policy |
 |------|--------|
-| TanStack Query | Keep. Do not introduce to new code -- prefer direct Firestore onSnapshot. |
-| tiptap / reactjs-tiptap-editor | Keep where used. Evaluate before adding to new surfaces. |
-| react-select | Keep where used. Prefer Radix Select for new pickers. |
-| react-easy-crop | Keep where used. |
+| TanStack Query | Removed from package.json (Sprint S13). Do not add back. Use direct Firestore onSnapshot. |
+| tiptap / reactjs-tiptap-editor | reactjs-tiptap-editor removed from package.json (Sprint S13). tiptap core still present in legacy src/. Evaluate before adding to new surfaces. |
+| react-select | Removed from package.json (Sprint S13). Use Radix Select/Combobox in new code. |
+| react-easy-crop | Removed from package.json (Sprint S13). Do not add back. |
 | Feature flag V2/V3 variants | Consolidate when older version is fully deprecated. Track as cleanup. |
 | Mixed JS/TS | New files in TS. Don't convert existing JS without request. |
 

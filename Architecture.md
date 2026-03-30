@@ -18,7 +18,7 @@ This document describes the **current reality** of the codebase, not aspirationa
 | Backend | Firebase (Auth, Firestore, Storage, Functions) | Multi-tenant, clientId-scoped |
 | Routing | React Router v6 | Lazy-loaded routes via React.lazy |
 | Rich Text | tiptap (via reactjs-tiptap-editor) | Shot notes, product descriptions |
-| Search | Fuse.js (client-side) + cmdk (command palette) | Cmd+K global search |
+| Search | Fuse.js (client-side, threshold 0.35) + cmdk (command palette) | Cmd+K global search (Sprint S14) |
 | Drag & Drop | @dnd-kit | Sortable lists |
 | Error Tracking | Sentry (@sentry/react) | Error boundaries + breadcrumbs |
 | PDF | @react-pdf/renderer | Pull sheet export |
@@ -26,10 +26,8 @@ This document describes the **current reality** of the codebase, not aspirationa
 
 ### Dependency Notes
 
-- **TanStack Query:** Listed in package.json but **NOT imported in vNext code** (src-vnext/). Only used in legacy src/. Candidate for removal from package.json to reduce vendor chunk.
+- **TanStack Query, react-select, react-easy-crop, reactjs-tiptap-editor:** Removed from `package.json` in Sprint S13. Vendor chunk reduced from 891kB → 276kB. Do not add them back.
 - **tiptap:** Heavy dependency used in legacy shot notes and product descriptions. Not yet used in vNext. Evaluate before adding to new surfaces.
-- **react-select:** Listed in package.json but **NOT imported in vNext code**. Candidate for removal. vNext uses Radix Select/Combobox.
-- **react-easy-crop:** Listed in package.json but **NOT imported in vNext code**. Candidate for removal.
 
 ---
 
@@ -111,7 +109,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | Route | Page | Notes |
 |-------|------|-------|
 | `/` | Redirect -> `/projects` | |
-| `/projects` | ProjectDashboard | Tabbed: Projects tab (default, project grid) + Shoot Readiness tab (admin/producer only). Tab state via `?tab=readiness` URL param. |
+| `/projects` | ProjectDashboard | Tabbed: Projects tab (default, project grid) + Shoot Readiness tab (all authenticated roles). Tab state via `?tab=readiness` URL param. |
 | `/projects/:id` | Redirect -> `shots` | |
 | `/projects/:id/shots` | ShotListPage | Shot list (gallery / visual / table views) |
 | `/projects/:id/shots/:sid` | ShotDetailPage | Three-panel shot editor |
@@ -121,6 +119,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/tags` | TagManagementPage | Desktop-only (RequireDesktop) |
 | `/projects/:id/schedules` | SchedulesRedirect | Redirects to `../callsheet` |
 | `/projects/:id/callsheet` | CallSheetBuilderPage | Desktop-only (RequireDesktop) |
+| `/projects/:id/schedules/:scheduleId/onset` | OnSetViewerPage | Standalone on-set viewer (all roles, no RequireDesktop). Wraps OnSetViewer component. Sprint S13. |
 | `/requests` | ShotRequestCentrePage | Org-level shot request centre. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). `/inbox` redirects here (Sprint S11). |
 | `/products` | ProductListPage | Org-level product library |
 | `/products/new` | ProductEditorPage | Create new product (vNext) |
@@ -188,6 +187,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── users/{userId}/
   ├── notifications/{notificationId}/
   ├── shotRequests/{requestId}/          # Phase 8/8.5 — Shot Request Inbox + Create Project from Request
+  │   └── comments/{commentId}/          # Sprint S12B — conversation threads (admin+producer read/write)
   └── pendingInvitations/{normalizedEmail}/  # Sprint S9 — pre-signup role invitations
 
 /shotShares/{shareToken}               # Denormalized public share docs
@@ -275,6 +275,22 @@ interface ShotRequest {
   absorbedAsShotId?: string | null
   rejectionReason?: string | null
   relatedFamilyIds?: readonly string[] | null    // Phase 10: link requests to product families
+  notifyUserIds?: string[] | null                // Sprint S12A: recipient IDs for email notifications
+  references?: ShotRequestReference[] | null     // Sprint S12B: structured image references
+}
+
+interface ShotRequestReference {
+  url: string
+  imageUrl?: string
+  caption?: string
+}
+
+interface ShotRequestComment {
+  id: string
+  authorId: string
+  authorName: string
+  body: string                                   // max 2000 chars client-side, 5000 in rules
+  createdAt: Timestamp
 }
 ```
 
@@ -312,7 +328,7 @@ interface ProductAssetRequirements {
 
 All Firestore paths built via `src-vnext/shared/lib/paths.ts`. Every function requires explicit `clientId` -- no hardcoded defaults. Returns string arrays for `collection()` / `doc()`.
 
-Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`, `shotRequestsPath`, `shotRequestDocPath`.
+Key path builders: `projectsPath`, `shotsPath`, `productFamiliesPath`, `talentPath`, `locationsPath`, `crewPath`, `crewDocPath`, `locationDocPath`, `departmentsPath`, `departmentPositionsPath`, `usersPath`, `userDocPath`, `projectMembersPath`, `projectMemberDocPath`, `shotRequestsPath`, `shotRequestDocPath`, `shotRequestCommentsPath`.
 
 ### Shot Request Write Functions
 
@@ -327,6 +343,19 @@ All in `src-vnext/features/requests/lib/requestWrites.ts`:
 
 `createProjectFromRequest` is the most complex — 4 writes in a single transaction: project doc, member doc (producer auto-membership via `projectMemberDocPath`), shot doc, request update.
 
+### Shot Request S12 Components
+
+| Component / Hook / Lib | Location | Purpose |
+|---|---|---|
+| `CommentThread` | `features/requests/components/` | Conversation thread with smart auto-scroll, Enter-to-send, empty state. MAX_COMMENT_CHARS=2000. |
+| `RecipientPicker` | `features/requests/components/` | Multi-select picker for notification recipients (admin+producer users) in SubmitShotRequestDialog |
+| `ReferenceInput` | `features/requests/components/` | Structured reference editor with Firebase Storage upload, filename sanitization, MAX_REFERENCES=10 |
+| `BulkAddToProjectDialog` | `features/products/components/` | Dialog to bulk-create shots from selected products. Project picker + family/SKU granularity toggle. |
+| `useProductSelection` | `features/products/hooks/` | Multi-select state for products using prefixed Set (`fam:` / `sku:` prefix) |
+| `useRequestComments` | `features/requests/hooks/` | Real-time Firestore subscription for request comments subcollection |
+| `bulkShotWrites.ts` | `features/requests/lib/` | `bulkCreateShotsFromProducts` — writeBatch with BATCH_CHUNK_SIZE=250, MAX_BULK_ITEMS=500 cap |
+| `OnSetViewerPage` | `features/schedules/components/` | Standalone route wrapper for on-set viewer — no RequireDesktop, all roles (Sprint S13) |
+
 ---
 
 ## State Management
@@ -334,7 +363,7 @@ All in `src-vnext/features/requests/lib/requestWrites.ts`:
 ### vNext Approach
 
 1. **Firestore onSnapshot** -- Direct real-time subscriptions via custom hooks: `useFirestoreDoc`, `useFirestoreCollection`. All vNext server state uses this pattern exclusively.
-2. **TanStack Query** -- Legacy only (`src/`). Listed in package.json but NOT imported in vNext code (`src-vnext/`). Candidate for removal to reduce vendor chunk.
+2. **TanStack Query** -- Legacy only (`src/`). Removed from `package.json` in Sprint S13. Not importable in any code. Legacy `src/` references are read-only.
 3. **React Context** -- Four providers:
    - `AuthProvider`: user, claims, clientId, role
    - `ProjectScopeProvider`: active projectId, project metadata
@@ -416,6 +445,7 @@ All callable functions use the **Firestore Queue pattern** — client writes to 
 | `reactivateUser` | Queue handler | Restores claims with chosen role, sets `status: "active"`. Admin-only. |
 | `resendInvitationEmail` | Queue handler | Re-sends invitation email via Resend for pending invitations. Admin-only. |
 | `publicUpdatePull` | Queue handler + onRequest fallback | Public warehouse fulfillment responses (anonymous, requires shareToken). |
+| `sendRequestNotification` | Queue handler | Sends email notification via Resend to `notifyUserIds` recipients when a shot request is submitted. Cross-tenant clientId guard. Admin+producer only. Sprint S12A. |
 | `resolvePullShareToken` | HTTP POST (direct) | Resolve public pull share token to pull data |
 | `resolveShotShareToken` | HTTP POST (direct) | Resolve denormalized shot share doc |
 | `cleanupVersionsAndLocks` | Scheduled (hourly) | Deletes expired versions, clears stale presence locks |
@@ -481,7 +511,7 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation)
+`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation), `CommandPalette` (Cmd+K universal search — Fuse.js + cmdk, Sprint S14), `BulkSelectionBar` (floating action bar for multi-select workflows, Sprint S12C)
 
 ### Library Entity Modules (Phase 7B)
 
