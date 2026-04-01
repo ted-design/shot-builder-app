@@ -1,9 +1,16 @@
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react"
+import { Settings } from "lucide-react"
 import { Checkbox } from "@/ui/checkbox"
+import { Button } from "@/ui/button"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { textPreview } from "@/shared/lib/textPreview"
+import { useColumnResize } from "@/shared/hooks/useColumnResize"
+import { useTableKeyboardNav } from "@/shared/hooks/useTableKeyboardNav"
+import { ResizableHeader } from "@/shared/components/ResizableHeader"
+import { ColumnSettingsPopover } from "@/shared/components/ColumnSettingsPopover"
+import { fieldsToColumnConfigs, columnKeyToFieldKey } from "@/features/shots/lib/shotTableColumns"
 import type { Shot, ShotReferenceLinkType } from "@/shared/types"
 import { type ShotsListFields, formatUpdatedAt } from "@/features/shots/lib/shotListFilters"
 import { TagBadge } from "@/shared/components/TagBadge"
@@ -20,6 +27,7 @@ import { Globe, Video, FileText } from "lucide-react"
 // ---------------------------------------------------------------------------
 
 const REFERENCE_LINK_PREVIEW_LIMIT = 2
+const WIDTHS_STORAGE_KEY = "sb:shots-table-widths"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,6 +88,7 @@ type ShotsTableProps = {
     readonly onToggleAll: (next: ReadonlySet<string>) => void
   }
   readonly onOpenShot: (shotId: string) => void
+  readonly onFieldToggle?: (fieldKey: keyof ShotsListFields) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -95,65 +104,248 @@ export function ShotsTable({
   renderLifecycleAction,
   selection,
   onOpenShot,
+  onFieldToggle,
 }: ShotsTableProps) {
   const selectionEnabled = selection?.enabled === true
 
   const allSelected = selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))
   const someSelected = selectionEnabled && shots.some((s) => selection!.selectedIds.has(s.id))
 
+  // -- Column resize (separate storage from field visibility) --
+  const [savedWidths, setSavedWidths] = useState<Record<string, number>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(WIDTHS_STORAGE_KEY) ?? "{}") as Record<string, number>
+    } catch {
+      return {}
+    }
+  })
+
+  const handleWidthChange = useCallback((key: string, width: number) => {
+    setSavedWidths((prev) => {
+      const next = { ...prev, [key]: width }
+      try { localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+
+  const { startResize } = useColumnResize({ onWidthChange: handleWidthChange })
+
+  // -- Keyboard nav --
+  const tableRef = useRef<HTMLTableElement>(null)
+  const { onTableKeyDown } = useTableKeyboardNav({
+    tableRef,
+    rowCount: shots.length,
+    onActivateRow: (i) => {
+      const shot = shots[i]
+      if (shot) onOpenShot(shot.id)
+    },
+  })
+
+  // -- Build column configs from ShotsListFields for the popover --
+  const columnConfigs = useMemo(
+    () => fieldsToColumnConfigs(fields, savedWidths),
+    [fields, savedWidths],
+  )
+
+  const visibleConfigs = useMemo(
+    () => columnConfigs.filter((c) => c.visible),
+    [columnConfigs],
+  )
+
+  // Helper to look up a column's current width
+  const colWidth = useCallback(
+    (key: string): number => {
+      const col = columnConfigs.find((c) => c.key === key)
+      return col?.width ?? 120
+    },
+    [columnConfigs],
+  )
+
+  const handleResetWidths = useCallback(() => {
+    setSavedWidths({})
+    try { localStorage.removeItem(WIDTHS_STORAGE_KEY) } catch { /* ignore */ }
+  }, [])
+
   return (
-    <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <table className="w-full text-sm">
-        <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
-          <tr>
-            {selectionEnabled && (
-              <th className="w-10 px-3 py-2 text-left">
-                <Checkbox
-                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                  onCheckedChange={(v) => {
-                    if (v === "indeterminate") return
-                    if (v) {
-                      selection!.onToggleAll(new Set(shots.map((s) => s.id)))
-                    } else {
-                      selection!.onToggleAll(new Set())
-                    }
-                  }}
-                  aria-label={allSelected ? "Deselect all shots" : "Select all shots"}
+    <div className="flex flex-col gap-2">
+      {/* Column settings toolbar */}
+      {onFieldToggle && (
+        <div className="flex justify-end">
+          <ColumnSettingsPopover
+            columns={columnConfigs}
+            onToggleVisibility={(key) => {
+              const fieldKey = columnKeyToFieldKey(key)
+              if (fieldKey) onFieldToggle(fieldKey)
+            }}
+            onReorder={() => {}} // Column reorder deferred for shots table
+            onReset={handleResetWidths}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-2xs text-[var(--color-text-muted)]"
+              aria-label="Column settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Columns
+            </Button>
+          </ColumnSettingsPopover>
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <table
+          ref={tableRef}
+          tabIndex={0}
+          onKeyDown={onTableKeyDown}
+          className="w-full text-sm outline-none"
+        >
+          <colgroup>
+            {selectionEnabled && <col style={{ width: 40 }} />}
+            {visibleConfigs.map((c) => (
+              <col key={c.key} style={{ width: c.width }} />
+            ))}
+            {showLifecycleActions && <col style={{ width: 64 }} />}
+            <col style={{ width: 110 }} /> {/* Status column - always visible */}
+          </colgroup>
+          <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
+            <tr>
+              {selectionEnabled && (
+                <th className="w-10 px-3 py-2 text-left">
+                  <Checkbox
+                    checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                    onCheckedChange={(v) => {
+                      if (v === "indeterminate") return
+                      if (v) {
+                        selection!.onToggleAll(new Set(shots.map((s) => s.id)))
+                      } else {
+                        selection!.onToggleAll(new Set())
+                      }
+                    }}
+                    aria-label={allSelected ? "Deselect all shots" : "Select all shots"}
+                  />
+                </th>
+              )}
+              {fields.heroThumb && (
+                <ResizableHeader
+                  columnKey="heroThumb"
+                  width={colWidth("heroThumb")}
+                  onStartResize={startResize}
+                  className="px-3 py-2"
                 />
-              </th>
-            )}
-            {fields.heroThumb && <th className="w-14 px-3 py-2" />}
-            <th className="min-w-[240px] px-3 py-2 text-left font-medium">Shot</th>
-            {fields.date && <th className="w-32 px-3 py-2 text-left font-medium">Date</th>}
-            {fields.notes && <th className="min-w-[260px] px-3 py-2 text-left font-medium">Notes</th>}
-            {fields.location && <th className="min-w-[160px] px-3 py-2 text-left font-medium">Location</th>}
-            {fields.products && <th className="min-w-[280px] px-3 py-2 text-left font-medium">Products</th>}
-            {fields.links && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Reference links</th>}
-            {fields.talent && <th className="min-w-[220px] px-3 py-2 text-left font-medium">Talent</th>}
-            {fields.tags && <th className="min-w-[180px] px-3 py-2 text-left font-medium">Tags</th>}
-            {fields.updated && <th className="w-28 px-3 py-2 text-left font-medium">Updated</th>}
-            {showLifecycleActions && <th className="w-16 px-3 py-2 text-left font-medium">Actions</th>}
-            <th className="w-28 px-3 py-2 text-left font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shots.map((shot) => (
-            <ShotsTableRow
-              key={shot.id}
-              shot={shot}
-              fields={fields}
-              talentNameById={talentNameById}
-              locationNameById={locationNameById}
-              showLifecycleActions={showLifecycleActions}
-              renderLifecycleAction={renderLifecycleAction}
-              selectionEnabled={selectionEnabled}
-              selected={selectionEnabled ? selection!.selectedIds.has(shot.id) : false}
-              onToggle={selectionEnabled ? () => selection!.onToggle(shot.id) : undefined}
-              onOpenShot={onOpenShot}
-            />
-          ))}
-        </tbody>
-      </table>
+              )}
+              <ResizableHeader
+                columnKey="shot"
+                width={colWidth("shot")}
+                onStartResize={startResize}
+                className="px-3 py-2 text-left font-medium"
+              >
+                Shot
+              </ResizableHeader>
+              {fields.date && (
+                <ResizableHeader
+                  columnKey="date"
+                  width={colWidth("date")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Date
+                </ResizableHeader>
+              )}
+              {fields.notes && (
+                <ResizableHeader
+                  columnKey="notes"
+                  width={colWidth("notes")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Notes
+                </ResizableHeader>
+              )}
+              {fields.location && (
+                <ResizableHeader
+                  columnKey="location"
+                  width={colWidth("location")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Location
+                </ResizableHeader>
+              )}
+              {fields.products && (
+                <ResizableHeader
+                  columnKey="products"
+                  width={colWidth("products")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Products
+                </ResizableHeader>
+              )}
+              {fields.links && (
+                <ResizableHeader
+                  columnKey="links"
+                  width={colWidth("links")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Reference links
+                </ResizableHeader>
+              )}
+              {fields.talent && (
+                <ResizableHeader
+                  columnKey="talent"
+                  width={colWidth("talent")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Talent
+                </ResizableHeader>
+              )}
+              {fields.tags && (
+                <ResizableHeader
+                  columnKey="tags"
+                  width={colWidth("tags")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Tags
+                </ResizableHeader>
+              )}
+              {fields.updated && (
+                <ResizableHeader
+                  columnKey="updated"
+                  width={colWidth("updated")}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  Updated
+                </ResizableHeader>
+              )}
+              {showLifecycleActions && <th className="w-16 px-3 py-2 text-left font-medium">Actions</th>}
+              <th className="w-28 px-3 py-2 text-left font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shots.map((shot, index) => (
+              <ShotsTableRow
+                key={shot.id}
+                shot={shot}
+                index={index}
+                fields={fields}
+                talentNameById={talentNameById}
+                locationNameById={locationNameById}
+                showLifecycleActions={showLifecycleActions}
+                renderLifecycleAction={renderLifecycleAction}
+                selectionEnabled={selectionEnabled}
+                selected={selectionEnabled ? selection!.selectedIds.has(shot.id) : false}
+                onToggle={selectionEnabled ? () => selection!.onToggle(shot.id) : undefined}
+                onOpenShot={onOpenShot}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -164,6 +356,7 @@ export function ShotsTable({
 
 function ShotsTableRow({
   shot,
+  index: _index,
   fields,
   talentNameById,
   locationNameById,
@@ -175,6 +368,7 @@ function ShotsTableRow({
   onOpenShot,
 }: {
   readonly shot: Shot
+  readonly index: number
   readonly fields: ShotsListFields
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
@@ -208,7 +402,7 @@ function ShotsTableRow({
 
   return (
     <tr
-      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)]"
+      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
       onClick={() => onOpenShot(shot.id)}
       role="row"
     >
@@ -244,7 +438,7 @@ function ShotsTableRow({
       </td>
       {fields.date && (
         <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-          {formatDateOnly(shot.date) || "—"}
+          {formatDateOnly(shot.date) || "\u2014"}
         </td>
       )}
       {fields.notes && (
@@ -258,7 +452,7 @@ function ShotsTableRow({
               />
             </div>
           ) : (
-            "—"
+            "\u2014"
           )}
         </td>
       )}
@@ -273,18 +467,18 @@ function ShotsTableRow({
               Location selected
             </div>
           ) : (
-            "—"
+            "\u2014"
           )}
         </td>
       )}
       {fields.products && (
         <td className="px-3 py-2 text-[var(--color-text-secondary)]">
           {productLabels.length === 0 ? (
-            "—"
+            "\u2014"
           ) : (
             <div className="flex max-w-[320px] flex-col gap-0.5" title={productLabels.join("\n")}>
-              {productLabels.map((label, index) => (
-                <div key={`${label}-${index}`} className="truncate">
+              {productLabels.map((label, i) => (
+                <div key={`${label}-${i}`} className="truncate">
                   {label}
                 </div>
               ))}
@@ -295,7 +489,7 @@ function ShotsTableRow({
       {fields.links && (
         <td className="px-3 py-2 text-[var(--color-text-secondary)]">
           {referenceLinks.length === 0 ? (
-            "—"
+            "\u2014"
           ) : (
             <div className="flex max-w-[280px] flex-col gap-0.5">
               {referenceLinksPreview.map((entry) => {
@@ -327,7 +521,7 @@ function ShotsTableRow({
       {fields.talent && (
         <td className="px-3 py-2 text-[var(--color-text-secondary)]">
           {!hasTalent ? (
-            "—"
+            "\u2014"
           ) : (
             <div className="flex max-w-[260px] flex-col gap-0.5" title={talentTitle || undefined}>
               {talentNames.length > 0 ? (
@@ -366,7 +560,7 @@ function ShotsTableRow({
               )}
             </div>
           ) : (
-            <span className="text-[var(--color-text-subtle)]">—</span>
+            <span className="text-[var(--color-text-subtle)]">{"\u2014"}</span>
           )}
         </td>
       )}

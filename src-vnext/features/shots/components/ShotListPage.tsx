@@ -724,6 +724,7 @@ export default function ShotListPage() {
                 : undefined
             }
             onOpenShot={handleShotClick}
+            onFieldToggle={(key) => setFields({ ...fields, [key]: !fields[key] })}
           />
         </>
       ) : (
