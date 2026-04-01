@@ -26,11 +26,11 @@ export function SearchBar({
       {value.length > 0 ? (
         <button
           type="button"
+          aria-label="Clear search"
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
           onClick={() => onChange("")}
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Clear search</span>
         </button>
       ) : null}
     </div>

@@ -185,7 +185,7 @@ function ReadinessCard({
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
     >
-      <div className={cn("flex items-start gap-3", selectionMode && "")}>
+      <div className="flex items-start gap-3">
         {selectionMode && (
           <div className="flex-shrink-0 pt-1">
             <input

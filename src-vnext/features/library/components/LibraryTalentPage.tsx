@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Users, Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, LayoutList } from "lucide-react"
+import { Users, Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, Table2 } from "lucide-react"
 import { ViewModeToggle } from "@/shared/components/ViewModeToggle"
 import { SearchBar } from "@/shared/components/SearchBar"
 import { usePersistedViewMode } from "@/shared/hooks/usePersistedViewMode"
@@ -61,7 +61,7 @@ const TALENT_VIEW_MODES = ["grid", "table"] as const
 
 const TALENT_VIEW_OPTIONS = [
   { key: "grid", icon: LayoutGrid, label: "Grid view" },
-  { key: "table", icon: LayoutList, label: "Table view" },
+  { key: "table", icon: Table2, label: "Table view" },
 ] as const
 
 export default function LibraryTalentPage() {
@@ -562,7 +562,7 @@ export default function LibraryTalentPage() {
               value={query}
               onChange={setQuery}
               placeholder="Search talent…"
-              className="max-w-md flex-1"
+              className="max-w-sm flex-1"
             />
             <TalentFilterToolbar
               filters={filters}

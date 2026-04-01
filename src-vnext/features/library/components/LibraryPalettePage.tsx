@@ -359,7 +359,7 @@ export default function LibraryPalettePage() {
               value={query}
               onChange={setQuery}
               placeholder="Search swatches…"
-              className="max-w-md"
+              className="max-w-sm flex-1"
             />
 
             <Card>
