@@ -66,7 +66,7 @@ export function DocumentPreview({
           <div className="doc-page-content flex flex-col gap-2">
             {pageBlocks.length === 0 && pageIndex === 0 && totalPages === 1 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-[var(--color-text-subtle)]">
                   Add blocks from the palette to build your document.
                 </p>
               </div>
@@ -89,7 +89,7 @@ export function DocumentPreview({
                 e.stopPropagation()
                 onAddTextBlock(pageId)
               }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-300 px-4 py-3 text-sm text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-500"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-subtle)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-muted)]"
             >
               <Plus className="h-4 w-4" />
               Add Text Block
@@ -97,7 +97,7 @@ export function DocumentPreview({
           </div>
 
           {/* Page footer */}
-          <div className="mt-auto pt-4 text-center text-xs text-gray-400">
+          <div className="mt-auto pt-4 text-center text-xs text-[var(--color-text-subtle)]">
             Page {String(pageIndex + 1)} of {String(totalPages)}
           </div>
         </div>

@@ -663,9 +663,11 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Button press: depth feedback */
+/* Button press: depth feedback — use longhand to avoid overriding transition-colors */
 .btn-press {
-  transition: transform 100ms ease;
+  transition-property: transform;
+  transition-duration: 100ms;
+  transition-timing-function: ease;
 }
 .btn-press:active {
   transform: scale(0.97);
@@ -698,7 +700,7 @@
 }
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 75ms; }
 .stagger-children > *:nth-child(4) { animation-delay: 100ms; }
 .stagger-children > *:nth-child(5) { animation-delay: 125ms; }
 .stagger-children > *:nth-child(6) { animation-delay: 150ms; }

@@ -35,6 +35,7 @@ import { useLocations, useTalent, useProductFamilies } from "@/features/shots/ho
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
+import { Checkbox } from "@/ui/checkbox"
 import { Input } from "@/ui/input"
 import { Skeleton } from "@/ui/skeleton"
 import {

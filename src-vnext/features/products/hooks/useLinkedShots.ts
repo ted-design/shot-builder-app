@@ -47,7 +47,7 @@ export function groupLinkedShotsByProject(
     const key = entry.projectId || "unknown"
     const existing = map.get(key)
     if (existing) {
-      existing.shots.push(entry)
+      map.set(key, { ...existing, shots: [...existing.shots, entry] })
     } else {
       map.set(key, {
         projectName: entry.projectName || entry.projectId || "Unknown Project",
