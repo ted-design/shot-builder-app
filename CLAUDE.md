@@ -14,6 +14,7 @@ This file governs all Claude Code work in the vNext worktree. Follow these rules
 | `Plan.md` | Multi-phase plan with sub-task checkboxes (this IS the todo tracker) |
 | `Architecture.md` | Tech stack, module structure, routes, data model, auth/RBAC, design system, component inventory, performance budgets, security checklist |
 | `AI_RULES.md` | Decision framework, code standards, testing, implementation patterns (three-panel, visual, dark mode, permissions), context management |
+| `docs/DESIGN_SYSTEM.md` | **UI component patterns, color tokens, typography, shared components, view toggles, tables, spacing. READ BEFORE ANY UI WORK.** |
 | `MEMORY.md` | Persistent cross-session memory: error patterns, phase summaries, user preferences |
 
 **`docs-vnext/` is supplementary engineering reference** — slice specs, sprint proofs, and design details. When `docs-vnext/` conflicts with root docs, root docs win.
@@ -41,6 +42,7 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 
 ### 3. Design-First, Reuse-First
 
+- **Read `docs/DESIGN_SYSTEM.md` before writing any UI code.** It codifies every shared component, color token, typography class, view toggle pattern, table pattern, and spacing standard. Violations found in code review must be fixed before merge.
 - Use shadcn/ui (Radix) as the primitive layer. Do not create custom primitives.
 - `tokens.css` is the single source of design truth. All color, spacing, and typography values come from tokens.
 - `src-vnext/styles/design-tokens.js` provides semantic Tailwind classes (`.heading-page`, `.heading-section`, `.heading-subsection`, `.label-meta`, `.body-text`, `.caption`, etc.). Prefer these over ad-hoc class combinations.
