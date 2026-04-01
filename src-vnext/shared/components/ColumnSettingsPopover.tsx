@@ -29,6 +29,7 @@ interface ColumnSettingsPopoverProps {
   readonly onToggleVisibility: (key: string) => void
   readonly onReorder: (orderedKeys: readonly string[]) => void
   readonly onReset: () => void
+  readonly showReorder?: boolean
   readonly children: React.ReactNode
 }
 
@@ -37,6 +38,7 @@ export function ColumnSettingsPopover({
   onToggleVisibility,
   onReorder,
   onReset,
+  showReorder = true,
   children,
 }: ColumnSettingsPopoverProps) {
   const sensors = useSensors(
@@ -95,6 +97,7 @@ export function ColumnSettingsPopover({
                   key={col.key}
                   column={col}
                   onToggleVisibility={onToggleVisibility}
+                  showDragHandle={showReorder}
                 />
               ))}
             </div>
@@ -108,9 +111,11 @@ export function ColumnSettingsPopover({
 function SortableColumnItem({
   column,
   onToggleVisibility,
+  showDragHandle = true,
 }: {
   readonly column: TableColumnConfig
   readonly onToggleVisibility: (key: string) => void
+  readonly showDragHandle?: boolean
 }) {
   const {
     attributes,
@@ -140,15 +145,19 @@ function SortableColumnItem({
         isHidden ? "opacity-40" : ""
       }`}
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="inline-flex h-5 w-5 shrink-0 cursor-grab items-center justify-center text-[var(--color-text-subtle)] hover:text-[var(--color-text)] active:cursor-grabbing"
-        aria-label={`Reorder ${column.label}`}
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
+      {showDragHandle ? (
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="inline-flex h-5 w-5 shrink-0 cursor-grab items-center justify-center text-[var(--color-text-subtle)] hover:text-[var(--color-text)] active:cursor-grabbing"
+          aria-label={`Reorder ${column.label}`}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <div className="w-5 shrink-0" />
+      )}
 
       <span className="flex-1 truncate text-xs text-[var(--color-text)]">
         {column.label}

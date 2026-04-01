@@ -42,6 +42,11 @@ export function useTableKeyboardNav(opts: {
     (e: KeyboardEvent) => {
       if (rowCount === 0) return
 
+      // Don't steal keyboard events from interactive descendants
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON") return
+      if ((e.target as HTMLElement).isContentEditable) return
+
       switch (e.key) {
         case "ArrowDown": {
           e.preventDefault()

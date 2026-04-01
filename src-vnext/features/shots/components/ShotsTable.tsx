@@ -177,7 +177,8 @@ export function ShotsTable({
               const fieldKey = columnKeyToFieldKey(key)
               if (fieldKey) onFieldToggle(fieldKey)
             }}
-            onReorder={() => {}} // Column reorder deferred for shots table
+            onReorder={() => {}}
+            showReorder={false}
             onReset={handleResetWidths}
           >
             <Button
