@@ -89,6 +89,7 @@ export function useShootReadiness(): {
       return {
         familyId: family.id,
         familyName: family.styleName,
+        gender: family.gender ?? null,
         launchDate: effectiveLaunchDate,
         totalSkus: family.activeSkuCount ?? family.skuCount ?? 0,
         skusWithFlags: 0,
