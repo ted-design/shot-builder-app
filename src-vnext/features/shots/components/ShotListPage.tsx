@@ -25,17 +25,27 @@ import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import { Camera, Plus, Info, BarChart3 } from "lucide-react"
+import { Camera, Plus, Info, BarChart3, Trash2 } from "lucide-react"
 import type { Shot } from "@/shared/types"
 import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
+import { bulkSoftDeleteShots } from "@/features/shots/lib/shotLifecycleActions"
 import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
+import { Input } from "@/ui/input"
 import { Skeleton } from "@/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/dialog"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
 
@@ -90,6 +100,9 @@ export default function ShotListPage() {
   const [displayOpen, setDisplayOpen] = useState(false)
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleteText, setBulkDeleteText] = useState("")
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   // -- Role-based flags --
   const showCreate = canManageShots(role)
@@ -354,6 +367,20 @@ export default function ShotListPage() {
             >
               Create pull sheet
             </Button>
+            {canManageShots(role) && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                onClick={() => {
+                  setBulkDeleteText("")
+                  setBulkDeleteOpen(true)
+                }}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -891,6 +918,78 @@ export default function ShotListPage() {
             })
         }}
       />
+
+      <Dialog
+        open={bulkDeleteOpen}
+        onOpenChange={(next) => {
+          if (!bulkDeleting) {
+            setBulkDeleteOpen(next)
+            if (!next) setBulkDeleteText("")
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} shot{selectedIds.size === 1 ? "" : "s"}?</DialogTitle>
+            <DialogDescription>
+              This hides the selected shots from active project lists and schedules. Type <strong>DELETE</strong> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Input
+              value={bulkDeleteText}
+              onChange={(event) => setBulkDeleteText(event.target.value)}
+              placeholder="Type DELETE"
+              disabled={bulkDeleting}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBulkDeleteOpen(false)
+                setBulkDeleteText("")
+              }}
+              disabled={bulkDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={bulkDeleting || bulkDeleteText.trim() !== "DELETE"}
+              onClick={() => {
+                if (!clientId || bulkDeleteText.trim() !== "DELETE") return
+                setBulkDeleting(true)
+                const ids = Array.from(selectedIds)
+                const count = ids.length
+                void bulkSoftDeleteShots({
+                  clientId,
+                  shotIds: ids,
+                  user,
+                })
+                  .then(() => {
+                    toast.success(`${count} shot${count === 1 ? "" : "s"} deleted`)
+                    clearSelection()
+                  })
+                  .catch((err) => {
+                    toast.error("Failed to delete shots", {
+                      description: err instanceof Error ? err.message : "Unknown error",
+                    })
+                  })
+                  .finally(() => {
+                    setBulkDeleting(false)
+                    setBulkDeleteText("")
+                    setBulkDeleteOpen(false)
+                  })
+              }}
+            >
+              {bulkDeleting ? "Deleting…" : `Delete ${selectedIds.size} shot${selectedIds.size === 1 ? "" : "s"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {canShare && (
         <ShotsShareDialog

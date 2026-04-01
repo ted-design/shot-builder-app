@@ -2,10 +2,14 @@ import { useMemo } from "react"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import {
   computeSuggestedShootWindow,
-  sortByUrgency,
   isWithinDays,
+  isOverdue,
   type ShootReadinessItem,
 } from "@/features/products/lib/shootReadiness"
+import {
+  getShootUrgency,
+  getUrgencySortOrder,
+} from "@/features/products/lib/shootUrgency"
 
 /**
  * Returns shoot readiness data for product families using 3-tier eligibility:
@@ -26,19 +30,33 @@ export function useShootReadiness(): {
     const eligible = allFamilies.filter((f) => {
       if (f.archived === true || f.deleted === true) return false
 
-      // Tier 1: Has family-level launch date within 90 days
+      // Tier 1: Has family-level launch date within 90 days (future)
       const hasUpcomingLaunch =
         f.launchDate != null && isWithinDays(f.launchDate, 90)
+
+      // Tier 1b: Has overdue family-level launch date (past)
+      const hasOverdueLaunch =
+        f.launchDate != null && isOverdue(f.launchDate)
 
       // Tier 2: Has earliest SKU-level launch date within 90 days
       const hasUpcomingEarliestLaunch =
         f.earliestLaunchDate != null && isWithinDays(f.earliestLaunchDate, 90)
 
+      // Tier 2b: Has overdue earliest SKU-level launch date
+      const hasOverdueEarliestLaunch =
+        f.earliestLaunchDate != null && isOverdue(f.earliestLaunchDate)
+
       // Tier 3: Has tracked samples
       const hasSamples =
         (f.sampleCount ?? 0) > 0 || (f.samplesArrivedCount ?? 0) > 0
 
-      return hasUpcomingLaunch || hasUpcomingEarliestLaunch || hasSamples
+      return (
+        hasUpcomingLaunch ||
+        hasOverdueLaunch ||
+        hasUpcomingEarliestLaunch ||
+        hasOverdueEarliestLaunch ||
+        hasSamples
+      )
     })
 
     if (eligible.length === 0) return []
@@ -82,7 +100,14 @@ export function useShootReadiness(): {
       }
     })
 
-    return sortByUrgency(readinessItems)
+    return [...readinessItems].sort((a, b) => {
+      const aUrgency = getShootUrgency(a.launchDate)
+      const bUrgency = getShootUrgency(b.launchDate)
+      const tierDiff = getUrgencySortOrder(aUrgency) - getUrgencySortOrder(bUrgency)
+      if (tierDiff !== 0) return tierDiff
+      // Within same tier, sort by readiness (less ready first)
+      return a.readinessPct - b.readinessPct
+    })
   }, [allFamilies])
 
   return { items, loading: familiesLoading }

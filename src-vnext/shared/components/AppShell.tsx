@@ -5,6 +5,7 @@ import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { OfflineBanner } from "@/shared/components/OfflineBanner"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { FloatingActionBar } from "@/shared/components/FloatingActionBar"
+import { PageTransition } from "@/shared/components/PageTransition"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useSubmittedRequestCount } from "@/features/requests/hooks/useSubmittedRequestCount"
@@ -91,7 +92,9 @@ export function AppShell() {
         )}
       >
         <ErrorBoundary>
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </ErrorBoundary>
       </main>
 

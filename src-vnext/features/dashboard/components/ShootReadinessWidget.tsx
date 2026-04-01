@@ -3,10 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageProjects } from "@/shared/lib/rbac"
 import { useShootReadiness } from "@/features/products/hooks/useShootReadiness"
-import {
-  formatLaunchDate,
-  getLaunchDeadlineWarning,
-} from "@/features/products/lib/assetRequirements"
+import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
 import type { ShootReadinessItem } from "@/features/products/lib/shootReadiness"
 import type { ShootWindow } from "@/features/products/lib/shootReadiness"
 import {
@@ -15,6 +12,12 @@ import {
 } from "@/features/products/hooks/useProductSelection"
 import { BulkSelectionBar } from "@/shared/components/BulkSelectionBar"
 import { BulkAddToProjectDialog } from "@/features/products/components/BulkAddToProjectDialog"
+import {
+  getShootUrgency,
+  getUrgencyLabel,
+  getUrgencyColor,
+  getUrgencyTimeText,
+} from "@/features/products/lib/shootUrgency"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Skeleton } from "@/ui/skeleton"
@@ -50,6 +53,36 @@ function ConfidenceBadge({
       {confidence === "medium" && "Medium"}
       {confidence === "low" && "Low"}
     </Badge>
+  )
+}
+
+function UrgencyBadge({
+  launchDate,
+}: {
+  readonly launchDate: ShootReadinessItem["launchDate"]
+}) {
+  const urgency = getShootUrgency(launchDate)
+  const label = getUrgencyLabel(urgency)
+  const colorClasses = getUrgencyColor(urgency)
+  const timeText = getUrgencyTimeText(launchDate)
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={cn(
+          "inline-block rounded px-1.5 py-0.5 text-3xs font-semibold uppercase leading-none tracking-wide",
+          colorClasses,
+        )}
+        data-testid="urgency-badge"
+      >
+        {label}
+      </span>
+      {timeText != null && (
+        <span className="text-2xs text-[var(--color-text-muted)]">
+          {timeText}
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -90,7 +123,6 @@ function ReadinessCard({
   const navigate = useNavigate()
 
   const tier = item.shootWindow?.tier ?? "samples_only"
-  const warning = getLaunchDeadlineWarning(item.launchDate)
   const selectionId = makeFamilySelectionId(item.familyId, item.familyName)
 
   const handleNavigate = useCallback(() => {
@@ -170,19 +202,8 @@ function ReadinessCard({
           <span className="truncate text-sm font-medium text-[var(--color-text)]">
             {item.familyName}
           </span>
-          {item.launchDate != null && tier !== "samples_only" && (
-            <Badge
-              variant="outline"
-              className={cn("text-2xs font-normal", {
-                "border-[var(--color-status-red-border)] bg-[var(--color-status-red-bg)] text-[var(--color-status-red-text)]":
-                  warning === "overdue",
-                "border-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)]":
-                  warning === "soon",
-                "text-[var(--color-text-muted)]": warning === "ok",
-              })}
-            >
-              Launch: {formatLaunchDate(item.launchDate)}
-            </Badge>
+          {tier !== "samples_only" && (
+            <UrgencyBadge launchDate={item.launchDate} />
           )}
         </div>
         {tier !== "samples_only" && item.shootWindow ? (
@@ -233,6 +254,11 @@ function ReadinessCard({
             Shoot window: {formatWindowDate(item.shootWindow!.suggestedStart)}{" "}
             &ndash; {formatWindowDate(item.shootWindow!.suggestedEnd)}
           </span>
+          {item.launchDate != null && (
+            <span className="text-2xs">
+              Launch: {formatLaunchDate(item.launchDate)}
+            </span>
+          )}
         </div>
       )}
 
