@@ -7,6 +7,7 @@ import { CallSheetKeyTimesStrip } from "@/features/schedules/components/CallShee
 import { CallSheetCastTable } from "@/features/schedules/components/CallSheetCastTable"
 import { CallSheetDeptGrid } from "@/features/schedules/components/CallSheetDeptGrid"
 import { CallSheetPageHeader } from "@/features/schedules/components/CallSheetPageHeader"
+import type { CallSheetSectionFieldConfig } from "@/features/schedules/lib/fieldConfig"
 import type {
   Schedule,
   DayDetails,
@@ -58,6 +59,8 @@ export interface CallSheetConfig {
    * 'grid' = new 3-zone modular grid header (S7-7).
    */
   readonly headerLayout?: CallSheetHeaderLayout
+  /** Per-section field configs (cast/crew column customization). */
+  readonly fieldConfigs?: Readonly<Record<string, CallSheetSectionFieldConfig>>
 }
 
 // --- Data props ---
@@ -322,6 +325,7 @@ export function CallSheetRenderer({
 }: CallSheetRendererProps) {
   const sections = { ...DEFAULT_SECTIONS, ...config?.sections }
   const scheduleFields = { ...DEFAULT_SCHEDULE_FIELDS, ...config?.scheduleBlockFields }
+  const fieldConfigs = config?.fieldConfigs
 
   const colors = config?.colors
   const primary = colors?.primary
@@ -511,7 +515,7 @@ export function CallSheetRenderer({
       {sections.talent && (
         <div className="flex flex-col gap-1">
           <div className="callsheet-section-label">
-            Cast
+            {fieldConfigs?.cast?.title ?? "Cast"}
             {talentCalls && talentCalls.length > 0 && (
               <span className="callsheet-section-label-meta">{talentCalls.length} Talent</span>
             )}
@@ -520,6 +524,7 @@ export function CallSheetRenderer({
             talentCalls={talentCalls ?? []}
             talentLookup={talentLookup ?? []}
             dayDetails={dayDetails}
+            fieldConfig={fieldConfigs?.cast}
           />
         </div>
       )}
@@ -533,7 +538,7 @@ export function CallSheetRenderer({
             <span>Crew Call Sheet</span>
           </div>
           <div className="callsheet-section-label">
-            Crew
+            {fieldConfigs?.crew?.title ?? "Crew"}
             {crewCalls && crewCalls.length > 0 && (
               <span className="callsheet-section-label-meta">{crewCalls.length} Members</span>
             )}
@@ -542,6 +547,7 @@ export function CallSheetRenderer({
             crewCalls={crewCalls ?? []}
             crewLookup={crewLookup ?? []}
             dayDetails={dayDetails}
+            fieldConfig={fieldConfigs?.crew}
           />
         </div>
       )}

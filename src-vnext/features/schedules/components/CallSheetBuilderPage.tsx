@@ -434,6 +434,8 @@ export default function CallSheetBuilderPage() {
                   text: rendererConfig.colors?.text ?? DEFAULT_CALLSHEET_COLORS.text,
                 }}
                 headerLayout={rendererConfig.headerLayout ?? "legacy"}
+                castFieldConfig={rendererConfig.fieldConfigs?.cast}
+                crewFieldConfig={rendererConfig.fieldConfigs?.crew}
                 onPatchSections={(patch) => {
                   void callSheetConfig.setSectionVisibility(patch)
                 }}
@@ -445,6 +447,9 @@ export default function CallSheetBuilderPage() {
                 }}
                 onSetHeaderLayout={(layout) => {
                   void callSheetConfig.setHeaderLayout(layout)
+                }}
+                onSaveSectionFieldConfig={(sectionKey, config) => {
+                  void callSheetConfig.setSectionFieldConfig(sectionKey, config)
                 }}
               />
 

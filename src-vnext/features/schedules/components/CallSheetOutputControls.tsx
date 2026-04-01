@@ -1,10 +1,19 @@
-import { useCallback } from "react"
-import { Sliders } from "lucide-react"
+import { useCallback, useState } from "react"
+import { LayoutTemplate, Pencil, Sliders } from "lucide-react"
 import { Checkbox } from "@/ui/checkbox"
+import { Switch } from "@/ui/switch"
 import { Label } from "@/ui/label"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
+import { SECTION_META } from "@/features/schedules/lib/callSheetLayouts"
+import {
+  DEFAULT_CAST_SECTION,
+  DEFAULT_CREW_SECTION,
+  type CallSheetSectionFieldConfig,
+} from "@/features/schedules/lib/fieldConfig"
+import { CallSheetLayoutDialog } from "@/features/schedules/components/CallSheetLayoutDialog"
+import { EditSectionFieldsDialog } from "@/features/schedules/components/EditSectionFieldsDialog"
 import type {
   CallSheetColors,
   CallSheetHeaderLayout,
@@ -17,6 +26,8 @@ interface CallSheetOutputControlsProps {
   readonly scheduleBlockFields: Required<ScheduleBlockFields>
   readonly colors: Required<CallSheetColors>
   readonly headerLayout: CallSheetHeaderLayout
+  readonly castFieldConfig?: CallSheetSectionFieldConfig
+  readonly crewFieldConfig?: CallSheetSectionFieldConfig
   readonly onPatchSections: (
     patch: Partial<Required<CallSheetSectionVisibility>>,
   ) => void
@@ -25,6 +36,10 @@ interface CallSheetOutputControlsProps {
   ) => void
   readonly onPatchColors: (patch: Partial<Required<CallSheetColors>>) => void
   readonly onSetHeaderLayout: (layout: CallSheetHeaderLayout) => void
+  readonly onSaveSectionFieldConfig?: (
+    sectionKey: string,
+    config: CallSheetSectionFieldConfig,
+  ) => void
 }
 
 export function CallSheetOutputControls({
@@ -32,11 +47,18 @@ export function CallSheetOutputControls({
   scheduleBlockFields,
   colors,
   headerLayout,
+  castFieldConfig,
+  crewFieldConfig,
   onPatchSections,
   onPatchScheduleFields,
   onPatchColors,
   onSetHeaderLayout,
+  onSaveSectionFieldConfig,
 }: CallSheetOutputControlsProps) {
+  const [layoutDialogOpen, setLayoutDialogOpen] = useState(false)
+  const [editCastOpen, setEditCastOpen] = useState(false)
+  const [editCrewOpen, setEditCrewOpen] = useState(false)
+
   const onChecked = useCallback(
     (fn: (value: boolean) => void) => (value: boolean | "indeterminate") => {
       if (value === "indeterminate") return
@@ -45,12 +67,54 @@ export function CallSheetOutputControls({
     [],
   )
 
+  const handleApplyLayout = useCallback(
+    (visibility: Required<CallSheetSectionVisibility>) => {
+      onPatchSections(visibility)
+    },
+    [onPatchSections],
+  )
+
+  const handleSaveCastFields = useCallback(
+    (config: CallSheetSectionFieldConfig) => {
+      onSaveSectionFieldConfig?.("cast", config)
+    },
+    [onSaveSectionFieldConfig],
+  )
+
+  const handleSaveCrewFields = useCallback(
+    (config: CallSheetSectionFieldConfig) => {
+      onSaveSectionFieldConfig?.("crew", config)
+    },
+    [onSaveSectionFieldConfig],
+  )
+
   const isDefaultColors = colors.primary === DEFAULT_CALLSHEET_COLORS.primary
     && colors.accent === DEFAULT_CALLSHEET_COLORS.accent
     && colors.text === DEFAULT_CALLSHEET_COLORS.text
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <CallSheetLayoutDialog
+        open={layoutDialogOpen}
+        onOpenChange={setLayoutDialogOpen}
+        currentSections={sections}
+        onApplyLayout={handleApplyLayout}
+      />
+
+      <EditSectionFieldsDialog
+        open={editCastOpen}
+        onOpenChange={setEditCastOpen}
+        config={castFieldConfig ?? DEFAULT_CAST_SECTION}
+        onSave={handleSaveCastFields}
+      />
+
+      <EditSectionFieldsDialog
+        open={editCrewOpen}
+        onOpenChange={setEditCrewOpen}
+        config={crewFieldConfig ?? DEFAULT_CREW_SECTION}
+        onSave={handleSaveCrewFields}
+      />
+
       <div className="flex items-center gap-2">
         <Sliders className="h-4 w-4 text-[var(--color-text-muted)]" />
         <h2 className="text-sm font-semibold text-[var(--color-text)]">
@@ -59,71 +123,64 @@ export function CallSheetOutputControls({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-          Sections
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Sections
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-2xs font-semibold uppercase tracking-wider"
+            onClick={() => setLayoutDialogOpen(true)}
+          >
+            <LayoutTemplate className="h-3 w-3" />
+            Layouts
+          </Button>
+        </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-header"
-              checked={sections.header}
-              onCheckedChange={onChecked((v) => onPatchSections({ header: v }))}
-            />
-            <Label htmlFor="cs-sec-header" className="text-xs">
-              Header
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-day"
-              checked={sections.dayDetails}
-              onCheckedChange={onChecked((v) => onPatchSections({ dayDetails: v }))}
-            />
-            <Label htmlFor="cs-sec-day" className="text-xs">
-              Day Details
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-sched"
-              checked={sections.schedule}
-              onCheckedChange={onChecked((v) => onPatchSections({ schedule: v }))}
-            />
-            <Label htmlFor="cs-sec-sched" className="text-xs">
-              Schedule
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-talent"
-              checked={sections.talent}
-              onCheckedChange={onChecked((v) => onPatchSections({ talent: v }))}
-            />
-            <Label htmlFor="cs-sec-talent" className="text-xs">
-              Talent
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-crew"
-              checked={sections.crew}
-              onCheckedChange={onChecked((v) => onPatchSections({ crew: v }))}
-            />
-            <Label htmlFor="cs-sec-crew" className="text-xs">
-              Crew
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="cs-sec-notes"
-              checked={sections.notes}
-              onCheckedChange={onChecked((v) => onPatchSections({ notes: v }))}
-            />
-            <Label htmlFor="cs-sec-notes" className="text-xs">
-              Notes
-            </Label>
-          </div>
+        <div className="flex flex-col gap-2">
+          {SECTION_META.map((meta) => (
+            <div key={meta.key} className="flex items-center justify-between gap-2">
+              <Label htmlFor={`cs-sec-${meta.key}`} className="text-xs">
+                {meta.label}
+              </Label>
+              <div className="flex items-center gap-1">
+                {/* Edit Fields button for talent and crew sections */}
+                {meta.key === "talent" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-2xs text-[var(--color-text-muted)]"
+                    onClick={() => setEditCastOpen(true)}
+                    aria-label="Edit cast fields"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                )}
+                {meta.key === "crew" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-2xs text-[var(--color-text-muted)]"
+                    onClick={() => setEditCrewOpen(true)}
+                    aria-label="Edit crew fields"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                )}
+                <Switch
+                  id={`cs-sec-${meta.key}`}
+                  checked={sections[meta.key]}
+                  onCheckedChange={(checked) =>
+                    onPatchSections({ [meta.key]: checked })
+                  }
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

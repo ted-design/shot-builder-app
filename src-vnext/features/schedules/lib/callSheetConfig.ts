@@ -1,3 +1,10 @@
+import {
+  DEFAULT_CAST_SECTION,
+  DEFAULT_CREW_SECTION,
+  deserializeSectionFieldConfig,
+  serializeSectionFieldConfig,
+  type CallSheetSectionFieldConfig,
+} from "@/features/schedules/lib/fieldConfig"
 import type { CallSheetConfig, CallSheetSectionVisibility, ScheduleBlockFields, CallSheetColors, CallSheetHeaderLayout } from "@/features/schedules/components/CallSheetRenderer"
 
 type LegacySectionType =
@@ -48,6 +55,7 @@ export const DEFAULT_CALLSHEET_COLORS: Required<CallSheetColors> = {
 
 interface LegacyConfigExtended extends LegacyConfig {
   readonly headerLayout?: string
+  readonly fieldConfigs?: Record<string, unknown>
 }
 
 export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): CallSheetConfig {
@@ -94,11 +102,27 @@ export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): C
   const headerLayout: CallSheetHeaderLayout =
     rawHeaderLayout === "grid" ? "grid" : "legacy"
 
+  const rawFieldConfigs = legacy.fieldConfigs && typeof legacy.fieldConfigs === "object"
+    ? legacy.fieldConfigs as Record<string, unknown>
+    : {}
+
+  const fieldConfigs: Record<string, CallSheetSectionFieldConfig> = {
+    cast: deserializeSectionFieldConfig(
+      rawFieldConfigs.cast as Record<string, unknown> | null | undefined,
+      DEFAULT_CAST_SECTION,
+    ),
+    crew: deserializeSectionFieldConfig(
+      rawFieldConfigs.crew as Record<string, unknown> | null | undefined,
+      DEFAULT_CREW_SECTION,
+    ),
+  }
+
   return {
     sections,
     scheduleBlockFields,
     colors,
     headerLayout,
+    fieldConfigs,
   }
 }
 
@@ -188,5 +212,24 @@ export function mergeHeaderLayout(
   return {
     ...(existing ?? {}),
     headerLayout: layout,
+  }
+}
+
+export function mergeSectionFieldConfig(
+  existing: Record<string, unknown> | null,
+  sectionKey: string,
+  config: CallSheetSectionFieldConfig,
+): Record<string, unknown> {
+  const legacy = (existing ?? {}) as LegacyConfigExtended
+  const current = legacy.fieldConfigs && typeof legacy.fieldConfigs === "object"
+    ? legacy.fieldConfigs
+    : {}
+
+  return {
+    ...(existing ?? {}),
+    fieldConfigs: {
+      ...current,
+      [sectionKey]: serializeSectionFieldConfig(config),
+    },
   }
 }
