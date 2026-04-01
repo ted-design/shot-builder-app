@@ -131,32 +131,40 @@ Update docs at these checkpoints:
 
 ## Current State (as of 2026-04-01)
 
-### Branch: `vnext/s15-ux-overhaul` (10 commits ahead of main)
+### Branch: `main` (S15 + S16 merged via PR #376)
 
-### Completed (S15a-d):
+### Completed — Sprint S15 (UX Overhaul):
 - **S15a:** Batch shot delete, urgency badges (5-tier), page transitions (CSS)
 - **S15b:** Talent table view, locations table view, shot view consolidation (3→2)
 - **S15c:** Export PDF builder (block-based, 9 types, templates, variables, doc ops, persistence)
 - **S15d:** Call sheet section toggles, per-field customization, layout templates
+- **S15e:** Premium polish (hover-lift, btn-press, shimmer), product enrichment (Linked Shots tab), retroactive fixes
 
-### Remaining (S15e):
-- Image editing canvas (Canva/Figma-like for shot reference images)
-- Overall UX premium polish (hover states, micro-interactions)
-- Product section enrichment (version tracking, richer metadata)
+### Completed — Sprint S16 (Quality & Consistency):
+- **S16a:** Bug fixes (gender labels, HTML notes, checkbox layout, text overflow)
+- **S16b:** Shared components (ViewModeToggle, SearchBar, usePersistedViewMode) applied to all library pages
+- **S16c:** Interactive table system — 5/5 tables with column resize, visibility toggles (Saturation-style), drag reorder, keyboard nav
+- **S16d:** Consistency sweep — 8 review issues resolved
+- **S16e:** Shoot readiness: per-colorway selection, requirement status, gender badges, sort, project assignment indicators
+- **S16f:** Call sheet visual upgrade: typography tokens, full-bleed section bands, spacing tokens
+- **S16g:** Talent detail polish: headshot lightbox, spacing, overflow, tab bar
+
+### Deferred to S17:
+- Canvas image editor (multi-layer composition — Fabric.js or Konva.js evaluation needed)
+- Advanced call sheet (SetHero full feature parity)
+
+### Key Infrastructure Created:
+- `docs/DESIGN_SYSTEM.md` — **permanent enforcement document**, referenced from CLAUDE.md Hard Rule #3. READ BEFORE ANY UI WORK.
+- 9 new shared files: ViewModeToggle, SearchBar, usePersistedViewMode, TableColumnConfig, useTableColumns, useColumnResize, useTableKeyboardNav, ColumnSettingsPopover, ResizableHeader
+- 60+ new tests
 
 ### Research docs (all in `docs/research/`):
-- `saturation-export-builder.md` — Saturation's block-based PDF builder (exhaustive)
-- `sethero-callsheet.md` — SetHero's call sheet builder (exhaustive)
-- `kobolabs-plm.md` — KoboLabs PLM platform (828 lines)
+- `saturation-export-builder.md` — Saturation's block-based PDF builder
+- `sethero-callsheet.md` — SetHero's call sheet builder
+- `kobolabs-plm.md` — KoboLabs PLM platform
 - `internal-ux-audit.md` — Current app pain points with file paths + line numbers
 - `s15-action-plan.md` — Full prioritized plan with phases
-
-### Approved mockups (in `mockups/`):
-- `s15-quick-wins.html` — batch delete, urgency badges, transitions
-- `s15-view-improvements.html` — table views, view consolidation, SKU selection
-- `s15-export-builder.html` — 3-panel block-based PDF builder
-
-### Test baseline: 1427 passing, 212 new from S15
+- `s16-quality-plan.md` — Quality overhaul plan (7 phases)
 
 ---
 
