@@ -1,8 +1,17 @@
 import { useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
 import { toast } from "sonner"
-import type { BlockType, ExportDocument } from "../types/exportBuilder"
+import type {
+  BlockType,
+  ExportBlock,
+  ExportDocument,
+  ExportPage,
+} from "../types/exportBuilder"
+import { createBlock } from "../lib/blockDefaults"
+import { getDynamicVariables } from "../lib/exportVariables"
 import { BlockPalette } from "./BlockPalette"
+import { BlockSettingsPanel } from "./BlockSettingsPanel"
+import { DocumentPreview } from "./DocumentPreview"
 import { ExportTopBar } from "./ExportTopBar"
 
 const DEFAULT_DOCUMENT: ExportDocument = {
@@ -20,12 +29,91 @@ const DEFAULT_DOCUMENT: ExportDocument = {
 
 export default function ExportBuilderPage() {
   const { id: _projectId } = useParams<{ id: string }>()
-  const [selectedBlockId, _setSelectedBlockId] = useState<string | null>(null)
-  const [document] = useState<ExportDocument>(DEFAULT_DOCUMENT)
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
+  const [document, setDocument] = useState<ExportDocument>(DEFAULT_DOCUMENT)
+
+  const variables = getDynamicVariables({
+    projectName: "Sample Project",
+    clientName: "Unbound Merino",
+    shotCount: 24,
+    productCount: 12,
+    shootDates: ["2026-04-15", "2026-04-18"],
+  })
 
   const handleAddBlock = useCallback((type: BlockType) => {
-    toast.info(`Block "${type}" will be added — renderer not yet implemented.`)
+    const newBlock = createBlock(type)
+    setDocument((prev) => {
+      const targetPage = prev.pages[0]
+      if (!targetPage) return prev
+      const updatedPage: ExportPage = {
+        ...targetPage,
+        blocks: [...targetPage.blocks, newBlock],
+      }
+      return {
+        ...prev,
+        pages: [updatedPage, ...prev.pages.slice(1)],
+        updatedAt: new Date().toISOString(),
+      }
+    })
+    setSelectedBlockId(newBlock.id)
   }, [])
+
+  const handleAddTextBlock = useCallback((_pageId: string) => {
+    const newBlock = createBlock("text")
+    setDocument((prev) => {
+      const targetPage = prev.pages[0]
+      if (!targetPage) return prev
+      const updatedPage: ExportPage = {
+        ...targetPage,
+        blocks: [...targetPage.blocks, newBlock],
+      }
+      return {
+        ...prev,
+        pages: [updatedPage, ...prev.pages.slice(1)],
+        updatedAt: new Date().toISOString(),
+      }
+    })
+    setSelectedBlockId(newBlock.id)
+  }, [])
+
+  const handleSelectBlock = useCallback((blockId: string | null) => {
+    setSelectedBlockId(blockId)
+  }, [])
+
+  const handleUpdateBlock = useCallback(
+    (blockId: string, updates: Partial<ExportBlock>) => {
+      setDocument((prev) => ({
+        ...prev,
+        pages: prev.pages.map((page) => ({
+          ...page,
+          blocks: page.blocks.map((block) =>
+            block.id === blockId
+              ? ({ ...block, ...updates } as ExportBlock)
+              : block,
+          ),
+        })),
+        updatedAt: new Date().toISOString(),
+      }))
+    },
+    [],
+  )
+
+  const handleDeleteBlock = useCallback(
+    (blockId: string) => {
+      setDocument((prev) => ({
+        ...prev,
+        pages: prev.pages.map((page) => ({
+          ...page,
+          blocks: page.blocks.filter((block) => block.id !== blockId),
+        })),
+        updatedAt: new Date().toISOString(),
+      }))
+      if (selectedBlockId === blockId) {
+        setSelectedBlockId(null)
+      }
+    },
+    [selectedBlockId],
+  )
 
   const handleOpenTemplates = useCallback(() => {
     toast.info("Templates panel coming soon.")
@@ -43,6 +131,11 @@ export default function ExportBuilderPage() {
     toast.info("PDF export coming soon.")
   }, [])
 
+  const selectedBlock =
+    document.pages
+      .flatMap((p) => p.blocks)
+      .find((b) => b.id === selectedBlockId) ?? null
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <ExportTopBar
@@ -58,39 +151,20 @@ export default function ExportBuilderPage() {
         <BlockPalette onAddBlock={handleAddBlock} />
 
         {/* Center — Document Preview */}
-        <main className="flex flex-1 items-start justify-center overflow-y-auto bg-[var(--doc-canvas-bg)] p-8">
-          <div className="doc-page w-full max-w-[816px] min-h-[1056px]">
-            <div className="doc-page-content">
-              {document.pages[0]?.blocks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    Add blocks from the palette to build your document.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
+        <DocumentPreview
+          document={document}
+          selectedBlockId={selectedBlockId}
+          onSelectBlock={handleSelectBlock}
+          onAddTextBlock={handleAddTextBlock}
+          variables={variables}
+        />
 
         {/* Right — Block Settings */}
-        <aside className="flex w-[280px] shrink-0 flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)]">
-          {selectedBlockId ? (
-            <div className="p-4">
-              <h2 className="text-sm font-medium text-[var(--color-text)]">
-                Block Settings
-              </h2>
-              <p className="mt-1 text-2xs text-[var(--color-text-muted)]">
-                Configure the selected block.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-4">
-              <p className="text-2xs text-[var(--color-text-muted)] text-center">
-                Select a block to edit its settings.
-              </p>
-            </div>
-          )}
-        </aside>
+        <BlockSettingsPanel
+          block={selectedBlock}
+          onUpdateBlock={handleUpdateBlock}
+          onDeleteBlock={handleDeleteBlock}
+        />
       </div>
     </div>
   )
