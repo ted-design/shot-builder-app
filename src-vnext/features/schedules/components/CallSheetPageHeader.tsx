@@ -64,7 +64,7 @@ export function CallSheetPageHeader({
         </div>
 
         {/* CENTER ZONE */}
-        <div className="callsheet-header-zone callsheet-header-zone--center">
+        <div className="callsheet-header-zone callsheet-header-zone--center bg-[var(--color-surface-subtle)]">
           {crewCallFormatted && (
             <>
               <div className="callsheet-header-crew-call">{crewCallFormatted}</div>
