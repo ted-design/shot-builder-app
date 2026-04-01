@@ -99,7 +99,7 @@ export function useShotListState(params: {
   const talentParam = searchParams.get("talent") ?? ""
   const locationParam = searchParams.get("location") ?? ""
   const productParam = searchParams.get("product") ?? ""
-  const viewParam = (searchParams.get("view") as ViewMode) || null
+  const viewParam = searchParams.get("view") ?? null
   const groupParam = (searchParams.get("group") as GroupKey) || null
 
   // -- Parsed filter sets --
@@ -174,21 +174,26 @@ export function useShotListState(params: {
   }, [fields, storageKeyBase])
 
   const storedDefaultView = useMemo((): ViewMode => {
-    if (!storageKeyBase) return "gallery"
+    if (!storageKeyBase) return "card"
     try {
       const raw = window.localStorage.getItem(`${storageKeyBase}:view:v1`)
-      return raw === "table" || raw === "gallery" || raw === "visual" ? raw : "gallery"
+      // Backward compat: "gallery" and "visual" both migrate to "card"
+      if (raw === "gallery" || raw === "visual") return "card"
+      return raw === "table" ? "table" : "card"
     } catch {
-      return "gallery"
+      return "card"
     }
   }, [storageKeyBase])
 
   // -- Derived view/group --
   const viewMode: ViewMode = isMobile
-    ? "gallery"
-    : viewParam === "table" || viewParam === "gallery" || viewParam === "visual"
-      ? viewParam
-      : storedDefaultView
+    ? "card"
+    : viewParam === "table"
+      ? "table"
+      // Backward compat: "gallery" and "visual" URL params map to "card"
+      : viewParam === "card" || viewParam === "gallery" || viewParam === "visual"
+        ? "card"
+        : storedDefaultView
 
   const groupKey: GroupKey = isMobile
     ? "none"

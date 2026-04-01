@@ -22,6 +22,7 @@ export type NavItemIcon =
   | "settings"
   | "shield-check"
   | "tag"
+  | "file-output"
 
 export type SurfaceBadge = "Limited" | "Reader" | "Editor"
 
@@ -109,6 +110,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       {
         type: "item",
         item: { label: "Call Sheet", to: `${prefix}/callsheet`, iconName: "calendar-days", desktopOnly: true },
+      },
+      {
+        type: "item",
+        item: { label: "Export", to: `${prefix}/export`, iconName: "file-output", desktopOnly: true },
       },
       {
         type: "item",

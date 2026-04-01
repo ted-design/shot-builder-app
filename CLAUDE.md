@@ -14,6 +14,7 @@ This file governs all Claude Code work in the vNext worktree. Follow these rules
 | `Plan.md` | Multi-phase plan with sub-task checkboxes (this IS the todo tracker) |
 | `Architecture.md` | Tech stack, module structure, routes, data model, auth/RBAC, design system, component inventory, performance budgets, security checklist |
 | `AI_RULES.md` | Decision framework, code standards, testing, implementation patterns (three-panel, visual, dark mode, permissions), context management |
+| `docs/DESIGN_SYSTEM.md` | **UI component patterns, color tokens, typography, shared components, view toggles, tables, spacing. READ BEFORE ANY UI WORK.** |
 | `MEMORY.md` | Persistent cross-session memory: error patterns, phase summaries, user preferences |
 
 **`docs-vnext/` is supplementary engineering reference** — slice specs, sprint proofs, and design details. When `docs-vnext/` conflicts with root docs, root docs win.
@@ -41,6 +42,7 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 
 ### 3. Design-First, Reuse-First
 
+- **Read `docs/DESIGN_SYSTEM.md` before writing any UI code.** It codifies every shared component, color token, typography class, view toggle pattern, table pattern, and spacing standard. Violations found in code review must be fixed before merge.
 - Use shadcn/ui (Radix) as the primitive layer. Do not create custom primitives.
 - `tokens.css` is the single source of design truth. All color, spacing, and typography values come from tokens.
 - `src-vnext/styles/design-tokens.js` provides semantic Tailwind classes (`.heading-page`, `.heading-section`, `.heading-subsection`, `.label-meta`, `.body-text`, `.caption`, etc.). Prefer these over ad-hoc class combinations.
@@ -122,6 +124,16 @@ Phase order is the default. Override when reality demands it:
 - **Onboarding blockers take priority.** If real users cannot sign in, get roles assigned, or access core workflows, fix that before continuing feature work. Check PRD.md's MUST-HAVE list — anything there that's missing from Plan.md is a candidate for an override sprint.
 - **On resume, ask:** "Can a new team member use this app today?" If no, the blocker is the next task — regardless of what Plan.md says is next.
 - **Override protocol:** (1) identify the blocker, (2) discuss with user, (3) add an override sprint to Plan.md before the next planned phase, (4) document rationale in MEMORY.md.
+
+### 9. Sprint S15 New Infrastructure
+
+- **Export Builder route:** `/projects/:id/export` (desktop-only, RequireDesktop). Block-based PDF composition with 9 block types, template system, variable tokens, document operations. All code in `src-vnext/features/export/`. Uses `@react-pdf/renderer` (already a dependency). Templates stored in localStorage (`sb:export-templates`, `sb:export-doc:{projectId}`).
+- **Shoot urgency system:** `src-vnext/features/products/lib/shootUrgency.ts` — 5-tier time-based urgency (OVERDUE/URGENT/SOON/UPCOMING/UNSCHEDULED) alongside existing confidence system. Overdue products sort first in readiness widget.
+- **Page transitions:** CSS-only `fade-in-rise` keyframes in `tokens.css`, `PageTransition` wrapper in `AppShell.tsx`. Respects `prefers-reduced-motion`. No framer-motion dependency.
+- **View consolidation:** Shot ViewMode narrowed from `"gallery"|"visual"|"table"` to `"card"|"table"`. Old localStorage values auto-migrate. `ShotVisualCard.tsx` deleted.
+- **Library table views:** `TalentTable.tsx` and `LocationsTable.tsx` with sortable columns, Grid/Table and List/Table toggles. Persist to localStorage (`sb:talent-view`, `sb:locations-view`).
+- **Call sheet improvements:** Section toggles (show/hide via Switch), per-field customization (`EditSectionFieldsDialog` with rename/reorder/resize/toggle), layout templates (3 built-in + user-saved via `CallSheetLayoutDialog`). Field configs persist to Firestore via `callSheetConfig`.
+- **Bulk shot delete:** `bulkSoftDeleteShots()` in `shotLifecycleActions.ts`. Uses `writeBatch` chunked at 250, capped at `MAX_BULK_DELETE=500`. Typed "DELETE" confirmation dialog in `ShotListPage.tsx` bulk action bar.
 
 ## Legacy Codebase Context
 

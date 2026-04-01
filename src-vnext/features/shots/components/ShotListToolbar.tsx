@@ -17,7 +17,6 @@ import {
   Eye,
   LayoutGrid,
   Table2,
-  Image as ImageIcon,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -155,9 +154,8 @@ export function ShotListToolbar({
       {!isMobile && (
         <div className="ml-auto flex items-center gap-1">
           {([
-            { mode: "gallery" as const, icon: LayoutGrid, label: "Gallery view", hint: "1" },
-            { mode: "visual" as const, icon: ImageIcon, label: "Visual view", hint: "2" },
-            { mode: "table" as const, icon: Table2, label: "Table view", hint: "3" },
+            { mode: "card" as const, icon: LayoutGrid, label: "Card view", hint: "1" },
+            { mode: "table" as const, icon: Table2, label: "Table view", hint: "2" },
           ] as const).map(({ mode, icon: Icon, label, hint }) => (
             <Button
               key={mode}

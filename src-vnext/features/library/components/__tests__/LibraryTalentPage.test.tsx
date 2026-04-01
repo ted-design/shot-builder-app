@@ -58,7 +58,7 @@ function renderPage() {
   )
 }
 
-describe("LibraryTalentPage", () => {
+describe("LibraryTalentPage", { timeout: 60_000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

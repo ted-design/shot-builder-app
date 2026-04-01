@@ -19,8 +19,10 @@ Production Hub is the production planning tool for fashion and commercial photog
 | **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox, create project from request | 7A-7E, S1-S5b, 8, 8.5 | **COMPLETE** |
 | **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
 | **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 + 10R | **COMPLETE** |
+| **Polish** | UX overhaul (competitive parity), export builder, call sheet improvements, interactive tables, design system enforcement | S15, S16 | **COMPLETE** |
+| **Planned** | Canvas image editor (multi-layer composition — Fabric.js or Konva.js), advanced call sheet (SetHero feature parity) | S17+ | Backlog |
 
-The "Now" tier is complete — Production Hub is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence — expanded asset types (6 canonical + Other + 3 legacy), 5-state flags (including AI Generated), chip-based progressive disclosure, per-colorway launch dates with family inheritance, identity images in Colorways with inline editing, Assets→Files rename, and a 3-tier dashboard shoot readiness widget with scheduling suggestions and confidence indicators.
+The "Now" tier is complete — Production Hub is a full production workspace with admin onboarding, library CRUD, mobile operations, visual polish, a shot request inbox for structured creative brief intake, and the ability to create new projects directly from requests. The "Next" tier expands it into a team-facing platform with casting intelligence. The "Future" tier adds supply-chain intelligence. The "Polish" tier (S15-S16) delivers competitive-grade UX: block-based export PDF builder, interactive table system (Saturation-grade column resize/visibility/reorder/keyboard nav), unified shared components (ViewModeToggle, SearchBar), per-colorway shoot readiness selection, call sheet typography/section band upgrade, and a formal `docs/DESIGN_SYSTEM.md` enforcement document.
 
 ---
 
@@ -206,7 +208,8 @@ Every shot progresses through four statuses. These labels are canonical across a
 | **Shipped** | Casting engine (measurement search, auto-match, shot history) | Shipped (Phase 9) |
 | **Shipped** | Asset requirements & PLM (asset flags, launch dates, samples, shoot readiness) | Shipped (Phase 10) |
 | **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, board column reorder + show/hide | Largely shipped; notifications + board config outstanding |
-| **Nice-to-Have** | PDF export, CSV import/export, color palette/swatches, department management, demo mode | PDF shipped; others outstanding |
+| **Shipped** | UX overhaul: batch shot delete, time-based urgency badges, page transitions, talent/location table views, shot view consolidation, block-based export builder, call sheet section toggles + field customization + layout templates | Shipped (Sprint S15a-d) |
+| **Nice-to-Have** | PDF export enhancements, CSV import/export, color palette/swatches, department management, demo mode | Block-based export builder shipped (S15c); legacy PDF export still available |
 | **Cut / Simplify** | Planner/drag-and-drop board (users don't use it), advanced theming, deep versioning UI, offline writes, V2/V3 parallel surfaces | Cut / consolidated (Phase 7E) |
 | **Future Wishlist** | Client-facing portal (TOP), reporting/analytics, AI-assisted planning, post-shoot asset management | Not started |
 

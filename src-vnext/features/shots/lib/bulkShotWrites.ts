@@ -124,13 +124,21 @@ export async function bulkCreateShotsFromProducts(
       const globalIndex = chunkIndex * BATCH_CHUNK_SIZE + i
       const shotNum = startingNumber + globalIndex
       const docRef = doc(colRef)
+      const assignment = buildProductAssignment(item)
+      const defaultLook = {
+        id: crypto.randomUUID(),
+        label: "Look 1",
+        order: 0,
+        products: [assignment],
+      }
 
       batch.set(docRef, {
         title: buildShotTitle(item),
         projectId,
         clientId,
         status: "todo",
-        products: [buildProductAssignment(item)],
+        products: [assignment],
+        looks: [defaultLook],
         talent: [],
         sortOrder: now + globalIndex,
         shotNumber: formatShotNumber(shotNum),

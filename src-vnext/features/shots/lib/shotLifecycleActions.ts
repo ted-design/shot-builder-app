@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore"
+import { addDoc, collection, doc, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotPath, shotsPath } from "@/shared/lib/paths"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
@@ -236,5 +236,46 @@ export async function softDeleteShot(args: SoftDeleteShotArgs): Promise<void> {
     updatedAt: serverTimestamp(),
     ...(user?.uid ? { updatedBy: user.uid } : {}),
   })
+}
+
+/** Maximum documents per Firestore WriteBatch (limit is 500; 250 for safety). */
+const BULK_CHUNK_SIZE = 250
+const MAX_BULK_DELETE = 500
+
+interface BulkSoftDeleteShotsArgs {
+  readonly clientId: string
+  readonly shotIds: readonly string[]
+  readonly user: AuthUser | null
+}
+
+export async function bulkSoftDeleteShots(args: BulkSoftDeleteShotsArgs): Promise<void> {
+  const { clientId, shotIds, user } = args
+
+  if (shotIds.length === 0) return
+  if (shotIds.length > MAX_BULK_DELETE) {
+    throw new Error(`Cannot delete more than ${MAX_BULK_DELETE} shots at once.`)
+  }
+
+  const chunks: string[][] = []
+  for (let i = 0; i < shotIds.length; i += BULK_CHUNK_SIZE) {
+    chunks.push(shotIds.slice(i, i + BULK_CHUNK_SIZE))
+  }
+
+  for (const chunk of chunks) {
+    const batch = writeBatch(db)
+
+    for (const shotId of chunk) {
+      const path = shotPath(shotId, clientId)
+      const ref = doc(db, path[0]!, ...path.slice(1))
+      batch.update(ref, {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ...(user?.uid ? { updatedBy: user.uid } : {}),
+      })
+    }
+
+    await batch.commit()
+  }
 }
 

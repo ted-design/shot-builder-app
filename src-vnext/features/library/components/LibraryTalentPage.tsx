@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Users, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Users, Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, Table2 } from "lucide-react"
+import { ViewModeToggle } from "@/shared/components/ViewModeToggle"
+import { SearchBar } from "@/shared/components/SearchBar"
+import { usePersistedViewMode } from "@/shared/hooks/usePersistedViewMode"
 import {
   PointerSensor,
   KeyboardSensor,
@@ -15,7 +18,6 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
-import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -53,6 +55,14 @@ import { TalentDialogCluster } from "@/features/library/components/TalentDialogs
 import type { CastingBrief, TalentMatchResult } from "@/features/library/lib/castingMatch"
 import { EMPTY_CASTING_BRIEF, rankTalentForBrief } from "@/features/library/lib/castingMatch"
 import { CastingBriefPanel, CastingModeButton, ScoreBadge } from "@/features/library/components/CastingBriefPanel"
+import { TalentTable } from "@/features/library/components/TalentTable"
+
+const TALENT_VIEW_MODES = ["grid", "table"] as const
+
+const TALENT_VIEW_OPTIONS = [
+  { key: "grid", icon: LayoutGrid, label: "Grid view" },
+  { key: "table", icon: Table2, label: "Table view" },
+] as const
 
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
@@ -67,6 +77,7 @@ export default function LibraryTalentPage() {
   const [filters, setFilters] = useState<TalentSearchFilters>(EMPTY_TALENT_FILTERS)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"detail" | "history">("detail")
+  const [viewMode, setViewMode] = usePersistedViewMode("sb:talent-view", "grid", TALENT_VIEW_MODES)
   const [castingBrief, setCastingBrief] = useState<CastingBrief>(EMPTY_CASTING_BRIEF)
   const [castingPanelOpen, setCastingPanelOpen] = useState(false)
 
@@ -547,17 +558,21 @@ export default function LibraryTalentPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <div className="max-w-md flex-1">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search talent…"
-              />
-            </div>
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              placeholder="Search talent…"
+              className="max-w-sm flex-1"
+            />
             <TalentFilterToolbar
               filters={filters}
               onFiltersChange={handleFiltersChange}
               onOpenSheet={() => setFilterSheetOpen(true)}
+            />
+            <ViewModeToggle
+              modes={TALENT_VIEW_OPTIONS}
+              activeMode={viewMode}
+              onChange={(mode) => setViewMode(mode as "grid" | "table")}
             />
             <CastingModeButton
               active={castingPanelOpen}
@@ -587,47 +602,57 @@ export default function LibraryTalentPage() {
             />
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {displayTalent.map((t) => {
-                  const isSelected = selectedId === t.id
-                  const score = castingMode ? castingScoreMap.get(t.id) : undefined
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedId((prev) => (prev === t.id ? null : t.id))
-                        setActiveTab("detail")
-                      }}
-                      className={`relative rounded-md border p-3 text-left transition-[colors,box-shadow] ${
-                        isSelected
-                          ? "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
-                          : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
-                      }`}
-                    >
-                      {score !== undefined ? <ScoreBadge score={score} /> : null}
-                      <div className="flex items-center gap-3">
-                        <HeadshotThumb talent={t} />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-[var(--color-text)]">
-                            {buildDisplayName(t)}
+              {viewMode === "table" ? (
+                <TalentTable
+                  talent={displayTalent}
+                  selectedId={selectedId}
+                  onSelect={(id) => {
+                    setSelectedId((prev) => (prev === id ? null : id))
+                    setActiveTab("detail")
+                  }}
+                />
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {displayTalent.map((t) => {
+                    const isSelected = selectedId === t.id
+                    const score = castingMode ? castingScoreMap.get(t.id) : undefined
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedId((prev) => (prev === t.id ? null : t.id))
+                          setActiveTab("detail")
+                        }}
+                        className={`relative rounded-md border p-3 text-left transition-[colors,box-shadow] ${
+                          isSelected
+                            ? "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
+                            : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
+                        }`}
+                      >
+                        {score !== undefined ? <ScoreBadge score={score} /> : null}
+                        <div className="flex items-center gap-3">
+                          <HeadshotThumb talent={t} />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-[var(--color-text)]">
+                              {buildDisplayName(t)}
+                            </div>
+                            {t.agency ? (
+                              <div className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
+                                {t.agency}
+                              </div>
+                            ) : (
+                              <div className="mt-1 text-xs text-[var(--color-text-muted)]">
+                                —
+                              </div>
+                            )}
                           </div>
-                          {t.agency ? (
-                            <div className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-                              {t.agency}
-                            </div>
-                          ) : (
-                            <div className="mt-1 text-xs text-[var(--color-text-muted)]">
-                              —
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>

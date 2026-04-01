@@ -6,9 +6,11 @@ import { upsertCallSheetConfig } from "@/features/schedules/lib/scheduleWrites"
 import {
   mergeLegacyColors,
   mergeLegacyScheduleBlockFields,
+  mergeSectionFieldConfig,
   normalizeCallSheetConfig,
   upsertLegacySectionVisibility,
 } from "@/features/schedules/lib/callSheetConfig"
+import type { CallSheetSectionFieldConfig } from "@/features/schedules/lib/fieldConfig"
 import type {
   CallSheetColors,
   CallSheetConfig,
@@ -102,6 +104,22 @@ export function useCallSheetConfig(
     [clientId, projectId, scheduleId],
   )
 
+  const setSectionFieldConfig = useCallback(
+    async (sectionKey: string, sectionConfig: CallSheetSectionFieldConfig) => {
+      if (!clientId || !scheduleId) return
+      try {
+        const merged = mergeSectionFieldConfig(raw, sectionKey, sectionConfig)
+        await upsertCallSheetConfig(clientId, projectId, scheduleId, {
+          fieldConfigs: merged.fieldConfigs,
+        })
+      } catch (err) {
+        toast.error("Failed to save field configuration.")
+        throw err
+      }
+    },
+    [clientId, projectId, scheduleId, raw],
+  )
+
   return {
     raw,
     config,
@@ -111,6 +129,7 @@ export function useCallSheetConfig(
     setScheduleBlockFields,
     setColors,
     setHeaderLayout,
+    setSectionFieldConfig,
   }
 }
 

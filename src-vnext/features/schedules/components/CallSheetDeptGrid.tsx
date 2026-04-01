@@ -1,11 +1,19 @@
 import { useMemo } from "react"
 import { formatHHMMTo12h } from "@/features/schedules/lib/time"
+import {
+  DEFAULT_CREW_SECTION,
+  FIELD_WIDTH_MAP,
+  getVisibleFields,
+  type CallSheetFieldConfig,
+  type CallSheetSectionFieldConfig,
+} from "@/features/schedules/lib/fieldConfig"
 import type { CrewCallSheet, CrewRecord, DayDetails } from "@/shared/types"
 
 interface CallSheetDeptGridProps {
   readonly crewCalls: readonly CrewCallSheet[]
   readonly crewLookup: readonly CrewRecord[]
   readonly dayDetails: DayDetails | null
+  readonly fieldConfig?: CallSheetSectionFieldConfig
 }
 
 interface DeptGroup {
@@ -54,7 +62,13 @@ function groupByDepartment(
   return groups.sort((a, b) => a.department.localeCompare(b.department))
 }
 
-function DeptBlock({ group, totalCount }: { readonly group: DeptGroup; readonly totalCount: number }) {
+function DeptBlock({
+  group,
+  visibleFields,
+}: {
+  readonly group: DeptGroup
+  readonly visibleFields: readonly CallSheetFieldConfig[]
+}) {
   return (
     <div className="callsheet-dept-block">
       <div className="callsheet-dept-header">
@@ -64,19 +78,35 @@ function DeptBlock({ group, totalCount }: { readonly group: DeptGroup; readonly 
       <table className="callsheet-cs-table">
         <thead>
           <tr>
-            <th style={{ width: "40%" }}>Position</th>
-            <th style={{ width: "46%" }}>Name</th>
-            <th style={{ width: "14%" }} className="text-right">Call</th>
+            {visibleFields.map((field) => (
+              <th
+                key={field.key}
+                style={{ width: FIELD_WIDTH_MAP[field.width] }}
+                className={field.key === "callTime" ? "text-right" : undefined}
+              >
+                {field.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {group.members.map((member, idx) => (
-            <tr key={member.id} className={idx % 2 === 1 ? "callsheet-row-even" : "callsheet-row-odd"}>
-              <td>{member.position || "\u2014"}</td>
-              <td style={{ fontWeight: 500 }}>{member.name}</td>
-              <td className="text-right" style={{ fontWeight: 600 }}>{member.callTime}</td>
-            </tr>
-          ))}
+          {group.members.map((member, idx) => {
+            const cellValues: Record<string, React.ReactNode> = {
+              position: <td key="position">{member.position || "\u2014"}</td>,
+              name: <td key="name" style={{ fontWeight: 500 }}>{member.name}</td>,
+              callTime: (
+                <td key="callTime" className="text-right" style={{ fontWeight: 600 }}>
+                  {member.callTime}
+                </td>
+              ),
+            }
+
+            return (
+              <tr key={member.id} className={idx % 2 === 1 ? "callsheet-row-even" : "callsheet-row-odd"}>
+                {visibleFields.map((field) => cellValues[field.key] ?? <td key={field.key}>{"\u2014"}</td>)}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -85,15 +115,16 @@ function DeptBlock({ group, totalCount }: { readonly group: DeptGroup; readonly 
 
 /**
  * Crew grid grouped by department with editorial section labels.
- * Light gray table headers (not black full-bleed bands per S7-7 spec).
- * Department blocks use dark header rows for visual grouping.
- * Print-safe: each dept block avoids page breaks inside.
+ * Supports per-field customization: rename, reorder, resize, toggle visibility.
  */
 export function CallSheetDeptGrid({
   crewCalls,
   crewLookup,
   dayDetails,
+  fieldConfig,
 }: CallSheetDeptGridProps) {
+  const config = fieldConfig ?? DEFAULT_CREW_SECTION
+
   const crewMap = useMemo(() => {
     const m = new Map<string, CrewRecord>()
     for (const c of crewLookup) m.set(c.id, c)
@@ -105,7 +136,7 @@ export function CallSheetDeptGrid({
     [crewCalls, crewMap, dayDetails],
   )
 
-  const totalCount = crewCalls.length
+  const visibleFields = useMemo(() => getVisibleFields(config.fields), [config.fields])
 
   if (groups.length === 0) {
     return (
@@ -118,7 +149,11 @@ export function CallSheetDeptGrid({
   return (
     <div className="callsheet-crew-grid">
       {groups.map((group) => (
-        <DeptBlock key={group.department} group={group} totalCount={totalCount} />
+        <DeptBlock
+          key={group.department}
+          group={group}
+          visibleFields={visibleFields}
+        />
       ))}
     </div>
   )

@@ -121,22 +121,7 @@ export function ShotListDisplaySheet({
             </div>
           )}
 
-          {viewMode === "visual" ? (
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Visual View
-              </div>
-              <div className="space-y-2">
-                <FieldToggle label="Shot number" checked={fields.shotNumber} onToggle={() => toggle("shotNumber")} />
-                <FieldToggle label="Tags" checked={fields.tags} onToggle={() => toggle("tags")} />
-                <FieldToggle label="Notes" checked={fields.notes} onToggle={() => toggle("notes")} />
-                <FieldToggle label="Reference links" checked={fields.links} onToggle={() => toggle("links")} />
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Visual view always shows the hero image.
-                </p>
-              </div>
-            </div>
-          ) : viewMode === "table" ? (
+          {viewMode === "table" ? (
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                 Table Columns

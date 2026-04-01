@@ -1041,6 +1041,116 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S15: UX Overhaul & Competitive Parity
+
+**Goal:** Address user-reported UX friction across multiple surfaces, informed by competitive analysis of Saturation (export builder), SetHero (call sheet), and KoboLabs (PLM). Ship quick wins first, then bigger redesigns.
+
+**Status:** S15a + S15b COMPLETE. S15c-e pending.
+
+**Research:** 4 competitive/internal audit docs in `docs/research/`. Action plan in `docs/research/s15-action-plan.md`. 3 HTML mockups approved in `mockups/s15-*.html`.
+
+### S15a: Quick Wins (commit 78a5742)
+
+- [x] **S15a-1: Shot batch delete** — `bulkSoftDeleteShots()` with writeBatch (250-chunk, 500 cap), red Delete button in bulk action bar, typed "DELETE" confirmation dialog. 5 tests.
+- [x] **S15a-2: Urgency badges** — `getShootUrgency()` replaces misleading Low/Medium/High with OVERDUE/URGENT/SOON/UPCOMING/UNSCHEDULED. Overdue products now surface first. Token colors. 37 tests.
+- [x] **S15a-3: Page transitions** — CSS-only `fade-in-rise` (200ms ease-out) via PageTransition wrapper. `prefers-reduced-motion` respected. No new deps. 2 tests.
+
+### S15b: View Improvements (commit 8426960)
+
+- [x] **S15b-1: Talent table view** — `TalentTable.tsx` with sortable columns (name, gender, agency, height, measurements, projects). Grid/Table toggle, localStorage persistence. 7 tests.
+- [x] **S15b-2: Locations table view** — `LocationsTable.tsx` with sortable columns (name, address, city, contact, projects). List/Table toggle, localStorage persistence. 8 tests.
+- [x] **S15b-4: Shot view consolidation** — Gallery+Visual merged into Card. ViewMode: "card"|"table". Shortcuts: 1=Card, 2=Table. Old localStorage migrated. ShotVisualCard no longer rendered.
+
+### S15c: Export Builder Redesign (pending)
+
+- [ ] **S15c-1: Block model** — Block types (Text, Image, ShotGrid, ShotDetail, ProductTable, Divider, PageBreak), document model
+- [ ] **S15c-2: Builder UI** — 3-panel layout (block palette, WYSIWYG preview, block settings)
+- [ ] **S15c-3: Template system** — Built-in + user-saved templates
+- [ ] **S15c-4: Variable system** — Dynamic tokens (project name, dates, page numbers)
+- [ ] **S15c-5: Data blocks** — ShotGrid and ProductTable pull live data with column toggles
+
+### S15d: Call Sheet Improvements (commit 6f0184c)
+
+- [x] **S15d-1: Section toggles** — Each section (header, schedule, talent, crew, notes) toggleable via Switch controls. Toggled-off sections omitted from preview and print.
+- [x] **S15d-2: Per-field customization** — EditSectionFieldsDialog per section: rename, reorder, resize (XS/S/M/L), toggle columns. Applied to Cast/Talent and Crew. Persisted to Firestore.
+- [x] **S15d-3: Layout templates** — CallSheetLayoutDialog with 3 built-in presets (Full, Compact, Crew Only) + user-saved layouts in localStorage. 41 new tests.
+
+### S15e: Premium Polish
+
+- [x] **S15e-0: Retroactive fixes** — Talent table split Bust/Waist/Hips columns, Select All in bulk bar, wider export preview (960px)
+- [x] **S15e-1: UX polish** — hover-lift, btn-press, shimmer, stagger-children CSS utilities. Applied to ShotCard, ProjectCard, all Button variants. prefers-reduced-motion respected.
+- [x] **S15e-2: Product enrichment** — Linked Shots tab on ProductDetailPage (grouped by project, status badges, navigation). Last modified indicator on product header. useLinkedShots hook with client-side filtering. 7 new tests.
+- [ ] **S15e-3: Image editing canvas** — Deferred to S16. User wants full Canva/Figma-like canvas editor (multi-image, layers, text, shapes, effects), not simple crop. Requires Fabric.js or Konva.js evaluation.
+
+### Acceptance Criteria (S15a+b)
+
+- [x] Batch delete: select shots → Delete → typed confirmation → soft-deleted → toast
+- [x] Urgency: overdue products show red OVERDUE badge, not "Low" confidence
+- [x] Transitions: page changes fade in smoothly (200ms)
+- [x] Talent: Grid/Table toggle with sortable columnar view
+- [x] Locations: List/Table toggle with sortable columnar view
+- [x] Views: 2 modes (Card + Table) instead of 3 (Gallery + Visual + Table)
+- [x] 1274 tests passing, build clean, lint zero warnings
+
+---
+
+## Sprint S16: Quality & Consistency Overhaul
+
+**Goal:** System-level visual consistency, interactive tables, design system enforcement. Driven by live UX audit identifying 5 different view toggle implementations, 4 notes patterns, hardcoded colors, and tables far below Saturation benchmark.
+
+**Status:** COMPLETE.
+
+### S16a: Critical Bug Fixes
+- [x] Gender labels "women"/"men" → proper Male/Female mapping
+- [x] Raw HTML in talent notes → SanitizedHtml rendering
+- [x] Checkbox/label overlap → flex layout
+- [x] [object Object] in measurements → handle nested objects
+- [x] URL display as link component (not raw text)
+
+### S16b: Shared Component Extraction
+- [x] ViewModeToggle — unified toggle (Button variant=default/outline), applied to 4 pages
+- [x] SearchBar — consistent search with icon + clear, applied to 4 pages
+- [x] usePersistedViewMode — useSyncExternalStore + localStorage
+- [x] 11 new tests
+
+### S16c: Interactive Table System (Saturation-Grade)
+- [x] Shared infrastructure: TableColumnConfig, useTableColumns, useColumnResize, useTableKeyboardNav, ColumnSettingsPopover (eye icons + drag handles), ResizableHeader. 19 tests.
+- [x] ProductFamiliesTable migrated
+- [x] LocationsTable migrated (sort preserved)
+- [x] TalentTable migrated (8 columns, mobile-hidden handling)
+- [x] ShotsTable migrated (bridge pattern — preserves selection + inline editing)
+- [x] CallSheetCastTable migrated (resize + keyboard nav)
+
+### S16d: Consistency Sweep
+- [x] ViewModeToggle type="button"
+- [x] ShootReadinessWidget: raw checkbox → Radix Checkbox + WCAG fix
+- [x] usePersistedViewMode write validation
+- [x] TalentDetailPanel: URL link for editors, containsHtml to textUtils, text/gap fixes
+
+### S16e: Shoot Readiness Enhancement
+- [x] Expandable per-colorway selection with SKU checkboxes
+- [x] Per-SKU requirement status badges (N needed / Done / No requirements)
+- [x] Gender badges on product families
+- [x] Sort dropdown (urgency / name / launch date)
+
+### S16f: Call Sheet Visual Upgrade
+- [x] Typography: 16 hardcoded px sizes → CSS variable tokens
+- [x] Section headers: full-bleed dark bands (SetHero-inspired)
+- [x] Spacing: hardcoded px → --space-* token references
+- [x] Crew call time: center zone background tint
+
+### S16g: Talent Detail Polish
+- [x] Headshot: 80px → 112px, click-to-enlarge lightbox dialog
+- [x] Spacing: all grids unified to gap-4
+- [x] Overflow: name + project pill truncation with tooltips
+- [x] Tab bar: -mb-px active border overlap
+
+### Design System Enforcement
+- [x] `docs/DESIGN_SYSTEM.md` created — typography, colors, shared components, table patterns, spacing
+- [x] Referenced from CLAUDE.md Hard Rule #3 — mandatory read before any UI work
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

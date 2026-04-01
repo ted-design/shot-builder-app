@@ -146,7 +146,7 @@ export function ShotCard({
 
   return (
     <Card
-      className="cursor-pointer transition-shadow hover:shadow-sm"
+      className="cursor-pointer hover-lift"
       onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">

@@ -41,6 +41,9 @@ const WarehousePickGuidePage = lazy(
 const CallSheetBuilderPage = lazy(
   () => import("@/features/schedules/components/CallSheetBuilderPage"),
 )
+const ExportBuilderPage = lazy(
+  () => import("@/features/export/components/ExportBuilderPage"),
+)
 const OnSetViewerPage = lazy(
   () => import("@/features/schedules/components/OnSetViewerPage"),
 )
@@ -186,6 +189,16 @@ export function AppRoutes() {
               <ProjectScopeProvider>
                 <RequireDesktop label="Call sheets">
                   <CallSheetBuilderPage />
+                </RequireDesktop>
+              </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="projects/:id/export"
+            element={
+              <ProjectScopeProvider>
+                <RequireDesktop label="Export builder">
+                  <ExportBuilderPage />
                 </RequireDesktop>
               </ProjectScopeProvider>
             }

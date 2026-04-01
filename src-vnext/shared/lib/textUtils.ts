@@ -18,6 +18,11 @@ export function humanizeLabel(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/** Check if a string contains HTML tags */
+export function containsHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text)
+}
+
 /** Parse comma-separated string into trimmed non-empty array */
 export function parseCsvList(value: string): string[] {
   return value

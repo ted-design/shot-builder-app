@@ -189,4 +189,34 @@ describe("bulkCreateShotsFromProducts", () => {
     const result = await bulkCreateShotsFromProducts(makeInput({ items }))
     expect(result).toEqual({ created: 500 })
   })
+
+  it("created shot includes a default look with the product", async () => {
+    const items = [
+      {
+        familyId: "fam1",
+        familyName: "Classic Tee",
+        skuId: "sku1",
+        skuName: "Black",
+      },
+    ]
+    await bulkCreateShotsFromProducts(makeInput({ items }))
+    const docData = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
+    const looks = docData["looks"] as Array<Record<string, unknown>>
+    expect(looks).toHaveLength(1)
+
+    const look = looks[0]!
+    expect(typeof look["id"]).toBe("string")
+    expect((look["id"] as string).length).toBeGreaterThan(0)
+    expect(look["label"]).toBe("Look 1")
+    expect(look["order"]).toBe(0)
+
+    const lookProducts = look["products"] as Array<Record<string, unknown>>
+    expect(lookProducts).toHaveLength(1)
+    expect(lookProducts[0]!["familyId"]).toBe("fam1")
+
+    // Root products should match look products
+    const rootProducts = docData["products"] as Array<Record<string, unknown>>
+    expect(rootProducts).toHaveLength(1)
+    expect(rootProducts[0]!["familyId"]).toBe("fam1")
+  })
 })

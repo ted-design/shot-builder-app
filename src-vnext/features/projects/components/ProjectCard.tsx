@@ -52,7 +52,7 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
 
   return (
     <Card
-      className="cursor-pointer transition-shadow hover:shadow-md"
+      className="cursor-pointer hover-lift"
       onClick={navigateToProject}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">

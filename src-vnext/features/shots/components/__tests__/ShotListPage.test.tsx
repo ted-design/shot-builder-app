@@ -137,21 +137,18 @@ describe("ShotListPage", () => {
     expect(screen.getByRole("button", { name: "Shot actions" })).toBeInTheDocument()
   })
 
-  it("renders visual view when view=visual", () => {
+  it("renders card view when view=visual (backward compat)", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeShot({ id: "a", title: "Alpha", status: "todo" })],
       loading: false,
       error: null,
     })
 
+    // Old "visual" URL param should be treated as "card"
     renderPage("/projects/p1/shots?view=visual")
 
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.getByText("Alpha")).toBeInTheDocument()
-    // Visual cards render StatusBadge (Draft) instead of ShotStatusSelect mock (status:todo).
-    // Multiple "Draft" elements may exist (status filter pill + card badge).
-    expect(screen.getAllByText("Draft").length).toBeGreaterThanOrEqual(1)
-    expect(screen.queryByText("status:todo")).not.toBeInTheDocument()
   })
 
   it("renders gallery thumbnails with bounded native aspect ratio", () => {
@@ -179,7 +176,7 @@ describe("ShotListPage", () => {
     expect(img).not.toHaveClass("object-cover")
   })
 
-  it("renders visual thumbnails with object-cover (no letterboxing)", () => {
+  it("renders card thumbnails when view=visual (backward compat)", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [
         makeShot({
@@ -195,11 +192,11 @@ describe("ShotListPage", () => {
       error: null,
     })
 
+    // Old "visual" URL param renders as card view
     renderPage("/projects/p1/shots?view=visual")
 
     const img = screen.getByAltText("Alpha")
-    expect(img).toHaveClass("object-cover")
-    expect(img).not.toHaveClass("object-contain")
+    expect(img).toBeInTheDocument()
   })
 
   it("does not render a hero placeholder when no hero image exists", () => {
@@ -282,7 +279,7 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Bob")).toBeInTheDocument()
   })
 
-  it("switches between table and gallery views", () => {
+  it("switches between table and card views", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeShot({ id: "a", title: "Alpha" })],
       loading: false,
@@ -293,7 +290,7 @@ describe("ShotListPage", () => {
 
     expect(screen.getByRole("table")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText("Gallery view"))
+    fireEvent.click(screen.getByLabelText("Card view"))
 
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.getByText("Alpha")).toBeInTheDocument()
@@ -542,7 +539,7 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Fog machine at 30%")).toBeInTheDocument()
   })
 
-  it("renders notes in visual view when notes preview is enabled", () => {
+  it("renders notes in card view when notes preview is enabled (view=visual backward compat)", () => {
     window.localStorage.setItem(
       "sb:shots:list:c1:p1:fields:v1",
       JSON.stringify({ notes: true }),
@@ -553,13 +550,14 @@ describe("ShotListPage", () => {
         makeShot({
           id: "a",
           title: "Alpha",
-          notes: "<p>Use 50mm lens, low angle.</p>",
+          notesAddendum: "Use 50mm lens, low angle.",
         }),
       ],
       loading: false,
       error: null,
     })
 
+    // Old "visual" URL param renders as card view, notes show via ShotCard
     renderPage("/projects/p1/shots?view=visual")
 
     expect(screen.getByText("Use 50mm lens, low angle.")).toBeInTheDocument()

@@ -6,7 +6,7 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
-import { Input } from "@/ui/input"
+import { SearchBar } from "@/shared/components/SearchBar"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageCrew } from "@/shared/lib/rbac"
@@ -97,15 +97,12 @@ export default function LibraryCrewPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {/* Search toolbar */}
-            <div className="relative max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
-              <Input
-                placeholder="Search crew..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 text-sm"
-              />
-            </div>
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              placeholder="Search crew..."
+              className="max-w-sm"
+            />
 
             {filtered.length === 0 ? (
               <EmptyState

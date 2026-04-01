@@ -13,6 +13,7 @@ export interface ShootWindow {
 export interface ShootReadinessItem {
   readonly familyId: string
   readonly familyName: string
+  readonly gender?: string | null
   readonly launchDate: Timestamp | null
   readonly totalSkus: number
   readonly skusWithFlags: number
