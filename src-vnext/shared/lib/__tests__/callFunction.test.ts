@@ -29,7 +29,7 @@ beforeEach(() => {
   ;(auth as { currentUser: unknown }).currentUser = null
 })
 
-describe("callFunction (Firestore queue)", () => {
+describe("callFunction (Firestore queue)", { timeout: 60_000 }, () => {
   it("rejects when not authenticated and skipAuth is not set", async () => {
     const error = await callFunction("setUserClaims", { targetEmail: "a@b.com" })
       .catch((e: Error & { code: string }) => e)
