@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S16 — Quality Overhaul · Production Hub Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontSize: {
+            '3xs': '9px',
+            '2xs': '10px',
+            'xxs': '11px',
+            'xs': '12px',
+            'sm': '13px',
+            'base': '14px',
+            'lg': '16px',
+            'xl': '18px',
+            '2xl': '20px',
+            '3xl': '24px',
+            '4xl': '30px',
+          },
+          colors: {
+            zinc: {
+              50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+              750: '#333338', 800: '#27272a', 850: '#1c1c1f', 900: '#18181b', 950: '#09090b',
+            }
+          },
+          keyframes: {
+            'fade-in-rise': {
+              '0%': { opacity: '0', transform: 'translateY(12px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+          animation: {
+            'fade-in-rise': 'fade-in-rise 350ms ease-out forwards',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #09090b; color: #f4f4f5; }
+
+    /* Editorial identity */
+    .heading-page { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.025em; color: #f4f4f5; }
+    .heading-section { font-size: 1rem; font-weight: 500; letter-spacing: -0.01em; color: #e4e4e7; }
+    .heading-hero { font-size: 2rem; font-weight: 300; letter-spacing: -0.035em; color: #f4f4f5; line-height: 1.2; }
+    .label-meta { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #71717a; }
+    .label-sprint { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #3b82f6; }
+
+    /* Surface system */
+    .card-surface { background: #18181b; border: 1px solid #27272a; border-radius: 0.5rem; }
+    .card-surface-elevated { background: #1c1c1f; border: 1px solid #333338; border-radius: 0.5rem; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+    .mockup-frame { background: #0f0f12; border: 1px solid #27272a; border-radius: 0.625rem; overflow: hidden; }
+    .table-row:hover { background: #1f1f23; }
+    .table-row-selected { background: rgba(59,130,246,0.06); }
+
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; }
+    .badge-blue { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+    .badge-purple { background: rgba(168,85,247,0.15); color: #c4b5fd; border: 1px solid rgba(168,85,247,0.25); }
+    .badge-green { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+    .badge-amber { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+    .badge-red { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+    .badge-gray { background: rgba(113,113,122,0.15); color: #a1a1aa; border: 1px solid rgba(113,113,122,0.25); }
+
+    /* Toggle buttons */
+    .toggle-active { background: #f4f4f5; color: #09090b; }
+    .toggle-inactive { background: transparent; border: 1px solid #3f3f46; color: #a1a1aa; }
+    .toggle-active, .toggle-inactive { border-radius: 0.375rem; padding: 0.375rem 0.625rem; font-size: 0.8125rem; font-weight: 500; transition: all 150ms; cursor: pointer; }
+    .toggle-inactive:hover { color: #e4e4e7; border-color: #52525b; }
+
+    /* Callouts */
+    .callout-ux { border-left: 3px solid #3b82f6; background: rgba(23,37,84,0.5); padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+    .callout-impl { border-left: 3px solid #22c55e; background: rgba(5,46,22,0.5); padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+    .callout-warn { border-left: 3px solid #f59e0b; background: rgba(69,26,3,0.5); padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+    .callout-bug { border-left: 3px solid #ef4444; background: rgba(69,10,10,0.5); padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+
+    /* Comparison labels */
+    .before-label { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #ef4444; }
+    .after-label { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #22c55e; }
+
+    /* Avatars */
+    .avatar-sm { width: 28px; height: 28px; border-radius: 9999px; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 600; color: #71717a; flex-shrink: 0; }
+    .avatar-md { width: 32px; height: 32px; border-radius: 9999px; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 0.6875rem; font-weight: 600; color: #71717a; flex-shrink: 0; }
+    .avatar-lg { width: 72px; height: 72px; border-radius: 0.5rem; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 600; color: #52525b; flex-shrink: 0; }
+    .avatar-hero { width: 96px; height: 96px; border-radius: 0.5rem; background: #27272a; border: 1px solid #3f3f46; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 600; color: #52525b; flex-shrink: 0; }
+
+    /* Search input */
+    .search-input { background: #18181b; border: 1px solid #3f3f46; border-radius: 0.375rem; padding: 0.5rem 0.75rem 0.5rem 2.25rem; font-size: 0.8125rem; color: #e4e4e7; width: 100%; max-width: 320px; }
+    .search-input::placeholder { color: #52525b; }
+    .search-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+
+    /* Resize handle */
+    .resize-handle { position: absolute; right: -1px; top: 0; bottom: 0; width: 3px; cursor: col-resize; background: transparent; transition: background 150ms; }
+    .resize-handle:hover, .resize-handle.active { background: #3b82f6; }
+
+    /* Section divider */
+    .section-divider { border-top: 1px solid #27272a; }
+
+    /* Progress bar */
+    .progress-bar { height: 6px; border-radius: 3px; background: #27272a; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 300ms ease; }
+
+    /* Keyboard hint */
+    .kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 3px; background: #27272a; border: 1px solid #3f3f46; font-size: 0.5625rem; font-weight: 600; color: #71717a; line-height: 1; }
+
+    /* Animation helpers */
+    .stagger-1 { animation-delay: 50ms; }
+    .stagger-2 { animation-delay: 100ms; }
+    .stagger-3 { animation-delay: 150ms; }
+    .stagger-4 { animation-delay: 200ms; }
+    .stagger-5 { animation-delay: 250ms; }
+    .stagger-6 { animation-delay: 300ms; }
+    .stagger-7 { animation-delay: 350ms; }
+    .stagger-8 { animation-delay: 400ms; }
+
+    /* Section number */
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9999px; background: #1c1c1f; border: 1px solid #3f3f46; font-size: 0.75rem; font-weight: 700; color: #a1a1aa; flex-shrink: 0; }
+
+    /* Wave chip */
+    .wave-chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 600; }
+    .wave-1 { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+    .wave-2 { background: rgba(168,85,247,0.15); color: #c4b5fd; border: 1px solid rgba(168,85,247,0.2); }
+    .wave-3 { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
+    .wave-4 { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
+    .wave-5 { background: rgba(236,72,153,0.15); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.2); }
+
+    /* Inline raw code */
+    .raw-html { font-family: 'Courier New', monospace; font-size: 0.6875rem; color: #ef4444; background: rgba(239,68,68,0.08); padding: 0.125rem 0.375rem; border-radius: 0.25rem; word-break: break-all; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+    /* Print */
+    @media print {
+      body { background: white; color: #18181b; }
+      .card-surface, .mockup-frame { border-color: #d4d4d8; background: white; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- ================================================================== -->
+  <!-- HERO HEADER                                                        -->
+  <!-- ================================================================== -->
+  <div class="border-b border-zinc-800 bg-gradient-to-b from-zinc-900/50 to-transparent">
+    <div class="max-w-6xl mx-auto px-6 md:px-12 py-16 md:py-24">
+      <div class="animate-fade-in-rise opacity-0">
+        <p class="label-sprint mb-4">Sprint S16</p>
+        <h1 class="heading-hero max-w-xl">Quality Overhaul</h1>
+        <p class="mt-4 text-sm text-zinc-400 max-w-2xl leading-relaxed">
+          A systematic sweep across the Production Hub codebase to eliminate UX inconsistencies,
+          fix rendering bugs, and elevate every surface to the same editorial standard.
+          Each section documents the current state, the problem, and the precise fix.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a href="#s1" class="wave-chip wave-1">1. View Toggles</a>
+          <a href="#s2" class="wave-chip wave-1">2. Search Bars</a>
+          <a href="#s3" class="wave-chip wave-2">3. Talent Table</a>
+          <a href="#s4" class="wave-chip wave-2">4. Talent Detail</a>
+          <a href="#s5" class="wave-chip wave-3">5. Readiness Widget</a>
+          <a href="#s6" class="wave-chip wave-3">6. Notes Rendering</a>
+          <a href="#s7" class="wave-chip wave-4">7. Call Sheet Upgrade</a>
+          <a href="#s8" class="wave-chip wave-5">8. Implementation Waves</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-6 md:px-12 space-y-24 py-16">
+
+    <!-- ================================================================== -->
+    <!-- SECTION 1: VIEW TOGGLE UNIFICATION                                 -->
+    <!-- ================================================================== -->
+    <section id="s1" class="space-y-6 animate-fade-in-rise opacity-0 stagger-1">
+      <div class="flex items-center gap-3">
+        <div class="section-num">1</div>
+        <div>
+          <p class="label-meta">Consistency Issue</p>
+          <h2 class="heading-page mt-1">View Toggle Unification</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> Three pages, three different toggle implementations. Users build muscle memory from consistent controls. When toggles look and behave differently on each page, it erodes trust and slows navigation.</p>
+      </div>
+
+      <!-- BEFORE: Three implementations -->
+      <div>
+        <p class="before-label mb-3">Before &mdash; Three different implementations</p>
+        <div class="grid md:grid-cols-3 gap-4">
+          <!-- Talent -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Talent Page</p>
+            <p class="text-xs text-zinc-500 mb-2">Custom &lt;div&gt; buttons, border container, gray active state</p>
+            <div class="flex items-center gap-2">
+              <div class="inline-flex items-center rounded-md border border-zinc-700 overflow-hidden">
+                <button class="inline-flex items-center justify-center p-1.5 bg-zinc-800 text-zinc-200">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+                <button class="inline-flex items-center justify-center p-1.5 text-zinc-500 hover:text-zinc-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="callout-bug mt-2">
+              <p class="text-3xs text-red-200">Raw &lt;button&gt; elements with inline className toggling. Uses LayoutGrid + LayoutList icons. Active = bg-surface-subtle.</p>
+            </div>
+          </div>
+
+          <!-- Locations -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Locations Page</p>
+            <p class="text-xs text-zinc-500 mb-2">Button component, variant toggling, gap-1</p>
+            <div class="flex items-center gap-1">
+              <button class="toggle-active inline-flex items-center justify-center w-9 h-9">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button class="toggle-inactive inline-flex items-center justify-center w-9 h-9">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+              </button>
+            </div>
+            <div class="callout-bug mt-2">
+              <p class="text-3xs text-red-200">Uses Button component. variant="default" (black bg) for active, variant="outline" for inactive. LayoutList + Table2 icons.</p>
+            </div>
+          </div>
+
+          <!-- Shots -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Shots Page</p>
+            <p class="text-xs text-zinc-500 mb-2">Button component + keyboard hint overlays</p>
+            <div class="flex items-center gap-1">
+              <button class="toggle-active inline-flex items-center justify-center w-9 h-9 relative">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded text-3xs text-zinc-500 font-medium">1</span>
+              </button>
+              <button class="toggle-inactive inline-flex items-center justify-center w-9 h-9 relative">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+                <span class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded text-3xs text-zinc-500 font-medium">2</span>
+              </button>
+            </div>
+            <div class="callout-bug mt-2">
+              <p class="text-3xs text-red-200">Uses Button component with keyboard hints (1/2). LayoutGrid + Table2 icons. ml-auto positioning.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER: Unified component -->
+      <div>
+        <p class="after-label mb-3">After &mdash; Single ViewModeToggle component</p>
+        <div class="mockup-frame p-6 space-y-5">
+          <div class="callout-impl mb-4">
+            <p class="text-sm text-green-200"><strong>Implementation:</strong> Extract <code class="text-green-300">ViewModeToggle</code> to <code class="text-green-300">shared/components/ViewModeToggle.tsx</code>. Props: <code class="text-green-300">modes</code> (array of {key, icon, label}), <code class="text-green-300">activeMode</code>, <code class="text-green-300">onModeChange</code>. Uses Button component consistently.</p>
+          </div>
+
+          <div class="space-y-6">
+            <!-- Talent unified -->
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-zinc-300">Talent &mdash; Grid / Table</p>
+              <div class="flex items-center gap-1">
+                <button class="toggle-active inline-flex items-center justify-center w-9 h-9" title="Grid view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+                <button class="toggle-inactive inline-flex items-center justify-center w-9 h-9" title="Table view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Locations unified -->
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-zinc-300">Locations &mdash; List / Table</p>
+              <div class="flex items-center gap-1">
+                <button class="toggle-inactive inline-flex items-center justify-center w-9 h-9" title="List view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button class="toggle-active inline-flex items-center justify-center w-9 h-9" title="Table view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Shots unified -->
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-zinc-300">Shots &mdash; Card / Table</p>
+              <div class="flex items-center gap-1">
+                <button class="toggle-active inline-flex items-center justify-center w-9 h-9" title="Card view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+                <button class="toggle-inactive inline-flex items-center justify-center w-9 h-9" title="Table view">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-zinc-800">
+            <p class="text-2xs text-zinc-500">Consistent pattern: Button variant="default" (filled) for active, variant="outline" for inactive. Icon convention: LayoutGrid = grid/card, Table2 = table, LayoutList = list. No keyboard hints (handled by global shortcuts).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 2: SEARCH BAR STANDARDIZATION                              -->
+    <!-- ================================================================== -->
+    <section id="s2" class="space-y-6 animate-fade-in-rise opacity-0 stagger-2">
+      <div class="flex items-center gap-3">
+        <div class="section-num">2</div>
+        <div>
+          <p class="label-meta">Consistency Issue</p>
+          <h2 class="heading-page mt-1">Search Bar Standardization</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> Four library pages use search inputs, but they are styled differently. Talent has no search icon, Crew and Locations have icons but different container widths. Users expect visual consistency for the same interaction pattern.</p>
+      </div>
+
+      <!-- BEFORE -->
+      <div>
+        <p class="before-label mb-3">Before &mdash; Inconsistent search inputs</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- Talent search -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Talent Page</p>
+            <div class="max-w-md">
+              <input type="text" placeholder="Search talent..." class="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-500">
+            </div>
+            <div class="callout-bug">
+              <p class="text-3xs text-red-200">No search icon. Container = max-w-md flex-1. Plain Input component with no icon affordance. Less discoverable.</p>
+            </div>
+          </div>
+
+          <!-- Crew search -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Crew Page</p>
+            <div class="relative max-w-sm">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Search crew..." class="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-500">
+            </div>
+            <div class="callout-bug">
+              <p class="text-3xs text-red-200">Has search icon. Container = max-w-sm (no flex-1). No clear button.</p>
+            </div>
+          </div>
+
+          <!-- Locations search -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Locations Page</p>
+            <div class="relative max-w-sm flex-1">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Search locations..." class="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-9 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-500">
+            </div>
+            <div class="callout-bug">
+              <p class="text-3xs text-red-200">Has search icon. Container = max-w-sm flex-1. No clear button.</p>
+            </div>
+          </div>
+
+          <!-- Shots search -->
+          <div class="mockup-frame p-4 space-y-3">
+            <p class="label-meta">Shots Page</p>
+            <div class="relative w-full sm:w-[260px]">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Search shots..." class="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder-zinc-500">
+              <button class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div class="callout-impl">
+              <p class="text-3xs text-green-200">Has search icon + clear button. Fixed width w-[260px]. This is closest to ideal.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER -->
+      <div>
+        <p class="after-label mb-3">After &mdash; Unified SearchInput component</p>
+        <div class="mockup-frame p-6 space-y-5">
+          <div class="callout-impl mb-4">
+            <p class="text-sm text-green-200"><strong>Implementation:</strong> No new component needed. Standardize the Input pattern across all pages: always use the search icon + pl-9 pattern. Add clear button when query is non-empty. Container: <code class="text-green-300">relative max-w-sm flex-1</code>.</p>
+          </div>
+
+          <div class="space-y-4">
+            <p class="text-xs text-zinc-400">All pages use identical search pattern:</p>
+            <div class="relative max-w-sm flex-1">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" placeholder="Search talent..." value="Jessica" class="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-9 pr-9 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500">
+              <button class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-zinc-800">
+            <p class="text-2xs text-zinc-500">Pattern: Search icon (left), Input with pl-9, X clear button (right, visible when query non-empty). Container: relative max-w-sm flex-1. Same on Talent, Crew, Locations, Shots pages.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 3: TALENT TABLE — SATURATION-GRADE                         -->
+    <!-- ================================================================== -->
+    <section id="s3" class="space-y-6 animate-fade-in-rise opacity-0 stagger-3">
+      <div class="flex items-center gap-3">
+        <div class="section-num">3</div>
+        <div>
+          <p class="label-meta">Feature Upgrade</p>
+          <h2 class="heading-page mt-1">Talent Table &mdash; Saturation-Grade</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> The current table is functional but basic. Producers managing 30+ talent records need column resize, visibility toggles, and keyboard navigation for density-first workflows. Gender values from Firestore ("women"/"men") render without normalization. The getMeasurementValue helper can return [object Object] for nested measurement data.</p>
+      </div>
+
+      <!-- BEFORE -->
+      <div>
+        <p class="before-label mb-3">Before &mdash; Current TalentTable.tsx</p>
+        <div class="mockup-frame overflow-hidden">
+          <div class="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
+            <p class="text-xs text-zinc-500">TalentTable.tsx &mdash; Fixed columns, basic sort</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-800 bg-zinc-850 text-left text-zinc-500 font-medium">
+                  <th class="py-2 px-3 w-12"></th>
+                  <th class="py-2 px-3">Name <span class="text-zinc-600">&#8593;</span></th>
+                  <th class="py-2 px-3">Gender</th>
+                  <th class="py-2 px-3">Agency</th>
+                  <th class="py-2 px-3">Height</th>
+                  <th class="py-2 px-3">Bust</th>
+                  <th class="py-2 px-3">Waist</th>
+                  <th class="py-2 px-3">Hips</th>
+                  <th class="py-2 px-3">Projects</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="table-row border-b border-zinc-800/50">
+                  <td class="py-2 px-3"><div class="avatar-sm">SL</div></td>
+                  <td class="py-2 px-3 font-medium text-zinc-200">Stefan Lawrence</td>
+                  <td class="py-2 px-3"><span class="raw-html">women</span></td>
+                  <td class="py-2 px-3 text-zinc-400">Sutherland</td>
+                  <td class="py-2 px-3 text-zinc-400">6'1"</td>
+                  <td class="py-2 px-3 text-zinc-500">--</td>
+                  <td class="py-2 px-3 text-zinc-500">--</td>
+                  <td class="py-2 px-3 text-zinc-500">--</td>
+                  <td class="py-2 px-3"><span class="badge badge-gray">3</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50">
+                  <td class="py-2 px-3"><div class="avatar-sm">JM</div></td>
+                  <td class="py-2 px-3 font-medium text-zinc-200">Jessica Martinez</td>
+                  <td class="py-2 px-3"><span class="raw-html">[object Object]</span></td>
+                  <td class="py-2 px-3 text-zinc-400">Elite Toronto</td>
+                  <td class="py-2 px-3 text-zinc-400">5'9"</td>
+                  <td class="py-2 px-3 text-zinc-400">34"</td>
+                  <td class="py-2 px-3 text-zinc-400">26"</td>
+                  <td class="py-2 px-3 text-zinc-400">35"</td>
+                  <td class="py-2 px-3"><span class="badge badge-gray">5</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50">
+                  <td class="py-2 px-3"><div class="avatar-sm">AK</div></td>
+                  <td class="py-2 px-3 font-medium text-zinc-200">Amir Khan</td>
+                  <td class="py-2 px-3"><span class="badge badge-blue">Male</span></td>
+                  <td class="py-2 px-3 text-zinc-400">Next Models</td>
+                  <td class="py-2 px-3 text-zinc-400">5'11"</td>
+                  <td class="py-2 px-3 text-zinc-400">38"</td>
+                  <td class="py-2 px-3 text-zinc-400">30"</td>
+                  <td class="py-2 px-3 text-zinc-400">36"</td>
+                  <td class="py-2 px-3"><span class="badge badge-gray">2</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="px-4 py-2 border-t border-zinc-800 flex flex-wrap gap-3">
+            <div class="callout-bug flex-1">
+              <p class="text-3xs text-red-200"><strong>Bug 1:</strong> Gender shows raw Firestore values like "women" / "men" instead of normalized "Female" / "Male". The genderLabel() function handles "male"/"female" but not "women"/"men".</p>
+            </div>
+            <div class="callout-bug flex-1">
+              <p class="text-3xs text-red-200"><strong>Bug 2:</strong> getMeasurementValue() returns [object Object] when measurement data is nested {value, unit} format instead of plain string.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER -->
+      <div>
+        <p class="after-label mb-3">After &mdash; Interactive saturation-grade table</p>
+        <div class="mockup-frame overflow-hidden">
+          <!-- Toolbar row -->
+          <div class="bg-zinc-900 px-4 py-2 border-b border-zinc-800 flex items-center justify-between gap-3">
+            <p class="text-xs text-zinc-400">6 talent &middot; Sorted by Name</p>
+            <div class="flex items-center gap-2">
+              <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-zinc-400 border border-zinc-700 hover:border-zinc-600 hover:text-zinc-300 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                Columns
+              </button>
+              <div class="text-2xs text-zinc-600">
+                <span class="kbd">&#8593;</span>
+                <span class="kbd">&#8595;</span>
+                navigate
+              </div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-800 bg-zinc-850 text-left text-zinc-500 font-medium">
+                  <th class="py-2 px-3 w-12"></th>
+                  <th class="py-2 px-3 relative" style="min-width:160px">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Name <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg></button>
+                    <div class="resize-handle"></div>
+                  </th>
+                  <th class="py-2 px-3 relative w-28">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Gender</button>
+                    <div class="resize-handle"></div>
+                  </th>
+                  <th class="py-2 px-3 relative" style="min-width:140px">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Agency</button>
+                    <div class="resize-handle"></div>
+                  </th>
+                  <th class="py-2 px-3 relative w-24">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Height</button>
+                    <div class="resize-handle"></div>
+                  </th>
+                  <th class="py-2 px-3 relative w-24">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Measurements</button>
+                    <div class="resize-handle"></div>
+                  </th>
+                  <th class="py-2 px-3 w-24">
+                    <button class="inline-flex items-center gap-1 hover:text-zinc-300">Projects</button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="table-row-selected border-b border-zinc-800/50 cursor-pointer outline-none" tabindex="0">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">SL</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">Stefan Lawrence</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-blue">Male</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">Sutherland Models</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">6'1"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">40-32-38</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">3</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50 cursor-pointer" tabindex="-1">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">JM</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">Jessica Martinez</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-purple">Female</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">Elite Toronto</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">5'9"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">34-26-35</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">5</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50 cursor-pointer" tabindex="-1">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">AK</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">Amir Khan</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-blue">Male</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">Next Models</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">5'11"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">38-30-36</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">2</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50 cursor-pointer" tabindex="-1">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">CW</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">Claire Wu</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-purple">Female</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">Spot 6 Mgmt</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">5'7"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">32-25-34</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">4</span></td>
+                </tr>
+                <tr class="table-row border-b border-zinc-800/50 cursor-pointer" tabindex="-1">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">DP</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">David Park</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-blue">Male</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">B&amp;M Models</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">6'0"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">39-31-37</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">1</span></td>
+                </tr>
+                <tr class="table-row cursor-pointer" tabindex="-1">
+                  <td class="py-2.5 px-3"><div class="avatar-sm">RS</div></td>
+                  <td class="py-2.5 px-3 font-medium text-zinc-200">Rachel Singh</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-purple">Female</span></td>
+                  <td class="py-2.5 px-3 text-zinc-400">Plutino Group</td>
+                  <td class="py-2.5 px-3 text-zinc-300 tabular-nums">5'8"</td>
+                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-xs tabular-nums">33-26-35</td>
+                  <td class="py-2.5 px-3"><span class="badge badge-gray">6</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Column visibility popover mockup -->
+        <div class="mt-4 grid md:grid-cols-2 gap-4">
+          <div class="card-surface p-4 space-y-3">
+            <p class="label-meta">Column Visibility Popover</p>
+            <p class="text-xs text-zinc-500">Triggered by the Columns gear button in the toolbar</p>
+            <div class="card-surface-elevated p-3 space-y-2 max-w-[200px]">
+              <p class="text-xs font-medium text-zinc-300 mb-2">Visible Columns</p>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked disabled class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Name</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Gender</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Agency</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Height</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Measurements</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer"><input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Projects</label>
+              <div class="pt-2 border-t border-zinc-700">
+                <label class="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer"><input type="checkbox" class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Email</label>
+                <label class="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer mt-1.5"><input type="checkbox" class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Phone</label>
+                <label class="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer mt-1.5"><input type="checkbox" class="rounded border-zinc-600 bg-zinc-800 h-3.5 w-3.5"> Notes</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-surface p-4 space-y-3">
+            <p class="label-meta">Keyboard Navigation</p>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3">
+                <div class="flex gap-1"><span class="kbd">&#8593;</span><span class="kbd">&#8595;</span></div>
+                <p class="text-xs text-zinc-400">Navigate between rows</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex gap-1"><span class="kbd">Enter</span></div>
+                <p class="text-xs text-zinc-400">Open talent detail panel</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex gap-1"><span class="kbd">Esc</span></div>
+                <p class="text-xs text-zinc-400">Close detail panel / deselect</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout-impl mt-4">
+          <p class="text-sm text-green-200"><strong>Implementation notes:</strong></p>
+          <ul class="mt-2 text-xs text-green-200/80 space-y-1 list-disc list-inside">
+            <li>Fix genderLabel() to handle "women" &rarr; "Female" and "men" &rarr; "Male" (add cases to switch)</li>
+            <li>Fix getMeasurementValue() to safely extract from {value, unit} objects (already partially handles {value, v})</li>
+            <li>Column resize: track widths in local state, use CSS grid or table-layout: fixed with inline width styles</li>
+            <li>Column visibility: persist to localStorage (sb:talent-table-columns)</li>
+            <li>Keyboard nav: roving tabindex on &lt;tr&gt; elements, ArrowUp/Down to move focus</li>
+            <li>Compact "Measurements" column: combine bust/waist/hips into one "B-W-H" cell to reduce columns</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 4: TALENT DETAIL PANEL — POLISH                            -->
+    <!-- ================================================================== -->
+    <section id="s4" class="space-y-6 animate-fade-in-rise opacity-0 stagger-4">
+      <div class="flex items-center gap-3">
+        <div class="section-num">4</div>
+        <div>
+          <p class="label-meta">Polish Pass</p>
+          <h2 class="heading-page mt-1">Talent Detail Panel &mdash; Polish</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> The detail panel is the most-used surface for talent management. Three issues: the headshot is cropped with no controls, notes can contain legacy HTML that renders as raw tags, and long text overflows its container on narrow panels.</p>
+      </div>
+
+      <!-- BEFORE / AFTER side by side -->
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- BEFORE -->
+        <div>
+          <p class="before-label mb-3">Before</p>
+          <div class="mockup-frame overflow-hidden">
+            <div class="p-5 space-y-4">
+              <!-- Header with avatar -->
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <div class="avatar-lg overflow-hidden">
+                    <div class="w-full h-full bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center text-zinc-400 text-xs">
+                      Photo<br>cropped
+                    </div>
+                  </div>
+                  <div>
+                    <p class="label-meta">Name</p>
+                    <p class="heading-page mt-1">Jessica Martinez</p>
+                    <p class="text-xs text-zinc-500 mt-1">Click fields to edit.</p>
+                  </div>
+                </div>
+                <button class="text-red-400 hover:text-red-300 p-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+
+              <!-- Headshot section -->
+              <div class="card-surface p-4">
+                <p class="label-meta">Headshot</p>
+                <div class="mt-3 flex gap-2">
+                  <button class="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-800">Upload</button>
+                  <button class="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-500">Remove</button>
+                </div>
+                <div class="callout-bug mt-3">
+                  <p class="text-3xs text-red-200">No crop/resize controls on the 72px thumbnail. Image is always object-cover with no way to adjust framing.</p>
+                </div>
+              </div>
+
+              <!-- Notes section with raw HTML -->
+              <div class="card-surface p-4">
+                <p class="label-meta">Notes</p>
+                <div class="mt-3 text-sm text-zinc-300 break-words">
+                  <span class="raw-html">&lt;p&gt;&lt;span style="color: rgb(55, 65, 81);"&gt;</span>Available Mon-Wed only. Prefers natural lighting setups. Has own wardrobe for casual looks.<span class="raw-html">&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;</span>Agency contact: Sarah J.<span class="raw-html">&lt;/p&gt;</span>
+                </div>
+                <div class="callout-bug mt-3">
+                  <p class="text-3xs text-red-200">Legacy notes stored as HTML from Tiptap editor. InlineTextarea renders them as raw text, showing HTML tags to the user.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <p class="after-label mb-3">After</p>
+          <div class="mockup-frame overflow-hidden">
+            <div class="p-5 space-y-4">
+              <!-- Header with avatar -->
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-4">
+                  <div class="relative group">
+                    <div class="avatar-hero overflow-hidden">
+                      <div class="w-full h-full bg-gradient-to-br from-zinc-600 to-zinc-800"></div>
+                    </div>
+                    <!-- Hover overlay -->
+                    <div class="absolute inset-0 rounded-lg bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button class="p-1.5 rounded-md bg-white/20 text-white hover:bg-white/30" title="Upload new">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      </button>
+                      <button class="p-1.5 rounded-md bg-white/20 text-white hover:bg-white/30" title="Remove">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="label-meta">Name</p>
+                    <p class="heading-page mt-1">Jessica Martinez</p>
+                    <p class="text-xs text-zinc-500 mt-1">Click fields to edit.</p>
+                  </div>
+                </div>
+                <button class="text-red-400 hover:text-red-300 p-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+
+              <!-- Notes section with proper rendering -->
+              <div class="card-surface p-4">
+                <p class="label-meta">Notes</p>
+                <div class="mt-3 text-sm text-zinc-300 leading-relaxed">
+                  <p>Available Mon-Wed only. Prefers natural lighting setups. Has own wardrobe for casual looks.</p>
+                  <p class="mt-2">Agency contact: Sarah J.</p>
+                </div>
+                <div class="callout-impl mt-3">
+                  <p class="text-3xs text-green-200">HTML content detected &rarr; rendered via SanitizedHtml. Plain text &rarr; whitespace-pre-wrap. Edit mode uses plain textarea (new notes are always plain text).</p>
+                </div>
+              </div>
+
+              <!-- Text truncation demo -->
+              <div class="card-surface p-4">
+                <p class="label-meta">Contact</p>
+                <div class="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <p class="text-xs text-zinc-500">Agency</p>
+                    <p class="text-sm text-zinc-300 truncate" title="Elite Model Management Toronto Inc.">Elite Model Managemen...</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-zinc-500">Email</p>
+                    <p class="text-sm text-zinc-300 truncate" title="jessica.martinez.bookings@elitemodels.ca">jessica.martinez.boo...</p>
+                  </div>
+                </div>
+                <div class="callout-impl mt-3">
+                  <p class="text-3xs text-green-200">Truncated text with title attribute for full-value tooltip. No overflow outside container boundaries.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout-impl">
+        <p class="text-sm text-green-200"><strong>Implementation notes:</strong></p>
+        <ul class="mt-2 text-xs text-green-200/80 space-y-1 list-disc list-inside">
+          <li>Headshot: merge Upload/Remove into hover overlay on the avatar itself (eliminate separate Headshot card section)</li>
+          <li>Notes detection: check if value contains HTML tags via regex <code class="text-green-300">/&lt;\w+[^&gt;]*&gt;/</code>. If HTML &rarr; SanitizedHtml. If plain &rarr; whitespace-pre-wrap</li>
+          <li>All text fields: add <code class="text-green-300">truncate</code> class + <code class="text-green-300">title</code> attribute with full value</li>
+          <li>Avatar size: increase from 72px to 96px for better visual presence, add border</li>
+        </ul>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 5: SHOOT READINESS WIDGET — ENHANCED                       -->
+    <!-- ================================================================== -->
+    <section id="s5" class="space-y-6 animate-fade-in-rise opacity-0 stagger-5">
+      <div class="flex items-center gap-3">
+        <div class="section-num">5</div>
+        <div>
+          <p class="label-meta">Feature Enhancement</p>
+          <h2 class="heading-page mt-1">Shoot Readiness Widget &mdash; Enhanced</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> The readiness widget is the dashboard's primary decision-making surface. Current issues: checkbox overlaps "colorway" text in selection mode, only family-level selection (no individual SKU choice), no gender display for quick filtering, and urgency badges lack sort controls to surface overdue items first.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- BEFORE -->
+        <div>
+          <p class="before-label mb-3">Before</p>
+          <div class="mockup-frame p-4 space-y-3">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h3 class="text-sm font-semibold text-zinc-200">Shoot Readiness</h3>
+              </div>
+              <span class="text-2xs text-zinc-600">Next 90 days</span>
+            </div>
+
+            <!-- Card with checkbox overlap issue -->
+            <div class="card-surface p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <!-- Checkbox overlapping text -->
+                  <input type="checkbox" class="h-4 w-4 rounded border-zinc-600" checked>
+                  <span class="text-sm font-medium text-zinc-200 truncate">Essential Merino Crew</span>
+                  <span class="inline-block rounded px-1.5 py-0.5 text-3xs font-semibold uppercase bg-red-500/20 text-red-300 border border-red-500/30">OVERDUE</span>
+                </div>
+                <span class="badge badge-red text-2xs">Low</span>
+              </div>
+              <div class="flex items-center gap-3 mt-1 text-xs text-zinc-500">
+                <span>8 colorways</span>
+                <span>3/8 samples arrived</span>
+              </div>
+              <div class="callout-bug mt-2">
+                <p class="text-3xs text-red-200">Checkbox position absolute with left-3 and pl-6 on content. When "colorway" text is long, the checkbox overlaps the family name. Only family-level selection, no SKU drill-down.</p>
+              </div>
+            </div>
+
+            <!-- Second card -->
+            <div class="card-surface p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <input type="checkbox" class="h-4 w-4 rounded border-zinc-600">
+                  <span class="text-sm font-medium text-zinc-200 truncate">Tech Fleece Hoodie</span>
+                  <span class="inline-block rounded px-1.5 py-0.5 text-3xs font-semibold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">SOON</span>
+                </div>
+                <span class="badge badge-amber text-2xs">Medium</span>
+              </div>
+              <div class="flex items-center gap-3 mt-1 text-xs text-zinc-500">
+                <span>4 colorways</span>
+                <span>4/4 samples arrived</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div>
+          <p class="after-label mb-3">After</p>
+          <div class="mockup-frame p-4 space-y-3">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <h3 class="text-sm font-semibold text-zinc-200">Shoot Readiness</h3>
+              </div>
+              <div class="flex items-center gap-2">
+                <!-- Sort control -->
+                <select class="text-2xs bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-400">
+                  <option>Sort: Urgency</option>
+                  <option>Sort: Name</option>
+                  <option>Sort: Readiness</option>
+                </select>
+                <button class="text-xs px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800">Select</button>
+              </div>
+            </div>
+
+            <!-- Improved card with proper checkbox alignment -->
+            <div class="card-surface overflow-hidden">
+              <div class="px-3 py-2.5">
+                <div class="flex items-center gap-3">
+                  <input type="checkbox" class="h-4 w-4 rounded border-zinc-600 flex-shrink-0" checked>
+                  <div class="flex items-center justify-between gap-2 flex-1 min-w-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="text-sm font-medium text-zinc-200 truncate">Essential Merino Crew</span>
+                      <span class="badge badge-purple text-3xs flex-shrink-0">Women</span>
+                      <span class="inline-block rounded px-1.5 py-0.5 text-3xs font-semibold uppercase bg-red-500/20 text-red-300 border border-red-500/30 flex-shrink-0">OVERDUE</span>
+                    </div>
+                    <span class="badge badge-red text-2xs flex-shrink-0">Low</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 mt-1 ml-7 text-xs text-zinc-500">
+                  <span>8 colorways</span>
+                  <span>3/8 samples</span>
+                  <span class="text-2xs text-red-300">2 days overdue</span>
+                </div>
+                <div class="mt-1.5 ml-7">
+                  <div class="progress-bar w-20">
+                    <div class="progress-fill bg-red-400" style="width:37%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Expandable SKU list -->
+              <div class="border-t border-zinc-800 px-3 py-1.5">
+                <button class="text-2xs text-zinc-500 hover:text-zinc-400">&#9660; 8 colorways</button>
+              </div>
+              <div class="border-t border-zinc-800 bg-zinc-900/50">
+                <div class="px-3 py-1.5 flex items-center gap-3 border-b border-zinc-800/50">
+                  <input type="checkbox" class="h-3.5 w-3.5 rounded border-zinc-600 ml-7 flex-shrink-0" checked>
+                  <div class="w-6 h-6 rounded bg-zinc-950 border border-zinc-700 flex-shrink-0"></div>
+                  <span class="text-xs text-zinc-300">Black (0101)</span>
+                  <span class="text-3xs text-green-400 ml-auto">Sample arrived</span>
+                </div>
+                <div class="px-3 py-1.5 flex items-center gap-3 border-b border-zinc-800/50">
+                  <input type="checkbox" class="h-3.5 w-3.5 rounded border-zinc-600 ml-7 flex-shrink-0" checked>
+                  <div class="w-6 h-6 rounded bg-zinc-500 border border-zinc-600 flex-shrink-0"></div>
+                  <span class="text-xs text-zinc-300">Heather Grey (0302)</span>
+                  <span class="text-3xs text-green-400 ml-auto">Sample arrived</span>
+                </div>
+                <div class="px-3 py-1.5 flex items-center gap-3">
+                  <input type="checkbox" class="h-3.5 w-3.5 rounded border-zinc-600 ml-7 flex-shrink-0">
+                  <div class="w-6 h-6 rounded bg-blue-900 border border-zinc-700 flex-shrink-0"></div>
+                  <span class="text-xs text-zinc-300">Navy (0501)</span>
+                  <span class="text-3xs text-zinc-500 ml-auto">Awaiting</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Second card -->
+            <div class="card-surface p-3">
+              <div class="flex items-center gap-3">
+                <input type="checkbox" class="h-4 w-4 rounded border-zinc-600 flex-shrink-0">
+                <div class="flex items-center justify-between gap-2 flex-1 min-w-0">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-200 truncate">Tech Fleece Hoodie</span>
+                    <span class="badge badge-blue text-3xs flex-shrink-0">Men</span>
+                    <span class="inline-block rounded px-1.5 py-0.5 text-3xs font-semibold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 flex-shrink-0">SOON</span>
+                  </div>
+                  <span class="badge badge-green text-2xs flex-shrink-0">High &#10003;</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 mt-1 ml-7 text-xs text-zinc-500">
+                <span>4 colorways</span>
+                <span>4/4 samples</span>
+                <span class="text-2xs text-zinc-400">12 days</span>
+              </div>
+              <div class="mt-1.5 ml-7">
+                <div class="progress-bar w-20">
+                  <div class="progress-fill bg-green-400" style="width:100%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout-impl">
+        <p class="text-sm text-green-200"><strong>Implementation notes:</strong></p>
+        <ul class="mt-2 text-xs text-green-200/80 space-y-1 list-disc list-inside">
+          <li>Checkbox layout: use flex with flex-shrink-0 on checkbox + gap-3 instead of absolute positioning with padding offset</li>
+          <li>SKU drill-down: expand/collapse per family card. Nested checkboxes for individual colorway selection</li>
+          <li>Gender badge: read gender from product family data, display as compact badge inline with family name</li>
+          <li>Sort control: dropdown in header (Urgency default, Name, Readiness %). Already sorts by urgency via shootUrgency.ts</li>
+          <li>Urgency text inline: move "2 days overdue" / "12 days" next to sample count for at-a-glance status</li>
+        </ul>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 6: NOTES RENDERING — UNIFIED                              -->
+    <!-- ================================================================== -->
+    <section id="s6" class="space-y-6 animate-fade-in-rise opacity-0 stagger-6">
+      <div class="flex items-center gap-3">
+        <div class="section-num">6</div>
+        <div>
+          <p class="label-meta">Consistency Issue</p>
+          <h2 class="heading-page mt-1">Notes Rendering &mdash; Unified</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> Notes are stored in four formats across the app: plain text, HTML (legacy Tiptap), notesAddendum (plain text alongside legacy HTML), and raw textarea input. Each surface handles rendering differently, causing some to show raw HTML tags, others to lose formatting, and others to use completely different edit patterns.</p>
+      </div>
+
+      <!-- BEFORE: Four patterns -->
+      <div>
+        <p class="before-label mb-3">Before &mdash; Four different notes patterns</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- Talent -->
+          <div class="mockup-frame p-4 space-y-2">
+            <div class="flex items-center gap-2">
+              <p class="label-meta">Talent</p>
+              <span class="text-3xs text-zinc-600">TalentDetailPanel.tsx</span>
+            </div>
+            <p class="text-xs text-zinc-500">Uses InlineTextarea &mdash; plain text only</p>
+            <div class="card-surface p-3 text-sm text-zinc-300">
+              <span class="raw-html">&lt;p&gt;</span>Available Mon-Wed only.<span class="raw-html">&lt;/p&gt;&lt;p&gt;</span>Agency: Sarah J.<span class="raw-html">&lt;/p&gt;</span>
+            </div>
+            <p class="text-3xs text-red-400">Legacy HTML rendered as raw text</p>
+          </div>
+
+          <!-- Shots -->
+          <div class="mockup-frame p-4 space-y-2">
+            <div class="flex items-center gap-2">
+              <p class="label-meta">Shots</p>
+              <span class="text-3xs text-zinc-600">NotesSection.tsx</span>
+            </div>
+            <p class="text-xs text-zinc-500">Dual-mode: SanitizedHtml for legacy + Textarea for addendum</p>
+            <div class="card-surface p-3 space-y-2">
+              <div class="text-sm text-zinc-300">Click to add notes...</div>
+              <div class="border-t border-zinc-700 pt-2">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-medium">Legacy Notes (Read-only)</p>
+                <p class="text-xs text-zinc-400 mt-1">Previous notes from old system displayed here via SanitizedHtml.</p>
+              </div>
+            </div>
+            <p class="text-3xs text-green-400">Best implementation &mdash; handles both formats</p>
+          </div>
+
+          <!-- Crew -->
+          <div class="mockup-frame p-4 space-y-2">
+            <div class="flex items-center gap-2">
+              <p class="label-meta">Crew</p>
+              <span class="text-3xs text-zinc-600">CrewDetailPage.tsx</span>
+            </div>
+            <p class="text-xs text-zinc-500">Uses NotesSection component (same as shots)</p>
+            <div class="card-surface p-3 text-sm text-zinc-300">
+              Crew notes properly rendered.
+            </div>
+            <p class="text-3xs text-green-400">Uses NotesSection &mdash; consistent with shots</p>
+          </div>
+
+          <!-- Locations -->
+          <div class="mockup-frame p-4 space-y-2">
+            <div class="flex items-center gap-2">
+              <p class="label-meta">Locations</p>
+              <span class="text-3xs text-zinc-600">LocationDetailPage.tsx</span>
+            </div>
+            <p class="text-xs text-zinc-500">Raw Textarea with no HTML detection</p>
+            <div class="card-surface p-3">
+              <textarea class="w-full bg-transparent border border-zinc-700 rounded p-2 text-sm text-zinc-300 resize-none" rows="3" placeholder="Notes about this location...">Loading dock on east side. Permit required for drone.</textarea>
+            </div>
+            <p class="text-3xs text-amber-400">Raw Textarea &mdash; no HTML detection or rendering</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- AFTER: Unified pattern -->
+      <div>
+        <p class="after-label mb-3">After &mdash; Single unified notes pattern</p>
+        <div class="mockup-frame p-6 space-y-5">
+          <div class="callout-impl mb-4">
+            <p class="text-sm text-green-200"><strong>Implementation:</strong> Create <code class="text-green-300">shared/components/UnifiedNotes.tsx</code> with a single rendering pipeline. Input: <code class="text-green-300">value: string | null</code>. Decision tree:</p>
+          </div>
+
+          <!-- Decision tree -->
+          <div class="card-surface p-4 space-y-3">
+            <p class="text-xs font-medium text-zinc-300">Rendering Decision Tree</p>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-start gap-3">
+                <span class="text-blue-400 flex-shrink-0">1.</span>
+                <div>
+                  <p class="text-zinc-300">Is value null/empty?</p>
+                  <p class="text-zinc-500 mt-0.5">&rarr; Show placeholder: "No notes yet" or "Click to add notes..."</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="text-blue-400 flex-shrink-0">2.</span>
+                <div>
+                  <p class="text-zinc-300">Does value contain HTML tags? <code class="text-zinc-500">/&lt;\w+[^&gt;]*&gt;/</code></p>
+                  <p class="text-zinc-500 mt-0.5">&rarr; Read mode: render via <code class="text-zinc-400">SanitizedHtml</code> component (strips dangerous tags, preserves formatting)</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="text-blue-400 flex-shrink-0">3.</span>
+                <div>
+                  <p class="text-zinc-300">Plain text value?</p>
+                  <p class="text-zinc-500 mt-0.5">&rarr; Read mode: render with <code class="text-zinc-400">whitespace-pre-wrap</code> + URL linkification</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="text-blue-400 flex-shrink-0">4.</span>
+                <div>
+                  <p class="text-zinc-300">Edit mode (all content types)?</p>
+                  <p class="text-zinc-500 mt-0.5">&rarr; Always use plain Textarea. New notes are always stored as plain text. Legacy HTML is read-only.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Example rendering -->
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="card-surface p-3 space-y-2">
+              <p class="text-3xs text-zinc-500 uppercase tracking-wider font-semibold">HTML content detected</p>
+              <div class="text-sm text-zinc-300 leading-relaxed">
+                <p>Available Mon-Wed only. Prefers natural lighting setups.</p>
+                <p class="mt-2">Agency contact: Sarah J.</p>
+              </div>
+              <p class="text-3xs text-zinc-600">Rendered via SanitizedHtml &mdash; clean, formatted</p>
+            </div>
+            <div class="card-surface p-3 space-y-2">
+              <p class="text-3xs text-zinc-500 uppercase tracking-wider font-semibold">Plain text content</p>
+              <div class="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">Loading dock on east side.
+Permit required for drone.
+Contact: Mike 416-555-0199</div>
+              <p class="text-3xs text-zinc-600">Rendered with whitespace-pre-wrap &mdash; line breaks preserved</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout-impl">
+        <p class="text-sm text-green-200"><strong>Implementation notes:</strong></p>
+        <ul class="mt-2 text-xs text-green-200/80 space-y-1 list-disc list-inside">
+          <li>Talent: replace InlineTextarea for notes with UnifiedNotes (or inline the HTML detection logic)</li>
+          <li>Locations: replace raw Textarea with the same read/edit pattern used by NotesSection</li>
+          <li>The NotesSection pattern from shots/crew is the gold standard &mdash; generalize it</li>
+          <li>Legacy HTML notes are NEVER edited &mdash; always render read-only via SanitizedHtml</li>
+          <li>New notes are always saved as plain text (no HTML editor needed)</li>
+        </ul>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 7: CALL SHEET — SETHERO-INSPIRED UPGRADE                   -->
+    <!-- ================================================================== -->
+    <section id="s7" class="space-y-6 animate-fade-in-rise opacity-0 stagger-7">
+      <div class="flex items-center gap-3">
+        <div class="section-num">7</div>
+        <div>
+          <p class="label-meta">Visual Upgrade</p>
+          <h2 class="heading-page mt-1">Call Sheet &mdash; SetHero-Inspired Upgrade</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> Call sheets are the single most-printed document in production. They need to be instantly scannable, professionally laid out, and communicate authority. The current implementation is functional but lacks the editorial polish that makes a document feel premium. This section proposes a visual upgrade inspired by industry leaders like SetHero.</p>
+      </div>
+
+      <!-- Call sheet mockup -->
+      <div class="mockup-frame overflow-hidden">
+        <!-- Top bar -->
+        <div class="bg-zinc-950 px-6 py-3 border-b border-zinc-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-zinc-500">Call Sheet Preview</span>
+            <span class="text-3xs text-zinc-600">&middot;</span>
+            <span class="text-3xs text-zinc-600">Print-optimized layout</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="text-xs px-3 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-300 hover:border-zinc-600">Configure Sections</button>
+            <button class="text-xs px-3 py-1.5 rounded bg-zinc-100 text-zinc-900 font-medium hover:bg-white">Print / PDF</button>
+          </div>
+        </div>
+
+        <!-- Call sheet body -->
+        <div class="bg-zinc-900 p-8">
+          <div class="max-w-3xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="text-center border-b border-zinc-700 pb-6">
+              <p class="text-3xs uppercase tracking-[0.2em] text-zinc-600 font-semibold">Call Sheet</p>
+              <h2 class="text-2xl font-light tracking-tight text-zinc-100 mt-2">FW26 E-Commerce Shoot</h2>
+              <div class="flex items-center justify-center gap-4 mt-3 text-xs text-zinc-400">
+                <span>Day 1 of 3</span>
+                <span class="text-zinc-700">&middot;</span>
+                <span>Monday, April 14, 2026</span>
+                <span class="text-zinc-700">&middot;</span>
+                <span>Pinewood Studios</span>
+              </div>
+            </div>
+
+            <!-- Key Times Strip -->
+            <div class="grid grid-cols-4 gap-3">
+              <div class="card-surface p-3 text-center">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Crew Call</p>
+                <p class="text-lg font-light text-zinc-100 mt-1 tabular-nums">7:00 AM</p>
+              </div>
+              <div class="card-surface p-3 text-center">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Talent Call</p>
+                <p class="text-lg font-light text-zinc-100 mt-1 tabular-nums">8:00 AM</p>
+              </div>
+              <div class="card-surface p-3 text-center">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">First Shot</p>
+                <p class="text-lg font-light text-zinc-100 mt-1 tabular-nums">8:30 AM</p>
+              </div>
+              <div class="card-surface p-3 text-center">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Wrap</p>
+                <p class="text-lg font-light text-zinc-100 mt-1 tabular-nums">6:00 PM</p>
+              </div>
+            </div>
+
+            <!-- Weather placeholder -->
+            <div class="card-surface p-3 flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <span class="text-sm text-zinc-300">Partly Cloudy, 18&deg;C</span>
+              </div>
+              <div class="flex gap-4 text-xs text-zinc-500">
+                <span>Sunrise 6:42</span>
+                <span>Sunset 7:51</span>
+                <span>Wind 12 km/h NW</span>
+              </div>
+              <span class="ml-auto text-3xs text-zinc-600 italic">Weather data placeholder</span>
+            </div>
+
+            <!-- Talent Table -->
+            <div class="card-surface overflow-hidden">
+              <div class="px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between">
+                <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Talent</p>
+                <div class="flex items-center gap-2">
+                  <span class="text-3xs text-zinc-600">4 talent</span>
+                  <button class="text-3xs text-zinc-600 hover:text-zinc-400">
+                    <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-zinc-800 bg-zinc-850 text-left text-zinc-500 text-xs">
+                    <th class="py-2 px-4 font-medium">Name</th>
+                    <th class="py-2 px-4 font-medium">Role</th>
+                    <th class="py-2 px-4 font-medium">Call Time</th>
+                    <th class="py-2 px-4 font-medium">Agent / Contact</th>
+                    <th class="py-2 px-4 font-medium">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b border-zinc-800/50">
+                    <td class="py-2 px-4 font-medium text-zinc-200">Jessica Martinez</td>
+                    <td class="py-2 px-4 text-zinc-400">Lead Model</td>
+                    <td class="py-2 px-4 text-zinc-300 tabular-nums">8:00 AM</td>
+                    <td class="py-2 px-4 text-zinc-400">Elite Toronto</td>
+                    <td class="py-2 px-4 text-zinc-500 text-xs">HMU first</td>
+                  </tr>
+                  <tr class="border-b border-zinc-800/50">
+                    <td class="py-2 px-4 font-medium text-zinc-200">Stefan Lawrence</td>
+                    <td class="py-2 px-4 text-zinc-400">Model</td>
+                    <td class="py-2 px-4 text-zinc-300 tabular-nums">8:00 AM</td>
+                    <td class="py-2 px-4 text-zinc-400">Sutherland Models</td>
+                    <td class="py-2 px-4 text-zinc-500 text-xs">&mdash;</td>
+                  </tr>
+                  <tr class="border-b border-zinc-800/50">
+                    <td class="py-2 px-4 font-medium text-zinc-200">Amir Khan</td>
+                    <td class="py-2 px-4 text-zinc-400">Model</td>
+                    <td class="py-2 px-4 text-zinc-300 tabular-nums">9:00 AM</td>
+                    <td class="py-2 px-4 text-zinc-400">Next Models</td>
+                    <td class="py-2 px-4 text-zinc-500 text-xs">Afternoon only</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-4 font-medium text-zinc-200">Claire Wu</td>
+                    <td class="py-2 px-4 text-zinc-400">Model</td>
+                    <td class="py-2 px-4 text-zinc-300 tabular-nums">10:00 AM</td>
+                    <td class="py-2 px-4 text-zinc-400">Spot 6 Mgmt</td>
+                    <td class="py-2 px-4 text-zinc-500 text-xs">&mdash;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Crew Table -->
+            <div class="card-surface overflow-hidden">
+              <div class="px-4 py-2.5 border-b border-zinc-800 flex items-center justify-between">
+                <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Crew</p>
+                <span class="text-3xs text-zinc-600">8 crew</span>
+              </div>
+              <div class="grid grid-cols-2 gap-px bg-zinc-800">
+                <div class="bg-zinc-900 p-3">
+                  <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Photography</p>
+                  <div class="mt-2 space-y-1.5">
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Marcus Chen</span><span class="text-3xs text-zinc-500">Lead</span></div>
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">David Okoro</span><span class="text-3xs text-zinc-500">Asst</span></div>
+                  </div>
+                </div>
+                <div class="bg-zinc-900 p-3">
+                  <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Styling</p>
+                  <div class="mt-2 space-y-1.5">
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Priya Sharma</span><span class="text-3xs text-zinc-500">Lead</span></div>
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Alex Torres</span><span class="text-3xs text-zinc-500">Asst</span></div>
+                  </div>
+                </div>
+                <div class="bg-zinc-900 p-3">
+                  <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Hair &amp; Makeup</p>
+                  <div class="mt-2 space-y-1.5">
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Lisa Park</span><span class="text-3xs text-zinc-500">Lead</span></div>
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Nina Rodriguez</span><span class="text-3xs text-zinc-500">Asst</span></div>
+                  </div>
+                </div>
+                <div class="bg-zinc-900 p-3">
+                  <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Production</p>
+                  <div class="mt-2 space-y-1.5">
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Ted G.</span><span class="text-3xs text-zinc-500">Producer</span></div>
+                    <div class="flex justify-between"><span class="text-xs text-zinc-300">Sam B.</span><span class="text-3xs text-zinc-500">Coord</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedule outline -->
+            <div class="card-surface overflow-hidden">
+              <div class="px-4 py-2.5 border-b border-zinc-800">
+                <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Schedule</p>
+              </div>
+              <div class="divide-y divide-zinc-800/50">
+                <div class="px-4 py-2.5 flex items-center gap-4">
+                  <span class="text-sm text-zinc-300 tabular-nums w-20 flex-shrink-0">8:00 AM</span>
+                  <span class="text-sm text-zinc-200">Talent arrives &mdash; HMU</span>
+                  <span class="text-xs text-zinc-500 ml-auto">45 min</span>
+                </div>
+                <div class="px-4 py-2.5 flex items-center gap-4">
+                  <span class="text-sm text-zinc-300 tabular-nums w-20 flex-shrink-0">8:30 AM</span>
+                  <span class="text-sm text-zinc-200">Look 1 &mdash; Studio A, Natural Light Setup</span>
+                  <span class="text-xs text-zinc-500 ml-auto">90 min</span>
+                </div>
+                <div class="px-4 py-2.5 flex items-center gap-4">
+                  <span class="text-sm text-zinc-300 tabular-nums w-20 flex-shrink-0">10:00 AM</span>
+                  <span class="text-sm text-zinc-200">Look 2 &mdash; Studio B, Product Flats</span>
+                  <span class="text-xs text-zinc-500 ml-auto">60 min</span>
+                </div>
+                <div class="px-4 py-2.5 flex items-center gap-4 bg-amber-500/5">
+                  <span class="text-sm text-amber-300 tabular-nums w-20 flex-shrink-0">11:00 AM</span>
+                  <span class="text-sm text-amber-200">Lunch Break</span>
+                  <span class="text-xs text-zinc-500 ml-auto">30 min</span>
+                </div>
+                <div class="px-4 py-2.5 flex items-center gap-4">
+                  <span class="text-sm text-zinc-300 tabular-nums w-20 flex-shrink-0">11:30 AM</span>
+                  <span class="text-sm text-zinc-200">Look 3 &mdash; Outdoor, Street Style</span>
+                  <span class="text-xs text-zinc-500 ml-auto">120 min</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Location & Notes -->
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="card-surface p-4 space-y-2">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Location</p>
+                <p class="text-sm font-medium text-zinc-200">Pinewood Toronto Studios</p>
+                <p class="text-xs text-zinc-400">225 Commissioners St, Toronto</p>
+                <p class="text-xs text-zinc-500">Parking: Lot B, enter via Gate 3</p>
+              </div>
+              <div class="card-surface p-4 space-y-2">
+                <p class="text-3xs uppercase tracking-wider text-zinc-600 font-semibold">Production Notes</p>
+                <p class="text-xs text-zinc-400 leading-relaxed">All crew must sign NDA at check-in. Wardrobe arrives separately via freight at 6:30 AM. Client on-set from 10 AM for Look 2 selects.</p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center pt-4 border-t border-zinc-800">
+              <p class="text-3xs text-zinc-600">Generated by Production Hub &middot; Confidential &middot; Do not distribute</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout-impl mt-4">
+        <p class="text-sm text-green-200"><strong>Implementation notes:</strong></p>
+        <ul class="mt-2 text-xs text-green-200/80 space-y-1 list-disc list-inside">
+          <li>Existing call sheet infrastructure (section toggles, field customization, layout templates) from S15d is preserved</li>
+          <li>This is a visual/CSS upgrade to CallSheetRenderer.tsx, not a structural rewrite</li>
+          <li>Key changes: editorial typography (font-light headings), card-based sections, grid crew layout by department</li>
+          <li>Weather integration: placeholder for future API. Static fallback with manual entry</li>
+          <li>Print CSS: white background, proper page breaks, hide interactive controls</li>
+          <li>Configure Sections button triggers existing section toggles + field customization dialogs</li>
+        </ul>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- SECTION 8: IMPLEMENTATION WAVES                                    -->
+    <!-- ================================================================== -->
+    <section id="s8" class="space-y-6 animate-fade-in-rise opacity-0 stagger-8">
+      <div class="flex items-center gap-3">
+        <div class="section-num">8</div>
+        <div>
+          <p class="label-meta">Delivery Plan</p>
+          <h2 class="heading-page mt-1">Implementation Waves</h2>
+        </div>
+      </div>
+
+      <div class="callout-ux">
+        <p class="text-sm text-blue-200"><strong>UX rationale:</strong> Quality overhaul work must be staged to avoid destabilizing the existing app. Each wave is independently shippable and adds measurable value. Waves are ordered by blast radius: shared components first (low risk, high reuse), then page-specific improvements, then visual upgrades.</p>
+      </div>
+
+      <!-- Wave timeline -->
+      <div class="space-y-4">
+
+        <!-- Wave 1 -->
+        <div class="card-surface overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="wave-chip wave-1">Wave 1</span>
+              <h3 class="text-sm font-medium text-zinc-200">Bug Fixes + Shared Components</h3>
+            </div>
+            <span class="text-xs text-zinc-500">~2 hours</span>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <p class="label-meta">Deliverables</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Fix genderLabel() to handle "women"/"men" variants
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Fix getMeasurementValue() [object Object] bug
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Standardize search bar: add icon to Talent page, consistent container widths
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Unify view toggles: extract ViewModeToggle or inline consistent pattern
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Notes: add HTML detection to Talent notes rendering
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="label-meta">Files Modified</p>
+                <ul class="text-xs text-zinc-500 space-y-1 font-mono">
+                  <li>features/library/components/TalentTable.tsx</li>
+                  <li>features/library/components/LibraryTalentPage.tsx</li>
+                  <li>features/library/components/LibraryLocationsPage.tsx</li>
+                  <li>features/library/components/TalentDetailPanel.tsx</li>
+                  <li>features/shots/components/ShotListToolbar.tsx</li>
+                </ul>
+              </div>
+            </div>
+            <div class="callout-impl">
+              <p class="text-3xs text-green-200"><strong>Risk:</strong> Low. These are surgical fixes to existing code. Each fix is independently testable.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 2 -->
+        <div class="card-surface overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="wave-chip wave-2">Wave 2</span>
+              <h3 class="text-sm font-medium text-zinc-200">Interactive Table System</h3>
+            </div>
+            <span class="text-xs text-zinc-500">~4 hours</span>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <p class="label-meta">Deliverables</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">&#9679;</span>
+                    Column resize handles (drag to adjust width)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">&#9679;</span>
+                    Column visibility toggles (gear popover)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">&#9679;</span>
+                    Keyboard navigation (ArrowUp/Down, Enter to open)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">&#9679;</span>
+                    Compact measurement column (B-W-H combined)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">&#9679;</span>
+                    Persist column config to localStorage
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="label-meta">Files Modified / Created</p>
+                <ul class="text-xs text-zinc-500 space-y-1 font-mono">
+                  <li>features/library/components/TalentTable.tsx</li>
+                  <li>features/library/hooks/useTableColumns.ts <span class="text-green-500">(new)</span></li>
+                  <li>features/library/hooks/useTableKeyboardNav.ts <span class="text-green-500">(new)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="callout-impl">
+              <p class="text-3xs text-green-200"><strong>Risk:</strong> Medium. Column resize requires careful pointer event handling. Test on both mouse and touch.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 3 -->
+        <div class="card-surface overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="wave-chip wave-3">Wave 3</span>
+              <h3 class="text-sm font-medium text-zinc-200">Page-by-Page Consistency Sweep</h3>
+            </div>
+            <span class="text-xs text-zinc-500">~3 hours</span>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <p class="label-meta">Deliverables</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Apply unified search pattern to all remaining pages
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Apply unified view toggle to all pages with mode switching
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Talent detail panel: headshot hover overlay, text truncation
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Readiness widget: fix checkbox alignment, add gender badge
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">&#9679;</span>
+                    Location detail: replace raw Textarea with NotesSection pattern
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="label-meta">Files Modified</p>
+                <ul class="text-xs text-zinc-500 space-y-1 font-mono">
+                  <li>features/library/components/LibraryCrewPage.tsx</li>
+                  <li>features/library/components/LocationDetailPage.tsx</li>
+                  <li>features/library/components/TalentDetailPanel.tsx</li>
+                  <li>features/dashboard/components/ShootReadinessWidget.tsx</li>
+                  <li>features/products/components/ProductListPage.tsx</li>
+                </ul>
+              </div>
+            </div>
+            <div class="callout-impl">
+              <p class="text-3xs text-green-200"><strong>Risk:</strong> Low. Applying already-proven patterns from Wave 1 to remaining pages.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 4 -->
+        <div class="card-surface overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="wave-chip wave-4">Wave 4</span>
+              <h3 class="text-sm font-medium text-zinc-200">Call Sheet Visual Upgrade</h3>
+            </div>
+            <span class="text-xs text-zinc-500">~4 hours</span>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <p class="label-meta">Deliverables</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Editorial typography overhaul (font-light headings, tracking)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Card-based section layout with configurable visibility
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Grid crew layout grouped by department
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Key times strip (horizontal cards)
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Weather placeholder integration
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400 mt-0.5">&#9679;</span>
+                    Print CSS optimization (page breaks, white bg, hide controls)
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="label-meta">Files Modified</p>
+                <ul class="text-xs text-zinc-500 space-y-1 font-mono">
+                  <li>features/schedules/components/CallSheetRenderer.tsx</li>
+                  <li>features/schedules/components/CallSheetCastTable.tsx</li>
+                  <li>features/schedules/components/CallSheetDeptGrid.tsx</li>
+                  <li>features/schedules/components/CallSheetKeyTimesStrip.tsx</li>
+                  <li>features/schedules/components/CallSheetPrintPortal.tsx</li>
+                </ul>
+              </div>
+            </div>
+            <div class="callout-warn">
+              <p class="text-3xs text-amber-200"><strong>Risk:</strong> Medium. CSS-heavy changes to a print-critical surface. Must test across Chrome/Safari print previews. Preserve existing section toggle and field customization functionality from S15d.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 5 -->
+        <div class="card-surface overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="wave-chip wave-5">Wave 5</span>
+              <h3 class="text-sm font-medium text-zinc-200">Polish Pass + Code Review</h3>
+            </div>
+            <span class="text-xs text-zinc-500">~2 hours</span>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <p class="label-meta">Deliverables</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Full visual regression check across all pages
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Verify all view toggles use unified pattern
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Verify all search bars use unified pattern
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Verify notes rendering handles HTML/plain correctly
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Run code-reviewer agent on all changed files
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Update unit tests for changed components
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-pink-400 mt-0.5">&#9679;</span>
+                    Update HANDOFF.md, CHECKPOINT.md, Plan.md
+                  </li>
+                </ul>
+              </div>
+              <div class="space-y-2">
+                <p class="label-meta">Verification Checklist</p>
+                <ul class="text-xs text-zinc-300 space-y-1.5">
+                  <li class="flex items-start gap-2">
+                    <span class="w-3.5 h-3.5 rounded border border-zinc-600 flex-shrink-0 mt-0.5"></span>
+                    <span>npm run build &mdash; zero errors</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="w-3.5 h-3.5 rounded border border-zinc-600 flex-shrink-0 mt-0.5"></span>
+                    <span>npm run lint &mdash; zero warnings</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="w-3.5 h-3.5 rounded border border-zinc-600 flex-shrink-0 mt-0.5"></span>
+                    <span>npm test &mdash; all passing</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="w-3.5 h-3.5 rounded border border-zinc-600 flex-shrink-0 mt-0.5"></span>
+                    <span>Print preview &mdash; call sheet renders correctly</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="w-3.5 h-3.5 rounded border border-zinc-600 flex-shrink-0 mt-0.5"></span>
+                    <span>Mobile &mdash; view toggles hidden, layout responsive</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="callout-impl">
+              <p class="text-3xs text-green-200"><strong>Risk:</strong> Low. Verification and documentation. No new features.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total estimate -->
+      <div class="card-surface-elevated p-5 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-zinc-200">Total Estimated Effort</p>
+          <p class="text-xs text-zinc-500 mt-1">5 waves, each independently shippable. Run code-reviewer after each wave.</p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-light text-zinc-100 tabular-nums">~15 hours</p>
+          <p class="text-xs text-zinc-500">across 3&ndash;5 sessions</p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ================================================================== -->
+    <!-- FOOTER                                                             -->
+    <!-- ================================================================== -->
+    <footer class="pt-12 pb-16 border-t border-zinc-800 text-center space-y-2">
+      <p class="text-3xs uppercase tracking-[0.2em] text-zinc-700 font-semibold">Production Hub</p>
+      <p class="text-xs text-zinc-600">Sprint S16 Quality Overhaul Mockup &middot; April 2026</p>
+      <p class="text-3xs text-zinc-700">Internal document. Near-Black Editorial identity.</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>

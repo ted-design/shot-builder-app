@@ -154,15 +154,34 @@ These components exist and MUST be used. Do not create local variants.
 
 ## 6. Table Patterns
 
+### Benchmark: Saturation
+
+Our tables must match Saturation's level of interactivity. Reference: `app.saturation.io`.
+
 ### Column Headers
 - Font: `text-left font-medium` (inherit size from table context, typically text-xs or text-sm)
 - Sortable headers: clickable with arrow indicators (ArrowUp/ArrowDown from Lucide)
 - Non-sortable headers: plain `<th>`
 
+### Column Controls (Saturation Pattern)
+- **Visibility toggle:** Eye icon (`Eye` / `EyeOff` from Lucide) per column. Visible = normal opacity. Hidden = grayed out (`opacity-40`). Toggling hides/shows the column.
+- **Reorder:** Drag handle (grip dots icon, `GripVertical`) on column headers. Drag to reorder columns. Uses `@dnd-kit`.
+- **Resize:** Drag handle on right edge of column headers. Cursor changes to `col-resize`. Minimum column width enforced.
+- **Persistence:** Column widths, order, and visibility persist in localStorage per table (e.g., `sb:talent-table-config`).
+- **Reset:** "Reset to defaults" option in column settings to restore original configuration.
+
 ### Cell Content
 - Text values: `text-[var(--color-text-muted)]` for secondary data
 - Empty values: `<span className="text-[var(--color-text-subtle)]">--</span>`
 - Never display `[object Object]` — always extract primitive values from nested objects
+- Measurement objects: extract `.value` property when type is object
+
+### Keyboard Navigation
+- Arrow keys navigate between cells
+- Enter enters edit mode on editable cells
+- Escape exits edit mode
+- Tab moves to next editable cell
+- Focus ring on active cell
 
 ### Table Container
 ```tsx
@@ -184,6 +203,15 @@ These components exist and MUST be used. Do not create local variants.
 - Sections use rounded border containers: `rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4`
 - Section headers use `label-meta` class
 - Two-column grid on desktop: `lg:grid-cols-2 gap-4`
+
+### Text Display & Truncation Rules
+- **Never truncate real-world-length values prematurely.** Columns must accommodate:
+  - Agency names up to ~30 chars (e.g., "Elite Model Management")
+  - Email addresses at typical lengths
+  - Person names with suffixes
+- **Only truncate genuinely long content:** very long notes, raw URLs
+- **URLs:** Display as link component with icon + domain text, not raw URL string. Example: link icon + "elitemodel.com/..." with click-to-open behavior and editable href.
+- **No hardcoded `max-w-[200px]`** on text fields. Use `min-w-0` + `break-words` for flex containers, or let the layout accommodate the content.
 
 ### Notes Rendering
 - If data contains HTML tags (legacy data): use `SanitizedHtml` component

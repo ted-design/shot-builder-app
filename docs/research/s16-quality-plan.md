@@ -94,14 +94,17 @@ Bring tables to Saturation's level of interactivity.
 - Minimum column width enforcement
 - Cursor: `col-resize` on drag handle
 
-#### S16c-2: Column Visibility Toggles
-- Gear icon in table header → dropdown/popover showing all available columns
-- Each column has a toggle switch
+#### S16c-2: Column Visibility Toggles (Saturation Pattern)
+- **Eye icon** (`Eye` / `EyeOff`) per column in the column config UI
+- Visible columns: normal icon opacity
+- Hidden columns: grayed out (`opacity-40`) — visually distinct, not just absent
 - Persist visibility in localStorage
 - Some columns always visible (Name, primary identifier)
+- Match Saturation's exact interaction pattern — screenshot and replicate
 
-#### S16c-3: Column Reorder
-- Drag column headers to reorder
+#### S16c-3: Column Reorder (Saturation Pattern)
+- **Drag handle** (`GripVertical` icon) on each column entry in config UI
+- Drag to reorder columns
 - Use existing `@dnd-kit` dependency
 - Persist order in localStorage
 - Reset to defaults option
@@ -197,7 +200,12 @@ Elevate the call sheet to match SetHero's quality. The infrastructure exists (se
 - Handle legacy `<p><span>` markup properly
 
 #### S16g-3: Layout Polish
-- Fix text overflow on all fields
+- **No premature truncation.** Layout must accommodate real-world values:
+  - Agency: "Elite Model Management" (~24 chars) displays fully
+  - Email: typical addresses display fully
+  - Person names with suffixes display fully
+- **URLs:** Replace raw URL text with link component (icon + domain text + editable href). Never show raw "https://toronto.elitemodel.com/~toronto/models/women/2244-ashley-allan" as plain text.
+- Remove hardcoded `max-w-[200px]` constraints on text fields
 - Consistent section card styling
 - Responsive two-column layout
 
