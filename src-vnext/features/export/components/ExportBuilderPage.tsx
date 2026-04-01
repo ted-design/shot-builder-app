@@ -14,23 +14,26 @@ import { BlockSettingsPanel } from "./BlockSettingsPanel"
 import { DocumentPreview } from "./DocumentPreview"
 import { ExportTopBar } from "./ExportTopBar"
 
-const DEFAULT_DOCUMENT: ExportDocument = {
-  id: "draft",
-  name: "Untitled Document",
-  pages: [{ id: "page-1", blocks: [] }],
-  settings: {
-    layout: "portrait",
-    size: "letter",
-    fontFamily: "Inter, sans-serif",
-  },
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+function createDefaultDocument(): ExportDocument {
+  const now = new Date().toISOString()
+  return {
+    id: "draft",
+    name: "Untitled Document",
+    pages: [{ id: "page-1", blocks: [] }],
+    settings: {
+      layout: "portrait",
+      size: "letter",
+      fontFamily: "Inter, sans-serif",
+    },
+    createdAt: now,
+    updatedAt: now,
+  }
 }
 
 export default function ExportBuilderPage() {
   const { id: _projectId } = useParams<{ id: string }>()
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
-  const [document, setDocument] = useState<ExportDocument>(DEFAULT_DOCUMENT)
+  const [document, setDocument] = useState<ExportDocument>(createDefaultDocument)
 
   const variables = getDynamicVariables({
     projectName: "Sample Project",
@@ -58,23 +61,10 @@ export default function ExportBuilderPage() {
     setSelectedBlockId(newBlock.id)
   }, [])
 
-  const handleAddTextBlock = useCallback((_pageId: string) => {
-    const newBlock = createBlock("text")
-    setDocument((prev) => {
-      const targetPage = prev.pages[0]
-      if (!targetPage) return prev
-      const updatedPage: ExportPage = {
-        ...targetPage,
-        blocks: [...targetPage.blocks, newBlock],
-      }
-      return {
-        ...prev,
-        pages: [updatedPage, ...prev.pages.slice(1)],
-        updatedAt: new Date().toISOString(),
-      }
-    })
-    setSelectedBlockId(newBlock.id)
-  }, [])
+  const handleAddTextBlock = useCallback(
+    (_pageId: string) => handleAddBlock("text"),
+    [handleAddBlock],
+  )
 
   const handleSelectBlock = useCallback((blockId: string | null) => {
     setSelectedBlockId(blockId)
@@ -98,22 +88,17 @@ export default function ExportBuilderPage() {
     [],
   )
 
-  const handleDeleteBlock = useCallback(
-    (blockId: string) => {
-      setDocument((prev) => ({
-        ...prev,
-        pages: prev.pages.map((page) => ({
-          ...page,
-          blocks: page.blocks.filter((block) => block.id !== blockId),
-        })),
-        updatedAt: new Date().toISOString(),
-      }))
-      if (selectedBlockId === blockId) {
-        setSelectedBlockId(null)
-      }
-    },
-    [selectedBlockId],
-  )
+  const handleDeleteBlock = useCallback((blockId: string) => {
+    setDocument((prev) => ({
+      ...prev,
+      pages: prev.pages.map((page) => ({
+        ...page,
+        blocks: page.blocks.filter((block) => block.id !== blockId),
+      })),
+      updatedAt: new Date().toISOString(),
+    }))
+    setSelectedBlockId((prev) => (prev === blockId ? null : prev))
+  }, [])
 
   const handleOpenTemplates = useCallback(() => {
     toast.info("Templates panel coming soon.")
