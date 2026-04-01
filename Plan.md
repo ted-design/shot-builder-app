@@ -1094,6 +1094,63 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S16: Quality & Consistency Overhaul
+
+**Goal:** System-level visual consistency, interactive tables, design system enforcement. Driven by live UX audit identifying 5 different view toggle implementations, 4 notes patterns, hardcoded colors, and tables far below Saturation benchmark.
+
+**Status:** COMPLETE.
+
+### S16a: Critical Bug Fixes
+- [x] Gender labels "women"/"men" → proper Male/Female mapping
+- [x] Raw HTML in talent notes → SanitizedHtml rendering
+- [x] Checkbox/label overlap → flex layout
+- [x] [object Object] in measurements → handle nested objects
+- [x] URL display as link component (not raw text)
+
+### S16b: Shared Component Extraction
+- [x] ViewModeToggle — unified toggle (Button variant=default/outline), applied to 4 pages
+- [x] SearchBar — consistent search with icon + clear, applied to 4 pages
+- [x] usePersistedViewMode — useSyncExternalStore + localStorage
+- [x] 11 new tests
+
+### S16c: Interactive Table System (Saturation-Grade)
+- [x] Shared infrastructure: TableColumnConfig, useTableColumns, useColumnResize, useTableKeyboardNav, ColumnSettingsPopover (eye icons + drag handles), ResizableHeader. 19 tests.
+- [x] ProductFamiliesTable migrated
+- [x] LocationsTable migrated (sort preserved)
+- [x] TalentTable migrated (8 columns, mobile-hidden handling)
+- [x] ShotsTable migrated (bridge pattern — preserves selection + inline editing)
+- [x] CallSheetCastTable migrated (resize + keyboard nav)
+
+### S16d: Consistency Sweep
+- [x] ViewModeToggle type="button"
+- [x] ShootReadinessWidget: raw checkbox → Radix Checkbox + WCAG fix
+- [x] usePersistedViewMode write validation
+- [x] TalentDetailPanel: URL link for editors, containsHtml to textUtils, text/gap fixes
+
+### S16e: Shoot Readiness Enhancement
+- [x] Expandable per-colorway selection with SKU checkboxes
+- [x] Per-SKU requirement status badges (N needed / Done / No requirements)
+- [x] Gender badges on product families
+- [x] Sort dropdown (urgency / name / launch date)
+
+### S16f: Call Sheet Visual Upgrade
+- [x] Typography: 16 hardcoded px sizes → CSS variable tokens
+- [x] Section headers: full-bleed dark bands (SetHero-inspired)
+- [x] Spacing: hardcoded px → --space-* token references
+- [x] Crew call time: center zone background tint
+
+### S16g: Talent Detail Polish
+- [x] Headshot: 80px → 112px, click-to-enlarge lightbox dialog
+- [x] Spacing: all grids unified to gap-4
+- [x] Overflow: name + project pill truncation with tooltips
+- [x] Tab bar: -mb-px active border overlap
+
+### Design System Enforcement
+- [x] `docs/DESIGN_SYSTEM.md` created — typography, colors, shared components, table patterns, spacing
+- [x] Referenced from CLAUDE.md Hard Rule #3 — mandatory read before any UI work
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/sortable"
 import type { useSensors } from "@dnd-kit/core"
 import { Button } from "@/ui/button"
-import { Dialog, DialogContent } from "@/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
 import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
@@ -535,7 +535,8 @@ export function TalentDetailPanel({
         ) : null}
 
         <Dialog open={headshotPreviewOpen} onOpenChange={setHeadshotPreviewOpen}>
-          <DialogContent className="flex max-w-lg items-center justify-center bg-black/95 p-2">
+          <DialogContent className="flex max-w-lg items-center justify-center bg-black/95 p-2 text-white">
+            <DialogTitle className="sr-only">Headshot preview</DialogTitle>
             {selectedHeadshotUrl && (
               <img
                 src={selectedHeadshotUrl}

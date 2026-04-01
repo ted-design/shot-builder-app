@@ -1,21 +1,25 @@
-# HANDOFF — Sprint S15e (2026-04-01)
+# HANDOFF — Sprint S16 (2026-04-01)
 
 ## State
-S15e shipped (3 commits on vnext/s15-ux-overhaul). Branch now 13 commits ahead of main.
+S16 complete (all 7 phases). Branch: vnext/s15-ux-overhaul, 35+ commits ahead of main. PR #376 open (includes S15 + S16).
 
-## Just Completed
-- **Retroactive fixes:** Talent table split measurements into Bust/Waist/Hips columns, Select All checkbox in bulk action bar, wider export PDF preview (960px)
-- **Premium polish:** hover-lift, btn-press, shimmer-bg, stagger-children CSS utilities in tokens.css. Applied to ShotCard, ProjectCard, all Button variants. prefers-reduced-motion respected.
-- **Product enrichment:** Linked Shots tab on ProductDetailPage (useLinkedShots hook, LinkedShotsSection component, grouped by project with status badges). "Last modified" indicator on product header with relative time.
+## What Was Built
+- **S16a:** Bug fixes (gender labels, HTML notes, checkbox layout, text overflow)
+- **S16b:** Shared components (ViewModeToggle, SearchBar, usePersistedViewMode)
+- **S16c:** Interactive table system (5/5 tables with resize, visibility, reorder, keyboard nav)
+- **S16d:** 8 MEDIUM review issues resolved
+- **S16e:** Shoot readiness: per-colorway selection, gender badges, requirement status, sort
+- **S16f:** Call sheet: typography tokens, section bands, spacing tokens, crew call prominence
+- **S16g:** Talent detail: headshot lightbox, spacing, overflow, tab bar
 
-## Deferred to S16
-- **Image editing canvas** — User wants full Canva/Figma-like canvas editor (multi-image composition, layers, text, shapes, effects, paint tools). Requires Fabric.js vs Konva.js evaluation. Too large for a sub-task — dedicated sprint.
+## Design System
+- `docs/DESIGN_SYSTEM.md` — permanent enforcement document, referenced from CLAUDE.md Hard Rule #3
+- Must be read before any UI work. Covers shared components, tokens, table patterns, spacing.
 
-## Next Steps
-1. Code review findings — fix any CRITICAL/HIGH issues
-2. Create PR for S15 branch (13 commits) to merge to main
-3. S16 planning: canvas editor library evaluation (Fabric.js vs Konva.js)
-4. Or: user-directed priority
+## What's Next
+1. Merge PR #376 to main
+2. S17: Canvas editor (Fabric.js vs Konva.js evaluation)
+3. S16 backlog: ShotsTable column reorder, CallSheetCastTable resize persistence
 
-## To resume in new session
-Read `docs/SESSION_RESUME.md`
+## To resume
+Read `docs/SESSION_RESUME.md` then `docs/DESIGN_SYSTEM.md`

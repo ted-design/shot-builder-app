@@ -194,9 +194,9 @@ Our tables must match Saturation's level of interactivity. Reference: `app.satur
 ## 7. Detail Panel / Sheet Pattern
 
 ### Headshot / Profile Image
-- Container: `h-20 w-20 overflow-hidden rounded-md border`
+- Container: `h-28 w-28 overflow-hidden rounded-md border` (112px — enlarged from 80px in S16g)
 - Image: `object-cover` for aspect ratio preservation
-- Fallback: Initials in `text-2xs font-semibold`
+- Fallback: Initials in `text-sm font-semibold` (proportional to 112px container)
 - Actions: Upload + Remove buttons (future: Crop via canvas editor)
 
 ### Section Layout

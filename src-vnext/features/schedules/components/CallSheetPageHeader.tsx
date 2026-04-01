@@ -72,7 +72,7 @@ export function CallSheetPageHeader({
             </>
           )}
           {!crewCallFormatted && (
-            <div className="callsheet-header-project" style={{ fontSize: "18px" }}>
+            <div className="callsheet-header-project callsheet-header-day">
               {projectName}
             </div>
           )}
