@@ -33,9 +33,8 @@ const SHORTCUT_GROUPS: ReadonlyArray<ShortcutGroup> = [
     title: "Shot List",
     shortcuts: [
       { keys: ["N"], description: "Focus quick-add input" },
-      { keys: ["1"], description: "Gallery view" },
-      { keys: ["2"], description: "Visual view" },
-      { keys: ["3"], description: "Table view" },
+      { keys: ["1"], description: "Card view" },
+      { keys: ["2"], description: "Table view" },
       { keys: ["?"], description: "Show keyboard shortcuts" },
     ],
   },

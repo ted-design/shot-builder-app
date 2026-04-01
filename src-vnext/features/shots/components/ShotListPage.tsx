@@ -6,7 +6,6 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { ShotCard } from "@/features/shots/components/ShotCard"
 import { DraggableShotList } from "@/features/shots/components/DraggableShotList"
-import { ShotVisualCard } from "@/features/shots/components/ShotVisualCard"
 import { ShotReorderControls } from "@/features/shots/components/ShotReorderControls"
 import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
 import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePullFromShotsDialog"
@@ -136,11 +135,10 @@ export default function ShotListPage() {
     shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById,
   })
 
-  // -- Keyboard shortcuts: 1-4 switch view mode (disabled when three-panel active) --
+  // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
   useKeyboardShortcuts([
-    { key: "1", handler: () => setViewMode("gallery") },
-    { key: "2", handler: () => setViewMode("visual") },
-    { key: "3", handler: () => setViewMode("table") },
+    { key: "1", handler: () => setViewMode("card") },
+    { key: "2", handler: () => setViewMode("table") },
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ], { enabled: !threePanelActive })
 
@@ -666,12 +664,12 @@ export default function ShotListPage() {
             <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
               <Info className="h-3.5 w-3.5 flex-shrink-0" />
               <span>
-                Grouping is available in Gallery or Visual view.{" "}
+                Grouping is available in Card view.{" "}
                 <button
                   className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("gallery")}
+                  onClick={() => setViewMode("card")}
                 >
-                  Switch to gallery
+                  Switch to cards
                 </button>
               </span>
             </div>
@@ -680,12 +678,12 @@ export default function ShotListPage() {
             <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
               <Info className="h-3.5 w-3.5 flex-shrink-0" />
               <span>
-                Reordering is available in Gallery view.{" "}
+                Reordering is available in Card view.{" "}
                 <button
                   className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("gallery")}
+                  onClick={() => setViewMode("card")}
                 >
-                  Switch to gallery
+                  Switch to cards
                 </button>
               </span>
             </div>
@@ -704,77 +702,6 @@ export default function ShotListPage() {
             }
             onOpenShot={handleShotClick}
           />
-        </>
-      ) : viewMode === "visual" ? (
-        <>
-          {isCustomSort && canReorder && !hasActiveFilters && !hasActiveGrouping && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-              <Info className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Reordering is available in Gallery view.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("gallery")}
-                >
-                  Switch to gallery
-                </button>
-              </span>
-            </div>
-          )}
-
-          {hasActiveGrouping && shotGroups ? (
-            <div className="space-y-8">
-              {shotGroups.map((group) => (
-                <div key={group.key} className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-2">
-                    <div className="min-w-0 text-sm font-medium text-[var(--color-text)]">
-                      <span className="truncate">{group.label}</span>
-                    </div>
-                    <span className="text-xs text-[var(--color-text-subtle)]">
-                      {group.shots.length}
-                    </span>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {group.shots.map((shot) => (
-                      <ShotVisualCard
-                        key={shot.id}
-                        shot={shot}
-                        selectable={selectionEnabled}
-                        selected={selectionEnabled ? selectedIds.has(shot.id) : false}
-                        onSelectedChange={() => toggleSelected(shot.id)}
-                        onOpenShot={handleShotClick}
-                        actionControl={renderLifecycleAction(shot)}
-                        showShotNumber={fields.shotNumber}
-                        showTags={fields.tags}
-                        showReadiness={fields.readiness}
-                        showNotes={fields.notes}
-                        showLinks={fields.links}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {displayShots.map((shot) => (
-                <ShotVisualCard
-                  key={shot.id}
-                  shot={shot}
-                  selectable={selectionEnabled}
-                  selected={selectionEnabled ? selectedIds.has(shot.id) : false}
-                  onSelectedChange={() => toggleSelected(shot.id)}
-                  onOpenShot={handleShotClick}
-                  actionControl={renderLifecycleAction(shot)}
-                  showShotNumber={fields.shotNumber}
-                  showTags={fields.tags}
-                  showReadiness={fields.readiness}
-                  showNotes={fields.notes}
-                  showLinks={fields.links}
-                />
-              ))}
-            </div>
-          )}
         </>
       ) : (
         hasActiveGrouping && shotGroups ? (
