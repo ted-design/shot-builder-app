@@ -123,6 +123,16 @@ Phase order is the default. Override when reality demands it:
 - **On resume, ask:** "Can a new team member use this app today?" If no, the blocker is the next task — regardless of what Plan.md says is next.
 - **Override protocol:** (1) identify the blocker, (2) discuss with user, (3) add an override sprint to Plan.md before the next planned phase, (4) document rationale in MEMORY.md.
 
+### 9. Sprint S15 New Infrastructure
+
+- **Export Builder route:** `/projects/:id/export` (desktop-only, RequireDesktop). Block-based PDF composition with 9 block types, template system, variable tokens, document operations. All code in `src-vnext/features/export/`. Uses `@react-pdf/renderer` (already a dependency). Templates stored in localStorage (`sb:export-templates`, `sb:export-doc:{projectId}`).
+- **Shoot urgency system:** `src-vnext/features/products/lib/shootUrgency.ts` — 5-tier time-based urgency (OVERDUE/URGENT/SOON/UPCOMING/UNSCHEDULED) alongside existing confidence system. Overdue products sort first in readiness widget.
+- **Page transitions:** CSS-only `fade-in-rise` keyframes in `tokens.css`, `PageTransition` wrapper in `AppShell.tsx`. Respects `prefers-reduced-motion`. No framer-motion dependency.
+- **View consolidation:** Shot ViewMode narrowed from `"gallery"|"visual"|"table"` to `"card"|"table"`. Old localStorage values auto-migrate. `ShotVisualCard.tsx` deleted.
+- **Library table views:** `TalentTable.tsx` and `LocationsTable.tsx` with sortable columns, Grid/Table and List/Table toggles. Persist to localStorage (`sb:talent-view`, `sb:locations-view`).
+- **Call sheet improvements:** Section toggles (show/hide via Switch), per-field customization (`EditSectionFieldsDialog` with rename/reorder/resize/toggle), layout templates (3 built-in + user-saved via `CallSheetLayoutDialog`). Field configs persist to Firestore via `callSheetConfig`.
+- **Bulk shot delete:** `bulkSoftDeleteShots()` in `shotLifecycleActions.ts`. Uses `writeBatch` chunked at 250, capped at `MAX_BULK_DELETE=500`. Typed "DELETE" confirmation dialog in `ShotListPage.tsx` bulk action bar.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.
