@@ -35,12 +35,9 @@ import {
 } from "@/features/library/components/talentUtils"
 import { InlineInput, InlineTextarea } from "@/features/library/components/TalentInlineEditors"
 import { SanitizedHtml } from "@/shared/components/SanitizedHtml"
+import { containsHtml } from "@/shared/lib/textUtils"
 import { SortableImageTile } from "@/features/library/components/SortableImageTile"
 import { CastingSessionList } from "@/features/library/components/CastingSessionList"
-
-function containsHtml(text: string): boolean {
-  return /<[a-z][\s\S]*>/i.test(text)
-}
 
 function tryHostname(url: string): string | null {
   try {
@@ -142,7 +139,7 @@ export function TalentDetailPanel({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[var(--color-text-muted)]">
+                <div className="flex h-full w-full items-center justify-center text-2xs font-semibold text-[var(--color-text-muted)]">
                   {initials(buildDisplayName(selected))}
                 </div>
               )}
@@ -213,7 +210,7 @@ export function TalentDetailPanel({
 
         {/* Profile tab (existing detail content) */}
         {activeTab === "detail" ? (
-        <div className="mt-5 grid gap-6 lg:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <div className="flex flex-col gap-4">
             <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
               <div className="label-meta">
@@ -316,25 +313,27 @@ export function TalentDetailPanel({
                 </div>
                 <div className="sm:col-span-2">
                   <div className="text-xs text-[var(--color-text-muted)]">Reference URL</div>
-                  {selected.url && tryHostname(selected.url) && !canEdit ? (
+                  {selected.url && tryHostname(selected.url) && (
                     <a
                       href={selected.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex items-center gap-1.5 text-sm text-[var(--color-primary)] hover:underline"
+                      className="mb-1 mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                      <span className="min-w-0 truncate">{tryHostname(selected.url)}</span>
+                      <ExternalLink className="h-3 w-3" />
+                      {tryHostname(selected.url)}
                     </a>
-                  ) : (
+                  )}
+                  {canEdit ? (
                     <InlineEdit
                       value={selected.url ?? ""}
-                      disabled={!canEdit || busy}
+                      disabled={busy}
                       placeholder="—"
                       onSave={(next) => void savePatch(selected.id, { url: next || null })}
                       className="text-sm"
                     />
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

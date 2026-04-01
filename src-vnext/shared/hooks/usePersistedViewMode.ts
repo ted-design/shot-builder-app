@@ -38,6 +38,7 @@ export function usePersistedViewMode<T extends string>(
 
   const setMode = useCallback(
     (mode: T) => {
+      if (!(validModes as readonly string[]).includes(mode)) return
       try {
         globalThis.localStorage?.setItem(storageKey, mode)
         globalThis.dispatchEvent(

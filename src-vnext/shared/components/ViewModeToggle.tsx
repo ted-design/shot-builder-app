@@ -23,6 +23,7 @@ export function ViewModeToggle({
     <div className="flex items-center gap-1">
       {modes.map(({ key, icon: Icon, label, hint }) => (
         <Button
+          type="button"
           key={key}
           variant={activeMode === key ? "default" : "outline"}
           size="icon"

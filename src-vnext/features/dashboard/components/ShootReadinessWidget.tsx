@@ -20,6 +20,7 @@ import {
 } from "@/features/products/lib/shootUrgency"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
+import { Checkbox } from "@/ui/checkbox"
 import { Skeleton } from "@/ui/skeleton"
 import { CalendarClock, ChevronRight } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
@@ -175,8 +176,6 @@ function ReadinessCard({
 
   const cardBody = (
     <div
-      role="button"
-      tabIndex={0}
       className={cn(
         "relative px-3 py-2.5 hover:bg-[var(--color-surface)]",
         selectionMode && "cursor-pointer",
@@ -188,13 +187,11 @@ function ReadinessCard({
       <div className="flex items-start gap-3">
         {selectionMode && (
           <div className="flex-shrink-0 pt-1">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={isSelected}
-              onChange={() => onToggle(selectionId)}
-              className="h-4 w-4 rounded border-[var(--color-border)]"
+              onCheckedChange={() => onToggle(selectionId)}
               aria-label={`Select ${item.familyName}`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             />
           </div>
         )}
