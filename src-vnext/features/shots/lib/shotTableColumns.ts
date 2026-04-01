@@ -48,7 +48,7 @@ export function fieldsToColumnConfigs(
 ): readonly TableColumnConfig[] {
   return SHOT_TABLE_COLUMNS.map((col) => {
     const fieldKey = COLUMN_TO_FIELD[col.key]
-    const visible = fieldKey === null ? true : fields[fieldKey] ?? col.visible
+    const visible = fieldKey == null ? true : fields[fieldKey] ?? col.visible
     const width = savedWidths?.[col.key] ?? col.width
     return { ...col, visible, width }
   })

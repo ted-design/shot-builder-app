@@ -9,7 +9,7 @@ interface ResizableHeaderProps {
   readonly columnKey: string
   readonly width: number
   readonly onStartResize: (key: string, startX: number, currentWidth: number) => void
-  readonly children: React.ReactNode
+  readonly children?: React.ReactNode
   readonly className?: string
 }
 

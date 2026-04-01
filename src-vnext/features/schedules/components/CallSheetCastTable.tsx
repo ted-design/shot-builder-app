@@ -174,7 +174,7 @@ export function CallSheetCastTable({
             }
 
             return (
-              <tr key={tc.id} className={isEven ? "callsheet-row-even" : "callsheet-row-odd"}>
+              <tr key={tc.id} className={`${isEven ? "callsheet-row-even" : "callsheet-row-odd"} data-[active-row]:bg-[var(--color-primary)]/5`}>
                 {visibleFields.map((field) => cellValues[field.key] ?? <td key={field.key}>{"\u2014"}</td>)}
               </tr>
             )

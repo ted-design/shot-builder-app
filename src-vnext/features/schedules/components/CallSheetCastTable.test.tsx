@@ -10,7 +10,7 @@ import {
 import type { TalentCallSheet, TalentRecord } from "@/shared/types"
 
 const TALENT: TalentRecord[] = [
-  { id: "t1", name: "Jane Doe", clientId: "c1" },
+  { id: "t1", name: "Jane Doe" },
 ]
 
 const CALLS: TalentCallSheet[] = [
