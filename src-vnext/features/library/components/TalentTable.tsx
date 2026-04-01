@@ -45,8 +45,10 @@ function genderLabel(gender: string | null | undefined): string {
   if (!gender) return ""
   switch (gender.toLowerCase()) {
     case "male":
+    case "men":
       return "Male"
     case "female":
+    case "women":
       return "Female"
     case "non-binary":
       return "Non-Binary"
@@ -61,8 +63,10 @@ function genderBadgeClasses(gender: string | null | undefined): string {
   if (!gender) return ""
   switch (gender.toLowerCase()) {
     case "male":
+    case "men":
       return "border border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]"
     case "female":
+    case "women":
       return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
     case "non-binary":
       return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"

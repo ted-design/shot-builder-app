@@ -1,6 +1,6 @@
 import { useRef } from "react"
 import { Link } from "react-router-dom"
-import { Upload, Trash2 } from "lucide-react"
+import { Upload, Trash2, ExternalLink } from "lucide-react"
 import type { ChangeEvent } from "react"
 import {
   DndContext,
@@ -34,8 +34,21 @@ import {
   type CastingSession,
 } from "@/features/library/components/talentUtils"
 import { InlineInput, InlineTextarea } from "@/features/library/components/TalentInlineEditors"
+import { SanitizedHtml } from "@/shared/components/SanitizedHtml"
 import { SortableImageTile } from "@/features/library/components/SortableImageTile"
 import { CastingSessionList } from "@/features/library/components/CastingSessionList"
+
+function containsHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text)
+}
+
+function tryHostname(url: string): string | null {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return null
+  }
+}
 
 interface TalentDetailPanelProps {
   readonly selected: TalentRecord
@@ -303,13 +316,25 @@ export function TalentDetailPanel({
                 </div>
                 <div className="sm:col-span-2">
                   <div className="text-xs text-[var(--color-text-muted)]">Reference URL</div>
-                  <InlineEdit
-                    value={selected.url ?? ""}
-                    disabled={!canEdit || busy}
-                    placeholder="—"
-                    onSave={(next) => void savePatch(selected.id, { url: next || null })}
-                    className="text-sm"
-                  />
+                  {selected.url && tryHostname(selected.url) && !canEdit ? (
+                    <a
+                      href={selected.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex items-center gap-1.5 text-sm text-[var(--color-primary)] hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0 truncate">{tryHostname(selected.url)}</span>
+                    </a>
+                  ) : (
+                    <InlineEdit
+                      value={selected.url ?? ""}
+                      disabled={!canEdit || busy}
+                      placeholder="—"
+                      onSave={(next) => void savePatch(selected.id, { url: next || null })}
+                      className="text-sm"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -327,9 +352,9 @@ export function TalentDetailPanel({
                       <Link
                         key={pid}
                         to={`/projects/${pid}/assets`}
-                        className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
+                        className="inline-block rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
                       >
-                        <span className="max-w-[200px] truncate">
+                        <span className="min-w-0 break-words">
                           {projectLookup.get(pid) ?? pid}
                         </span>
                       </Link>
@@ -380,15 +405,19 @@ export function TalentDetailPanel({
               <div className="label-meta">
                 Notes
               </div>
-              <InlineTextarea
-                value={selected.notes ?? ""}
-                disabled={!canEdit || busy}
-                placeholder="Notes about sizing, fit, availability…"
-                className="mt-3 min-h-[140px]"
-                onCommit={(next) => {
-                  void savePatch(selected.id, { notes: next.trim() ? next : null })
-                }}
-              />
+              {selected.notes && containsHtml(selected.notes) ? (
+                <SanitizedHtml html={selected.notes} className="mt-3 text-sm" />
+              ) : (
+                <InlineTextarea
+                  value={selected.notes ?? ""}
+                  disabled={!canEdit || busy}
+                  placeholder="Notes about sizing, fit, availability…"
+                  className="mt-3 min-h-[140px]"
+                  onCommit={(next) => {
+                    void savePatch(selected.id, { notes: next.trim() ? next : null })
+                  }}
+                />
+              )}
             </div>
 
             <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">

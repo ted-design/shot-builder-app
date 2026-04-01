@@ -185,19 +185,21 @@ function ReadinessCard({
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
     >
-      {selectionMode && (
-        <div className="absolute left-3 top-1/2 -translate-y-1/2">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggle(selectionId)}
-            className="h-4 w-4 rounded border-[var(--color-border)]"
-            aria-label={`Select ${item.familyName}`}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-      <div className={cn("flex items-center justify-between gap-2", selectionMode && "pl-6")}>
+      <div className={cn("flex items-start gap-3", selectionMode && "")}>
+        {selectionMode && (
+          <div className="flex-shrink-0 pt-1">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggle(selectionId)}
+              className="h-4 w-4 rounded border-[var(--color-border)]"
+              aria-label={`Select ${item.familyName}`}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate text-sm font-medium text-[var(--color-text)]">
             {item.familyName}
@@ -267,6 +269,8 @@ function ReadinessCard({
           <ProgressBar pct={item.readinessPct} />
         </div>
       )}
+      </div>
+      </div>
     </div>
   )
 
