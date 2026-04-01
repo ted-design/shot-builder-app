@@ -82,6 +82,7 @@ function LayoutRow({
             size="sm"
             className="h-7 w-7 p-0 text-[var(--color-text-muted)] hover:text-[var(--color-error)]"
             onClick={() => onDelete(layout.id)}
+            aria-label={`Delete layout ${layout.name}`}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -190,6 +191,7 @@ export function CallSheetLayoutDialog({
                     if (e.key === "Enter") handleSave()
                   }}
                   className="flex-1 text-sm"
+                  maxLength={80}
                 />
                 <Button
                   type="button"

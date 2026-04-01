@@ -150,6 +150,7 @@ export function EditSectionFieldsDialog({
               value={draft.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               className="h-8 text-sm"
+              maxLength={100}
             />
           </div>
 
@@ -198,6 +199,7 @@ export function EditSectionFieldsDialog({
                     onChange={(e) => handleLabelChange(field.key, e.target.value)}
                     className="h-7 min-w-0 flex-1 text-xs"
                     aria-label={`Label for ${field.defaultLabel}`}
+                    maxLength={50}
                   />
 
                   {/* Width selector */}
