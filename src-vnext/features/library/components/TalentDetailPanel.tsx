@@ -1,7 +1,7 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { Upload, Trash2, ExternalLink } from "lucide-react"
-import type { ChangeEvent } from "react"
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react"
 import {
   DndContext,
   closestCenter,
@@ -14,6 +14,7 @@ import {
 } from "@dnd-kit/sortable"
 import type { useSensors } from "@dnd-kit/core"
 import { Button } from "@/ui/button"
+import { Dialog, DialogContent } from "@/ui/dialog"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
 import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
@@ -126,12 +127,29 @@ export function TalentDetailPanel({
 }: TalentDetailPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const portfolioInputRef = useRef<HTMLInputElement>(null)
+  const [headshotPreviewOpen, setHeadshotPreviewOpen] = useState(false)
 
   return (
     <div>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-20 w-20 overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+            <div
+              className={`h-28 w-28 overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]${selectedHeadshotUrl ? " cursor-pointer" : ""}`}
+              {...(selectedHeadshotUrl
+                ? {
+                    role: "button" as const,
+                    tabIndex: 0,
+                    "aria-label": "View full headshot",
+                    onClick: () => setHeadshotPreviewOpen(true),
+                    onKeyDown: (e: ReactKeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        setHeadshotPreviewOpen(true)
+                      }
+                    },
+                  }
+                : {})}
+            >
               {selectedHeadshotUrl ? (
                 <img
                   src={selectedHeadshotUrl}
@@ -139,7 +157,7 @@ export function TalentDetailPanel({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-2xs font-semibold text-[var(--color-text-muted)]">
+                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[var(--color-text-muted)]">
                   {initials(buildDisplayName(selected))}
                 </div>
               )}
@@ -148,7 +166,7 @@ export function TalentDetailPanel({
               <div className="label-meta">
                 Name
               </div>
-              <div className="mt-1 heading-page">
+              <div className="mt-1 max-w-[260px] truncate heading-page">
                 <div data-testid="talent-details-name">
                   <InlineEdit
                     value={buildDisplayName(selected)}
@@ -190,7 +208,7 @@ export function TalentDetailPanel({
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+              className={`-mb-px whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.key
                   ? "border-b-2 border-[var(--color-primary)] text-[var(--color-text)]"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
@@ -257,7 +275,7 @@ export function TalentDetailPanel({
               <div className="label-meta">
                 Contact
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="text-xs text-[var(--color-text-muted)]">Agency</div>
                   <InlineEdit
@@ -347,17 +365,19 @@ export function TalentDetailPanel({
                   <div className="text-sm text-[var(--color-text-muted)]">Not linked to any projects.</div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {(selected.projectIds ?? []).map((pid) => (
-                      <Link
-                        key={pid}
-                        to={`/projects/${pid}/assets`}
-                        className="inline-block rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
-                      >
-                        <span className="min-w-0 break-words">
-                          {projectLookup.get(pid) ?? pid}
-                        </span>
-                      </Link>
-                    ))}
+                    {(selected.projectIds ?? []).map((pid) => {
+                      const projectName = projectLookup.get(pid) ?? pid
+                      return (
+                        <Link
+                          key={pid}
+                          to={`/projects/${pid}/assets`}
+                          className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
+                          title={projectName}
+                        >
+                          {projectName}
+                        </Link>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -369,7 +389,7 @@ export function TalentDetailPanel({
               <div className="label-meta">
                 Measurements
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 {getMeasurementOptionsForGender(selected.gender).map((field) => {
                   const measurements = selected.measurements ?? {}
                   const value = (measurements as Record<string, unknown>)[field.key]
@@ -468,7 +488,7 @@ export function TalentDetailPanel({
                     items={portfolioImages.map((i) => i.id)}
                     strategy={rectSortingStrategy}
                   >
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
                       {portfolioImages.map((img) => (
                         <SortableImageTile
                           key={img.id}
@@ -513,6 +533,18 @@ export function TalentDetailPanel({
           </div>
         </div>
         ) : null}
+
+        <Dialog open={headshotPreviewOpen} onOpenChange={setHeadshotPreviewOpen}>
+          <DialogContent className="flex max-w-lg items-center justify-center bg-black/95 p-2">
+            {selectedHeadshotUrl && (
+              <img
+                src={selectedHeadshotUrl}
+                alt={buildDisplayName(selected)}
+                className="max-h-[80vh] w-full rounded object-contain"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
     </div>
   )
 }
