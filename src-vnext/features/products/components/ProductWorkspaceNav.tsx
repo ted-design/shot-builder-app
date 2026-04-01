@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { cn } from "@/shared/lib/utils"
 
-export type ProductWorkspaceSectionKey = "overview" | "colorways" | "samples" | "files" | "requirements" | "activity"
+export type ProductWorkspaceSectionKey = "overview" | "colorways" | "samples" | "files" | "requirements" | "shots" | "activity"
 
 export interface ProductWorkspaceNavItem {
   readonly key: ProductWorkspaceSectionKey

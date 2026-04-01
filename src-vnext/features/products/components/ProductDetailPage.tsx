@@ -14,10 +14,12 @@ import { ProductSamplesSection } from "@/features/products/components/ProductSam
 import { ProductFilesSection } from "@/features/products/components/ProductAssetsSection"
 import { ProductActivitySection } from "@/features/products/components/ProductActivitySection"
 import { ProductRequirementsSection } from "@/features/products/components/ProductRequirementsSection"
+import { LinkedShotsSection } from "@/features/products/components/LinkedShotsSection"
 import { setProductFamilyDeleted } from "@/features/products/lib/productWrites"
 import { countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import { useProductFamily, useProductSkus } from "@/features/products/hooks/useProducts"
 import { useProductComments, useProductDocuments, useProductSamples } from "@/features/products/hooks/useProductWorkspace"
+import { useLinkedShots } from "@/features/products/hooks/useLinkedShots"
 import { humanizeClassificationKey } from "@/features/products/lib/productClassifications"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageProducts } from "@/shared/lib/rbac"
@@ -30,7 +32,9 @@ import { Separator } from "@/ui/separator"
 import {
   Activity as ActivityIcon,
   Box,
+  Camera,
   ClipboardCheck,
+  Clock,
   FileText,
   LayoutDashboard,
   Palette,
@@ -38,6 +42,25 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react"
+
+/** Format a Firestore Timestamp to a relative time string. */
+function formatRelativeTime(ts: { toDate?: () => Date } | undefined): string {
+  if (!ts || typeof ts.toDate !== "function") return ""
+  const date = ts.toDate()
+  const now = Date.now()
+  const diffMs = now - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  if (diffSec < 60) return "just now"
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHr < 24) return `${diffHr}h ago`
+  if (diffDay < 7) return `${diffDay}d ago`
+
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
 
 export default function ProductDetailPage() {
   const { fid } = useParams<{ fid: string }>()
@@ -58,6 +81,7 @@ export default function ProductDetailPage() {
   const { data: samples, loading: samplesLoading, error: samplesError } = useProductSamples(fid ?? null)
   const { data: comments, loading: commentsLoading, error: commentsError } = useProductComments(fid ?? null)
   const { data: documents, loading: documentsLoading, error: documentsError } = useProductDocuments(fid ?? null)
+  const { groups: linkedShotGroups, totalCount: linkedShotCount, loading: linkedShotsLoading, error: linkedShotsError } = useLinkedShots(fid ?? null, clientId)
 
   // Derived data
   const activeSkus = useMemo(() => skus.filter((s) => s.deleted !== true), [skus])
@@ -96,14 +120,15 @@ export default function ProductDetailPage() {
     { key: "samples" as const, label: "Samples", icon: <Box className="h-4 w-4" />, count: visibleSamples.length },
     { key: "files" as const, label: "Files", icon: <FileText className="h-4 w-4" />, count: filesCount },
     { key: "requirements" as const, label: "Requirements", icon: <ClipboardCheck className="h-4 w-4" />, count: activeRequirementsCount || undefined },
+    { key: "shots" as const, label: "Shots", icon: <Camera className="h-4 w-4" />, count: linkedShotCount || undefined },
     { key: "activity" as const, label: "Activity", icon: <ActivityIcon className="h-4 w-4" />, count: visibleComments.length },
-  ], [activeRequirementsCount, activeSkus.length, filesCount, visibleComments.length, visibleSamples.length])
+  ], [activeRequirementsCount, activeSkus.length, filesCount, linkedShotCount, visibleComments.length, visibleSamples.length])
 
   // Section routing — treat "assets" as backward-compat alias for "files"
   const sectionParam = searchParams.get("section")
   const resolvedSection = sectionParam === "assets" ? "files" : sectionParam
   const activeSection: ProductWorkspaceSectionKey =
-    resolvedSection === "colorways" || resolvedSection === "samples" || resolvedSection === "files" || resolvedSection === "requirements" || resolvedSection === "activity" || resolvedSection === "overview"
+    resolvedSection === "colorways" || resolvedSection === "samples" || resolvedSection === "files" || resolvedSection === "requirements" || resolvedSection === "shots" || resolvedSection === "activity" || resolvedSection === "overview"
       ? resolvedSection
       : "overview"
 
@@ -204,6 +229,14 @@ export default function ProductDetailPage() {
               <span className="text-xs text-[var(--color-text-muted)]">Sizes: {sizeRange}</span>
             ) : null
           })()}
+          {family.updatedAt && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Clock className="w-3 h-3 text-[var(--color-text-subtle)]" />
+              <span className="text-2xs text-[var(--color-text-subtle)]">
+                Updated {formatRelativeTime(family.updatedAt)}{family.updatedBy ? ` by ${family.updatedBy}` : ""}
+              </span>
+            </div>
+          )}
           <span className="text-xs text-[var(--color-text-subtle)]">
             {skuLoading ? "Loading colorways..." : `${activeSkus.length} ${activeSkus.length === 1 ? "colorway" : "colorways"}${deletedSkus.length > 0 ? ` · ${deletedSkus.length} deleted` : ""}`}
           </span>
@@ -292,6 +325,14 @@ export default function ProductDetailPage() {
               clientId={clientId}
               userId={user?.uid ?? null}
               isFamilyDeleted={isFamilyDeleted}
+            />
+          )}
+          {activeSection === "shots" && (
+            <LinkedShotsSection
+              groups={linkedShotGroups}
+              totalCount={linkedShotCount}
+              loading={linkedShotsLoading}
+              error={linkedShotsError}
             />
           )}
           {activeSection === "activity" && (
