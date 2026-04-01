@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent } from "@testing-library/react"
 import { CallSheetCastTable } from "@/features/schedules/components/CallSheetCastTable"
 import {
   DEFAULT_CAST_SECTION,
   toggleFieldVisibility,
   updateFieldLabel,
   updateFieldWidth,
-  type CallSheetSectionFieldConfig,
 } from "@/features/schedules/lib/fieldConfig"
 import type { TalentCallSheet, TalentRecord } from "@/shared/types"
 
@@ -24,6 +23,12 @@ const CALLS: TalentCallSheet[] = [
     notes: "Bring props",
   },
 ]
+
+/**
+ * Fallback table width used by CallSheetCastTable when ResizeObserver
+ * is a no-op stub (jsdom).  xs = 6% → 48px at 800px.
+ */
+const FALLBACK_TABLE_WIDTH = 800
 
 describe("CallSheetCastTable", () => {
   it("renders default columns when no fieldConfig is provided", () => {
@@ -74,7 +79,7 @@ describe("CallSheetCastTable", () => {
     expect(screen.queryByText("Talent")).not.toBeInTheDocument()
   })
 
-  it("applies width from field config to column headers", () => {
+  it("applies width from field config to column headers as pixels", () => {
     const config = updateFieldWidth(DEFAULT_CAST_SECTION, "talent", "xs")
 
     const { container } = render(
@@ -87,8 +92,69 @@ describe("CallSheetCastTable", () => {
     )
 
     const headers = container.querySelectorAll("th")
-    // Find the talent header — it should have "xs" width (6%)
     const talentHeader = Array.from(headers).find((h) => h.textContent === "Talent")
-    expect(talentHeader?.style.width).toBe("6%")
+    // xs = 6% of fallback 800px = 48px
+    const expectedPx = Math.round((6 / 100) * FALLBACK_TABLE_WIDTH)
+    expect(talentHeader?.style.width).toBe(`${expectedPx}px`)
+  })
+
+  it("renders resize handles on column headers", () => {
+    const { container } = render(
+      <CallSheetCastTable
+        talentCalls={CALLS}
+        talentLookup={TALENT}
+        dayDetails={null}
+      />,
+    )
+
+    const separators = container.querySelectorAll('[role="separator"]')
+    // One resize handle per visible field (default 6 visible fields)
+    expect(separators.length).toBeGreaterThan(0)
+  })
+
+  it("sets tabIndex on the table for keyboard focus", () => {
+    const { container } = render(
+      <CallSheetCastTable
+        talentCalls={CALLS}
+        talentLookup={TALENT}
+        dayDetails={null}
+      />,
+    )
+
+    const table = container.querySelector("table")
+    expect(table?.getAttribute("tabindex")).toBe("0")
+  })
+
+  it("marks active row on ArrowDown keypress", () => {
+    const { container } = render(
+      <CallSheetCastTable
+        talentCalls={CALLS}
+        talentLookup={TALENT}
+        dayDetails={null}
+      />,
+    )
+
+    const table = container.querySelector("table")!
+    fireEvent.keyDown(table, { key: "ArrowDown" })
+
+    const rows = container.querySelectorAll("tbody tr")
+    expect(rows[0]?.getAttribute("data-active-row")).toBe("true")
+  })
+
+  it("clears active row on Escape keypress", () => {
+    const { container } = render(
+      <CallSheetCastTable
+        talentCalls={CALLS}
+        talentLookup={TALENT}
+        dayDetails={null}
+      />,
+    )
+
+    const table = container.querySelector("table")!
+    fireEvent.keyDown(table, { key: "ArrowDown" })
+    fireEvent.keyDown(table, { key: "Escape" })
+
+    const rows = container.querySelectorAll("tbody tr")
+    expect(rows[0]?.getAttribute("data-active-row")).toBeNull()
   })
 })

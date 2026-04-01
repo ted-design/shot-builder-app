@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { formatHHMMTo12h } from "@/features/schedules/lib/time"
 import {
   DEFAULT_CAST_SECTION,
@@ -6,6 +6,9 @@ import {
   getVisibleFields,
   type CallSheetSectionFieldConfig,
 } from "@/features/schedules/lib/fieldConfig"
+import { useColumnResize } from "@/shared/hooks/useColumnResize"
+import { useTableKeyboardNav } from "@/shared/hooks/useTableKeyboardNav"
+import { ResizableHeader } from "@/shared/components/ResizableHeader"
 import type { TalentCallSheet, TalentRecord, DayDetails } from "@/shared/types"
 
 interface CallSheetCastTableProps {
@@ -15,15 +18,26 @@ interface CallSheetCastTableProps {
   readonly fieldConfig?: CallSheetSectionFieldConfig
 }
 
+/** Default pixel width when container measurement is unavailable. */
+const FALLBACK_TABLE_WIDTH = 800
+
+const NUMERIC_KEYS = new Set(["id", "setCall", "wrap", "notes"])
+
 function formatTime(value: string | null | undefined): string {
   if (!value) return "\u2014"
   return formatHHMMTo12h(value) || value
+}
+
+/** Convert a FIELD_WIDTH_MAP percentage string to a pixel value. */
+function percentToPixels(percent: string, tableWidth: number): number {
+  return Math.round((parseFloat(percent) / 100) * tableWidth)
 }
 
 /**
  * Cast / Talent table with editorial section label style.
  * Renders existing data only. Supports per-field customization:
  * rename columns, reorder, resize, and toggle visibility.
+ * Includes drag-to-resize column headers and keyboard row navigation.
  */
 export function CallSheetCastTable({
   talentCalls,
@@ -31,11 +45,57 @@ export function CallSheetCastTable({
   dayDetails,
   fieldConfig,
 }: CallSheetCastTableProps) {
-  const talentMap = new Map<string, TalentRecord>()
-  for (const t of talentLookup) talentMap.set(t.id, t)
+  const talentMap = useMemo(() => {
+    const map = new Map<string, TalentRecord>()
+    for (const t of talentLookup) map.set(t.id, t)
+    return map
+  }, [talentLookup])
 
   const config = fieldConfig ?? DEFAULT_CAST_SECTION
   const visibleFields = useMemo(() => getVisibleFields(config.fields), [config.fields])
+
+  // --- Container measurement for percentage → pixel conversion ---
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(FALLBACK_TABLE_WIDTH)
+
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const measure = () => {
+      const w = el.clientWidth
+      if (w > 0) setContainerWidth(w)
+    }
+    measure()
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // --- Column resize ---
+  const [resizeWidths, setResizeWidths] = useState<Record<string, number>>({})
+
+  const handleWidthChange = useCallback((key: string, width: number) => {
+    setResizeWidths((prev) => ({ ...prev, [key]: width }))
+  }, [])
+
+  const { startResize } = useColumnResize({ onWidthChange: handleWidthChange })
+
+  /** Resolve the pixel width for a field: resize override or percentage-based default. */
+  const resolveWidth = useCallback(
+    (key: string, presetPercent: string): number => {
+      return resizeWidths[key] ?? percentToPixels(presetPercent, containerWidth)
+    },
+    [resizeWidths, containerWidth],
+  )
+
+  // --- Keyboard navigation ---
+  const tableRef = useRef<HTMLTableElement>(null)
+  const { onTableKeyDown } = useTableKeyboardNav({
+    tableRef,
+    rowCount: talentCalls.length,
+  })
 
   if (talentCalls.length === 0) {
     return (
@@ -48,20 +108,28 @@ export function CallSheetCastTable({
   const shootingCall = dayDetails?.shootingCallTime ?? null
 
   return (
-    <div className="callsheet-table-wrap">
-      <table className="callsheet-cs-table">
+    <div ref={containerRef} className="callsheet-table-wrap">
+      <table
+        ref={tableRef}
+        tabIndex={0}
+        onKeyDown={onTableKeyDown}
+        className="callsheet-cs-table"
+      >
         <thead>
           <tr>
             {visibleFields.map((field) => {
-              const isNumeric = field.key === "id" || field.key === "setCall" || field.key === "wrap" || field.key === "notes"
+              const isNumeric = NUMERIC_KEYS.has(field.key)
+              const pixelWidth = resolveWidth(field.key, FIELD_WIDTH_MAP[field.width])
               return (
-                <th
+                <ResizableHeader
                   key={field.key}
-                  style={{ width: FIELD_WIDTH_MAP[field.width] }}
+                  columnKey={field.key}
+                  width={pixelWidth}
+                  onStartResize={startResize}
                   className={isNumeric ? "text-right" : undefined}
                 >
                   {field.label}
-                </th>
+                </ResizableHeader>
               )
             })}
           </tr>
