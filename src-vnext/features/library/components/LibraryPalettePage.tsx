@@ -7,6 +7,7 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { PageHeader } from "@/shared/components/PageHeader"
+import { SearchBar } from "@/shared/components/SearchBar"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
@@ -354,13 +355,12 @@ export default function LibraryPalettePage() {
           />
         ) : (
           <>
-            <div className="max-w-md">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search swatches…"
-              />
-            </div>
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              placeholder="Search swatches…"
+              className="max-w-md"
+            />
 
             <Card>
               <CardHeader className="pb-2">

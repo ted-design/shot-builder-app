@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { MapPin, Plus, Search, LayoutList, Table2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -9,49 +9,21 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
-import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { useLocationLibrary } from "@/features/library/hooks/useLocationLibrary"
 import { CreateLocationDialog } from "@/features/library/components/CreateLocationDialog"
 import { LocationsTable } from "@/features/library/components/LocationsTable"
+import { ViewModeToggle } from "@/shared/components/ViewModeToggle"
+import { SearchBar } from "@/shared/components/SearchBar"
+import { usePersistedViewMode } from "@/shared/hooks/usePersistedViewMode"
 
-// ---------------------------------------------------------------------------
-// View mode persistence (useSyncExternalStore pattern)
-// ---------------------------------------------------------------------------
+const LOCATIONS_VIEW_MODES = ["list", "table"] as const
 
-type ViewMode = "list" | "table"
-const VIEW_STORAGE_KEY = "sb:locations-view"
-
-function getViewSnapshot(): ViewMode {
-  try {
-    const stored = globalThis.localStorage?.getItem(VIEW_STORAGE_KEY)
-    return stored === "table" ? "table" : "list"
-  } catch {
-    return "list"
-  }
-}
-
-function getViewServerSnapshot(): ViewMode {
-  return "list"
-}
-
-function subscribeView(callback: () => void): () => void {
-  const handler = (e: StorageEvent) => {
-    if (e.key === VIEW_STORAGE_KEY) callback()
-  }
-  globalThis.addEventListener("storage", handler)
-  return () => globalThis.removeEventListener("storage", handler)
-}
-
-function persistViewMode(mode: ViewMode): void {
-  try {
-    globalThis.localStorage?.setItem(VIEW_STORAGE_KEY, mode)
-    globalThis.dispatchEvent(new StorageEvent("storage", { key: VIEW_STORAGE_KEY }))
-  } catch {
-    // Ignore storage errors.
-  }
-}
+const LOCATIONS_VIEW_OPTIONS = [
+  { key: "list", icon: LayoutList, label: "List view" },
+  { key: "table", icon: Table2, label: "Table view" },
+] as const
 
 export default function LibraryLocationsPage() {
   const { role } = useAuth()
@@ -61,7 +33,7 @@ export default function LibraryLocationsPage() {
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
   const canCreate = canManageLocations(role)
-  const viewMode = useSyncExternalStore(subscribeView, getViewSnapshot, getViewServerSnapshot)
+  const [viewMode, setViewMode] = usePersistedViewMode("sb:locations-view", "list", LOCATIONS_VIEW_MODES)
 
   useKeyboardShortcuts([
     { key: "c", handler: () => { if (canCreate) setCreateOpen(true) } },
@@ -128,34 +100,17 @@ export default function LibraryLocationsPage() {
           <div className="flex flex-col gap-4">
             {/* Toolbar: search + view toggle */}
             <div className="flex items-center justify-between gap-3">
-              <div className="relative max-w-sm flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
-                <Input
-                  placeholder="Search locations..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9 text-sm"
-                />
-              </div>
-
-              <div className="flex items-center gap-1">
-                {([
-                  { mode: "list" as const, icon: LayoutList, label: "List view" },
-                  { mode: "table" as const, icon: Table2, label: "Table view" },
-                ] as const).map(({ mode, icon: Icon, label }) => (
-                  <Button
-                    key={mode}
-                    variant={viewMode === mode ? "default" : "outline"}
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={() => persistViewMode(mode)}
-                    aria-label={label}
-                    title={label}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                ))}
-              </div>
+              <SearchBar
+                value={query}
+                onChange={setQuery}
+                placeholder="Search locations..."
+                className="max-w-sm flex-1"
+              />
+              <ViewModeToggle
+                modes={LOCATIONS_VIEW_OPTIONS}
+                activeMode={viewMode}
+                onChange={(mode) => setViewMode(mode as "list" | "table")}
+              />
             </div>
 
             {filtered.length === 0 ? (

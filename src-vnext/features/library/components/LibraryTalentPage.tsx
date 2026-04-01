@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Users, Plus, Search, ChevronLeft, ChevronRight, LayoutGrid, LayoutList } from "lucide-react"
+import { ViewModeToggle } from "@/shared/components/ViewModeToggle"
+import { SearchBar } from "@/shared/components/SearchBar"
+import { usePersistedViewMode } from "@/shared/hooks/usePersistedViewMode"
 import {
   PointerSensor,
   KeyboardSensor,
@@ -15,7 +18,6 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
-import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -55,27 +57,12 @@ import { EMPTY_CASTING_BRIEF, rankTalentForBrief } from "@/features/library/lib/
 import { CastingBriefPanel, CastingModeButton, ScoreBadge } from "@/features/library/components/CastingBriefPanel"
 import { TalentTable } from "@/features/library/components/TalentTable"
 
-const VIEW_MODE_KEY = "sb:talent-view"
+const TALENT_VIEW_MODES = ["grid", "table"] as const
 
-type ViewMode = "grid" | "table"
-
-function readViewMode(): ViewMode {
-  try {
-    const stored = localStorage.getItem(VIEW_MODE_KEY)
-    if (stored === "table") return "table"
-  } catch {
-    // localStorage may be unavailable
-  }
-  return "grid"
-}
-
-function persistViewMode(mode: ViewMode): void {
-  try {
-    localStorage.setItem(VIEW_MODE_KEY, mode)
-  } catch {
-    // silently ignore
-  }
-}
+const TALENT_VIEW_OPTIONS = [
+  { key: "grid", icon: LayoutGrid, label: "Grid view" },
+  { key: "table", icon: LayoutList, label: "Table view" },
+] as const
 
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
@@ -90,7 +77,7 @@ export default function LibraryTalentPage() {
   const [filters, setFilters] = useState<TalentSearchFilters>(EMPTY_TALENT_FILTERS)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"detail" | "history">("detail")
-  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode)
+  const [viewMode, setViewMode] = usePersistedViewMode("sb:talent-view", "grid", TALENT_VIEW_MODES)
   const [castingBrief, setCastingBrief] = useState<CastingBrief>(EMPTY_CASTING_BRIEF)
   const [castingPanelOpen, setCastingPanelOpen] = useState(false)
 
@@ -164,11 +151,6 @@ export default function LibraryTalentPage() {
 
   const handleFiltersChange = useCallback((next: TalentSearchFilters) => {
     setFilters(next)
-  }, [])
-
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode)
-    persistViewMode(mode)
   }, [])
 
   const selected = useMemo(() => {
@@ -576,46 +558,22 @@ export default function LibraryTalentPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <div className="max-w-md flex-1">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search talent…"
-              />
-            </div>
+            <SearchBar
+              value={query}
+              onChange={setQuery}
+              placeholder="Search talent…"
+              className="max-w-md flex-1"
+            />
             <TalentFilterToolbar
               filters={filters}
               onFiltersChange={handleFiltersChange}
               onOpenSheet={() => setFilterSheetOpen(true)}
             />
-            <div className="flex items-center rounded-md border border-[var(--color-border)]">
-              <button
-                type="button"
-                onClick={() => handleViewModeChange("grid")}
-                className={`inline-flex items-center justify-center p-1.5 transition-colors ${
-                  viewMode === "grid"
-                    ? "bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                }`}
-                aria-label="Grid view"
-                aria-pressed={viewMode === "grid"}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleViewModeChange("table")}
-                className={`inline-flex items-center justify-center p-1.5 transition-colors ${
-                  viewMode === "table"
-                    ? "bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
-                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                }`}
-                aria-label="Table view"
-                aria-pressed={viewMode === "table"}
-              >
-                <LayoutList className="h-4 w-4" />
-              </button>
-            </div>
+            <ViewModeToggle
+              modes={TALENT_VIEW_OPTIONS}
+              activeMode={viewMode}
+              onChange={(mode) => setViewMode(mode as "grid" | "table")}
+            />
             <CastingModeButton
               active={castingPanelOpen}
               onToggle={() => setCastingPanelOpen((prev) => !prev)}
