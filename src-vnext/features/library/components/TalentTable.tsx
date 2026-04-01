@@ -34,6 +34,10 @@ function getMeasurementValue(
   if (!measurements) return ""
   const val = measurements[key]
   if (val === null || val === undefined) return ""
+  if (typeof val === "object") {
+    const obj = val as Record<string, unknown>
+    return String(obj["value"] ?? obj["v"] ?? "")
+  }
   return String(val)
 }
 
