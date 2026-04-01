@@ -4,9 +4,13 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 
 ## Current Phase Status
 
-- **Sprint S14 (Cmd+K Command Palette)** — COMPLETE (PR #374 merged). 20 new tests (1215 total passing in src-vnext/).
-- **Sprint S13 (Cleanup + Quick Wins)** — COMPLETE (PRs #372 + #373 merged). Vendor chunk 891kB → 276kB, banned deps removed.
-- **Sprint S12 (Request Notifications + Overhaul + Bulk Shots)** — COMPLETE (PR #370 merged, Firebase deployed). 107 new tests (2488 total). 15/15 review fixes applied.
+- **Sprint S15 (UX Overhaul)** — S15a+b COMPLETE (branch `vnext/s15-ux-overhaul`). 59 new tests (1274 total). S15c-e pending.
+  - S15a: Batch shot delete, urgency badges (OVERDUE/URGENT/SOON/UPCOMING/UNSCHEDULED), page transitions (CSS fade-in-rise)
+  - S15b: Talent table view, locations table view, shot view consolidation (3→2 views: Card+Table)
+  - S15c-e: Export builder redesign, call sheet improvements, premium polish (pending)
+- **Sprint S14 (Cmd+K Command Palette)** — COMPLETE (PR #374 merged).
+- **Sprint S13 (Cleanup + Quick Wins)** — COMPLETE (PRs #372 + #373 merged).
+- **Sprint S12 (Request Notifications + Overhaul + Bulk Shots)** — COMPLETE (PR #370 merged).
 - **Post-S14 priorities:** Remove ~25 console.log statements, S9 Firestore index for pendingInvitations, S7-9 E2E schedule→call-sheet flow
 
 ## Completed Phases
@@ -44,6 +48,8 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 | Sprint S12 | Request notifications, request overhaul (comments, products, references), bulk shot generation |
 | Sprint S13 | Cleanup — banned dep removal (react-select, react-easy-crop, reactjs-tiptap-editor, @tanstack/react-query), vendor chunk split (891kB→276kB), on-set standalone route, theme toggle, shoot readiness for all roles |
 | Sprint S14 | Cmd+K command palette — Fuse.js universal search (projects, products, talent, crew), quick actions, recent items, zero Firestore subs when closed |
+| Sprint S15a | Quick wins — batch shot delete (writeBatch + typed confirmation), urgency badges (5-tier time-based replacing confidence), CSS page transitions (fade-in-rise 200ms) |
+| Sprint S15b | View improvements — talent table view (sortable), locations table view (sortable), shot view consolidation (Gallery+Visual→Card, 3→2 views) |
 
 ## Deferred Items
 

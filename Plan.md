@@ -1041,6 +1041,58 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S15: UX Overhaul & Competitive Parity
+
+**Goal:** Address user-reported UX friction across multiple surfaces, informed by competitive analysis of Saturation (export builder), SetHero (call sheet), and KoboLabs (PLM). Ship quick wins first, then bigger redesigns.
+
+**Status:** S15a + S15b COMPLETE. S15c-e pending.
+
+**Research:** 4 competitive/internal audit docs in `docs/research/`. Action plan in `docs/research/s15-action-plan.md`. 3 HTML mockups approved in `mockups/s15-*.html`.
+
+### S15a: Quick Wins (commit 78a5742)
+
+- [x] **S15a-1: Shot batch delete** — `bulkSoftDeleteShots()` with writeBatch (250-chunk, 500 cap), red Delete button in bulk action bar, typed "DELETE" confirmation dialog. 5 tests.
+- [x] **S15a-2: Urgency badges** — `getShootUrgency()` replaces misleading Low/Medium/High with OVERDUE/URGENT/SOON/UPCOMING/UNSCHEDULED. Overdue products now surface first. Token colors. 37 tests.
+- [x] **S15a-3: Page transitions** — CSS-only `fade-in-rise` (200ms ease-out) via PageTransition wrapper. `prefers-reduced-motion` respected. No new deps. 2 tests.
+
+### S15b: View Improvements (commit 8426960)
+
+- [x] **S15b-1: Talent table view** — `TalentTable.tsx` with sortable columns (name, gender, agency, height, measurements, projects). Grid/Table toggle, localStorage persistence. 7 tests.
+- [x] **S15b-2: Locations table view** — `LocationsTable.tsx` with sortable columns (name, address, city, contact, projects). List/Table toggle, localStorage persistence. 8 tests.
+- [x] **S15b-4: Shot view consolidation** — Gallery+Visual merged into Card. ViewMode: "card"|"table". Shortcuts: 1=Card, 2=Table. Old localStorage migrated. ShotVisualCard no longer rendered.
+
+### S15c: Export Builder Redesign (pending)
+
+- [ ] **S15c-1: Block model** — Block types (Text, Image, ShotGrid, ShotDetail, ProductTable, Divider, PageBreak), document model
+- [ ] **S15c-2: Builder UI** — 3-panel layout (block palette, WYSIWYG preview, block settings)
+- [ ] **S15c-3: Template system** — Built-in + user-saved templates
+- [ ] **S15c-4: Variable system** — Dynamic tokens (project name, dates, page numbers)
+- [ ] **S15c-5: Data blocks** — ShotGrid and ProductTable pull live data with column toggles
+
+### S15d: Call Sheet Improvements (pending)
+
+- [ ] **S15d-1: Section toggles** — Show/hide each call sheet section
+- [ ] **S15d-2: Per-field customization** — Rename, reorder, resize, toggle columns per section
+- [ ] **S15d-3: Layout templates** — Save/load call sheet configurations
+
+### S15e: Premium Polish (pending)
+
+- [ ] **S15e-1: Image editing canvas** — Cropping + basic adjustments
+- [ ] **S15e-2: UX polish** — Hover states, micro-interactions, premium feel
+- [ ] **S15e-3: Product enrichment** — Last modified indicators, richer metadata
+
+### Acceptance Criteria (S15a+b)
+
+- [x] Batch delete: select shots → Delete → typed confirmation → soft-deleted → toast
+- [x] Urgency: overdue products show red OVERDUE badge, not "Low" confidence
+- [x] Transitions: page changes fade in smoothly (200ms)
+- [x] Talent: Grid/Table toggle with sortable columnar view
+- [x] Locations: List/Table toggle with sortable columnar view
+- [x] Views: 2 modes (Card + Table) instead of 3 (Gallery + Visual + Table)
+- [x] 1274 tests passing, build clean, lint zero warnings
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:
