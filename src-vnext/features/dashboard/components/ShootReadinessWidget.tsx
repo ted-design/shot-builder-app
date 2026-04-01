@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageProjects } from "@/shared/lib/rbac"
 import { useShootReadiness } from "@/features/products/hooks/useShootReadiness"
+import { useProductProjectMap } from "@/features/dashboard/hooks/useProductProjectMap"
 import { useProductSkus } from "@/features/products/hooks/useProducts"
 import { formatLaunchDate, countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import type { ShootReadinessItem } from "@/features/products/lib/shootReadiness"
@@ -366,6 +367,8 @@ interface ReadinessCardProps {
   readonly familySkuIds: ReadonlyArray<string>
   readonly allFamilySkusSelected: boolean
   readonly someFamilySkusSelected: boolean
+  readonly assignedProjects: ReadonlySet<string> | undefined
+  readonly projectNames: ReadonlyMap<string, string>
 }
 
 function ReadinessCard({
@@ -378,6 +381,8 @@ function ReadinessCard({
   selection,
   allFamilySkusSelected,
   someFamilySkusSelected,
+  assignedProjects,
+  projectNames,
 }: ReadinessCardProps) {
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const navigate = useNavigate()
@@ -554,6 +559,13 @@ function ReadinessCard({
                   {item.samplesArrived}/{item.samplesTotal} samples arrived
                 </span>
               )}
+              {assignedProjects && assignedProjects.size > 0 && (
+                <span className="text-2xs text-[var(--color-status-green-text)]">
+                  {assignedProjects.size === 1
+                    ? `In ${projectNames.get([...assignedProjects][0]!) ?? "1 project"}`
+                    : `In ${assignedProjects.size} projects`}
+                </span>
+              )}
             </div>
           )}
 
@@ -640,8 +652,12 @@ function ReadinessCard({
 
 export function ShootReadinessWidget() {
   const { items, loading } = useShootReadiness()
-  const { role } = useAuth()
+  const { role, clientId } = useAuth()
   const canBulkAdd = canManageProjects(role)
+  const {
+    familyProjectMap,
+    projectNames,
+  } = useProductProjectMap(clientId)
 
   const [selectionMode, setSelectionMode] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
@@ -833,6 +849,8 @@ export function ShootReadinessWidget() {
                 familySkuIds={[]}
                 allFamilySkusSelected={allFamilySkusSelected}
                 someFamilySkusSelected={someFamilySkusSelected}
+                assignedProjects={familyProjectMap.get(item.familyId)}
+                projectNames={projectNames}
               />
             )
           })}
