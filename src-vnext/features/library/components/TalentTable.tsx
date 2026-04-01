@@ -66,13 +66,13 @@ function genderBadgeClasses(gender: string | null | undefined): string {
   if (!gender) return ""
   switch (gender.toLowerCase()) {
     case "male":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+      return "border border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]"
     case "female":
-      return "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300"
+      return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
     case "non-binary":
-      return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+      return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
     default:
-      return "bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)]"
+      return "border border-[var(--color-status-gray-border)] bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]"
   }
 }
 
