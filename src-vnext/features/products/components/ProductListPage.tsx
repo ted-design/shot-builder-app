@@ -41,27 +41,14 @@ import {
   type ProductListStatusFilter,
 } from "@/features/products/lib/productList"
 import {
-  defaultProductTableColumns,
   defaultProductCardProperties,
   readProductListViewMode,
   readProductCardProperties,
-  readProductTableColumns,
   writeProductListViewMode,
   writeProductCardProperties,
-  writeProductTableColumns,
   type ProductCardPropertyKey,
   type ProductListViewMode,
-  type ProductTableColumnKey,
 } from "@/features/products/lib/productPreferences"
-
-const COLUMN_LABELS: Record<ProductTableColumnKey, string> = {
-  preview: "Preview",
-  styleNumber: "Style #",
-  category: "Category",
-  colorways: "Colorways",
-  status: "Status",
-  updatedAt: "Updated",
-}
 
 const CARD_PROPERTY_LABELS: Record<ProductCardPropertyKey, string> = {
   styleNumber: "Style #",
@@ -105,16 +92,11 @@ export default function ProductListPage() {
   const viewParam = searchParams.get("view")
 
   const [searchDraft, setSearchDraft] = useState(qParam)
-  const [tableColumns, setTableColumns] = useState(() => readProductTableColumns())
   const [cardProperties, setCardProperties] = useState(() => readProductCardProperties())
 
   useEffect(() => {
     setSearchDraft(qParam)
   }, [qParam])
-
-  useEffect(() => {
-    writeProductTableColumns(tableColumns)
-  }, [tableColumns])
 
   useEffect(() => {
     writeProductCardProperties(cardProperties)
@@ -475,35 +457,7 @@ export default function ProductListPage() {
                       Show deleted
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuSeparator />
-                    {viewMode === "table" && !isMobile ? (
-                      <>
-                        <DropdownMenuLabel>Property visibility</DropdownMenuLabel>
-                        {(Object.keys(COLUMN_LABELS) as ProductTableColumnKey[]).map((key) => (
-                          <DropdownMenuCheckboxItem
-                            key={key}
-                            checked={tableColumns[key]}
-                            onCheckedChange={(checked) =>
-                              setTableColumns((prev) => ({
-                                ...prev,
-                                [key]: Boolean(checked),
-                              }))
-                            }
-                          >
-                            {COLUMN_LABELS[key]}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-xs"
-                          onSelect={(e) => {
-                            e.preventDefault()
-                            setTableColumns(defaultProductTableColumns())
-                          }}
-                        >
-                          Reset table properties
-                        </DropdownMenuItem>
-                      </>
-                    ) : (
+                    {viewMode !== "table" && (
                       <>
                         <DropdownMenuLabel>Property visibility</DropdownMenuLabel>
                         {(Object.keys(CARD_PROPERTY_LABELS) as ProductCardPropertyKey[]).map((key) => (
@@ -697,7 +651,7 @@ export default function ProductListPage() {
               description={`No products match "${qParam || searchDraft}". Try broadening your search.`}
             />
           ) : viewMode === "table" ? (
-            <ProductFamiliesTable families={filtered} columns={tableColumns} />
+            <ProductFamiliesTable families={filtered} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filtered.map((family) => {
