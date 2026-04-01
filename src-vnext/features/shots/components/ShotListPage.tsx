@@ -331,8 +331,30 @@ export default function ShotListPage() {
       {/* Bulk action bar (desktop only) */}
       {selectionEnabled && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-          <div className="text-xs text-[var(--color-text-muted)]">
-            {selectedIds.size} selected
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={displayShots.length > 0 && displayShots.every(s => selectedIds.has(s.id)) ? true : selectedIds.size > 0 ? "indeterminate" : false}
+              onCheckedChange={(v) => {
+                if (v) {
+                  setSelectedIds(new Set(displayShots.map(s => s.id)))
+                } else {
+                  setSelectedIds(new Set())
+                }
+              }}
+              aria-label={displayShots.length > 0 && displayShots.every(s => selectedIds.has(s.id)) ? "Deselect all shots" : "Select all visible shots"}
+            />
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {selectedIds.size} selected
+              {selectedIds.size < displayShots.length && (
+                <button
+                  type="button"
+                  className="ml-1.5 text-[var(--color-primary)] hover:underline"
+                  onClick={() => setSelectedIds(new Set(displayShots.map(s => s.id)))}
+                >
+                  Select all {displayShots.length}
+                </button>
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             {canShare && (

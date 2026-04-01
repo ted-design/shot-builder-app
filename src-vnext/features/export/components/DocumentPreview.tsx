@@ -61,7 +61,7 @@ export function DocumentPreview({
       {visualPages.map((pageBlocks, pageIndex) => (
         <div
           key={pageIndex}
-          className="doc-page w-full max-w-[816px] min-h-[1056px]"
+          className="doc-page w-full max-w-[960px] min-h-[1243px]"
         >
           <div className="doc-page-content flex flex-col gap-2">
             {pageBlocks.length === 0 && pageIndex === 0 && totalPages === 1 ? (

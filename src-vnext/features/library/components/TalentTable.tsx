@@ -37,15 +37,6 @@ function getMeasurementValue(
   return String(val)
 }
 
-function formatMeasurements(measurements: TalentRecord["measurements"]): string {
-  if (!measurements) return ""
-  const bust = getMeasurementValue(measurements, "bust")
-  const waist = getMeasurementValue(measurements, "waist")
-  const hips = getMeasurementValue(measurements, "hips")
-  if (!bust && !waist && !hips) return ""
-  return [bust || "-", waist || "-", hips || "-"].join("-")
-}
-
 function genderLabel(gender: string | null | undefined): string {
   if (!gender) return ""
   switch (gender.toLowerCase()) {
@@ -187,7 +178,9 @@ function TalentTableRow({
 }) {
   const name = buildDisplayName(talent)
   const height = getMeasurementValue(talent.measurements, "height")
-  const measurements = formatMeasurements(talent.measurements)
+  const bust = getMeasurementValue(talent.measurements, "bust")
+  const waist = getMeasurementValue(talent.measurements, "waist")
+  const hips = getMeasurementValue(talent.measurements, "hips")
   const projectCount = (talent.projectIds ?? []).length
 
   return (
@@ -226,15 +219,17 @@ function TalentTableRow({
         {height || <span className="text-[var(--color-text-subtle)]">--</span>}
       </td>
       {!isMobile && (
-        <td className="px-3 py-2">
-          {measurements ? (
-            <span className="font-mono text-xs text-[var(--color-text-muted)]">
-              {measurements}
-            </span>
-          ) : (
-            <span className="text-[var(--color-text-subtle)]">--</span>
-          )}
-        </td>
+        <>
+          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
+            {bust || <span className="text-[var(--color-text-subtle)]">--</span>}
+          </td>
+          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
+            {waist || <span className="text-[var(--color-text-subtle)]">--</span>}
+          </td>
+          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
+            {hips || <span className="text-[var(--color-text-subtle)]">--</span>}
+          </td>
+        </>
       )}
       <td className="px-3 py-2">
         {projectCount > 0 ? (
@@ -284,7 +279,11 @@ export function TalentTable({ talent, onSelect, selectedId }: TalentTableProps) 
             )}
             <th className="w-24 px-3 py-2 text-left font-medium">Height</th>
             {!isMobile && (
-              <th className="w-32 px-3 py-2 text-left font-medium">Measurements</th>
+              <>
+                <th className="w-20 px-3 py-2 text-left font-medium">Bust</th>
+                <th className="w-20 px-3 py-2 text-left font-medium">Waist</th>
+                <th className="w-20 px-3 py-2 text-left font-medium">Hips</th>
+              </>
             )}
             <SortableHeader label="Projects" field="projects" sort={sort} onSort={toggleSort} className="w-24" />
           </tr>

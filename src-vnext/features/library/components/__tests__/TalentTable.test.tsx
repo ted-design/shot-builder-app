@@ -67,7 +67,9 @@ describe("TalentTable", () => {
     expect(screen.getByText("Gender")).toBeInTheDocument()
     expect(screen.getByText("Agency")).toBeInTheDocument()
     expect(screen.getByText("Height")).toBeInTheDocument()
-    expect(screen.getByText("Measurements")).toBeInTheDocument()
+    expect(screen.getByText("Bust")).toBeInTheDocument()
+    expect(screen.getByText("Waist")).toBeInTheDocument()
+    expect(screen.getByText("Hips")).toBeInTheDocument()
     expect(screen.getByText("Projects")).toBeInTheDocument()
   })
 
@@ -88,8 +90,14 @@ describe("TalentTable", () => {
     expect(screen.getByText(`5'11"`)).toBeInTheDocument()
     expect(screen.getByText(`5'7"`)).toBeInTheDocument()
 
-    expect(screen.getByText("38-30-36")).toBeInTheDocument()
-    expect(screen.getByText("34-26-35")).toBeInTheDocument()
+    // Individual measurement columns for Alex Rivera
+    expect(screen.getByText("38")).toBeInTheDocument()
+    expect(screen.getByText("30")).toBeInTheDocument()
+    expect(screen.getByText("36")).toBeInTheDocument()
+    // Individual measurement columns for Jordan Blake
+    expect(screen.getByText("34")).toBeInTheDocument()
+    expect(screen.getByText("26")).toBeInTheDocument()
+    expect(screen.getByText("35")).toBeInTheDocument()
 
     expect(screen.getByText("2")).toBeInTheDocument()
     expect(screen.getByText("1")).toBeInTheDocument()
