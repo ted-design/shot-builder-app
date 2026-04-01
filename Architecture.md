@@ -511,7 +511,32 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation), `CommandPalette` (Cmd+K universal search — Fuse.js + cmdk, Sprint S14), `BulkSelectionBar` (floating action bar for multi-select workflows, Sprint S12C)
+`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation), `CommandPalette` (Cmd+K universal search — Fuse.js + cmdk, Sprint S14), `BulkSelectionBar` (floating action bar for multi-select workflows, Sprint S12C), `ViewModeToggle` (unified view toggle — Button variant=default/outline, Sprint S16), `SearchBar` (consistent search input with icon + clear button, Sprint S16), `ColumnSettingsPopover` (Saturation-style column config — eye icon visibility, drag reorder, Sprint S16), `ResizableHeader` (table `<th>` with drag-to-resize handle, Sprint S16)
+
+### Interactive Table System (Sprint S16)
+
+Composable hook-based table interactivity applied to all 5 tables (ProductFamilies, Locations, Talent, Shots, CallSheetCast). Architecture is hooks + components, not a monolithic DataTable wrapper.
+
+| Module | Path | Purpose |
+|---|---|---|
+| `TableColumnConfig` | `shared/types/table.ts` | Column config type + `normalizeColumns()` for merging saved/defaults |
+| `useTableColumns` | `shared/hooks/useTableColumns.ts` | Column state (visibility, order, widths) + localStorage persistence via `useSyncExternalStore` |
+| `useColumnResize` | `shared/hooks/useColumnResize.ts` | Mouse-drag column resize with min/max clamping |
+| `useTableKeyboardNav` | `shared/hooks/useTableKeyboardNav.ts` | Row-level arrow key navigation (guards interactive descendants) |
+| `usePersistedViewMode` | `shared/hooks/usePersistedViewMode.ts` | Generic localStorage view mode persistence with cross-tab sync |
+| `shotTableColumns.ts` | `features/shots/lib/` | Bridge adapter: `ShotsListFields` ↔ `TableColumnConfig` for ShotsTable (preserves selection + inline editing contracts) |
+
+**Design system enforcement:** `docs/DESIGN_SYSTEM.md` codifies all shared component patterns, typography tokens, color tokens, table controls (Saturation benchmark), spacing standards. Referenced from CLAUDE.md Hard Rule #3 — mandatory read before any UI work.
+
+### Premium Interaction Utilities (Sprint S15e)
+
+CSS utility classes in `tokens.css` for consistent hover/press/animation feedback:
+- `.hover-lift` — translateY(-2px) + shadow on card hover
+- `.btn-press` — scale(0.97) active press on all Button variants (via cva base)
+- `.hover-glow` — border glow on hover for interactive rows
+- `.shimmer-bg` — gradient shimmer animation for skeleton loading
+- `.stagger-children` — fade-in-rise with 50ms staggered delays
+All respect `prefers-reduced-motion: reduce`.
 
 ### Library Entity Modules (Phase 7B)
 
@@ -532,7 +557,7 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 | `useTalentShotHistory.ts` | `features/library/hooks/` | Firestore `array-contains` query: all shots a talent appears in, grouped by project |
 | `useMeasurementBounds.ts` | `features/library/hooks/` | Computes min/max bounds from actual talent measurement data for slider ranges. Stack-safe reduce (not Math.min/max spread). |
 | `TalentSearchFilters.tsx` | `features/library/components/` | Responsive filter sheet (side on desktop, bottom on mobile) — gender, measurement ranges, agency, casting history |
-| `TalentDetailPanel.tsx` | `features/library/components/` | Detail panel rendered inside Sheet — Profile/Shot History tabs, headshot, contact, measurements, portfolio (491 lines after CastingSessionList extraction) |
+| `TalentDetailPanel.tsx` | `features/library/components/` | Detail panel rendered inside Sheet — Profile/Shot History tabs, headshot (112px, click-to-enlarge lightbox), contact, measurements, notes (HTML-aware via SanitizedHtml), portfolio (~550 lines after S16g polish) |
 | `CastingSessionList.tsx` | `features/library/components/` | Extracted from TalentDetailPanel — casting session expansion with DnD image grid and session field editors |
 | `TalentDialogs.tsx` | `features/library/components/` | Extracted from LibraryTalentPage — 5 ConfirmDialogs + Dialog + TalentCastingPrintPortal |
 | `CastingBriefPanel.tsx` | `features/library/components/` | Top-level collapsible casting brief panel with mode toggle button, score badges on grid cards, and embedded CastingBriefMatcher |
