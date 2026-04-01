@@ -4,7 +4,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageProjects } from "@/shared/lib/rbac"
 import { useShootReadiness } from "@/features/products/hooks/useShootReadiness"
 import { useProductSkus } from "@/features/products/hooks/useProducts"
-import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
+import { formatLaunchDate, countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import type { ShootReadinessItem } from "@/features/products/lib/shootReadiness"
 import type { ShootWindow } from "@/features/products/lib/shootReadiness"
 import type { ProductSku } from "@/shared/types"
@@ -285,6 +285,8 @@ function ExpandedFamilySkus({
         const skuLaunchDate = sku.launchDate
           ? formatLaunchDate(sku.launchDate)
           : null
+        const activeReqs = countActiveRequirements(sku.assetRequirements)
+        const hasReqs = activeReqs > 0
 
         return (
           <div
@@ -324,6 +326,19 @@ function ExpandedFamilySkus({
             <span className="min-w-0 truncate text-[var(--color-text)]">
               {sku.colorName ?? sku.name}
             </span>
+            {hasReqs ? (
+              <span className="shrink-0 rounded-full bg-[var(--color-status-amber-bg)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-status-amber-text)]">
+                {activeReqs} needed
+              </span>
+            ) : sku.assetRequirements ? (
+              <span className="shrink-0 rounded-full bg-[var(--color-status-green-bg)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-status-green-text)]">
+                Done
+              </span>
+            ) : (
+              <span className="shrink-0 text-2xs text-[var(--color-text-subtle)]">
+                No requirements
+              </span>
+            )}
             {skuLaunchDate && (
               <span className="ml-auto shrink-0 text-2xs text-[var(--color-text-subtle)]">
                 {skuLaunchDate}
