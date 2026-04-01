@@ -1069,11 +1069,11 @@ Admin (role-gated: admin only)
 - [ ] **S15c-4: Variable system** — Dynamic tokens (project name, dates, page numbers)
 - [ ] **S15c-5: Data blocks** — ShotGrid and ProductTable pull live data with column toggles
 
-### S15d: Call Sheet Improvements (pending)
+### S15d: Call Sheet Improvements (commit 6f0184c)
 
-- [ ] **S15d-1: Section toggles** — Show/hide each call sheet section
-- [ ] **S15d-2: Per-field customization** — Rename, reorder, resize, toggle columns per section
-- [ ] **S15d-3: Layout templates** — Save/load call sheet configurations
+- [x] **S15d-1: Section toggles** — Each section (header, schedule, talent, crew, notes) toggleable via Switch controls. Toggled-off sections omitted from preview and print.
+- [x] **S15d-2: Per-field customization** — EditSectionFieldsDialog per section: rename, reorder, resize (XS/S/M/L), toggle columns. Applied to Cast/Talent and Crew. Persisted to Firestore.
+- [x] **S15d-3: Layout templates** — CallSheetLayoutDialog with 3 built-in presets (Full, Compact, Crew Only) + user-saved layouts in localStorage. 41 new tests.
 
 ### S15e: Premium Polish (pending)
 
