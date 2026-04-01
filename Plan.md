@@ -1075,11 +1075,12 @@ Admin (role-gated: admin only)
 - [x] **S15d-2: Per-field customization** — EditSectionFieldsDialog per section: rename, reorder, resize (XS/S/M/L), toggle columns. Applied to Cast/Talent and Crew. Persisted to Firestore.
 - [x] **S15d-3: Layout templates** — CallSheetLayoutDialog with 3 built-in presets (Full, Compact, Crew Only) + user-saved layouts in localStorage. 41 new tests.
 
-### S15e: Premium Polish (pending)
+### S15e: Premium Polish
 
-- [ ] **S15e-1: Image editing canvas** — Cropping + basic adjustments
-- [ ] **S15e-2: UX polish** — Hover states, micro-interactions, premium feel
-- [ ] **S15e-3: Product enrichment** — Last modified indicators, richer metadata
+- [x] **S15e-0: Retroactive fixes** — Talent table split Bust/Waist/Hips columns, Select All in bulk bar, wider export preview (960px)
+- [x] **S15e-1: UX polish** — hover-lift, btn-press, shimmer, stagger-children CSS utilities. Applied to ShotCard, ProjectCard, all Button variants. prefers-reduced-motion respected.
+- [x] **S15e-2: Product enrichment** — Linked Shots tab on ProductDetailPage (grouped by project, status badges, navigation). Last modified indicator on product header. useLinkedShots hook with client-side filtering. 7 new tests.
+- [ ] **S15e-3: Image editing canvas** — Deferred to S16. User wants full Canva/Figma-like canvas editor (multi-image, layers, text, shapes, effects), not simple crop. Requires Fabric.js or Konva.js evaluation.
 
 ### Acceptance Criteria (S15a+b)
 
