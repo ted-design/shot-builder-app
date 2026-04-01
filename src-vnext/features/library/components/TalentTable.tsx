@@ -1,7 +1,14 @@
-import { useState, useMemo, useCallback } from "react"
-import { ArrowUp, ArrowDown } from "lucide-react"
+import { useState, useMemo, useCallback, useRef } from "react"
+import { ArrowUp, ArrowDown, Settings } from "lucide-react"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { useTableColumns } from "@/shared/hooks/useTableColumns"
+import { useColumnResize } from "@/shared/hooks/useColumnResize"
+import { useTableKeyboardNav } from "@/shared/hooks/useTableKeyboardNav"
+import { ResizableHeader } from "@/shared/components/ResizableHeader"
+import { ColumnSettingsPopover } from "@/shared/components/ColumnSettingsPopover"
+import { Button } from "@/ui/button"
+import type { TableColumnConfig } from "@/shared/types/table"
 import type { TalentRecord } from "@/shared/types"
 import { buildDisplayName, initials } from "@/features/library/components/talentUtils"
 
@@ -22,6 +29,25 @@ interface TalentTableProps {
   readonly onSelect: (talentId: string) => void
   readonly selectedId?: string | null
 }
+
+// ---------------------------------------------------------------------------
+// Default column configuration
+// ---------------------------------------------------------------------------
+
+const DEFAULT_COLUMNS: readonly TableColumnConfig[] = [
+  { key: "avatar", label: "", defaultLabel: "", visible: true, width: 48, order: 0, pinned: true },
+  { key: "name", label: "Name", defaultLabel: "Name", visible: true, width: 180, order: 1, pinned: true, sortable: true },
+  { key: "gender", label: "Gender", defaultLabel: "Gender", visible: true, width: 100, order: 2, sortable: true },
+  { key: "agency", label: "Agency", defaultLabel: "Agency", visible: true, width: 160, order: 3, sortable: true },
+  { key: "height", label: "Height", defaultLabel: "Height", visible: true, width: 80, order: 4 },
+  { key: "bust", label: "Bust", defaultLabel: "Bust", visible: true, width: 70, order: 5 },
+  { key: "waist", label: "Waist", defaultLabel: "Waist", visible: true, width: 70, order: 6 },
+  { key: "hips", label: "Hips", defaultLabel: "Hips", visible: true, width: 70, order: 7 },
+  { key: "projects", label: "Projects", defaultLabel: "Projects", visible: true, width: 90, order: 8, sortable: true },
+]
+
+// Desktop-only columns hidden on mobile regardless of user config
+const DESKTOP_ONLY_KEYS = new Set(["agency", "bust", "waist", "hips"])
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -131,125 +157,100 @@ function AvatarCell({ talent }: { readonly talent: TalentRecord }) {
 }
 
 // ---------------------------------------------------------------------------
-// Sortable header
+// Sortable header content (button only, no <th> wrapper)
 // ---------------------------------------------------------------------------
 
-function SortableHeader({
+function SortableHeaderContent({
   label,
   field,
   sort,
   onSort,
-  className = "",
 }: {
   readonly label: string
   readonly field: SortField
   readonly sort: SortState
   readonly onSort: (field: SortField) => void
-  readonly className?: string
 }) {
   const active = sort.field === field
   return (
-    <th className={`px-3 py-2 text-left font-medium ${className}`}>
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="inline-flex items-center gap-1 hover:text-[var(--color-text)]"
-        aria-label={`Sort by ${label}`}
-      >
-        {label}
-        {active ? (
-          sort.direction === "asc" ? (
-            <ArrowUp className="h-3 w-3" aria-hidden="true" />
-          ) : (
-            <ArrowDown className="h-3 w-3" aria-hidden="true" />
-          )
-        ) : null}
-      </button>
-    </th>
+    <button
+      type="button"
+      onClick={() => onSort(field)}
+      className="inline-flex items-center gap-1 hover:text-[var(--color-text)]"
+      aria-label={`Sort by ${label}`}
+    >
+      {label}
+      {active ? (
+        sort.direction === "asc" ? (
+          <ArrowUp className="h-3 w-3" aria-hidden="true" />
+        ) : (
+          <ArrowDown className="h-3 w-3" aria-hidden="true" />
+        )
+      ) : null}
+    </button>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Row
+// Cell renderer
 // ---------------------------------------------------------------------------
 
-function TalentTableRow({
-  talent,
-  isSelected,
-  isMobile,
-  onSelect,
-}: {
-  readonly talent: TalentRecord
-  readonly isSelected: boolean
-  readonly isMobile: boolean
-  readonly onSelect: (id: string) => void
-}) {
-  const name = buildDisplayName(talent)
-  const height = getMeasurementValue(talent.measurements, "height")
-  const bust = getMeasurementValue(talent.measurements, "bust")
-  const waist = getMeasurementValue(talent.measurements, "waist")
-  const hips = getMeasurementValue(talent.measurements, "hips")
-  const projectCount = (talent.projectIds ?? []).length
-
-  return (
-    <tr
-      role="row"
-      onClick={() => onSelect(talent.id)}
-      className={`cursor-pointer border-b border-[var(--color-border)] transition-colors ${
-        isSelected
-          ? "bg-[var(--color-primary)]/5"
-          : "hover:bg-[var(--color-surface-subtle)]"
-      }`}
-    >
-      <td className="px-3 py-2">
-        <AvatarCell talent={talent} />
-      </td>
-      <td className="px-3 py-2">
-        <span className="font-medium text-[var(--color-text)]">{name}</span>
-      </td>
-      <td className="px-3 py-2">
-        {talent.gender ? (
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-2xs font-medium ${genderBadgeClasses(talent.gender)}`}
-          >
-            {genderLabel(talent.gender)}
-          </span>
-        ) : (
-          <span className="text-[var(--color-text-subtle)]">--</span>
-        )}
-      </td>
-      {!isMobile && (
-        <td className="px-3 py-2 text-[var(--color-text-muted)]">
-          {talent.agency || <span className="text-[var(--color-text-subtle)]">--</span>}
-        </td>
-      )}
-      <td className="px-3 py-2 text-[var(--color-text-muted)]">
-        {height || <span className="text-[var(--color-text-subtle)]">--</span>}
-      </td>
-      {!isMobile && (
-        <>
-          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
-            {bust || <span className="text-[var(--color-text-subtle)]">--</span>}
-          </td>
-          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
-            {waist || <span className="text-[var(--color-text-subtle)]">--</span>}
-          </td>
-          <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
-            {hips || <span className="text-[var(--color-text-subtle)]">--</span>}
-          </td>
-        </>
-      )}
-      <td className="px-3 py-2">
-        {projectCount > 0 ? (
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-surface-subtle)] px-1.5 text-2xs font-medium text-[var(--color-text-muted)]">
-            {projectCount}
-          </span>
-        ) : (
-          <span className="text-[var(--color-text-subtle)]">--</span>
-        )}
-      </td>
-    </tr>
-  )
+function renderCell(
+  talent: TalentRecord,
+  columnKey: string,
+): React.ReactNode {
+  switch (columnKey) {
+    case "avatar":
+      return <AvatarCell talent={talent} />
+    case "name":
+      return (
+        <span className="font-medium text-[var(--color-text)]">
+          {buildDisplayName(talent)}
+        </span>
+      )
+    case "gender":
+      return talent.gender ? (
+        <span
+          className={`inline-block rounded-full px-2 py-0.5 text-2xs font-medium ${genderBadgeClasses(talent.gender)}`}
+        >
+          {genderLabel(talent.gender)}
+        </span>
+      ) : (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "agency":
+      return talent.agency || (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "height":
+      return getMeasurementValue(talent.measurements, "height") || (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "bust":
+      return getMeasurementValue(talent.measurements, "bust") || (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "waist":
+      return getMeasurementValue(talent.measurements, "waist") || (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "hips":
+      return getMeasurementValue(talent.measurements, "hips") || (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    case "projects": {
+      const count = (talent.projectIds ?? []).length
+      return count > 0 ? (
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-surface-subtle)] px-1.5 text-2xs font-medium text-[var(--color-text-muted)]">
+          {count}
+        </span>
+      ) : (
+        <span className="text-[var(--color-text-subtle)]">--</span>
+      )
+    }
+    default:
+      return null
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +260,22 @@ function TalentTableRow({
 export function TalentTable({ talent, onSelect, selectedId }: TalentTableProps) {
   const isMobile = useIsMobile()
   const [sort, setSort] = useState<SortState>({ field: "name", direction: "asc" })
+
+  const {
+    columns,
+    visibleColumns: allVisibleColumns,
+    setColumnWidth,
+    toggleVisibility,
+    reorderColumns,
+    resetToDefaults,
+  } = useTableColumns("talent-table", DEFAULT_COLUMNS)
+
+  const { startResize } = useColumnResize({ onWidthChange: setColumnWidth })
+
+  // Filter out desktop-only columns on mobile
+  const visibleColumns = isMobile
+    ? allVisibleColumns.filter((col) => !DESKTOP_ONLY_KEYS.has(col.key))
+    : allVisibleColumns
 
   const toggleSort = useCallback((field: SortField) => {
     setSort((prev) => {
@@ -274,40 +291,105 @@ export function TalentTable({ talent, onSelect, selectedId }: TalentTableProps) 
     [talent, sort],
   )
 
+  const tableRef = useRef<HTMLTableElement>(null)
+  const { onTableKeyDown } = useTableKeyboardNav({
+    tableRef,
+    rowCount: sorted.length,
+    onActivateRow: (i) => {
+      const row = sorted[i]
+      if (row) onSelect(row.id)
+    },
+  })
+
   return (
-    <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <table className="w-full text-sm">
-        <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
-          <tr>
-            <th className="w-12 px-3 py-2" />
-            <SortableHeader label="Name" field="name" sort={sort} onSort={toggleSort} className="min-w-[160px]" />
-            <SortableHeader label="Gender" field="gender" sort={sort} onSort={toggleSort} className="w-28" />
-            {!isMobile && (
-              <SortableHeader label="Agency" field="agency" sort={sort} onSort={toggleSort} className="min-w-[140px]" />
-            )}
-            <th className="w-24 px-3 py-2 text-left font-medium">Height</th>
-            {!isMobile && (
-              <>
-                <th className="w-20 px-3 py-2 text-left font-medium">Bust</th>
-                <th className="w-20 px-3 py-2 text-left font-medium">Waist</th>
-                <th className="w-20 px-3 py-2 text-left font-medium">Hips</th>
-              </>
-            )}
-            <SortableHeader label="Projects" field="projects" sort={sort} onSort={toggleSort} className="w-24" />
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((t) => (
-            <TalentTableRow
-              key={t.id}
-              talent={t}
-              isSelected={selectedId === t.id}
-              isMobile={isMobile}
-              onSelect={onSelect}
-            />
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-2">
+      {/* Column settings toolbar */}
+      <div className="flex justify-end">
+        <ColumnSettingsPopover
+          columns={columns}
+          onToggleVisibility={toggleVisibility}
+          onReorder={reorderColumns}
+          onReset={resetToDefaults}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-2xs text-[var(--color-text-muted)]"
+            aria-label="Column settings"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Columns
+          </Button>
+        </ColumnSettingsPopover>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <table
+          ref={tableRef}
+          className="w-full text-sm"
+          onKeyDown={onTableKeyDown}
+        >
+          <colgroup>
+            {visibleColumns.map((col) => (
+              <col key={col.key} style={{ width: col.width }} />
+            ))}
+          </colgroup>
+          <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
+            <tr>
+              {visibleColumns.map((col) => (
+                <ResizableHeader
+                  key={col.key}
+                  columnKey={col.key}
+                  width={col.width}
+                  onStartResize={startResize}
+                  className="px-3 py-2 text-left font-medium"
+                >
+                  {col.sortable ? (
+                    <SortableHeaderContent
+                      label={col.label}
+                      field={col.key as SortField}
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                  ) : (
+                    col.label
+                  )}
+                </ResizableHeader>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((t) => (
+              <tr
+                key={t.id}
+                role="row"
+                onClick={() => onSelect(t.id)}
+                className={`cursor-pointer border-b border-[var(--color-border)] transition-colors ${
+                  selectedId === t.id
+                    ? "bg-[var(--color-primary)]/5"
+                    : "hover:bg-[var(--color-surface-subtle)]"
+                }`}
+              >
+                {visibleColumns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={`px-3 py-2 ${
+                      col.key === "bust" || col.key === "waist" || col.key === "hips"
+                        ? "text-xs text-[var(--color-text-muted)]"
+                        : col.key === "agency" || col.key === "height"
+                          ? "text-[var(--color-text-muted)]"
+                          : ""
+                    }`}
+                  >
+                    {renderCell(t, col.key)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

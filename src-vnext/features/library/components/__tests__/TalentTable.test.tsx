@@ -1,5 +1,5 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import type { TalentRecord } from "@/shared/types"
 
@@ -59,6 +59,11 @@ const TALENT: readonly TalentRecord[] = [
   }),
 ]
 
+beforeEach(() => {
+  // Clear persisted column config between tests
+  localStorage.removeItem("sb:talent-table")
+})
+
 describe("TalentTable", () => {
   it("renders all column headers", () => {
     render(<TalentTable talent={TALENT} onSelect={vi.fn()} />)
@@ -109,10 +114,10 @@ describe("TalentTable", () => {
 
     const rows = screen.getAllByRole("row")
     // rows[0] is the header row; default sort is name asc: Alex(t1), Casey(t3), Jordan(t2)
-    fireEvent.click(rows[1])
+    fireEvent.click(rows[1]!)
     expect(onSelect).toHaveBeenCalledWith("t1")
 
-    fireEvent.click(rows[3])
+    fireEvent.click(rows[3]!)
     // Third data row is Jordan (t2) after alphabetical sort
     expect(onSelect).toHaveBeenCalledWith("t2")
   })
@@ -124,13 +129,13 @@ describe("TalentTable", () => {
 
     // Default is name asc: Alex, Casey, Jordan
     const rowsBefore = screen.getAllByRole("row")
-    const firstCell = within(rowsBefore[1]).getByText("Alex Rivera")
+    const firstCell = within(rowsBefore[1]!).getByText("Alex Rivera")
     expect(firstCell).toBeInTheDocument()
 
     // Click name again to toggle to desc
     fireEvent.click(nameButton)
     const rowsAfter = screen.getAllByRole("row")
-    expect(within(rowsAfter[1]).getByText("Jordan Blake")).toBeInTheDocument()
+    expect(within(rowsAfter[1]!).getByText("Jordan Blake")).toBeInTheDocument()
   })
 
   it("sorts by a different field when a new column header is clicked", () => {
@@ -141,9 +146,9 @@ describe("TalentTable", () => {
 
     const rows = screen.getAllByRole("row")
     // Casey has 0 projects, Jordan has 1, Alex has 2
-    expect(within(rows[1]).getByText("Casey Morgan")).toBeInTheDocument()
-    expect(within(rows[2]).getByText("Jordan Blake")).toBeInTheDocument()
-    expect(within(rows[3]).getByText("Alex Rivera")).toBeInTheDocument()
+    expect(within(rows[1]!).getByText("Casey Morgan")).toBeInTheDocument()
+    expect(within(rows[2]!).getByText("Jordan Blake")).toBeInTheDocument()
+    expect(within(rows[3]!).getByText("Alex Rivera")).toBeInTheDocument()
   })
 
   it("highlights the selected row", () => {
@@ -160,5 +165,26 @@ describe("TalentTable", () => {
   it("shows initials fallback when no headshot", () => {
     render(<TalentTable talent={[makeTalent({ id: "t9", name: "Jane Doe" })]} onSelect={vi.fn()} />)
     expect(screen.getByText("JD")).toBeInTheDocument()
+  })
+
+  it("renders column settings button", () => {
+    render(<TalentTable talent={TALENT} onSelect={vi.fn()} />)
+    expect(screen.getByRole("button", { name: "Column settings" })).toBeInTheDocument()
+  })
+
+  it("renders resizable column headers with resize handles", () => {
+    const { container } = render(<TalentTable talent={TALENT} onSelect={vi.fn()} />)
+    // Each visible column header should have a resize separator
+    const separators = container.querySelectorAll('[role="separator"]')
+    // 9 default visible columns = 9 resize handles
+    expect(separators.length).toBe(9)
+  })
+
+  it("renders colgroup with column widths", () => {
+    const { container } = render(<TalentTable talent={TALENT} onSelect={vi.fn()} />)
+    const colElements = container.querySelectorAll("col")
+    expect(colElements.length).toBe(9)
+    // First col (avatar) should have width 48
+    expect(colElements[0]?.style.width).toBe("48px")
   })
 })
