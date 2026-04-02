@@ -76,5 +76,26 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "exportReports",
+      "fieldPath": "items",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "exportReports",
+      "fieldPath": "pages",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "exportReports",
+      "fieldPath": "settings",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "exportReports",
+      "fieldPath": "customVariables",
+      "indexes": []
+    }
+  ]
 }

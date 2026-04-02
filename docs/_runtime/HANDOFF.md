@@ -1,38 +1,48 @@
-# HANDOFF — Sprint S18 + S18b Complete (2026-04-02)
+# HANDOFF — Sprint S18 Complete (2026-04-02)
 
 ## State
-S18 + S18b complete — comprehensive Export Builder overhaul. All 16 phases implemented, reviewed, validated. Pending: commit, PR, Firebase deploy.
+S18 (S18a+S18b+S18c) fully complete. PR #380 merged to main. Firebase rules, storage, and index exemptions deployed.
 
-## S18 (Core Overhaul) — 10 Phases
-- Phase 0: Foundation cleanup (bug fixes, dedup, CSS tokens, shared resolvers)
-- Phase 1: HStack column layout system (types, operations, canvas, PDF, resize handles)
-- Phase 2: Palette-to-canvas drag & drop (DndContext hoisting, drop zones, DragOverlay)
-- Phase 3: Image block upload (Firebase Storage, WebP compression, click/drag upload)
-- Phase 4: Rich text editing (FloatingTextToolbar, contentEditable, HTML→PDF parser)
-- Phase 5: Data block settings panels (all 9 block types fully configurable)
-- Phase 6: Page management + zoom (add/duplicate/delete pages, 50-150% zoom)
-- Phase 7: Export entry point consolidation (dialogs deleted, single Export Builder page)
-- Phase 8: UX audit remediation (view modes standardized, loading spinner)
-- Phase 9: Multi-report per project (Firestore persistence, report selector, import flow)
+## What Was Built (16 phases, 72 files, +6,003 / -4,129)
 
-## S18b (Polish) — 6 Phases
-- Phase A: Block controls (inline delete/duplicate, keyboard shortcuts, context menu, HStack visual improvements)
-- Phase B: Block styling system (padding/border/background per block, PDF rendering)
-- Phase C: Text block customization (font picker, color picker, highlight, paragraph type, toolbar P button)
-- Phase D: Image resize handles (drag-to-resize, width tooltip)
-- Phase E: Auto-column creation (drag left/right to wrap blocks in HStack)
-- Phase F: Column width presets (SetHero-style XS/S/M/L/XL/Auto for shot grid + product table)
+### S18a: Core Export Builder Overhaul (Phases 0-9)
+- Foundation cleanup: bug fixes, dedup, CSS tokens, shared resolvers
+- HStack column layout with drag-to-resize (Saturation's standout feature)
+- Palette-to-canvas drag & drop with drop zone indicators
+- Image upload (Firebase Storage, WebP compression, click/drag)
+- Rich text editing (FloatingTextToolbar, contentEditable, HTML→PDF)
+- Full settings panels for all 9 block types
+- Page management (add/duplicate/delete) + zoom 50-150%
+- Export entry point consolidation (dialogs deleted, single builder page)
+- UX audit: standardized view modes, loading spinner
+- Multi-report per project (Firestore persistence, report selector)
 
-## Stats
-- 44 files changed, +4,302 / -795 lines
-- 150/150 test files, 1,554/1,554 tests pass
-- Lint: zero warnings
+### S18b: Polish (Phases A-F)
+- Block controls: inline delete/duplicate, keyboard shortcuts, context menu
+- Block styling system: per-block padding/border/background
+- Text customization: font picker, color picker, highlight, paragraph type
+- Image resize handles (drag-to-resize with width tooltip)
+- Auto-column creation (drag blocks left/right to wrap in HStack)
+- SetHero-style column width presets (XS/S/M/L/XL/Auto)
 
-## Deployment Checklist
-- [ ] `firebase deploy --only firestore:rules` (exportReports subcollection)
-- [ ] `firebase deploy --only storage` (export-images path)
-- [ ] Firestore index exemptions: items, settings, customVariables on exportReports
-- [ ] Visual verification in browser
+### S18c: Zero Tech Debt (5 deferred issues fixed)
+- Multi-page Firestore persistence (pages array, v1→v2 schema migration)
+- Page-aware operations (activePageId replaces 7x pages[0] hardcoding)
+- Layout WYSIWYG fix (removed hardcoded padding, defaults in buildLayoutStyle)
+- Render tokens in rich text PDF (token-first decision logic)
+- Shared ColumnTableSettings (140 lines of duplication eliminated)
+- PR review fixes: drop-gap page scoping, product table keys, preset query params
+
+## Deployment (Complete)
+- [x] PR #380 merged to main
+- [x] `firebase deploy --only firestore:rules` (exportReports subcollection)
+- [x] `firebase deploy --only storage` (export-images path)
+- [x] `firebase deploy --only firestore:indexes` (4 field exemptions)
+
+## What's Next
+- S19 backlog: Canvas image editor (Fabric.js vs Konva.js)
+- Visual verification of the full export builder in browser
+- Monitor for any runtime issues with the new Firestore subcollection
 
 ## To Resume
-Read this file, then `docs/_runtime/CHECKPOINT.md`, then `Plan.md`.
+Read this file, then `CHECKPOINT.md`, then `CLAUDE.md` Hard Rule #6b (no deferring).
