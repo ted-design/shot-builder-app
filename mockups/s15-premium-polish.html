@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S15e: Premium Polish — Production Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            surface: { DEFAULT: '#09090b', subtle: '#18181b', muted: '#27272a', hover: '#2a2a2e' },
+            border: { DEFAULT: '#27272a', subtle: '#1e1e21' },
+            text: { DEFAULT: '#fafafa', muted: '#a1a1aa', subtle: '#71717a' },
+            accent: { DEFAULT: '#3b82f6', hover: '#2563eb' },
+            error: '#ef4444',
+          },
+          fontSize: {
+            '2xs': '10px',
+            'xxs': '11px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #09090b; color: #fafafa; font-family: 'Inter', sans-serif; }
+    .section-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #3b82f6; margin-bottom: 6px;
+    }
+    .mockup-card {
+      background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 24px;
+    }
+    .rationale {
+      background: #1a1a2e; border: 1px solid #2d2d5e; border-radius: 8px; padding: 12px 16px;
+      font-size: 12px; color: #a5b4fc; line-height: 1.6;
+    }
+    .rationale strong { color: #c7d2fe; }
+    .impl-note {
+      background: #1a2e1a; border: 1px solid #2d5e2d; border-radius: 8px; padding: 12px 16px;
+      font-size: 12px; color: #86efac; line-height: 1.6;
+    }
+    .impl-note strong { color: #bbf7d0; }
+
+    /* Animations */
+    @keyframes fade-in-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-subtle { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    @keyframes crop-handle-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); } }
+
+    .animate-fade-in-rise { animation: fade-in-rise 200ms ease-out forwards; }
+    .animate-scale-in { animation: scale-in 200ms ease-out forwards; }
+    .animate-slide-up { animation: slide-up 250ms ease-out forwards; }
+    .shimmer-bg {
+      background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+
+    /* Hover microinteractions */
+    .hover-lift { transition: transform 150ms ease, box-shadow 150ms ease; }
+    .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+    .hover-glow { transition: border-color 150ms ease, box-shadow 150ms ease; }
+    .hover-glow:hover { border-color: #3f3f46; box-shadow: 0 0 0 1px rgba(63,63,70,0.5); }
+
+    .btn-press { transition: transform 100ms ease; }
+    .btn-press:active { transform: scale(0.97); }
+
+    /* Focus ring */
+    .focus-ring:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    /* Crop overlay */
+    .crop-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.6);
+    }
+    .crop-window {
+      position: absolute;
+      border: 2px solid #3b82f6;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
+    }
+    .crop-handle {
+      width: 12px; height: 12px;
+      background: white;
+      border: 2px solid #3b82f6;
+      border-radius: 2px;
+      position: absolute;
+      animation: crop-handle-pulse 2s ease infinite;
+    }
+
+    /* Stagger children */
+    .stagger > * { animation: fade-in-rise 200ms ease-out forwards; opacity: 0; }
+    .stagger > *:nth-child(1) { animation-delay: 0ms; }
+    .stagger > *:nth-child(2) { animation-delay: 50ms; }
+    .stagger > *:nth-child(3) { animation-delay: 100ms; }
+    .stagger > *:nth-child(4) { animation-delay: 150ms; }
+    .stagger > *:nth-child(5) { animation-delay: 200ms; }
+    .stagger > *:nth-child(6) { animation-delay: 250ms; }
+  </style>
+</head>
+<body class="min-h-screen p-8">
+
+  <!-- Header -->
+  <div class="max-w-6xl mx-auto mb-12">
+    <div class="section-label">Sprint S15e</div>
+    <h1 class="text-3xl font-light tracking-tight mb-2">Premium Polish</h1>
+    <p class="text-sm text-text-muted max-w-2xl">
+      Three interconnected improvements: image cropping, product enrichment, and global UX polish.
+      Each strengthens the app's premium editorial identity.
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: IMAGE CROP DIALOG -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="max-w-6xl mx-auto mb-16">
+    <div class="section-label">S15e-1</div>
+    <h2 class="text-xl font-light mb-4">Image Cropping</h2>
+
+    <div class="rationale mb-6">
+      <strong>UX Rationale:</strong> Users currently upload images but can't adjust framing without re-uploading.
+      Crop-in-place eliminates round-trips to external tools. Aspect ratio presets match common
+      output targets (social, print, hero banner). Uses native Canvas API — no new dependencies.
+    </div>
+
+    <!-- Before / After -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <!-- Before: Current state -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-4">Current</div>
+        <div class="relative group rounded-lg overflow-hidden bg-surface-muted aspect-[4/3] flex items-center justify-center">
+          <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&h=400&fit=crop" class="w-full h-full object-cover" alt="Sample product" />
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <button class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs rounded-md backdrop-blur-sm transition-colors">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Replace
+            </button>
+            <button class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs rounded-md backdrop-blur-sm transition-colors">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              Remove
+            </button>
+          </div>
+        </div>
+        <p class="mt-3 text-2xs text-text-subtle">Only Replace and Remove — no in-place adjustment</p>
+      </div>
+
+      <!-- After: With Crop -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-accent uppercase tracking-wider mb-4">Proposed</div>
+        <div class="relative group rounded-lg overflow-hidden bg-surface-muted aspect-[4/3] flex items-center justify-center">
+          <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&h=400&fit=crop" class="w-full h-full object-cover" alt="Sample product" />
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <button class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs rounded-md backdrop-blur-sm transition-colors btn-press">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Replace
+            </button>
+            <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs rounded-md transition-colors font-medium btn-press">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>
+              Crop
+            </button>
+            <button class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs rounded-md backdrop-blur-sm transition-colors btn-press">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              Remove
+            </button>
+          </div>
+        </div>
+        <p class="mt-3 text-2xs text-text-subtle">New: <span class="text-accent">Crop</span> button opens canvas dialog</p>
+      </div>
+    </div>
+
+    <!-- Crop Dialog Mockup -->
+    <div class="mockup-card">
+      <div class="text-xxs font-medium text-accent uppercase tracking-wider mb-4">Crop Dialog</div>
+
+      <!-- Simulated dialog backdrop -->
+      <div class="relative bg-black/80 rounded-xl p-6 animate-scale-in">
+        <!-- Dialog content -->
+        <div class="bg-surface rounded-xl border border-border max-w-2xl mx-auto overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
+            <h3 class="text-sm font-medium">Crop Image</h3>
+            <button class="text-text-subtle hover:text-text-DEFAULT transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+
+          <!-- Canvas area -->
+          <div class="relative bg-black p-4">
+            <div class="relative mx-auto" style="width: 480px; max-width: 100%; aspect-ratio: 4/3;">
+              <img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&h=400&fit=crop" class="w-full h-full object-cover opacity-40" alt="" />
+              <!-- Crop window -->
+              <div class="absolute" style="top: 12%; left: 15%; right: 15%; bottom: 12%; border: 2px solid #3b82f6; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);">
+                <!-- Rule of thirds grid -->
+                <div class="absolute inset-0">
+                  <div class="absolute left-1/3 top-0 bottom-0 w-px bg-white/20"></div>
+                  <div class="absolute left-2/3 top-0 bottom-0 w-px bg-white/20"></div>
+                  <div class="absolute top-1/3 left-0 right-0 h-px bg-white/20"></div>
+                  <div class="absolute top-2/3 left-0 right-0 h-px bg-white/20"></div>
+                </div>
+                <!-- Corner handles -->
+                <div class="crop-handle -top-1.5 -left-1.5 cursor-nw-resize"></div>
+                <div class="crop-handle -top-1.5 -right-1.5 cursor-ne-resize"></div>
+                <div class="crop-handle -bottom-1.5 -left-1.5 cursor-sw-resize"></div>
+                <div class="crop-handle -bottom-1.5 -right-1.5 cursor-se-resize"></div>
+                <!-- Edge handles -->
+                <div class="crop-handle top-1/2 -left-1.5 -translate-y-1/2 cursor-w-resize"></div>
+                <div class="crop-handle top-1/2 -right-1.5 -translate-y-1/2 cursor-e-resize"></div>
+                <div class="crop-handle -top-1.5 left-1/2 -translate-x-1/2 cursor-n-resize"></div>
+                <div class="crop-handle -bottom-1.5 left-1/2 -translate-x-1/2 cursor-s-resize"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aspect ratio selector + actions -->
+          <div class="flex items-center justify-between px-5 py-3.5 border-t border-border">
+            <div class="flex items-center gap-1.5">
+              <span class="text-2xs text-text-subtle mr-2">Ratio:</span>
+              <button class="px-2.5 py-1 text-2xs rounded-md bg-accent text-white font-medium">Free</button>
+              <button class="px-2.5 py-1 text-2xs rounded-md bg-surface-muted text-text-muted hover:bg-surface-hover hover:text-text-DEFAULT transition-colors">1:1</button>
+              <button class="px-2.5 py-1 text-2xs rounded-md bg-surface-muted text-text-muted hover:bg-surface-hover hover:text-text-DEFAULT transition-colors">4:3</button>
+              <button class="px-2.5 py-1 text-2xs rounded-md bg-surface-muted text-text-muted hover:bg-surface-hover hover:text-text-DEFAULT transition-colors">16:9</button>
+              <button class="px-2.5 py-1 text-2xs rounded-md bg-surface-muted text-text-muted hover:bg-surface-hover hover:text-text-DEFAULT transition-colors">3:4</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-1.5 text-xs rounded-md text-text-muted hover:text-text-DEFAULT transition-colors btn-press">Cancel</button>
+              <button class="px-4 py-1.5 text-xs rounded-md bg-accent hover:bg-accent-hover text-white font-medium transition-colors btn-press">Apply Crop</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="impl-note mt-4">
+      <strong>Implementation:</strong> Uses native Canvas API (no new deps). <code>ImageCropDialog.tsx</code> in
+      <code>shared/components/</code>. Integrated into <code>EditableProductImage</code> and shot <code>HeroImageSection</code>.
+      Cropped blob uploaded to Firebase Storage via existing upload infrastructure.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: PRODUCT ENRICHMENT — LINKED SHOTS TAB -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="max-w-6xl mx-auto mb-16">
+    <div class="section-label">S15e-2</div>
+    <h2 class="text-xl font-light mb-4">Product Section Enrichment</h2>
+
+    <div class="rationale mb-6">
+      <strong>UX Rationale:</strong> Product detail pages show metadata but no connection to the shots that use them.
+      Adding a "Shots" tab reveals cross-references, giving producers a single place to see all content
+      planned for a product. "Last modified" indicators answer "who touched this and when?" without digging into activity.
+    </div>
+
+    <!-- Product Detail Nav — with new Shots tab -->
+    <div class="mockup-card">
+      <div class="text-xxs font-medium text-accent uppercase tracking-wider mb-4">Product Detail — Updated Navigation</div>
+
+      <!-- Product Header -->
+      <div class="flex items-start gap-5 mb-6 pb-6 border-b border-border">
+        <div class="h-20 w-20 rounded-lg bg-surface-muted flex items-center justify-center shrink-0 overflow-hidden">
+          <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=200&h=200&fit=crop" class="w-full h-full object-cover" alt="" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <h3 class="text-base font-medium">Merino V-Neck Sweater</h3>
+          <span class="text-xs font-mono text-text-muted">MNS-VN-001</span>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 text-2xs rounded bg-surface-muted text-text-muted">Knitwear</span>
+            <span class="px-2 py-0.5 text-2xs rounded bg-surface-muted text-text-muted">Men's</span>
+          </div>
+          <!-- NEW: Last modified indicator -->
+          <div class="flex items-center gap-1.5 mt-1">
+            <svg class="w-3 h-3 text-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="text-2xs text-text-subtle">Updated 2 hours ago by Sarah K.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab nav -->
+      <div class="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto">
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">
+          <svg class="inline w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+          Overview
+        </button>
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">
+          <svg class="inline w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+          Colorways
+          <span class="ml-1.5 px-1.5 py-0.5 text-2xs rounded bg-surface-muted text-text-subtle">8</span>
+        </button>
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">Samples <span class="ml-1.5 px-1.5 py-0.5 text-2xs rounded bg-surface-muted text-text-subtle">3</span></button>
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">Files <span class="ml-1.5 px-1.5 py-0.5 text-2xs rounded bg-surface-muted text-text-subtle">5</span></button>
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">Requirements</button>
+        <!-- NEW: Shots tab -->
+        <button class="px-3 py-2 text-xs border-b-2 border-accent text-accent font-medium whitespace-nowrap transition-colors">
+          <svg class="inline w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+          Shots
+          <span class="ml-1.5 px-1.5 py-0.5 text-2xs rounded bg-accent/20 text-accent">12</span>
+        </button>
+        <button class="px-3 py-2 text-xs text-text-muted hover:text-text-DEFAULT transition-colors whitespace-nowrap">Activity <span class="ml-1.5 px-1.5 py-0.5 text-2xs rounded bg-surface-muted text-text-subtle">24</span></button>
+      </div>
+
+      <!-- Shots Tab Content — grouped by project -->
+      <div class="stagger">
+        <!-- Project Group 1 -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <h4 class="text-xxs font-medium text-text-muted uppercase tracking-wider">Fall 2026 Campaign</h4>
+            <span class="text-2xs text-text-subtle">4 shots</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Shot card -->
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=100&h=100&fit=crop" class="w-full h-full object-cover" alt="" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">Flat Lay — Navy V-Neck</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-blue-500/15 text-blue-400">In Progress</span>
+                  <span class="text-2xs text-text-subtle">#FL-001</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=100&h=100&fit=crop" class="w-full h-full object-cover" alt="" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">On Model — V-Neck + Chinos</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-green-500/15 text-green-400">Shot</span>
+                  <span class="text-2xs text-text-subtle">#OM-003</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 flex items-center justify-center">
+                <svg class="w-5 h-5 text-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">Detail Shot — Rib Knit Cuff</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-zinc-500/15 text-zinc-400">Draft</span>
+                  <span class="text-2xs text-text-subtle">#DS-007</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=100&h=100&fit=crop" class="w-full h-full object-cover" alt="" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">Lifestyle — Coffee Shop</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-amber-500/15 text-amber-400">On Hold</span>
+                  <span class="text-2xs text-text-subtle">#LS-012</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Project Group 2 -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <h4 class="text-xxs font-medium text-text-muted uppercase tracking-wider">E-Commerce Refresh</h4>
+            <span class="text-2xs text-text-subtle">2 shots</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=100&h=100&fit=crop" class="w-full h-full object-cover" alt="" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">Product Page Hero</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-blue-500/15 text-blue-400">In Progress</span>
+                  <span class="text-2xs text-text-subtle">#PH-001</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface hover:bg-surface-hover transition-colors border border-border hover-glow cursor-pointer">
+              <div class="h-12 w-12 rounded bg-surface-muted shrink-0 overflow-hidden">
+                <img src="https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=100&h=100&fit=crop" class="w-full h-full object-cover" alt="" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium truncate">Carousel — All Colors</div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="px-1.5 py-0.5 text-2xs rounded bg-green-500/15 text-green-400">Shot</span>
+                  <span class="text-2xs text-text-subtle">#CC-004</span>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-text-subtle shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state variant -->
+    <div class="mockup-card mt-6">
+      <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-4">Empty State — No Linked Shots</div>
+      <div class="flex flex-col items-center justify-center py-12 text-center">
+        <div class="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+        </div>
+        <p class="text-sm text-text-muted mb-1">No shots reference this product</p>
+        <p class="text-xs text-text-subtle">Shots will appear here when this product is added to a project's shot list.</p>
+      </div>
+    </div>
+
+    <div class="impl-note mt-4">
+      <strong>Implementation:</strong> New <code>LinkedShotsTab.tsx</code> + <code>useLinkedShots</code> hook.
+      Query: <code>where("productFamilyIds", "array-contains", familyId)</code> across all projects for the client.
+      "Last modified" renders existing <code>updatedAt</code> / <code>updatedBy</code> fields. Tab added to <code>ProductWorkspaceNav</code>.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: PREMIUM POLISH — MICRO-INTERACTIONS -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="max-w-6xl mx-auto mb-16">
+    <div class="section-label">S15e-3</div>
+    <h2 class="text-xl font-light mb-4">Premium Polish</h2>
+
+    <div class="rationale mb-6">
+      <strong>UX Rationale:</strong> Polish is what separates "functional" from "premium." These are subtle, system-wide
+      improvements: consistent hover feedback, button press depth, skeleton shimmer timing, and animation
+      smoothness. No new features — refinement of every existing surface.
+    </div>
+
+    <!-- Polish Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- 1. Hover Lift -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">Card Hover — Lift Effect</div>
+        <div class="flex gap-3 justify-center">
+          <div class="w-28 h-36 rounded-lg bg-surface border border-border hover-lift cursor-pointer flex flex-col items-center justify-center gap-2">
+            <div class="w-16 h-16 rounded bg-surface-muted"></div>
+            <span class="text-2xs text-text-muted">Hover me</span>
+          </div>
+          <div class="w-28 h-36 rounded-lg bg-surface border border-border hover-lift cursor-pointer flex flex-col items-center justify-center gap-2">
+            <div class="w-16 h-16 rounded bg-surface-muted"></div>
+            <span class="text-2xs text-text-muted">Hover me</span>
+          </div>
+        </div>
+        <p class="text-2xs text-text-subtle mt-3">translateY(-2px) + shadow on hover. 150ms ease.</p>
+      </div>
+
+      <!-- 2. Button Press -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">Button Press Depth</div>
+        <div class="flex flex-col items-center gap-3 py-4">
+          <button class="px-4 py-2 rounded-md bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors btn-press">
+            Primary Action
+          </button>
+          <button class="px-4 py-2 rounded-md bg-surface-muted hover:bg-surface-hover text-text-DEFAULT text-xs font-medium transition-colors btn-press border border-border">
+            Secondary
+          </button>
+          <button class="px-4 py-2 rounded-md text-text-muted hover:text-text-DEFAULT text-xs transition-colors btn-press">
+            Ghost
+          </button>
+        </div>
+        <p class="text-2xs text-text-subtle mt-1">scale(0.97) on :active. 100ms ease. All button variants.</p>
+      </div>
+
+      <!-- 3. Focus Ring -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">Focus Ring Consistency</div>
+        <div class="flex flex-col items-center gap-3 py-4">
+          <button class="px-4 py-2 rounded-md bg-surface-muted text-text-DEFAULT text-xs border border-border focus-ring" tabindex="0">
+            Tab to focus
+          </button>
+          <input type="text" placeholder="Tab here too" class="px-3 py-2 rounded-md bg-surface-muted text-text-DEFAULT text-xs border border-border w-40 focus-ring" />
+        </div>
+        <p class="text-2xs text-text-subtle mt-1">2px blue outline, 2px offset. All interactive elements.</p>
+      </div>
+
+      <!-- 4. Skeleton Shimmer -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">Shimmer Timing</div>
+        <div class="flex flex-col gap-3 py-4">
+          <div class="h-4 rounded shimmer-bg w-full"></div>
+          <div class="h-4 rounded shimmer-bg w-3/4" style="animation-delay: 150ms;"></div>
+          <div class="h-4 rounded shimmer-bg w-1/2" style="animation-delay: 300ms;"></div>
+          <div class="flex gap-3">
+            <div class="h-12 w-12 rounded shimmer-bg" style="animation-delay: 100ms;"></div>
+            <div class="flex-1 flex flex-col gap-2 justify-center">
+              <div class="h-3 rounded shimmer-bg w-2/3" style="animation-delay: 200ms;"></div>
+              <div class="h-3 rounded shimmer-bg w-1/3" style="animation-delay: 350ms;"></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-2xs text-text-subtle mt-1">1.5s shimmer wave. 150ms stagger between rows.</p>
+      </div>
+
+      <!-- 5. Dialog Scale-In -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">Dialog Enter Animation</div>
+        <div class="py-4 flex justify-center">
+          <div class="w-48 rounded-lg bg-surface border border-border p-4 animate-scale-in">
+            <div class="h-3 rounded bg-surface-muted w-2/3 mb-2"></div>
+            <div class="h-2 rounded bg-surface-muted w-full mb-1.5"></div>
+            <div class="h-2 rounded bg-surface-muted w-4/5 mb-3"></div>
+            <div class="flex gap-2 justify-end">
+              <div class="h-6 w-14 rounded bg-surface-muted"></div>
+              <div class="h-6 w-14 rounded bg-accent/30"></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-2xs text-text-subtle mt-1">scale(0.95) + fade on enter. 200ms ease-out.</p>
+      </div>
+
+      <!-- 6. List Stagger -->
+      <div class="mockup-card">
+        <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-3">List Stagger Animation</div>
+        <div class="stagger py-4 flex flex-col gap-2">
+          <div class="flex items-center gap-3 p-2 rounded bg-surface border border-border">
+            <div class="h-8 w-8 rounded bg-surface-muted shrink-0"></div>
+            <div class="h-3 rounded bg-surface-muted w-24"></div>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-surface border border-border">
+            <div class="h-8 w-8 rounded bg-surface-muted shrink-0"></div>
+            <div class="h-3 rounded bg-surface-muted w-32"></div>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-surface border border-border">
+            <div class="h-8 w-8 rounded bg-surface-muted shrink-0"></div>
+            <div class="h-3 rounded bg-surface-muted w-20"></div>
+          </div>
+          <div class="flex items-center gap-3 p-2 rounded bg-surface border border-border">
+            <div class="h-8 w-8 rounded bg-surface-muted shrink-0"></div>
+            <div class="h-3 rounded bg-surface-muted w-28"></div>
+          </div>
+        </div>
+        <p class="text-2xs text-text-subtle mt-1">50ms stagger per item. fade-in-rise. Respects prefers-reduced-motion.</p>
+      </div>
+    </div>
+
+    <!-- Border radius / shadow consistency -->
+    <div class="mockup-card mt-6">
+      <div class="text-xxs font-medium text-text-subtle uppercase tracking-wider mb-4">Visual Consistency — Border Radius + Shadow Depth</div>
+      <div class="grid grid-cols-4 gap-4">
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-full aspect-square rounded bg-surface border border-border"></div>
+          <span class="text-2xs text-text-subtle">4px — inputs</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-full aspect-square rounded-md bg-surface border border-border"></div>
+          <span class="text-2xs text-text-subtle">6px — buttons</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-full aspect-square rounded-lg bg-surface border border-border"></div>
+          <span class="text-2xs text-text-subtle">8px — cards</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-full aspect-square rounded-xl bg-surface border border-border"></div>
+          <span class="text-2xs text-text-subtle">12px — dialogs</span>
+        </div>
+      </div>
+      <p class="text-2xs text-text-subtle mt-4">Audit: ensure consistent radius per element type. No mixing 6px cards with 12px cards.</p>
+    </div>
+
+    <div class="impl-note mt-4">
+      <strong>Implementation:</strong> Add CSS utility classes to <code>tokens.css</code>:
+      <code>.hover-lift</code>, <code>.btn-press</code>, <code>.hover-glow</code>.
+      Shimmer animation standardized to 1.5s with 150ms stagger. Apply across all pages via targeted edits
+      (not mass refactor). Audit each page surface for consistency.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- IMPLEMENTATION PLAN -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="max-w-6xl mx-auto mb-16">
+    <div class="section-label">Delivery</div>
+    <h2 class="text-xl font-light mb-4">Implementation Waves</h2>
+
+    <div class="mockup-card">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Wave 1 -->
+        <div>
+          <div class="text-xxs font-semibold text-accent uppercase tracking-wider mb-3">Wave 1 — Parallel Agents</div>
+          <div class="flex flex-col gap-2 text-xs text-text-muted">
+            <div class="flex items-start gap-2">
+              <span class="text-accent">A1</span>
+              <div>
+                <div class="text-text-DEFAULT">Image Crop Dialog</div>
+                <div class="text-2xs text-text-subtle">ImageCropDialog.tsx, Canvas API, aspect presets</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <span class="text-accent">A2</span>
+              <div>
+                <div class="text-text-DEFAULT">Linked Shots Tab</div>
+                <div class="text-2xs text-text-subtle">LinkedShotsTab.tsx, useLinkedShots.ts, ProductWorkspaceNav</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 2 -->
+        <div>
+          <div class="text-xxs font-semibold text-amber-400 uppercase tracking-wider mb-3">Wave 2 — Sequential</div>
+          <div class="flex flex-col gap-2 text-xs text-text-muted">
+            <div class="flex items-start gap-2">
+              <span class="text-amber-400">A3</span>
+              <div>
+                <div class="text-text-DEFAULT">Integration</div>
+                <div class="text-2xs text-text-subtle">Wire crop into EditableProductImage + HeroImageSection. Wire Shots tab into ProductDetailPage nav.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wave 3 -->
+        <div>
+          <div class="text-xxs font-semibold text-green-400 uppercase tracking-wider mb-3">Wave 3 — Polish Pass</div>
+          <div class="flex flex-col gap-2 text-xs text-text-muted">
+            <div class="flex items-start gap-2">
+              <span class="text-green-400">A4</span>
+              <div>
+                <div class="text-text-DEFAULT">Premium Polish</div>
+                <div class="text-2xs text-text-subtle">tokens.css utilities, hover/press/focus audit, shimmer normalization, consistency sweep</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rationale mt-4">
+      <strong>No new npm dependencies.</strong> Image cropping uses native Canvas API + existing Radix Dialog.
+      All animations are CSS-only. Firestore queries use existing <code>onSnapshot</code> patterns.
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="max-w-6xl mx-auto text-center py-12 border-t border-border">
+    <p class="text-2xs text-text-subtle">Sprint S15e — Production Hub vNext — Awaiting approval</p>
+  </div>
+
+</body>
+</html>

@@ -10,7 +10,7 @@ import {
 import { db } from "@/shared/lib/firebase"
 import { shotsPath } from "@/shared/lib/paths"
 import { computeMaxShotNumber, formatShotNumber } from "./shotNumbering"
-import type { Shot } from "@/shared/types"
+import type { Shot, ShotTag } from "@/shared/types"
 
 /** Maximum documents per Firestore WriteBatch (limit is 500; 250 for safety). */
 const BATCH_CHUNK_SIZE = 250
@@ -26,6 +26,7 @@ export interface BulkShotItem {
   readonly colourId?: string
   readonly colourName?: string
   readonly thumbUrl?: string
+  readonly gender?: string | null
 }
 
 export interface BulkCreateShotsInput {
@@ -40,10 +41,41 @@ export interface BulkCreateShotsResult {
 }
 
 function buildShotTitle(item: BulkShotItem): string {
-  if (item.skuName) {
-    return `${item.familyName} \u2014 ${item.skuName}`
-  }
   return item.familyName
+}
+
+function buildShotDescription(item: BulkShotItem): string {
+  return item.skuName ?? ""
+}
+
+/** Map raw gender values to tag labels. Returns null for unrecognized
+ *  values (e.g. "Kids", "Boys") — those intentionally get no tag. */
+function normalizeGenderLabel(gender: string): string | null {
+  switch (gender.toLowerCase()) {
+    case "men":
+    case "male":
+      return "Men"
+    case "women":
+    case "female":
+      return "Women"
+    case "unisex":
+      return "Unisex"
+    default:
+      return null
+  }
+}
+
+const GENDER_TAG_MAP: Record<string, ShotTag> = {
+  Men: { id: "default-gender-men", label: "Men", color: "blue", category: "gender" },
+  Women: { id: "default-gender-women", label: "Women", color: "pink", category: "gender" },
+  Unisex: { id: "default-gender-unisex", label: "Unisex", color: "purple", category: "gender" },
+}
+
+function buildGenderTag(item: BulkShotItem): ShotTag | null {
+  if (!item.gender) return null
+  const label = normalizeGenderLabel(item.gender)
+  if (!label) return null
+  return GENDER_TAG_MAP[label] ?? null
 }
 
 function buildProductAssignment(item: BulkShotItem): Record<string, unknown> {
@@ -132,14 +164,19 @@ export async function bulkCreateShotsFromProducts(
         products: [assignment],
       }
 
+      const genderTag = buildGenderTag(item)
+      const tags: ShotTag[] = genderTag ? [genderTag] : []
+
       batch.set(docRef, {
         title: buildShotTitle(item),
+        description: buildShotDescription(item),
         projectId,
         clientId,
         status: "todo",
         products: [assignment],
         looks: [defaultLook],
         talent: [],
+        tags,
         sortOrder: now + globalIndex,
         shotNumber: formatShotNumber(shotNum),
         date: null,

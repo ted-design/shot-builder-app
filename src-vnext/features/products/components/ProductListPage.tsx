@@ -166,6 +166,11 @@ export default function ProductListPage() {
     })
   }, [families, qParam, statusParam, genderKey, typeKey, subKey, subParam, includeArchived, includeDeleted, sortParam])
 
+  const familyGenderMap = useMemo(
+    () => new Map(families.map((f) => [f.id, f.gender ?? null])),
+    [families],
+  )
+
   if (loading) return <LoadingState loading skeleton={<ListPageSkeleton />} />
 
   if (error) {
@@ -709,6 +714,7 @@ export default function ProductListPage() {
       <BulkAddToProjectDialog
         selectedFamilies={selection.getSelectedFamilies()}
         selectedSkus={selection.getSelectedSkus()}
+        familyGenderMap={familyGenderMap}
         onClose={() => setShowBulkDialog(false)}
         onSuccess={() => {
           setShowBulkDialog(false)

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S15c — Export PDF Builder · Production Hub Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #09090b; color: #f4f4f5; }
+    .heading-page { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.025em; }
+    .label-meta { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #71717a; }
+    .sidebar-block { background: #18181b; border: 1px solid #27272a; border-radius: 0.5rem; padding: 0.625rem 0.75rem; cursor: grab; transition: background 0.15s; }
+    .sidebar-block:hover { background: #1f1f23; }
+    .var-chip { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 0.25rem; background: #312e81; color: #a5b4fc; font-size: 0.75rem; font-weight: 500; }
+    .page-preview { background: white; color: #18181b; border-radius: 0.25rem; box-shadow: 0 4px 30px rgba(0,0,0,0.4); }
+    .settings-panel { background: #18181b; border-left: 1px solid #27272a; }
+    .toggle-on { background: #3b82f6; }
+    .toggle-off { background: #3f3f46; }
+    .toggle-track { width: 36px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+    .toggle-thumb { width: 16px; height: 16px; border-radius: 8px; background: white; position: absolute; top: 2px; transition: left 0.2s; }
+    .toggle-on .toggle-thumb { left: 18px; }
+    .toggle-off .toggle-thumb { left: 2px; }
+    .eye-icon { cursor: pointer; }
+    .eye-icon.visible { color: #a1a1aa; }
+    .eye-icon.hidden { color: #3f3f46; }
+    .drag-handle { color: #3f3f46; cursor: grab; font-size: 0.875rem; letter-spacing: 0.1em; }
+    .callout { border-left: 3px solid #3b82f6; background: #172554; padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+    .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; }
+    .block-selected { outline: 2px solid #3b82f6; outline-offset: 2px; border-radius: 0.25rem; }
+    .template-card { background: #18181b; border: 1px solid #27272a; border-radius: 0.5rem; padding: 0.75rem; cursor: pointer; transition: border-color 0.15s; }
+    .template-card:hover { border-color: #3b82f6; }
+    .template-card.selected { border-color: #3b82f6; background: #1e1b4b; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- ================================================================== -->
+  <!-- HEADER                                                              -->
+  <!-- ================================================================== -->
+  <div class="p-6 md:p-12 max-w-7xl mx-auto space-y-6">
+    <header class="space-y-2">
+      <p class="label-meta">Sprint S15c</p>
+      <h1 class="heading-page">Export PDF Builder</h1>
+      <p class="text-sm text-zinc-400 max-w-3xl">Saturation-inspired block-based PDF document builder. Compose reports from building blocks, configure per-block settings, save templates, use dynamic variables. Replaces the current 4-toggle export dialog.</p>
+    </header>
+    <div class="callout"><p class="text-sm text-blue-200"><strong>Desktop only.</strong> The export builder requires a wide viewport for the 3-panel layout. Mobile users see a simplified "Quick Export" with preset templates.</p></div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- MAIN BUILDER — 3-PANEL LAYOUT                                      -->
+  <!-- ================================================================== -->
+  <div class="border-t border-zinc-800">
+    <div class="flex" style="height: 720px;">
+
+      <!-- LEFT PANEL — Block Palette -->
+      <div class="w-60 flex-shrink-0 bg-zinc-900 border-r border-zinc-800 p-4 overflow-y-auto">
+        <div class="mb-4">
+          <h2 class="text-sm font-semibold text-zinc-200">Blocks</h2>
+          <p class="text-xs text-zinc-500 mt-0.5">Drag and drop onto the page</p>
+        </div>
+        <div class="space-y-2">
+          <!-- Text -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-blue-500">
+            <div class="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold text-sm">T</div>
+            <div><p class="text-sm font-medium text-zinc-200">Text</p><p class="text-[10px] text-zinc-500">Free-form with variables</p></div>
+          </div>
+          <!-- Image -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-purple-500">
+            <div class="w-8 h-8 rounded bg-purple-500/10 flex items-center justify-center text-purple-400 text-sm">&#x1F5BC;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Image</p><p class="text-[10px] text-zinc-500">Logos, reference images</p></div>
+          </div>
+          <!-- Shot Grid -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-green-500">
+            <div class="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-400 text-sm">&#9638;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Shot Grid</p><p class="text-[10px] text-zinc-500">Table of shots + thumbnails</p></div>
+          </div>
+          <!-- Shot Detail -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-green-500">
+            <div class="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center text-green-400 text-sm">&#9744;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Shot Detail</p><p class="text-[10px] text-zinc-500">Individual shot card</p></div>
+          </div>
+          <!-- Product Table -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-teal-500">
+            <div class="w-8 h-8 rounded bg-teal-500/10 flex items-center justify-center text-teal-400 text-sm">&#9634;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Product Table</p><p class="text-[10px] text-zinc-500">Product list with SKUs</p></div>
+          </div>
+          <!-- Pull Sheet -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-amber-500">
+            <div class="w-8 h-8 rounded bg-amber-500/10 flex items-center justify-center text-amber-400 text-sm">&#x1F4CB;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Pull Sheet</p><p class="text-[10px] text-zinc-500">Items + fulfillment status</p></div>
+          </div>
+          <!-- Crew List -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-indigo-500">
+            <div class="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-sm">&#x1F465;</div>
+            <div><p class="text-sm font-medium text-zinc-200">Crew List</p><p class="text-[10px] text-zinc-500">Department-grouped roster</p></div>
+          </div>
+          <!-- Divider -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-zinc-600">
+            <div class="w-8 h-8 rounded bg-zinc-700/30 flex items-center justify-center text-zinc-500 text-sm">&mdash;</div>
+            <div><p class="text-sm font-medium text-zinc-300">Divider</p><p class="text-[10px] text-zinc-500">Horizontal rule</p></div>
+          </div>
+          <!-- Page Break -->
+          <div class="sidebar-block flex items-center gap-3 border-l-[3px] border-l-zinc-600">
+            <div class="w-8 h-8 rounded bg-zinc-700/30 flex items-center justify-center text-zinc-500 text-sm">&#x23CE;</div>
+            <div><p class="text-sm font-medium text-zinc-300">Page Break</p><p class="text-[10px] text-zinc-500">Force new page</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER PANEL — Preview -->
+      <div class="flex-1 bg-zinc-950 flex flex-col overflow-hidden">
+        <!-- Top bar -->
+        <div class="flex items-center justify-between px-4 py-2.5 bg-zinc-900 border-b border-zinc-800">
+          <div class="flex items-center gap-3">
+            <select class="bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-200 px-3 py-1.5 focus:outline-none"><option>Shot List Report</option></select>
+            <button class="text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5"><span>&#9638;</span> Templates</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5"><span>{}</span> Variables</button>
+            <button class="text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5"><span>&#9881;</span> Page Settings</button>
+            <span class="text-zinc-700">|</span>
+            <span class="text-xs text-zinc-500">100%</span>
+            <button class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-md">Export PDF</button>
+          </div>
+        </div>
+
+        <!-- Page canvas -->
+        <div class="flex-1 overflow-y-auto p-8 flex justify-center">
+          <div class="page-preview w-[595px] min-h-[750px] p-10 space-y-5 relative" style="font-family: 'Inter', sans-serif;">
+            <!-- Header block -->
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-lg font-semibold text-zinc-800">Q3 2025 Fall Campaign</p>
+                <p class="text-xs text-zinc-500">Immediate Productions</p>
+              </div>
+              <span class="var-chip">Export Date</span>
+            </div>
+
+            <hr class="border-zinc-200">
+
+            <!-- Shot Grid block (selected) -->
+            <div class="block-selected p-1">
+              <table class="w-full text-xs border-collapse">
+                <thead>
+                  <tr class="bg-zinc-100">
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">#</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Thumb</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Title</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Status</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Products</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Talent</th>
+                    <th class="py-1.5 px-2 text-left font-semibold text-zinc-600 border-b border-zinc-200">Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b border-zinc-100"><td class="py-1.5 px-2 text-zinc-500">001</td><td class="py-1.5 px-2"><div class="w-6 h-6 rounded bg-zinc-200"></div></td><td class="py-1.5 px-2 font-medium">LS Merino Crew - Hero</td><td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 bg-zinc-200 text-zinc-600 rounded text-[10px]">Draft</span></td><td class="py-1.5 px-2">2</td><td class="py-1.5 px-2">Stefan L.</td><td class="py-1.5 px-2">Stackt Market</td></tr>
+                  <tr class="border-b border-zinc-100"><td class="py-1.5 px-2 text-zinc-500">002</td><td class="py-1.5 px-2"><div class="w-6 h-6 rounded bg-zinc-200"></div></td><td class="py-1.5 px-2 font-medium">Travel Pants - Detail</td><td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">In Progress</span></td><td class="py-1.5 px-2">1</td><td class="py-1.5 px-2">Jessica M.</td><td class="py-1.5 px-2">Distillery</td></tr>
+                  <tr class="border-b border-zinc-100"><td class="py-1.5 px-2 text-zinc-500">003</td><td class="py-1.5 px-2"><div class="w-6 h-6 rounded bg-zinc-200"></div></td><td class="py-1.5 px-2 font-medium">V-Neck Tee - Lifestyle</td><td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 bg-zinc-200 text-zinc-600 rounded text-[10px]">Draft</span></td><td class="py-1.5 px-2">3</td><td class="py-1.5 px-2">Amir K.</td><td class="py-1.5 px-2">Bellwoods</td></tr>
+                  <tr class="border-b border-zinc-100"><td class="py-1.5 px-2 text-zinc-500">004</td><td class="py-1.5 px-2"><div class="w-6 h-6 rounded bg-zinc-200"></div></td><td class="py-1.5 px-2 font-medium">Hoodie - On Model</td><td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">Shot</span></td><td class="py-1.5 px-2">1</td><td class="py-1.5 px-2">Claire W.</td><td class="py-1.5 px-2">Pinewood</td></tr>
+                  <tr><td class="py-1.5 px-2 text-zinc-500">005</td><td class="py-1.5 px-2"><div class="w-6 h-6 rounded bg-zinc-200"></div></td><td class="py-1.5 px-2 font-medium">Boxer Brief - Flat Lay</td><td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px]">On Hold</span></td><td class="py-1.5 px-2">1</td><td class="py-1.5 px-2">&mdash;</td><td class="py-1.5 px-2">Studio A</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Text block -->
+            <p class="text-xs text-zinc-500">Notes: All shots are scheduled for Week 37. Contact producer for any changes.</p>
+
+            <!-- Footer -->
+            <div class="absolute bottom-6 left-10 right-10 flex justify-between text-[10px] text-zinc-400">
+              <span>Immediate Productions</span>
+              <span>Page <span class="var-chip" style="font-size:10px;padding:1px 4px;">Page Number</span> of <span class="var-chip" style="font-size:10px;padding:1px 4px;">Page Count</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL — Block Settings -->
+      <div class="settings-panel w-72 flex-shrink-0 p-4 overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-zinc-200">Shot Grid Settings</h3>
+          <button class="text-zinc-500 hover:text-zinc-300">&times;</button>
+        </div>
+
+        <!-- Data section -->
+        <div class="space-y-3 mb-5">
+          <p class="label-meta">Data</p>
+          <div>
+            <label class="text-xs text-zinc-400 block mb-1">Include shots</label>
+            <select class="w-full bg-zinc-900 border border-zinc-700 rounded text-sm text-zinc-200 px-2.5 py-1.5"><option>All shots</option><option>By status</option><option>By tag</option></select>
+          </div>
+          <div>
+            <label class="text-xs text-zinc-400 block mb-1">Sort by</label>
+            <select class="w-full bg-zinc-900 border border-zinc-700 rounded text-sm text-zinc-200 px-2.5 py-1.5"><option>Shot number</option><option>Title</option><option>Status</option></select>
+          </div>
+        </div>
+
+        <!-- Columns section -->
+        <div class="space-y-2 mb-5">
+          <p class="label-meta">Columns</p>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Shot #</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Thumbnail</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Title</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Status</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-400 flex-1">Description</span><span class="eye-icon hidden">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Products</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Talent</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-200 flex-1">Location</span><span class="eye-icon visible">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-400 flex-1">Tags</span><span class="eye-icon hidden">&#x1F441;</span></div>
+            <div class="flex items-center gap-2 py-1"><span class="drag-handle">&vellip;&vellip;</span><span class="text-sm text-zinc-400 flex-1">Notes</span><span class="eye-icon hidden">&#x1F441;</span></div>
+          </div>
+        </div>
+
+        <!-- Table style -->
+        <div class="space-y-2 mb-5">
+          <p class="label-meta">Table Style</p>
+          <div class="flex items-center justify-between py-1"><span class="text-sm text-zinc-300">Borders</span><div class="toggle-track toggle-on"><div class="toggle-thumb"></div></div></div>
+          <div class="flex items-center justify-between py-1"><span class="text-sm text-zinc-300">Header background</span><div class="toggle-track toggle-on"><div class="toggle-thumb"></div></div></div>
+          <div class="flex items-center justify-between py-1"><span class="text-sm text-zinc-300">Stripe rows</span><div class="toggle-track toggle-off"><div class="toggle-thumb"></div></div></div>
+        </div>
+
+        <!-- Delete -->
+        <button class="w-full py-2 text-sm text-red-400 hover:text-red-300 border border-red-900/50 rounded-md hover:bg-red-950/30 transition-colors flex items-center justify-center gap-2">&#x1F5D1; Delete Block</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- TEMPLATE LIBRARY                                                    -->
+  <!-- ================================================================== -->
+  <div class="p-6 md:p-12 max-w-7xl mx-auto space-y-6 mt-16">
+    <p class="label-meta">Overlay</p>
+    <h2 class="heading-page">Template Library</h2>
+    <p class="text-sm text-zinc-400">Pre-built and saved report templates. Select one to populate the builder.</p>
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden" style="height: 400px;">
+      <div class="flex h-full">
+        <!-- Left: template list -->
+        <div class="w-80 border-r border-zinc-800 p-4 overflow-y-auto">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="inline-flex rounded-md overflow-hidden border border-zinc-700"><button class="px-3 py-1.5 text-xs bg-blue-600 text-white">Built-in</button><button class="px-3 py-1.5 text-xs bg-zinc-800 text-zinc-400">Saved</button></div>
+            <button class="ml-auto text-xs text-blue-400 hover:text-blue-300">Save current</button>
+          </div>
+          <div class="space-y-2">
+            <div class="template-card selected"><p class="text-sm font-medium text-zinc-100">Shot List</p><p class="text-[10px] text-zinc-500">Table of all shots with status and assignments</p></div>
+            <div class="template-card"><p class="text-sm font-medium text-zinc-300">Storyboard</p><p class="text-[10px] text-zinc-500">Visual grid with hero images and descriptions</p></div>
+            <div class="template-card"><p class="text-sm font-medium text-zinc-300">Lookbook</p><p class="text-[10px] text-zinc-500">Full-page hero images with minimal metadata</p></div>
+            <div class="template-card"><p class="text-sm font-medium text-zinc-300">Pull Sheet</p><p class="text-[10px] text-zinc-500">Product pull list for warehouse fulfillment</p></div>
+            <div class="template-card"><p class="text-sm font-medium text-zinc-300">Call Sheet Summary</p><p class="text-[10px] text-zinc-500">Schedule + crew + talent for shoot day</p></div>
+          </div>
+        </div>
+        <!-- Right: preview -->
+        <div class="flex-1 p-6 flex flex-col items-center justify-center">
+          <div class="bg-white rounded shadow-lg w-48 h-64 p-3 relative" style="font-size: 5px; color: #18181b;">
+            <div class="flex justify-between mb-1"><div class="w-16 h-1.5 bg-zinc-300 rounded"></div><div class="w-8 h-1.5 bg-indigo-200 rounded"></div></div>
+            <div class="w-24 h-1 bg-zinc-200 rounded mb-2"></div>
+            <div class="border border-zinc-200 rounded">
+              <div class="bg-zinc-100 flex gap-1 p-0.5"><div class="w-3 h-1 bg-zinc-300 rounded"></div><div class="w-6 h-1 bg-zinc-300 rounded"></div><div class="w-4 h-1 bg-zinc-300 rounded"></div><div class="w-3 h-1 bg-zinc-300 rounded"></div></div>
+              <div class="p-0.5 space-y-0.5">
+                <div class="flex gap-1"><div class="w-3 h-1 bg-zinc-200 rounded"></div><div class="w-6 h-1 bg-zinc-200 rounded"></div><div class="w-4 h-1 bg-zinc-200 rounded"></div><div class="w-3 h-1 bg-zinc-200 rounded"></div></div>
+                <div class="flex gap-1"><div class="w-3 h-1 bg-zinc-200 rounded"></div><div class="w-6 h-1 bg-zinc-200 rounded"></div><div class="w-4 h-1 bg-zinc-200 rounded"></div><div class="w-3 h-1 bg-zinc-200 rounded"></div></div>
+                <div class="flex gap-1"><div class="w-3 h-1 bg-zinc-200 rounded"></div><div class="w-6 h-1 bg-zinc-200 rounded"></div><div class="w-4 h-1 bg-zinc-200 rounded"></div><div class="w-3 h-1 bg-zinc-200 rounded"></div></div>
+                <div class="flex gap-1"><div class="w-3 h-1 bg-zinc-200 rounded"></div><div class="w-6 h-1 bg-zinc-200 rounded"></div><div class="w-4 h-1 bg-zinc-200 rounded"></div><div class="w-3 h-1 bg-zinc-200 rounded"></div></div>
+              </div>
+            </div>
+            <div class="absolute bottom-2 left-3 right-3 flex justify-between"><div class="w-10 h-1 bg-zinc-200 rounded"></div><div class="w-6 h-1 bg-indigo-200 rounded"></div></div>
+          </div>
+          <p class="text-xs text-zinc-500 mt-3">Shot List — preview</p>
+          <div class="flex gap-2 mt-4"><button class="px-4 py-1.5 text-sm text-zinc-400 border border-zinc-700 rounded-md">Cancel</button><button class="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md">Use Template</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- VARIABLES PANEL                                                     -->
+  <!-- ================================================================== -->
+  <div class="p-6 md:p-12 max-w-7xl mx-auto space-y-6">
+    <p class="label-meta">Panel</p>
+    <h2 class="heading-page">Variables</h2>
+    <p class="text-sm text-zinc-400">Dynamic tokens insertable into any Text block. Auto-populated from project data.</p>
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 max-w-sm space-y-4">
+      <div>
+        <p class="label-meta mb-2">Dynamic</p>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Project Name</span><span class="var-chip">Q3 2025 Fall Campaign</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Client</span><span class="var-chip">Unbound Merino</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Shoot Dates</span><span class="var-chip">Sep 15-17, 2025</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Current Date</span><span class="var-chip">Apr 1, 2026</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Page Number</span><span class="var-chip">&mdash;</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Page Count</span><span class="var-chip">&mdash;</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Shot Count</span><span class="var-chip">47</span></div>
+          <div class="flex items-center justify-between"><span class="text-sm text-zinc-300">Product Count</span><span class="var-chip">23</span></div>
+        </div>
+      </div>
+      <hr class="border-zinc-800">
+      <div>
+        <div class="flex items-center justify-between mb-2"><p class="label-meta">Custom</p><button class="text-xs text-blue-400 hover:text-blue-300">+ Add</button></div>
+        <p class="text-xs text-zinc-600 text-center py-3">No custom variables yet</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="p-6 md:p-12 max-w-7xl mx-auto border-t border-zinc-800 text-center"><p class="text-xs text-zinc-600">Sprint S15c Mockup &middot; Production Hub &middot; 2026-04-01</p></footer>
+
+</body>
+</html>

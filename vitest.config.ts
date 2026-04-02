@@ -11,10 +11,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
-    // CI runners are slower than local dev machines. Use a higher timeout in CI
-    // to avoid false negatives from integration-heavy component tests.
-    testTimeout: process.env.CI ? 30000 : 15000,
-    hookTimeout: process.env.CI ? 30000 : 15000,
+    // CI runners (GitHub free-tier) are significantly slower than local dev
+    // machines. 60s prevents false negatives from integration-heavy component
+    // tests (AdminPage, InviteUserDialog, LibraryTalentPage, etc.).
+    testTimeout: process.env.CI ? 60000 : 15000,
+    hookTimeout: process.env.CI ? 60000 : 15000,
     // Use process forks instead of worker threads to avoid tinypool issues
     // on certain local environments (e.g. paths with spaces on macOS).
     pool: "forks",

@@ -64,26 +64,26 @@ describe("computeMaxShotNumber", () => {
 })
 
 describe("formatShotNumber", () => {
-  it("pads single digit", () => {
-    expect(formatShotNumber(1)).toBe("SH-001")
+  it("pads single digit to 2 characters", () => {
+    expect(formatShotNumber(1)).toBe("01")
   })
 
-  it("pads double digit", () => {
-    expect(formatShotNumber(42)).toBe("SH-042")
+  it("keeps double digit as-is", () => {
+    expect(formatShotNumber(42)).toBe("42")
   })
 
   it("keeps triple digit as-is", () => {
-    expect(formatShotNumber(100)).toBe("SH-100")
+    expect(formatShotNumber(100)).toBe("100")
   })
 
   it("does not truncate numbers > 999", () => {
-    expect(formatShotNumber(1000)).toBe("SH-1000")
+    expect(formatShotNumber(1000)).toBe("1000")
   })
 })
 
 describe("nextShotNumber", () => {
-  it("returns SH-001 for empty project", () => {
-    expect(nextShotNumber([])).toBe("SH-001")
+  it("returns 01 for empty project", () => {
+    expect(nextShotNumber([])).toBe("01")
   })
 
   it("increments from the highest existing number", () => {
@@ -91,6 +91,14 @@ describe("nextShotNumber", () => {
       makeShot({ shotNumber: "SH-003" }),
       makeShot({ id: "s2", shotNumber: "SH-007" }),
     ]
-    expect(nextShotNumber(shots)).toBe("SH-008")
+    expect(nextShotNumber(shots)).toBe("08")
+  })
+
+  it("increments from new-format numbers", () => {
+    const shots = [
+      makeShot({ shotNumber: "03" }),
+      makeShot({ id: "s2", shotNumber: "07" }),
+    ]
+    expect(nextShotNumber(shots)).toBe("08")
   })
 })

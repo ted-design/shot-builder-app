@@ -110,7 +110,7 @@ describe("ShotQuickAdd", () => {
     expect(data.status).toBe("todo")
     expect(data.projectId).toBe("p1")
     expect(data.clientId).toBe("c1")
-    expect(data.shotNumber).toBe("SH-001")
+    expect(data.shotNumber).toBe("01")
     expect(data.deleted).toBe(false)
   })
 
@@ -178,7 +178,7 @@ describe("ShotQuickAdd", () => {
     })
 
     const [, data] = mockAddDoc.mock.calls[0] as [unknown, Record<string, unknown>]
-    expect(data.shotNumber).toBe("SH-013")
+    expect(data.shotNumber).toBe("13")
   })
 
   it("handles mixed shot number formats", async () => {
@@ -199,7 +199,7 @@ describe("ShotQuickAdd", () => {
     })
 
     const [, data] = mockAddDoc.mock.calls[0] as [unknown, Record<string, unknown>]
-    expect(data.shotNumber).toBe("SH-021")
+    expect(data.shotNumber).toBe("21")
   })
 
   it("shows error toast on Firestore failure", async () => {
@@ -311,7 +311,7 @@ describe("ShotQuickAdd", () => {
       const numbers = mockAddDoc.mock.calls.map(
         (call: [unknown, Record<string, unknown>]) => call[1].shotNumber,
       )
-      expect(numbers).toEqual(["SH-001", "SH-002", "SH-003"])
+      expect(numbers).toEqual(["01", "02", "03"])
 
       // Verify onCreated called for each
       await waitFor(() => {

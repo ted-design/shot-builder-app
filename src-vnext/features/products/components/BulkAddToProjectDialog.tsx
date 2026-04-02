@@ -22,34 +22,47 @@ type Granularity = "family" | "sku"
 interface BulkAddToProjectDialogProps {
   readonly selectedFamilies: readonly SelectedFamily[]
   readonly selectedSkus: readonly SelectedSku[]
+  readonly familyGenderMap?: ReadonlyMap<string, string | null>
   readonly onClose: () => void
   readonly onSuccess: () => void
 }
 
-function buildFamilyItems(families: readonly SelectedFamily[]): BulkShotItem[] {
+function buildFamilyItems(
+  families: readonly SelectedFamily[],
+  genderMap?: ReadonlyMap<string, string | null>,
+): BulkShotItem[] {
   const seen = new Set<string>()
   const result: BulkShotItem[] = []
   for (const f of families) {
     if (!seen.has(f.familyId)) {
       seen.add(f.familyId)
-      result.push({ familyId: f.familyId, familyName: f.familyName })
+      result.push({
+        familyId: f.familyId,
+        familyName: f.familyName,
+        gender: genderMap?.get(f.familyId) ?? null,
+      })
     }
   }
   return result
 }
 
-function buildSkuItems(skus: readonly SelectedSku[]): BulkShotItem[] {
+function buildSkuItems(
+  skus: readonly SelectedSku[],
+  genderMap?: ReadonlyMap<string, string | null>,
+): BulkShotItem[] {
   return skus.map((s) => ({
     familyId: s.familyId,
     familyName: s.familyName,
     skuId: s.skuId,
     skuName: s.skuName,
+    gender: genderMap?.get(s.familyId) ?? null,
   }))
 }
 
 export function BulkAddToProjectDialog({
   selectedFamilies,
   selectedSkus,
+  familyGenderMap,
   onClose,
   onSuccess,
 }: BulkAddToProjectDialogProps) {
@@ -62,17 +75,23 @@ export function BulkAddToProjectDialog({
   )
   const [loading, setLoading] = useState(false)
 
+  // Legacy projects without an explicit status field default to "active" in
+  // the mapProject mapper. The ?? fallback here is intentional compat handling.
   const activeProjects = useMemo(
-    () => projects.filter((p) => p.status === "active"),
+    () =>
+      projects.filter(
+        (p) =>
+          (p.status ?? "active") === "active" && !p.deletedAt,
+      ),
     [projects],
   )
 
   const previewItems = useMemo((): BulkShotItem[] => {
     if (granularity === "sku" && selectedSkus.length > 0) {
-      return buildSkuItems(selectedSkus)
+      return buildSkuItems(selectedSkus, familyGenderMap)
     }
-    return buildFamilyItems(selectedFamilies)
-  }, [granularity, selectedSkus, selectedFamilies])
+    return buildFamilyItems(selectedFamilies, familyGenderMap)
+  }, [granularity, selectedSkus, selectedFamilies, familyGenderMap])
 
   const shotCount = previewItems.length
 
@@ -148,7 +167,7 @@ export function BulkAddToProjectDialog({
           ) : (
             <Select value={projectId} onValueChange={setProjectId}>
               <SelectTrigger className="w-full" data-testid="bulk-dialog-project-select">
-                <SelectValue placeholder="Select a project\u2026" />
+                <SelectValue placeholder={"Select a project\u2026"} />
               </SelectTrigger>
               <SelectContent>
                 {activeProjects.map((p) => (
@@ -211,7 +230,7 @@ export function BulkAddToProjectDialog({
               ))}
               {shotCount > 20 && (
                 <li className="px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-                  \u2026 and {shotCount - 20} more
+                  {"\u2026"} and {shotCount - 20} more
                 </li>
               )}
             </ul>

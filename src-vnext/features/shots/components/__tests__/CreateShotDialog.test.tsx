@@ -31,7 +31,7 @@ vi.mock("@/features/shots/lib/shotVersioning", () => ({
   createShotVersionSnapshot: vi.fn().mockResolvedValue(undefined),
 }))
 
-const mockNextShotNumber = vi.fn().mockReturnValue("SH-008")
+const mockNextShotNumber = vi.fn().mockReturnValue("08")
 
 vi.mock("@/features/shots/lib/shotNumbering", () => ({
   nextShotNumber: (...args: unknown[]) => mockNextShotNumber(...args),
@@ -71,7 +71,7 @@ describe("CreateShotDialog", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockNextShotNumber.mockReturnValue("SH-008")
+    mockNextShotNumber.mockReturnValue("08")
   })
 
   function renderDialog(shots: Shot[] = []) {
@@ -130,13 +130,13 @@ describe("CreateShotDialog", () => {
     expect(mockNextShotNumber).toHaveBeenCalledWith(existingShots)
 
     const docData = mockAddDoc.mock.calls[0]![1]
-    expect(docData.shotNumber).toBe("SH-008")
+    expect(docData.shotNumber).toBe("08")
     expect(docData.title).toBe("New Shot")
     expect(docData.status).toBe("todo")
   })
 
-  it("generates SH-001 for empty project", async () => {
-    mockNextShotNumber.mockReturnValue("SH-001")
+  it("generates 01 for empty project", async () => {
+    mockNextShotNumber.mockReturnValue("01")
     renderDialog([])
 
     fireEvent.change(screen.getByTestId("shot-title-input"), {
@@ -149,7 +149,7 @@ describe("CreateShotDialog", () => {
     })
 
     const docData = mockAddDoc.mock.calls[0]![1]
-    expect(docData.shotNumber).toBe("SH-001")
+    expect(docData.shotNumber).toBe("01")
   })
 
   it("calls onCreated callback after successful create", async () => {

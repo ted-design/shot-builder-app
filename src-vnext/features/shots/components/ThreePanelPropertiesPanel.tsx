@@ -65,7 +65,7 @@ export function ThreePanelPropertiesPanel({
               value={shot.shotNumber ?? ""}
               onSave={(shotNumber) => save({ shotNumber: shotNumber || null })}
               className="text-xs font-semibold text-[var(--color-text)]"
-              placeholder="e.g. SH-001"
+              placeholder="e.g. 01"
             />
           ) : (
             <ReadOnlyMetaValue value={shot.shotNumber || "Not set"} />

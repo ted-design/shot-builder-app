@@ -151,7 +151,7 @@ describe("ShootReadinessWidget", () => {
   })
 
   describe("full tier", () => {
-    it("shows shoot window dates and confidence badge for full tier", () => {
+    it("shows shoot window dates and urgency badge for full tier", () => {
       const startDate = new Date(Date.now() + 5 * DAY_MS)
       const endDate = new Date(Date.now() + 30 * DAY_MS)
       mockItems = [
@@ -177,8 +177,8 @@ describe("ShootReadinessWidget", () => {
       renderWidget()
       expect(screen.getByText("Spring Dress")).toBeInTheDocument()
       expect(screen.getByText(/Shoot window:/)).toBeInTheDocument()
-      // Confidence badge shows "High" with checkmark
-      expect(screen.getByText(/High/)).toBeInTheDocument()
+      // Urgency badge replaces confidence badge
+      expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
     })
 
     it("shows colorway count and sample counts for full tier", () => {
@@ -205,10 +205,10 @@ describe("ShootReadinessWidget", () => {
       renderWidget()
       expect(screen.getByText("4 colorways")).toBeInTheDocument()
       expect(screen.getByText("2/6 samples arrived")).toBeInTheDocument()
-      expect(screen.getByText("Medium")).toBeInTheDocument()
+      expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
     })
 
-    it("shows low confidence badge", () => {
+    it("shows urgency badge instead of confidence badge for overdue items", () => {
       mockItems = [
         {
           familyId: "f6",
@@ -230,7 +230,9 @@ describe("ShootReadinessWidget", () => {
       ]
       mockLoading = false
       renderWidget()
-      expect(screen.getByText("Low")).toBeInTheDocument()
+      expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
+      // Confidence badge should NOT be present
+      expect(screen.queryByText("Low")).not.toBeInTheDocument()
     })
   })
 
