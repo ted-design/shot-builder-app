@@ -229,15 +229,18 @@ export function DocumentPreview({
             const { pageId: currentPageId, items: pageItems, subIndex } = vp
             const visualKey = `${currentPageId}-s${String(subIndex)}`
 
-            // Build a flat index counter for drop gaps
-            // Count items before this visual page to get correct insertion indices
-            let itemsBeforeThisPage = 0
-            for (let i = 0; i < pageIndex; i++) {
-              const prev = visualPages[i]
-              if (prev) {
-                itemsBeforeThisPage += prev.items.length
-                // Add 1 for the page-break that caused the split
-                if (i < pageIndex) itemsBeforeThisPage += 1
+            // Use local per-page indices so insertBlockAtIndex receives
+            // correct positions relative to the page's own items array.
+            // The pageId is already embedded in the drop-gap ID, so the
+            // handler in ExportBuilderPage targets the right page.
+            let localIndexOffset = 0
+            // For sub-pages created by page-break splits within the same
+            // ExportPage, offset by items in prior sub-pages + the break.
+            for (const prev of visualPages.slice(0, pageIndex)) {
+              if (prev.pageId === currentPageId) {
+                localIndexOffset += prev.items.length
+                // +1 for the page-break block that caused the split
+                localIndexOffset += 1
               }
             }
 
@@ -300,11 +303,11 @@ export function DocumentPreview({
                       </>
                     ) : (
                       pageItems.map((item, itemIndex) => {
-                        const globalIndex = itemsBeforeThisPage + itemIndex
+                        const localIndex = localIndexOffset + itemIndex
                         return (
                           <div key={isHStackRow(item) ? item.id : item.id}>
                             <DropGap
-                              id={`drop-gap-${currentPageId}-${String(globalIndex)}`}
+                              id={`drop-gap-${currentPageId}-${String(localIndex)}`}
                               isPaletteDrag={isPaletteDrag}
                             />
                             {isHStackRow(item) ? (
@@ -331,7 +334,7 @@ export function DocumentPreview({
                                   onDuplicateBlock={onDuplicateBlock}
                                   onMoveBlockUp={onMoveBlockUp}
                                   onMoveBlockDown={onMoveBlockDown}
-                                  isFirst={globalIndex === 0 && pageIndex === 0}
+                                  isFirst={localIndex === 0 && pageIndex === 0}
                                   isLast={
                                     pageIndex === visualPages.length - 1 &&
                                     itemIndex === pageItems.length - 1
@@ -347,7 +350,7 @@ export function DocumentPreview({
                     {/* Trailing drop gap after the last item */}
                     {(pageItems.length > 0 || (pageIndex > 0 || totalPages > 1)) && (
                       <DropGap
-                        id={`drop-gap-${currentPageId}-${String(itemsBeforeThisPage + pageItems.length)}`}
+                        id={`drop-gap-${currentPageId}-${String(localIndexOffset + pageItems.length)}`}
                         isPaletteDrag={isPaletteDrag}
                       />
                     )}

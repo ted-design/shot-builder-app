@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import {
   DndContext,
@@ -42,6 +42,7 @@ import {
   saveTemplate as persistTemplate,
 } from "../lib/documentPersistence"
 import { BLOCK_REGISTRY } from "../lib/blockRegistry"
+import { BUILT_IN_TEMPLATES } from "../lib/builtInTemplates"
 import { BlockPalette } from "./BlockPalette"
 import { BlockSettingsPanel } from "./BlockSettingsPanel"
 import { DocumentPreview } from "./DocumentPreview"
@@ -105,6 +106,7 @@ export default function ExportBuilderPage() {
 
 function ExportBuilderPageInner() {
   const { id: projectId } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { clientId } = useAuth()
   const { project, shots, productFamilies } = useExportDataContext()
 
@@ -163,6 +165,35 @@ function ExportBuilderPageInner() {
     if (reportsLoading || hasInitialized) return
 
     async function initialize() {
+      // Check for preset query params (e.g. ?preset=shot-list)
+      const preset = searchParams.get("preset")
+
+      if (preset) {
+        const templateIdMap: Record<string, string> = {
+          "shot-list": "built-in-shot-list",
+          "shot-detail": "built-in-storyboard",
+          "storyboard": "built-in-storyboard",
+          "lookbook": "built-in-lookbook",
+          "pull-sheet": "built-in-pull-sheet",
+          "call-sheet": "built-in-call-sheet",
+        }
+
+        const templateId = templateIdMap[preset]
+        const template = templateId
+          ? BUILT_IN_TEMPLATES.find((t) => t.id === templateId)
+          : undefined
+
+        if (template) {
+          const newDoc = applyTemplate(template)
+          setDocument(newDoc)
+          setActivePageId(newDoc.pages[0]?.id ?? null)
+          // Clear search params to avoid re-applying on re-render
+          setSearchParams({}, { replace: true })
+          setHasInitialized(true)
+          return
+        }
+      }
+
       if (reports.length > 0) {
         // Select first (most recently updated) report
         const first = reports[0]!
@@ -195,7 +226,7 @@ function ExportBuilderPageInner() {
     initialize().catch(() => {
       setHasInitialized(true)
     })
-  }, [reportsLoading, hasInitialized, reports, loadReport, projectId])
+  }, [reportsLoading, hasInitialized, reports, loadReport, projectId, searchParams, setSearchParams])
 
   // --- Switch report ---
   const handleSelectReport = useCallback(

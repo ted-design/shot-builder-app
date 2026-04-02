@@ -95,7 +95,7 @@ describe("createBlock", () => {
     expect(block.columns.length).toBe(5)
 
     const keys = block.columns.map((c) => c.key)
-    expect(keys).toEqual(["name", "sku", "colorway", "launchDate", "status"])
+    expect(keys).toEqual(["styleName", "styleNumber", "gender", "skuCount", "classification"])
 
     for (const col of block.columns) {
       expect(col.visible).toBe(true)
