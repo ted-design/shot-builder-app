@@ -7,6 +7,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { useProductVersions } from "@/features/products/hooks/useProductVersions"
+import { useProductSkus } from "@/features/products/hooks/useProducts"
 import { restoreProductVersion } from "@/features/products/lib/productVersioning"
 import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
 import { Button } from "@/ui/button"
@@ -121,6 +122,8 @@ export function ProductVersionHistorySection({
     loading,
     error,
   } = useProductVersions(open ? family.id : null, 25)
+
+  const { data: skus } = useProductSkus(open ? family.id : null)
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -271,6 +274,7 @@ export function ProductVersionHistorySection({
             version: restoreTarget,
             currentFamily: family,
             user,
+            allSkus: skus.filter((s) => s.deleted !== true),
           })
             .then(() => {
               toast.success("Product restored")

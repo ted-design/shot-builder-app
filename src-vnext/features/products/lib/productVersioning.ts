@@ -9,6 +9,7 @@ import {
 import { db } from "@/shared/lib/firebase"
 import { productFamilyPath, productFamilyVersionsPath } from "@/shared/lib/paths"
 import { normalizeWhitespace } from "@/shared/lib/textUtils"
+import { resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
 import type {
   AuthUser,
   ProductFamily,
@@ -138,6 +139,20 @@ export function buildSkuSnapshot(
 
 // --- Change detection ---
 
+/** Normalize a value for comparison — converts Date/Timestamp to millis to avoid type mismatch. */
+function normalizeForComparison(value: unknown): unknown {
+  if (value === null || value === undefined) return null
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === "object" && value !== null && "toMillis" in value) {
+    try {
+      return (value as { toMillis: () => number }).toMillis()
+    } catch {
+      // fall through
+    }
+  }
+  return value
+}
+
 function getChangedFields(
   previous: Record<string, unknown> | null,
   current: Record<string, unknown>,
@@ -152,7 +167,9 @@ function getChangedFields(
       if (notesMeaningfullyDifferent(prevValue, currValue)) changed.push(field)
       continue
     }
-    if (JSON.stringify(prevValue) !== JSON.stringify(currValue)) {
+    const prevNorm = normalizeForComparison(prevValue)
+    const currNorm = normalizeForComparison(currValue)
+    if (JSON.stringify(prevNorm) !== JSON.stringify(currNorm)) {
       changed.push(field)
     }
   }
@@ -188,7 +205,7 @@ export function buildFieldChanges(
     const curr = current[field]
     if (field === "notes") {
       if (!notesMeaningfullyDifferent(prev, curr)) continue
-    } else if (JSON.stringify(prev) === JSON.stringify(curr)) {
+    } else if (JSON.stringify(normalizeForComparison(prev)) === JSON.stringify(normalizeForComparison(curr))) {
       continue
     }
     changes.push({
@@ -331,13 +348,20 @@ export async function restoreProductVersion(args: {
   readonly version: ProductVersion
   readonly currentFamily: ProductFamily
   readonly user: AuthUser
+  readonly allSkus?: ReadonlyArray<ProductSku>
 }): Promise<void> {
-  const { clientId, familyId, version, currentFamily, user } = args
+  const { clientId, familyId, version, currentFamily, user, allSkus } = args
   if (!clientId) throw new Error("Missing clientId.")
   if (!familyId) throw new Error("Missing familyId.")
   if (!user?.uid) throw new Error("Not authenticated.")
 
   const patch = buildRestorePatch(version.snapshot ?? {})
+
+  // Recompute earliestLaunchDate if launchDate is being restored
+  const restoredLaunchDate = patch.launchDate as import("firebase/firestore").Timestamp | null | undefined
+  if (allSkus) {
+    patch.earliestLaunchDate = resolveEarliestLaunchDate(restoredLaunchDate, allSkus)
+  }
 
   const familyDocPath = productFamilyPath(familyId, clientId)
   const familyRef = doc(db, familyDocPath[0]!, ...familyDocPath.slice(1))
