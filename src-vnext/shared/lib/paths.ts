@@ -112,6 +112,16 @@ export const productFamilyDocumentsPath = (
   clientId: string,
 ): string[] => [...productFamiliesPath(clientId), familyId, "documents"]
 
+export const productFamilyPath = (
+  familyId: string,
+  clientId: string,
+): string[] => [...productFamiliesPath(clientId), familyId]
+
+export const productFamilyVersionsPath = (
+  familyId: string,
+  clientId: string,
+): string[] => [...productFamiliesPath(clientId), familyId, "versions"]
+
 // --- Talent ---
 
 export const talentPath = (clientId: string): string[] => [

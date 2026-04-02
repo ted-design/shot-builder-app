@@ -16,6 +16,19 @@ export function formatDateTime(ts: Timestamp | undefined | null): string {
   }
 }
 
+export function timestampToInputValue(ts: Timestamp | null | undefined): string {
+  if (!ts) return ""
+  try {
+    const d = ts.toDate()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  } catch {
+    return ""
+  }
+}
+
 export function parseDateInput(value: string): Date | null {
   const trimmed = value.trim()
   if (!trimmed) return null

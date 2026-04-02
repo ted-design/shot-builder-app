@@ -645,6 +645,8 @@ export default function ProductEditorPage() {
           family: normalizedDraft,
           skus: normalizedSkus,
           existingSkus,
+          existingFamily: family,
+          user: user ?? undefined,
         })
         toast({ title: "Saved", description: "Product updated." })
         navigate(cancelTo)
@@ -656,6 +658,7 @@ export default function ProductEditorPage() {
         userId: user?.uid ?? null,
         family: normalizedDraft,
         skus: normalizedSkus.filter((s) => s.deleted !== true),
+        user: user ?? undefined,
       })
       toast({ title: "Created", description: "Product created." })
       navigate(`/products/${familyId}`)

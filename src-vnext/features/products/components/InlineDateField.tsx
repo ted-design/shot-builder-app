@@ -1,7 +1,7 @@
 import { useState } from "react"
 import type { Timestamp } from "firebase/firestore"
 import { formatLaunchDate, getLaunchDeadlineWarning } from "@/features/products/lib/assetRequirements"
-import { parseDateInput } from "@/features/products/lib/productDetailHelpers"
+import { parseDateInput, timestampToInputValue } from "@/features/products/lib/productDetailHelpers"
 import { toast } from "@/shared/hooks/use-toast"
 import { CalendarDays, Pencil, X } from "lucide-react"
 import { Button } from "@/ui/button"
@@ -12,19 +12,7 @@ interface InlineDateFieldProps {
   readonly canEdit: boolean
   readonly label?: string
   readonly showWarning?: boolean
-}
-
-function timestampToInputValue(ts: Timestamp | null | undefined): string {
-  if (!ts) return ""
-  try {
-    const d = ts.toDate()
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, "0")
-    const day = String(d.getDate()).padStart(2, "0")
-    return `${y}-${m}-${day}`
-  } catch {
-    return ""
-  }
+  readonly compact?: boolean
 }
 
 export function InlineDateField({
@@ -33,6 +21,7 @@ export function InlineDateField({
   canEdit,
   label,
   showWarning = true,
+  compact = false,
 }: InlineDateFieldProps) {
   const [editing, setEditing] = useState(false)
   const [inputValue, setInputValue] = useState(() => timestampToInputValue(value))
@@ -72,49 +61,54 @@ export function InlineDateField({
     }
   }
 
+  const iconSize = compact ? "h-3 w-3" : "h-4 w-4"
+  const textSize = compact ? "text-2xs" : "text-sm"
+
   if (editing && canEdit) {
     return (
-      <div className="flex items-center gap-2">
+      <div className={compact ? "flex flex-col gap-1" : "flex items-center gap-2"}>
         {label && (
           <span className="text-2xs text-[var(--color-text-muted)]">{label}</span>
         )}
-        <input
-          type="date"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-text)]"
-          disabled={saving}
-        />
-        <Button size="sm" variant="outline" disabled={saving} onClick={() => void handleSave()}>
-          Save
-        </Button>
-        {value && (
-          <Button size="sm" variant="ghost" disabled={saving} onClick={() => void handleClear()}>
-            <X className="h-3 w-3" />
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className={`rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[var(--color-text)] ${compact ? "text-2xs" : "text-sm"}`}
+            disabled={saving}
+          />
+          <Button size="sm" variant="outline" disabled={saving} onClick={() => void handleSave()}>
+            Save
           </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={saving}
-          onClick={() => {
-            setEditing(false)
-            setInputValue(timestampToInputValue(value))
-          }}
-        >
-          Cancel
-        </Button>
+          {value && (
+            <Button size="sm" variant="ghost" disabled={saving} onClick={() => void handleClear()}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={saving}
+            onClick={() => {
+              setEditing(false)
+              setInputValue(timestampToInputValue(value))
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="flex items-center gap-2">
-      <CalendarDays className="h-4 w-4 text-[var(--color-text-subtle)]" />
+      <CalendarDays className={`${iconSize} text-[var(--color-text-subtle)]`} />
       {label && (
         <span className="text-2xs text-[var(--color-text-muted)]">{label}</span>
       )}
-      <span className="text-sm text-[var(--color-text)]">{formatLaunchDate(value)}</span>
+      <span className={`${textSize} text-[var(--color-text)]`}>{formatLaunchDate(value)}</span>
       {warning === "overdue" && (
         <span className="rounded-md bg-[var(--color-status-red-bg)] px-1.5 py-0.5 text-2xs text-[var(--color-status-red-text)]">
           Overdue

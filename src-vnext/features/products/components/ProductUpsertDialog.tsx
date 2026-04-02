@@ -339,6 +339,8 @@ export function ProductUpsertDialog({
           family: normalizedDraft,
           skus: normalizedSkus,
           existingSkus,
+          existingFamily: family,
+          user: user ?? undefined,
         })
         toast({ title: "Saved", description: "Product updated." })
         onOpenChange(false)
@@ -351,6 +353,7 @@ export function ProductUpsertDialog({
         userId: user?.uid ?? null,
         family: normalizedDraft,
         skus: normalizedSkus.filter((s) => s.deleted !== true),
+        user: user ?? undefined,
       })
       toast({ title: "Created", description: "Product created." })
       onOpenChange(false)

@@ -1,9 +1,10 @@
 import type { Timestamp } from "firebase/firestore"
-import type { ProductSku } from "@/shared/types"
+import type { AuthUser, ProductFamily, ProductSku } from "@/shared/types"
 import { EditableProductImage } from "@/features/products/components/EditableProductImage"
-import { replaceProductSkuImage, removeProductSkuImage } from "@/features/products/lib/productWorkspaceWrites"
-import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
+import { InlineDateField } from "@/features/products/components/InlineDateField"
+import { replaceProductSkuImage, removeProductSkuImage, updateProductSkuLaunchDateWithSync } from "@/features/products/lib/productWorkspaceWrites"
 import { compressSizeRange } from "@/shared/lib/sizeRange"
+import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
 import { toast } from "@/shared/hooks/use-toast"
 import { Badge } from "@/ui/badge"
 
@@ -17,6 +18,9 @@ interface ProductSkuCardProps {
   readonly clientId?: string | null
   readonly userId?: string | null
   readonly familyId?: string
+  readonly allSkus?: ReadonlyArray<ProductSku>
+  readonly family?: ProductFamily
+  readonly user?: AuthUser
 }
 
 export function ProductSkuCard({
@@ -28,6 +32,9 @@ export function ProductSkuCard({
   clientId,
   userId,
   familyId,
+  allSkus,
+  family,
+  user,
 }: ProductSkuCardProps) {
   const name = sku.colorName ?? sku.name
   const hex = sku.hexColor ?? sku.colourHex
@@ -124,10 +131,33 @@ export function ProductSkuCard({
             {skuSizeRange}
           </span>
         )}
-        {hasCustomLaunchDate && sku.launchDate && (
-          <span className="text-2xs text-[var(--color-text-muted)]">
-            Launch: {formatLaunchDate(sku.launchDate)}
-          </span>
+        {canEdit && clientId && familyId && allSkus ? (
+          <InlineDateField
+            value={sku.launchDate ?? null}
+            onChange={async (date) => {
+              await updateProductSkuLaunchDateWithSync({
+                clientId,
+                familyId,
+                skuId: sku.id,
+                userId: userId ?? null,
+                launchDate: date,
+                familyLaunchDate,
+                allSkus,
+                previousSku: sku,
+                previousFamily: family,
+                user,
+              })
+            }}
+            canEdit
+            label={hasCustomLaunchDate ? "Custom" : "Family"}
+            compact
+          />
+        ) : (
+          hasCustomLaunchDate && sku.launchDate && (
+            <span className="text-2xs text-[var(--color-text-muted)]">
+              Launch: {formatLaunchDate(sku.launchDate)}
+            </span>
+          )
         )}
       </div>
     </div>
