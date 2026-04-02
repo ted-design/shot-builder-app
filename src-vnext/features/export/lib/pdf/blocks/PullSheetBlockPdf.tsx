@@ -10,9 +10,10 @@ interface PullSheetBlockPdfProps {
 }
 
 const FULFILLMENT_COLORS: Record<string, { bg: string; text: string }> = {
-  picked: { bg: "#D1FAE5", text: "#047857" },
-  pending: { bg: "#FEF3C7", text: "#B45309" },
-  out_of_stock: { bg: "#FEE2E2", text: "#B91C1C" },
+  pending: { bg: "#F3F4F6", text: "#374151" },
+  fulfilled: { bg: "#D1FAE5", text: "#047857" },
+  partial: { bg: "#FEF3C7", text: "#B45309" },
+  substituted: { bg: "#DBEAFE", text: "#1D4ED8" },
 }
 
 function totalQty(item: PullItem): number {

@@ -1,8 +1,10 @@
 import { Text, View, Image } from "@react-pdf/renderer"
 import type { ShotDetailBlock } from "../../../types/exportBuilder"
 import type { ExportData } from "../../../hooks/useExportData"
-import type { Shot } from "@/shared/types"
-import { styles, STATUS_COLORS, STATUS_LABELS } from "../pdfStyles"
+import type { ShotFirestoreStatus } from "@/shared/types"
+import { getShotStatusLabel, getShotStatusColor } from "@/shared/lib/statusMappings"
+import { styles, PDF_STATUS_COLORS } from "../pdfStyles"
+import { resolveProductNamesList } from "../../blockDataResolvers"
 
 interface ShotDetailBlockPdfProps {
   readonly block: ShotDetailBlock
@@ -10,26 +12,19 @@ interface ShotDetailBlockPdfProps {
   readonly imageMap: ReadonlyMap<string, string>
 }
 
-function resolveProducts(shot: Shot): string {
-  const names = [
-    ...shot.products.map((p) => p.familyName).filter(Boolean),
-    ...(shot.looks ?? []).flatMap((l) => l.products.map((p) => p.familyName)).filter(Boolean),
-  ]
-  return [...new Set(names)].join(", ")
-}
-
 export function ShotDetailBlockPdf({ block, data, imageMap }: ShotDetailBlockPdfProps) {
   const shot = block.shotId ? data.shots.find((s) => s.id === block.shotId) : undefined
   if (!shot) return null
 
-  const sc = STATUS_COLORS[shot.status] ?? { bg: "#F3F4F6", text: "#374151" }
-  const statusLabel = STATUS_LABELS[shot.status] ?? shot.status
+  const color = getShotStatusColor(shot.status as ShotFirestoreStatus)
+  const sc = PDF_STATUS_COLORS[color] ?? { bg: "#F3F4F6", text: "#374151" }
+  const statusLabel = getShotStatusLabel(shot.status as ShotFirestoreStatus)
   const showHero = block.showHeroImage !== false
   const showDesc = block.showDescription !== false
   const showNotes = block.showNotes !== false
   const showProducts = block.showProducts !== false
   const heroSrc = showHero && shot.heroImage?.path ? imageMap.get(shot.heroImage.path) : undefined
-  const productNames = showProducts ? resolveProducts(shot) : ""
+  const productNames = showProducts ? resolveProductNamesList(shot).join(", ") : ""
 
   return (
     <View wrap={false} style={{ flexDirection: "row", gap: 10, marginVertical: 4 }}>

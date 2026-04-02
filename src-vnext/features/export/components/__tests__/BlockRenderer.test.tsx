@@ -15,6 +15,18 @@ vi.mock("../ExportDataProvider", () => ({
   }),
 }))
 
+vi.mock("@/app/providers/AuthProvider", () => ({
+  useAuth: () => ({ clientId: "test-client", role: "admin" }),
+}))
+
+vi.mock("react-router-dom", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    )
+  return { ...actual, useParams: () => ({ id: "test-project" }) }
+})
+
 const VARIABLES: readonly ExportVariable[] = []
 
 describe("BlockRenderer", () => {
@@ -131,6 +143,6 @@ describe("BlockRenderer", () => {
     )
     const wrapper = screen.getByTestId("block-b1")
     expect(wrapper.className).toContain("ring-2")
-    expect(wrapper.className).toContain("ring-blue-500")
+    expect(wrapper.className).toContain("ring-[var(--color-accent)]")
   })
 })

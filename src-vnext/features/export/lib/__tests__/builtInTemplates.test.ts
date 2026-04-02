@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest"
 import { BUILT_IN_TEMPLATES } from "../builtInTemplates"
+import type { ExportBlock } from "../../types/exportBuilder"
+import { isHStackRow } from "../../types/exportBuilder"
+
+/** Extract all blocks from a page's items, flattening HStack rows */
+function flattenItems(items: readonly import("../../types/exportBuilder").PageItem[]): ExportBlock[] {
+  return items.flatMap((item) =>
+    isHStackRow(item) ? item.columns.flatMap((c) => [...c.blocks]) : [item],
+  )
+}
 
 describe("BUILT_IN_TEMPLATES", () => {
   it("contains exactly 5 templates", () => {
@@ -17,11 +26,11 @@ describe("BUILT_IN_TEMPLATES", () => {
     }
   })
 
-  it("all templates have at least one page with blocks", () => {
+  it("all templates have at least one page with items", () => {
     for (const template of BUILT_IN_TEMPLATES) {
       expect(template.pages.length).toBeGreaterThanOrEqual(1)
       for (const page of template.pages) {
-        expect(page.blocks.length).toBeGreaterThanOrEqual(1)
+        expect(page.items.length).toBeGreaterThanOrEqual(1)
         expect(page.id).toBeTruthy()
       }
     }
@@ -50,7 +59,7 @@ describe("BUILT_IN_TEMPLATES", () => {
 
     for (const template of BUILT_IN_TEMPLATES) {
       for (const page of template.pages) {
-        for (const block of page.blocks) {
+        for (const block of flattenItems(page.items)) {
           expect(block.id).toBeTruthy()
           expect(validTypes).toContain(block.type)
         }
@@ -64,7 +73,7 @@ describe("BUILT_IN_TEMPLATES", () => {
     expect(shotList!.settings.layout).toBe("landscape")
 
     const hasGrid = shotList!.pages.some((p) =>
-      p.blocks.some((b) => b.type === "shot-grid"),
+      flattenItems(p.items).some((b) => b.type === "shot-grid"),
     )
     expect(hasGrid).toBe(true)
   })
@@ -74,7 +83,7 @@ describe("BUILT_IN_TEMPLATES", () => {
     expect(storyboard).toBeDefined()
 
     const detailBlocks = storyboard!.pages.flatMap((p) =>
-      p.blocks.filter((b) => b.type === "shot-detail"),
+      flattenItems(p.items).filter((b) => b.type === "shot-detail"),
     )
     expect(detailBlocks.length).toBeGreaterThanOrEqual(2)
   })
@@ -84,7 +93,7 @@ describe("BUILT_IN_TEMPLATES", () => {
     expect(lookbook).toBeDefined()
 
     const detailBlocks = lookbook!.pages.flatMap((p) =>
-      p.blocks.filter((b) => b.type === "shot-detail"),
+      flattenItems(p.items).filter((b) => b.type === "shot-detail"),
     )
     expect(detailBlocks.length).toBeGreaterThanOrEqual(1)
 
@@ -102,7 +111,7 @@ describe("BUILT_IN_TEMPLATES", () => {
     expect(pullSheet).toBeDefined()
 
     const hasPull = pullSheet!.pages.some((p) =>
-      p.blocks.some((b) => b.type === "pull-sheet"),
+      flattenItems(p.items).some((b) => b.type === "pull-sheet"),
     )
     expect(hasPull).toBe(true)
   })
@@ -112,7 +121,7 @@ describe("BUILT_IN_TEMPLATES", () => {
     expect(callSheet).toBeDefined()
 
     const hasCrew = callSheet!.pages.some((p) =>
-      p.blocks.some((b) => b.type === "crew-list"),
+      flattenItems(p.items).some((b) => b.type === "crew-list"),
     )
     expect(hasCrew).toBe(true)
   })
@@ -120,7 +129,7 @@ describe("BUILT_IN_TEMPLATES", () => {
   it("templates use variable tokens in text blocks", () => {
     for (const template of BUILT_IN_TEMPLATES) {
       const textBlocks = template.pages.flatMap((p) =>
-        p.blocks.filter((b) => b.type === "text"),
+        flattenItems(p.items).filter((b) => b.type === "text"),
       )
       const hasVariableToken = textBlocks.some(
         (b) => b.type === "text" && b.content.includes("{{"),

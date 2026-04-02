@@ -27,6 +27,11 @@ export interface BlockLayout {
   readonly paddingRight?: number
   readonly paddingBottom?: number
   readonly paddingLeft?: number
+  readonly borderWidth?: number // px, 0 = none
+  readonly borderColor?: string // hex
+  readonly borderRadius?: number // px
+  readonly borderStyle?: "solid" | "dashed" | "dotted" | "none"
+  readonly backgroundColor?: string // hex, undefined = transparent
 }
 
 /** Table styling options */
@@ -46,6 +51,8 @@ export interface TextBlock extends BaseBlock {
     readonly fontSize?: number // px
     readonly fontColor?: string
     readonly textAlign?: "left" | "center" | "right"
+    readonly highlightColor?: string // background color for text content area
+    readonly blockType?: "p" | "h1" | "h2" | "h3"
   }
   readonly layout?: BlockLayout
 }
@@ -60,12 +67,28 @@ export interface ImageBlock extends BaseBlock {
   readonly layout?: BlockLayout
 }
 
+/** Column width preset options */
+export type ColumnWidthPreset = "xs" | "sm" | "md" | "lg" | "xl" | "auto"
+
+/** Column width preset labels and flex values */
+export const COLUMN_WIDTH_PRESETS: Record<
+  ColumnWidthPreset,
+  { readonly label: string; readonly flex: number }
+> = {
+  xs: { label: "X-Small", flex: 0.5 },
+  sm: { label: "Small", flex: 1 },
+  md: { label: "Medium", flex: 2 },
+  lg: { label: "Large", flex: 3 },
+  xl: { label: "X-Large", flex: 4 },
+  auto: { label: "Auto", flex: 1 },
+} as const
+
 /** Column definition for the shot grid block */
 export interface ShotGridColumn {
   readonly key: string
   readonly label: string
   readonly visible: boolean
-  readonly width?: "xs" | "sm" | "md" | "lg"
+  readonly width?: ColumnWidthPreset
 }
 
 /** Shot grid block — table of shots from project */
@@ -98,6 +121,7 @@ export interface ProductTableColumn {
   readonly key: string
   readonly label: string
   readonly visible: boolean
+  readonly width?: ColumnWidthPreset
 }
 
 /** Product table block */
@@ -147,6 +171,28 @@ export type ExportBlock =
   | DividerBlock
   | PageBreakBlock
 
+/** A column within an HStack row */
+export interface HStackColumn {
+  readonly id: string
+  readonly widthPercent: number
+  readonly blocks: readonly ExportBlock[]
+}
+
+/** HStack row — holds 2-4 columns of blocks arranged horizontally */
+export interface HStackRow {
+  readonly id: string
+  readonly type: "hstack"
+  readonly columns: readonly HStackColumn[]
+}
+
+/** A page item is either a standalone block or an HStack row */
+export type PageItem = ExportBlock | HStackRow
+
+/** Type guard for HStack rows */
+export function isHStackRow(item: PageItem): item is HStackRow {
+  return "type" in item && (item as HStackRow).type === "hstack"
+}
+
 /** Page settings */
 export interface PageSettings {
   readonly layout: "portrait" | "landscape"
@@ -163,7 +209,9 @@ export interface PageSettings {
 /** A single page in the document */
 export interface ExportPage {
   readonly id: string
-  readonly blocks: readonly ExportBlock[]
+  readonly items: readonly PageItem[]
+  /** @deprecated Use items instead. Kept for backward compatibility during migration. */
+  readonly blocks?: readonly ExportBlock[]
 }
 
 /** A user-defined custom variable */

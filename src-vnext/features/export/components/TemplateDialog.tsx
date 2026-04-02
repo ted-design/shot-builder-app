@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react"
-import type { ExportTemplate } from "../types/exportBuilder"
+import type { ExportBlock, ExportTemplate } from "../types/exportBuilder"
 import { BUILT_IN_TEMPLATES } from "../lib/builtInTemplates"
 import { loadTemplates } from "../lib/documentPersistence"
 import {
@@ -32,7 +32,7 @@ function TemplatePreview({
       </p>
       <div className="flex flex-col gap-1.5">
         {template.pages.flatMap((page) =>
-          page.blocks.map((block) => {
+          (page.items ?? page.blocks ?? []).filter((item): item is ExportBlock => !("columns" in item)).map((block) => {
             const height =
               block.type === "text" ? "h-3" :
               block.type === "shot-grid" || block.type === "product-table" ? "h-10" :

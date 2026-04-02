@@ -120,16 +120,10 @@ export const styles = StyleSheet.create({
   },
 })
 
-export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  todo: { bg: "#F3F4F6", text: "#374151" },
-  in_progress: { bg: "#DBEAFE", text: "#1D4ED8" },
-  on_hold: { bg: "#FEF3C7", text: "#B45309" },
-  complete: { bg: "#D1FAE5", text: "#047857" },
-}
-
-export const STATUS_LABELS: Record<string, string> = {
-  todo: "Draft",
-  in_progress: "In Progress",
-  on_hold: "On Hold",
-  complete: "Shot",
+/** Hex colors for PDF rendering — keyed by canonical color name from getShotStatusColor() */
+export const PDF_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  gray: { bg: "#F3F4F6", text: "#374151" },
+  blue: { bg: "#DBEAFE", text: "#1D4ED8" },
+  amber: { bg: "#FEF3C7", text: "#B45309" },
+  green: { bg: "#D1FAE5", text: "#047857" },
 }

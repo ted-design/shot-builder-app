@@ -1,5 +1,6 @@
 import { useMemo } from "react"
-import type { ProductTableBlock } from "../../types/exportBuilder"
+import type { ProductTableBlock, ProductTableColumn } from "../../types/exportBuilder"
+import { COLUMN_WIDTH_PRESETS } from "../../types/exportBuilder"
 import { useExportDataContext } from "../ExportDataProvider"
 import type { ProductFamily } from "@/shared/types"
 
@@ -24,6 +25,18 @@ function getCellValue(family: ProductFamily, columnKey: string): string {
   }
 }
 
+function colFlexValue(col: ProductTableColumn): number {
+  return COLUMN_WIDTH_PRESETS[col.width ?? "md"].flex
+}
+
+function colWidthPercent(
+  col: ProductTableColumn,
+  allVisible: readonly ProductTableColumn[],
+): string {
+  const totalFlex = allVisible.reduce((sum, c) => sum + colFlexValue(c), 0)
+  return `${(colFlexValue(col) / totalFlex * 100).toFixed(1)}%`
+}
+
 export function ProductTableBlockView({ block }: ProductTableBlockViewProps) {
   const { productFamilies } = useExportDataContext()
 
@@ -35,16 +48,16 @@ export function ProductTableBlockView({ block }: ProductTableBlockViewProps) {
   const visibleColumns = block.columns.filter((c) => c.visible)
   const style = block.tableStyle
 
-  const borderClass = style?.showBorders ? "border border-gray-200" : ""
-  const cellBorderClass = style?.showBorders ? "border border-gray-200" : ""
-  const headerBgClass = style?.showHeaderBg ? "bg-gray-50" : ""
+  const borderClass = style?.showBorders ? "border border-[var(--color-border)]" : ""
+  const cellBorderClass = style?.showBorders ? "border border-[var(--color-border)]" : ""
+  const headerBgClass = style?.showHeaderBg ? "bg-[var(--color-surface-subtle)]" : ""
   const radiusStyle = style?.cornerRadius
     ? { borderRadius: `${String(style.cornerRadius)}px` }
     : undefined
 
   if (families.length === 0) {
     return (
-      <div data-testid="product-table-block" className="py-6 text-center text-[10px] text-gray-400 italic">
+      <div data-testid="product-table-block" className="py-6 text-center text-2xs text-[var(--color-text-subtle)] italic">
         No products in library
       </div>
     )
@@ -61,7 +74,8 @@ export function ProductTableBlockView({ block }: ProductTableBlockViewProps) {
             {visibleColumns.map((col) => (
               <th
                 key={col.key}
-                className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 ${cellBorderClass}`}
+                style={{ width: colWidthPercent(col, visibleColumns) }}
+                className={`px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] ${cellBorderClass}`}
               >
                 {col.label}
               </th>
@@ -71,13 +85,14 @@ export function ProductTableBlockView({ block }: ProductTableBlockViewProps) {
         <tbody>
           {families.map((family, rowIndex) => {
             const stripeClass =
-              style?.stripeRows && rowIndex % 2 === 1 ? "bg-gray-50" : ""
+              style?.stripeRows && rowIndex % 2 === 1 ? "bg-[var(--color-surface-subtle)]" : ""
             return (
               <tr key={family.id} className={stripeClass}>
                 {visibleColumns.map((col) => (
                   <td
                     key={col.key}
-                    className={`px-3 py-1.5 text-[10px] text-gray-800 ${cellBorderClass}`}
+                    style={{ width: colWidthPercent(col, visibleColumns) }}
+                    className={`px-3 py-1.5 text-2xs text-[var(--color-text)] ${cellBorderClass}`}
                   >
                     {getCellValue(family, col.key)}
                   </td>
@@ -87,7 +102,7 @@ export function ProductTableBlockView({ block }: ProductTableBlockViewProps) {
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[10px] text-gray-500">
+      <p className="mt-2 text-2xs text-[var(--color-text-muted)]">
         {families.length} product {families.length === 1 ? "family" : "families"}
       </p>
     </div>

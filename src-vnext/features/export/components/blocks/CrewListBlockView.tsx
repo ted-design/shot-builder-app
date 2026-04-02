@@ -37,16 +37,16 @@ function groupByDepartment(crew: readonly CrewRecord[]): readonly DepartmentGrou
 const CREW_COLUMNS = ["Name", "Role", "Phone", "Email"] as const
 
 function CrewTable({ members }: { readonly members: readonly CrewRecord[] }) {
-  const hd = "border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500"
-  const td = "border border-gray-200 px-3 py-1.5 text-[10px] text-gray-800"
+  const hd = "border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+  const td = "border border-[var(--color-border)] px-3 py-1.5 text-2xs text-[var(--color-text)]"
 
   return (
     <table
-      className="w-full border border-gray-200 text-left"
+      className="w-full border border-[var(--color-border)] text-left"
       style={{ borderCollapse: "separate", borderSpacing: 0 }}
     >
       <thead>
-        <tr className="bg-gray-50">
+        <tr className="bg-[var(--color-surface-subtle)]">
           {CREW_COLUMNS.map((col) => (
             <th key={col} className={hd}>{col}</th>
           ))}
@@ -54,7 +54,7 @@ function CrewTable({ members }: { readonly members: readonly CrewRecord[] }) {
       </thead>
       <tbody>
         {members.map((member, i) => (
-          <tr key={member.id} className={i % 2 === 1 ? "bg-gray-50" : ""}>
+          <tr key={member.id} className={i % 2 === 1 ? "bg-[var(--color-surface-subtle)]" : ""}>
             <td className={td}>{member.name}</td>
             <td className={td}>{member.position ?? "\u2014"}</td>
             <td className={td}>{member.phone ?? "\u2014"}</td>
@@ -77,7 +77,7 @@ export function CrewListBlockView({ block }: CrewListBlockViewProps) {
 
   if (crew.length === 0) {
     return (
-      <div data-testid="crew-list-block" className="py-6 text-center text-[10px] text-gray-400 italic">
+      <div data-testid="crew-list-block" className="py-6 text-center text-2xs text-[var(--color-text-subtle)] italic">
         No crew members
       </div>
     )
@@ -88,7 +88,7 @@ export function CrewListBlockView({ block }: CrewListBlockViewProps) {
       {shouldGroup ? (
         departments.map((dept) => (
           <div key={dept.name}>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            <p className="mb-1 text-2xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               {dept.name}
             </p>
             <CrewTable members={dept.members} />
@@ -97,7 +97,7 @@ export function CrewListBlockView({ block }: CrewListBlockViewProps) {
       ) : (
         <CrewTable members={crew} />
       )}
-      <p className="text-[10px] text-gray-500">
+      <p className="text-2xs text-[var(--color-text-muted)]">
         {crew.length} crew {crew.length === 1 ? "member" : "members"}
       </p>
     </div>

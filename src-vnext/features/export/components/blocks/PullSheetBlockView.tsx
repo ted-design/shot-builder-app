@@ -1,16 +1,18 @@
 import { useMemo } from "react"
 import type { PullSheetBlock } from "../../types/exportBuilder"
 import { useExportDataContext } from "../ExportDataProvider"
-import type { PullItem } from "@/shared/types"
+import type { FulfillmentFirestoreStatus, PullItem } from "@/shared/types"
+import { getFulfillmentStatusLabel } from "@/shared/lib/statusMappings"
 
 interface PullSheetBlockViewProps {
   readonly block: PullSheetBlock
 }
 
 const FULFILLMENT_BADGE: Record<string, string> = {
-  picked: "bg-green-100 text-green-700",
-  pending: "bg-amber-100 text-amber-700",
-  out_of_stock: "bg-red-100 text-red-700",
+  pending: "bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]",
+  fulfilled: "bg-[var(--color-status-green-bg)] text-[var(--color-status-green-text)]",
+  partial: "bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)]",
+  substituted: "bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]",
 }
 
 function totalQuantity(item: PullItem): number {
@@ -34,7 +36,7 @@ export function PullSheetBlockView({ block }: PullSheetBlockViewProps) {
 
   if (!pull) {
     return (
-      <div data-testid="pull-sheet-block" className="py-6 text-center text-[10px] text-gray-400 italic">
+      <div data-testid="pull-sheet-block" className="py-6 text-center text-2xs text-[var(--color-text-subtle)] italic">
         No pull sheets in this project
       </div>
     )
@@ -44,29 +46,29 @@ export function PullSheetBlockView({ block }: PullSheetBlockViewProps) {
 
   return (
     <div data-testid="pull-sheet-block" className="overflow-x-auto">
-      <p className="mb-2 text-[10px] font-semibold text-gray-800">
+      <p className="mb-2 text-2xs font-semibold text-[var(--color-text)]">
         {pull.name ?? pull.title ?? "Pull Sheet"}
       </p>
       <table
-        className="w-full border border-gray-200 text-left"
+        className="w-full border border-[var(--color-border)] text-left"
         style={{ borderCollapse: "separate", borderSpacing: 0 }}
       >
         <thead>
-          <tr className="bg-gray-50">
-            <th className="border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          <tr className="bg-[var(--color-surface-subtle)]">
+            <th className="border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               Product
             </th>
-            <th className="border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            <th className="border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               Color/SKU
             </th>
-            <th className="border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            <th className="border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               Size
             </th>
-            <th className="border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            <th className="border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
               Qty
             </th>
             {showStatus && (
-              <th className="border border-gray-200 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              <th className="border border-[var(--color-border)] px-3 py-1.5 text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Status
               </th>
             )}
@@ -74,27 +76,27 @@ export function PullSheetBlockView({ block }: PullSheetBlockViewProps) {
         </thead>
         <tbody>
           {items.map((item, rowIndex) => {
-            const stripeClass = rowIndex % 2 === 1 ? "bg-gray-50" : ""
+            const stripeClass = rowIndex % 2 === 1 ? "bg-[var(--color-surface-subtle)]" : ""
             const statusClasses =
-              FULFILLMENT_BADGE[item.fulfillmentStatus] ?? "bg-gray-100 text-gray-700"
+              FULFILLMENT_BADGE[item.fulfillmentStatus] ?? "bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]"
             return (
               <tr key={item.id ?? rowIndex} className={stripeClass}>
-                <td className="border border-gray-200 px-3 py-1.5 text-[10px] text-gray-800">
+                <td className="border border-[var(--color-border)] px-3 py-1.5 text-2xs text-[var(--color-text)]">
                   {item.familyName ?? "\u2014"}
                 </td>
-                <td className="border border-gray-200 px-3 py-1.5 text-[10px] text-gray-800">
+                <td className="border border-[var(--color-border)] px-3 py-1.5 text-2xs text-[var(--color-text)]">
                   {item.colourName ?? "\u2014"}
                 </td>
-                <td className="border border-gray-200 px-3 py-1.5 text-[10px] text-gray-800">
+                <td className="border border-[var(--color-border)] px-3 py-1.5 text-2xs text-[var(--color-text)]">
                   {sizeLabel(item)}
                 </td>
-                <td className="border border-gray-200 px-3 py-1.5 text-[10px] text-gray-800">
+                <td className="border border-[var(--color-border)] px-3 py-1.5 text-2xs text-[var(--color-text)]">
                   {totalQuantity(item)}
                 </td>
                 {showStatus && (
-                  <td className="border border-gray-200 px-3 py-1.5 text-[10px]">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-medium ${statusClasses}`}>
-                      {item.fulfillmentStatus}
+                  <td className="border border-[var(--color-border)] px-3 py-1.5 text-2xs">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-3xs font-medium ${statusClasses}`}>
+                      {getFulfillmentStatusLabel(item.fulfillmentStatus as FulfillmentFirestoreStatus)}
                     </span>
                   </td>
                 )}
@@ -103,7 +105,7 @@ export function PullSheetBlockView({ block }: PullSheetBlockViewProps) {
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[10px] text-gray-500">
+      <p className="mt-2 text-2xs text-[var(--color-text-muted)]">
         {items.length} {items.length === 1 ? "item" : "items"}
       </p>
     </div>

@@ -1,4 +1,4 @@
-import type { ExportBlock, ExportVariable } from "../types/exportBuilder"
+import type { BlockLayout, ExportBlock, ExportVariable } from "../types/exportBuilder"
 import { TextBlockView } from "./blocks/TextBlockView"
 import { ImageBlockView } from "./blocks/ImageBlockView"
 import { ShotGridBlockView } from "./blocks/ShotGridBlockView"
@@ -13,17 +13,33 @@ interface BlockRendererProps {
   readonly selected: boolean
   readonly onSelect: () => void
   readonly variables: readonly ExportVariable[]
+  readonly onUpdateBlock?: (blockId: string, updates: Partial<ExportBlock>) => void
 }
 
 function renderBlockContent(
   block: ExportBlock,
   variables: readonly ExportVariable[],
+  onUpdateBlock?: (blockId: string, updates: Partial<ExportBlock>) => void,
 ): React.ReactNode {
   switch (block.type) {
     case "text":
-      return <TextBlockView block={block} variables={variables} />
+      return <TextBlockView block={block} variables={variables} onUpdateBlock={onUpdateBlock} />
     case "image":
-      return <ImageBlockView block={block} />
+      return (
+        <ImageBlockView
+          block={block}
+          onImageUploaded={
+            onUpdateBlock
+              ? (src: string) => onUpdateBlock(block.id, { src })
+              : undefined
+          }
+          onWidthChange={
+            onUpdateBlock
+              ? (w: number) => onUpdateBlock(block.id, { width: w })
+              : undefined
+          }
+        />
+      )
     case "shot-grid":
       return <ShotGridBlockView block={block} />
     case "divider":
@@ -44,11 +60,44 @@ function renderBlockContent(
   }
 }
 
+function buildLayoutStyle(layout: BlockLayout | undefined): React.CSSProperties {
+  const style: React.CSSProperties = {
+    // Always set padding — defaults match the old px-4 py-3 (16px, 12px)
+    paddingTop: layout?.paddingTop ?? 12,
+    paddingRight: layout?.paddingRight ?? 16,
+    paddingBottom: layout?.paddingBottom ?? 12,
+    paddingLeft: layout?.paddingLeft ?? 16,
+  }
+
+  // Margin (only when explicitly set)
+  if (layout?.marginTop) style.marginTop = layout.marginTop
+  if (layout?.marginRight) style.marginRight = layout.marginRight
+  if (layout?.marginBottom) style.marginBottom = layout.marginBottom
+  if (layout?.marginLeft) style.marginLeft = layout.marginLeft
+
+  // Border
+  if (layout?.borderWidth) {
+    style.borderWidth = layout.borderWidth
+    style.borderColor = layout.borderColor ?? "#000"
+    style.borderStyle = layout.borderStyle === "none" ? undefined : (layout.borderStyle ?? "solid")
+  }
+  if (layout?.borderRadius) style.borderRadius = layout.borderRadius
+
+  // Background
+  if (layout?.backgroundColor) style.backgroundColor = layout.backgroundColor
+
+  // Min height
+  if (layout?.minHeight) style.minHeight = layout.minHeight
+
+  return style
+}
+
 export function BlockRenderer({
   block,
   selected,
   onSelect,
   variables,
+  onUpdateBlock,
 }: BlockRendererProps) {
   // page-break blocks are rendered as separators at the DocumentPreview level
   if (block.type === "page-break") {
@@ -56,8 +105,11 @@ export function BlockRenderer({
   }
 
   const selectionRing = selected
-    ? "ring-2 ring-blue-500 ring-offset-1"
-    : "ring-0 hover:ring-1 hover:ring-gray-300"
+    ? "ring-2 ring-[var(--color-accent)] ring-offset-1"
+    : "ring-0 hover:ring-1 hover:ring-[var(--color-border)]"
+
+  const blockLayout = "layout" in block ? (block as { layout?: BlockLayout }).layout : undefined
+  const layoutStyle = buildLayoutStyle(blockLayout)
 
   return (
     <div
@@ -75,9 +127,10 @@ export function BlockRenderer({
           onSelect()
         }
       }}
-      className={`cursor-pointer rounded px-4 py-3 transition-shadow ${selectionRing}`}
+      style={layoutStyle}
+      className={`cursor-pointer rounded transition-shadow ${selectionRing}`}
     >
-      {renderBlockContent(block, variables)}
+      {renderBlockContent(block, variables, onUpdateBlock)}
     </div>
   )
 }

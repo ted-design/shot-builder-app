@@ -3,11 +3,46 @@ import { resolveVariables } from "../exportVariables"
 import type {
   ExportDocument,
   ExportVariable,
+  PageItem,
   TextBlock,
 } from "../../types/exportBuilder"
+import { isHStackRow } from "../../types/exportBuilder"
 import type { ExportData } from "../../hooks/useExportData"
-import { splitByPageBreaks } from "./splitByPageBreaks"
+import { splitByPageBreaks, flattenPagesToBlocks } from "./splitByPageBreaks"
 import { resolveExportImages } from "./resolveExportImages"
+
+/** Resolve text variables inside all blocks, including those nested in HStack columns */
+function resolveItemVariables(
+  items: readonly PageItem[],
+  variables: readonly ExportVariable[],
+): readonly PageItem[] {
+  return items.map((item) => {
+    if (isHStackRow(item)) {
+      return {
+        ...item,
+        columns: item.columns.map((col) => ({
+          ...col,
+          blocks: col.blocks.map((block) => {
+            if (block.type === "text") {
+              return {
+                ...block,
+                content: resolveVariables(block.content, variables),
+              } as TextBlock
+            }
+            return block
+          }),
+        })),
+      }
+    }
+    if (item.type === "text") {
+      return {
+        ...item,
+        content: resolveVariables(item.content, variables),
+      } as TextBlock
+    }
+    return item
+  })
+}
 
 /**
  * Generate a PDF blob from the export document.
@@ -24,22 +59,14 @@ export async function generateExportPdf(
     // Step 1: Resolve text variables (page numbers resolve at render time)
     const resolvedPages = doc.pages.map((page) => ({
       ...page,
-      blocks: page.blocks.map((block) => {
-        if (block.type === "text") {
-          return {
-            ...block,
-            content: resolveVariables(block.content, variables),
-          } as TextBlock
-        }
-        return block
-      }),
+      items: resolveItemVariables(page.items, variables),
     }))
 
     const resolvedDoc = { ...doc, pages: resolvedPages }
 
-    // Step 2: Split pages by page-break blocks
+    // Step 2: Split pages by page-break blocks (preserves HStack rows)
     const visualPages = splitByPageBreaks(resolvedDoc.pages)
-    const allBlocks = resolvedDoc.pages.flatMap((p) => p.blocks)
+    const allBlocks = flattenPagesToBlocks(resolvedDoc.pages)
 
     // Step 3: Pre-resolve images
     toast.loading("Resolving images...", { id: toastId })

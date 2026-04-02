@@ -98,6 +98,12 @@ Firebase Auth, Firestore, Storage, Functions, security rules, and the data model
 - Do not add comments, docstrings, or type annotations to code you did not change.
 - Three similar lines of code is better than a premature abstraction.
 
+### 6b. No Deferring Known Issues
+
+- **Never "document for backlog" as a resolution for a known issue.** If a code reviewer or Codex identifies a HIGH or CRITICAL issue, it must be fixed in the current sprint — not noted in a memory file and forgotten.
+- **"Documented" is not "addressed."** Logging a known bug, architecture flaw, or code quality issue in MEMORY.md or HANDOFF.md without a concrete fix is deferring tech debt. This is explicitly prohibited.
+- **Every identified issue gets one of three outcomes:** (1) Fixed immediately, (2) Fixed in a follow-up phase within the same sprint with a tracked task, or (3) Explicitly approved by the user as an accepted limitation with rationale. Option 3 requires user confirmation — the AI cannot self-approve deferrals.
+
 ### 7. Documentation Discipline
 
 Runtime documentation must stay in sync with the codebase. Stale docs break the resume protocol and waste future sessions.
