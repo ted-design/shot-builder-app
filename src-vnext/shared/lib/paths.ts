@@ -255,3 +255,16 @@ export const shotRequestCommentsPath = (
   clientId: string,
   requestId: string,
 ): string[] => [...shotRequestDocPath(requestId, clientId), "comments"]
+
+// --- Export Reports (project-scoped) ---
+
+export const exportReportsPath = (
+  clientId: string,
+  projectId: string,
+): string[] => [...projectPath(projectId, clientId), "exportReports"]
+
+export const exportReportDocPath = (
+  clientId: string,
+  projectId: string,
+  reportId: string,
+): string[] => [...exportReportsPath(clientId, projectId), reportId]

@@ -34,7 +34,6 @@ import { bulkSoftDeleteShots } from "@/features/shots/lib/shotLifecycleActions"
 import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
-import { ShotsPdfExportDialog } from "@/features/shots/components/ShotsPdfExportDialog"
 import { Checkbox } from "@/ui/checkbox"
 import { Input } from "@/ui/input"
 import { Skeleton } from "@/ui/skeleton"
@@ -94,7 +93,6 @@ export default function ShotListPage() {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [createPullOpen, setCreatePullOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [displayOpen, setDisplayOpen] = useState(false)
@@ -296,7 +294,7 @@ export default function ShotListPage() {
         actions={
           <div className="flex items-center gap-2">
             {canExport && (
-              <Button variant="outline" onClick={() => setExportOpen(true)}>
+              <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
                 Export
               </Button>
             )}
@@ -372,8 +370,7 @@ export default function ShotListPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={selectedIds.size === 0}
-                onClick={() => setExportOpen(true)}
+                onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
               >
                 Export PDF
               </Button>
@@ -954,18 +951,6 @@ export default function ShotListPage() {
         />
       )}
 
-      {canExport && (
-        <ShotsPdfExportDialog
-          open={exportOpen}
-          onOpenChange={setExportOpen}
-          projectName={projectName || "Project"}
-          shotsAll={displayShots}
-          shotsSelected={selectedShots}
-          talentNameById={talentNameById}
-          locationNameById={locationNameById}
-          storageKeyBase={storageKeyBase}
-        />
-      )}
     </ErrorBoundary>
   )
 }

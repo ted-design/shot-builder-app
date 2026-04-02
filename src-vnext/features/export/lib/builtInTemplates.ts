@@ -59,7 +59,7 @@ const shotListTemplate: ExportTemplate = {
   pages: [
     {
       id: crypto.randomUUID(),
-      blocks: [
+      items: [
         headerBlock("{{projectName}} — Shot List"),
         subheaderBlock("{{shootDates}} | {{shotCount}} shots | Generated {{currentDate}}"),
         {
@@ -101,7 +101,7 @@ const storyboardTemplate: ExportTemplate = {
   pages: [
     {
       id: crypto.randomUUID(),
-      blocks: [
+      items: [
         headerBlock("{{projectName}} — Storyboard"),
         subheaderBlock("{{shootDates}} | Generated {{currentDate}}"),
         {
@@ -152,7 +152,7 @@ const lookbookTemplate: ExportTemplate = {
   pages: [
     {
       id: crypto.randomUUID(),
-      blocks: [
+      items: [
         headerBlock("{{projectName}}"),
         subheaderBlock("{{clientName}} | {{shootDates}}"),
         {
@@ -196,7 +196,7 @@ const pullSheetTemplate: ExportTemplate = {
   pages: [
     {
       id: crypto.randomUUID(),
-      blocks: [
+      items: [
         headerBlock("{{projectName}} — Pull Sheet"),
         subheaderBlock("{{shootDates}} | {{productCount}} products | Generated {{currentDate}}"),
         {
@@ -219,7 +219,7 @@ const callSheetTemplate: ExportTemplate = {
   pages: [
     {
       id: crypto.randomUUID(),
-      blocks: [
+      items: [
         headerBlock("{{projectName}} — Call Sheet"),
         subheaderBlock("{{shootDates}} | Generated {{currentDate}}"),
         {

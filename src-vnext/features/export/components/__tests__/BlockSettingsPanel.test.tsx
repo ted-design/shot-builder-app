@@ -122,7 +122,7 @@ describe("BlockSettingsPanel", () => {
     })
   })
 
-  it("shows generic message for unsupported block types", () => {
+  it("shows image settings for image block type", () => {
     const imageBlock = {
       id: "img1",
       type: "image" as const,
@@ -134,11 +134,13 @@ describe("BlockSettingsPanel", () => {
         block={imageBlock}
         onUpdateBlock={vi.fn()}
         onDeleteBlock={vi.fn()}
+        clientId="test-client"
+        projectId="test-project"
       />,
     )
     expect(screen.getByText("Image Block")).toBeInTheDocument()
-    expect(
-      screen.getByText(/no additional settings for this block type/i),
-    ).toBeInTheDocument()
+    expect(screen.getByTestId("image-upload-btn")).toBeInTheDocument()
+    expect(screen.getByTestId("image-width-input")).toBeInTheDocument()
+    expect(screen.getByTestId("image-alt-input")).toBeInTheDocument()
   })
 })

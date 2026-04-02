@@ -12,7 +12,7 @@ function makeDocument(id = "doc-1"): ExportDocument {
   return {
     id,
     name: "Test Doc",
-    pages: [{ id: "page-1", blocks: [] }],
+    pages: [{ id: "page-1", items: [] }],
     settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -26,7 +26,7 @@ function makeTemplate(id: string, name: string): ExportTemplate {
     description: "Test template",
     category: "saved",
     settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
-    pages: [{ id: "page-1", blocks: [] }],
+    pages: [{ id: "page-1", items: [] }],
   }
 }
 
@@ -77,6 +77,23 @@ describe("saveDocument / loadDocument", () => {
   it("returns null when localStorage contains invalid JSON", () => {
     storage.set("sb:export-doc:proj-bad", "not-json{{{")
     expect(loadDocument("proj-bad")).toBeNull()
+  })
+
+  it("migrates legacy blocks-based documents to items", () => {
+    const legacyDoc = {
+      id: "doc-legacy",
+      name: "Legacy Doc",
+      pages: [{ id: "page-1", blocks: [{ id: "b1", type: "text", content: "hello" }] }],
+      settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }
+    storage.set("sb:export-doc:proj-legacy", JSON.stringify(legacyDoc))
+    const loaded = loadDocument("proj-legacy")
+
+    expect(loaded).not.toBeNull()
+    expect(loaded!.pages[0]!.items).toHaveLength(1)
+    expect(loaded!.pages[0]!.items[0]).toEqual({ id: "b1", type: "text", content: "hello" })
   })
 })
 

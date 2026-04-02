@@ -1,7 +1,7 @@
 import type { BlockType } from "../types/exportBuilder"
 
 export interface BlockRegistryEntry {
-  readonly type: BlockType
+  readonly type: BlockType | "hstack"
   readonly label: string
   readonly description: string
   readonly icon: string // lucide icon name
@@ -79,6 +79,14 @@ export const BLOCK_REGISTRY: readonly BlockRegistryEntry[] = [
     label: "Page Break",
     description: "Force new page",
     icon: "FileDown",
+    category: "layout",
+    accentColor: "zinc",
+  },
+  {
+    type: "hstack",
+    label: "Columns",
+    description: "Side-by-side column layout",
+    icon: "Columns",
     category: "layout",
     accentColor: "zinc",
   },

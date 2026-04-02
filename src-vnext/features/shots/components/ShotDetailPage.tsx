@@ -40,9 +40,7 @@ import { toast } from "sonner"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
-import { ShotPdfExportDialog } from "@/features/shots/components/ShotPdfExportDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
-import { useLocations, useTalent } from "@/features/shots/hooks/usePickerData"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 
 export default function ShotDetailPage() {
@@ -54,16 +52,12 @@ export default function ShotDetailPage() {
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
-  const { data: talentRecords } = useTalent()
-  const { data: locationRecords } = useLocations()
-
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
   const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
   const canExport = !isMobile
-  const [exportOpen, setExportOpen] = useState(false)
 
   // -- FAB integration: ?status_picker=1 and ?focus=notes --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -91,14 +85,6 @@ export default function ShotDetailPage() {
       }, { replace: true })
     }
   }, [searchParams, setSearchParamsFab])
-
-  const talentNameById = useMemo(() => {
-    return new Map(talentRecords.map((t) => [t.id, t.name]))
-  }, [talentRecords])
-
-  const locationNameById = useMemo(() => {
-    return new Map(locationRecords.map((l) => [l.id, l.name]))
-  }, [locationRecords])
 
   const existingShotTitles = useMemo(() => {
     return new Set(
@@ -192,7 +178,7 @@ export default function ShotDetailPage() {
             )}
           </div>
           {canExport && (
-            <Button variant="outline" onClick={() => setExportOpen(true)}>
+            <Button variant="outline" onClick={() => navigate(`/projects/${shot.projectId}/export?preset=shot-detail&shotId=${shot.id}`)}>
               Export
             </Button>
           )}
@@ -368,17 +354,6 @@ export default function ShotDetailPage() {
           />
         )}
 
-        {canExport && (
-          <ShotPdfExportDialog
-            open={exportOpen}
-            onOpenChange={setExportOpen}
-            projectName={projectName || "Project"}
-            shot={shot}
-            talentNameById={talentNameById}
-            locationNameById={locationNameById}
-            storageKeyBase={clientId ? `sb:shots:detail:${clientId}:${shot.projectId}` : null}
-          />
-        )}
       </div>
     </ErrorBoundary>
   )

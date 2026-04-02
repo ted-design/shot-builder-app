@@ -89,5 +89,15 @@ service firebase.storage {
         (request.auth.token.role == 'admin' || request.auth.token.role == 'producer') &&
         isValidUpload();
     }
+
+    // Export builder images (S18)
+    // clients/{clientId}/export-images/{projectId}/{filename}
+    match /clients/{clientId}/export-images/{projectId}/{filename} {
+      allow read: if request.auth != null && userClient() == clientId;
+      allow write: if request.auth != null &&
+        userClient() == clientId &&
+        (request.auth.token.role == 'admin' || request.auth.token.role == 'producer') &&
+        isValidUpload();
+    }
   }
 }

@@ -1,26 +1,38 @@
-# HANDOFF — Sprint S17 (2026-04-02)
+# HANDOFF — Sprint S18 + S18b Complete (2026-04-02)
 
 ## State
-S17 complete (Export Builder v2 + shot creation improvements + readiness fixes + CI fix). Merged to main via PR #378 (squash). Branch deleted.
+S18 + S18b complete — comprehensive Export Builder overhaul. All 16 phases implemented, reviewed, validated. Pending: commit, PR, Firebase deploy.
 
-## What Was Built
-- **Export Builder v2:** Fully functional block-based PDF builder — real Firestore data via useExportData() + ExportDataProvider, all 9 block types with live data, PDF generation via @react-pdf/renderer (lazy-loaded), drag-and-drop block reorder (@dnd-kit), custom variables (add/edit/delete), template system (5 built-in + user-saved), document auto-save to localStorage, watermark support, multi-page documents
-- **Shot creation improvements:** Title/description split (product name in title, colorway in description), gender auto-tagging using default tag IDs (no duplicates), shot numbers as "01, 02" (was "SH-001, SH-002")
-- **Shoot readiness fixes:** Urgency badge replaces confidence badge (no more competing indicators), SKU-level project linkage indicators on expanded colorway rows, \u2026 literal text fix, completed/archived project filter in bulk-add dropdown
-- **CI performance:** Forks pool on CI (was threads+singleThread override), global 60s timeout — tests went from 26min timeouts to ~3min pass
+## S18 (Core Overhaul) — 10 Phases
+- Phase 0: Foundation cleanup (bug fixes, dedup, CSS tokens, shared resolvers)
+- Phase 1: HStack column layout system (types, operations, canvas, PDF, resize handles)
+- Phase 2: Palette-to-canvas drag & drop (DndContext hoisting, drop zones, DragOverlay)
+- Phase 3: Image block upload (Firebase Storage, WebP compression, click/drag upload)
+- Phase 4: Rich text editing (FloatingTextToolbar, contentEditable, HTML→PDF parser)
+- Phase 5: Data block settings panels (all 9 block types fully configurable)
+- Phase 6: Page management + zoom (add/duplicate/delete pages, 50-150% zoom)
+- Phase 7: Export entry point consolidation (dialogs deleted, single Export Builder page)
+- Phase 8: UX audit remediation (view modes standardized, loading spinner)
+- Phase 9: Multi-report per project (Firestore persistence, report selector, import flow)
 
-## Key New Files
-- `src-vnext/features/export/hooks/useExportData.ts` — aggregation hook (6 subscriptions)
-- `src-vnext/features/export/components/ExportDataProvider.tsx` — React context
-- `src-vnext/features/export/components/blocks/{ShotDetail,ProductTable,PullSheet,CrewList}BlockView.tsx` — data blocks
-- `src-vnext/features/export/lib/pdf/` — 13 files (document, mapper, 7 block PDFs, watermark, styles, orchestrator, image resolver)
-- `src-vnext/features/export/components/SortableBlock.tsx` — drag-and-drop wrapper
-- `mockups/s17-export-builder-v2.html` — 9-flow HTML mockup
+## S18b (Polish) — 6 Phases
+- Phase A: Block controls (inline delete/duplicate, keyboard shortcuts, context menu, HStack visual improvements)
+- Phase B: Block styling system (padding/border/background per block, PDF rendering)
+- Phase C: Text block customization (font picker, color picker, highlight, paragraph type, toolbar P button)
+- Phase D: Image resize handles (drag-to-resize, width tooltip)
+- Phase E: Auto-column creation (drag left/right to wrap blocks in HStack)
+- Phase F: Column width presets (SetHero-style XS/S/M/L/XL/Auto for shot grid + product table)
 
-## What's Next
-1. S17 backlog: Image upload for ImageBlock (needs storage rules), multi-report per project
-2. S18: Canvas image editor (Fabric.js vs Konva.js evaluation)
-3. CI: Address Codex-identified Firestore mock leak in InviteUserDialog test (ProjectAssignmentPicker opens real onSnapshot)
+## Stats
+- 44 files changed, +4,302 / -795 lines
+- 150/150 test files, 1,554/1,554 tests pass
+- Lint: zero warnings
+
+## Deployment Checklist
+- [ ] `firebase deploy --only firestore:rules` (exportReports subcollection)
+- [ ] `firebase deploy --only storage` (export-images path)
+- [ ] Firestore index exemptions: items, settings, customVariables on exportReports
+- [ ] Visual verification in browser
 
 ## To Resume
-Read this file, then `docs/_runtime/CHECKPOINT.md`, then `docs/DESIGN_SYSTEM.md`.
+Read this file, then `docs/_runtime/CHECKPOINT.md`, then `Plan.md`.

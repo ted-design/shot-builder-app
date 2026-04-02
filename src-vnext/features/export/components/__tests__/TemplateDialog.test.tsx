@@ -133,7 +133,7 @@ describe("TemplateDialog", () => {
         description: "Custom layout",
         category: "saved",
         settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
-        pages: [{ id: "p1", blocks: [] }],
+        pages: [{ id: "p1", items: [] }],
       },
     ]
     storage.set("sb:export-templates", JSON.stringify(saved))

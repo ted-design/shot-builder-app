@@ -1,5 +1,6 @@
 import { Text, View } from "@react-pdf/renderer"
-import type { ProductTableBlock } from "../../../types/exportBuilder"
+import type { ProductTableBlock, ProductTableColumn } from "../../../types/exportBuilder"
+import { COLUMN_WIDTH_PRESETS } from "../../../types/exportBuilder"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily } from "@/shared/types"
 import { styles } from "../pdfStyles"
@@ -20,6 +21,10 @@ function cellText(family: ProductFamily, key: string): string {
   }
 }
 
+function colFlex(col: ProductTableColumn): number {
+  return COLUMN_WIDTH_PRESETS[col.width ?? "md"].flex
+}
+
 export function ProductTableBlockPdf({ block, data }: ProductTableBlockPdfProps) {
   const families = data.productFamilies.filter((f) => f.deleted !== true)
   const cols = block.columns.filter((c) => c.visible)
@@ -35,7 +40,7 @@ export function ProductTableBlockPdf({ block, data }: ProductTableBlockPdfProps)
     <View style={showBorders ? styles.tableContainer : undefined}>
       <View style={showHeaderBg ? styles.tableHeader : { flexDirection: "row" as const }}>
         {cols.map((col) => (
-          <Text key={col.key} style={{ ...styles.tableHeaderCell, flex: 1 }}>
+          <Text key={col.key} style={{ ...styles.tableHeaderCell, flex: colFlex(col) }}>
             {col.label}
           </Text>
         ))}
@@ -47,7 +52,7 @@ export function ProductTableBlockPdf({ block, data }: ProductTableBlockPdfProps)
           style={stripe && i % 2 === 1 ? styles.tableRowStriped : styles.tableRow}
         >
           {cols.map((col) => (
-            <Text key={col.key} style={{ ...styles.tableCell, flex: 1 }}>
+            <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
               {cellText(family, col.key)}
             </Text>
           ))}

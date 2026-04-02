@@ -8,12 +8,12 @@ const VARIABLES: readonly ExportVariable[] = [
 ]
 
 function buildDocument(
-  blocks: ExportDocument["pages"][0]["blocks"] = [],
+  items: ExportDocument["pages"][0]["items"] = [],
 ): ExportDocument {
   return {
     id: "doc-1",
     name: "Test Doc",
-    pages: [{ id: "page-1", blocks }],
+    pages: [{ id: "page-1", items }],
     settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

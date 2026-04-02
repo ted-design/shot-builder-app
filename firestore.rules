@@ -633,6 +633,20 @@ service cloud.firestore {
         }
       }
 
+      // Export reports — saved PDF builder documents per project
+      match /exportReports/{reportId} {
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || isProducer());
+        allow create: if clientMatches(clientId) &&
+          (isAdmin() || isProducer()) &&
+          request.resource.data.createdBy == request.auth.uid;
+        allow update: if clientMatches(clientId) &&
+          (isAdmin() || isProducer()) &&
+          request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if clientMatches(clientId) &&
+          (isAdmin() || isProducer());
+      }
+
       // Wildcard catch-all for any other project sub-collections
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&

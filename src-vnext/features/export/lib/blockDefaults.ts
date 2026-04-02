@@ -28,11 +28,11 @@ const DEFAULT_SHOT_GRID_COLUMNS: readonly ShotGridColumn[] = [
 ]
 
 const DEFAULT_PRODUCT_TABLE_COLUMNS: readonly ProductTableColumn[] = [
-  { key: "name", label: "Name", visible: true },
-  { key: "sku", label: "SKU", visible: true },
-  { key: "colorway", label: "Colorway", visible: true },
-  { key: "launchDate", label: "Launch Date", visible: true },
-  { key: "status", label: "Status", visible: true },
+  { key: "styleName", label: "Style Name", visible: true, width: "lg" },
+  { key: "styleNumber", label: "Style #", visible: true, width: "sm" },
+  { key: "gender", label: "Gender", visible: true, width: "md" },
+  { key: "skuCount", label: "SKUs", visible: true, width: "sm" },
+  { key: "classification", label: "Classification", visible: true, width: "sm" },
 ]
 
 function createTextBlock(): TextBlock {

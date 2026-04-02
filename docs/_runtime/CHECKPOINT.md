@@ -1,43 +1,44 @@
-# CHECKPOINT — Sprint S17 Complete (2026-04-02)
+# CHECKPOINT — Sprint S18 Complete (2026-04-02)
 
-## Branch: `main` — PR #378 merged (squash)
+## All 10 Phases Complete
 
-## S17 COMPLETE. All features delivered.
-## Build clean, lint zero, 149 test files, 1500 tests pass. CI ~3min.
+| Phase | Key Deliverable |
+|-------|----------------|
+| 0: Foundation | Bug fixes, dedup, CSS tokens, shared resolvers |
+| 1: HStack Columns | Type system, 6 ops, canvas + PDF, resize handles |
+| 2: Palette DnD | Hoisted DndContext, draggable palette, drop zones |
+| 3: Image Upload | Storage rules, WebP upload, click/drag-to-upload |
+| 4: Rich Text | FloatingTextToolbar, contentEditable, HTML→PDF |
+| 5: Data Blocks | All block settings, column reorder, pull selector |
+| 6: Page Mgmt | Add/duplicate/delete pages, zoom 50-150% |
+| 7: Export Consolidation | Dialogs deleted, navigate with presets |
+| 8: UX Audit | View modes standardized, loading spinner |
+| 9: Multi-Report | Firestore persistence, report selector, import flow |
 
-## S17 Summary (4 commits, squash-merged)
+## Stats
+- 41 files changed, +2,982 / -721 lines
+- 150/150 test files, 1,546/1,546 tests pass
+- Lint: zero warnings
+- Export feature: 162 tests across 11 files
 
-### Export Builder v2 (Phases 1-6)
-- Phase 1: Wire Shell — connected TemplateDialog, VariablesPanel, PageSettingsPanel (replaced 4 "coming soon" toasts), document auto-save via debounced localStorage
-- Phase 2: Data Integration — useExportData() aggregation hook (6 Firestore subscriptions), ExportDataProvider React context, real variables from project data
-- Phase 3: Data Blocks — ShotGridBlockView (real shots with filter/sort/talent resolution), ShotDetailBlockView (shot picker), ProductTableBlockView, PullSheetBlockView, CrewListBlockView
-- Phase 4: PDF Generation — 13 new files in lib/pdf/ (ExportPdfDocument, ExportPdfBlockMapper, 7 block PDFs, WatermarkOverlay, pdfStyles, generateExportPdf orchestrator, resolveExportImages pipeline)
-- Phase 5: Block Reorder — @dnd-kit drag-and-drop with SortableBlock wrapper, GripVertical handle
-- Phase 6: Custom Variables — add/edit/delete in VariablesPanel, CustomVariable type on ExportDocument, merged into variable resolution pipeline
+## New Files Created
+- `src-vnext/features/export/lib/blockDataResolvers.ts`
+- `src-vnext/features/export/lib/uploadExportImage.ts`
+- `src-vnext/features/export/hooks/useExportReports.ts`
+- `src-vnext/features/export/components/FloatingTextToolbar.tsx`
+- `src-vnext/features/export/components/HStackRowView.tsx`
+- `src-vnext/features/export/components/ColumnResizeHandle.tsx`
+- `src-vnext/features/export/components/PaletteDragOverlay.tsx`
+- `src-vnext/features/export/lib/pdf/blocks/HStackRowPdf.tsx`
+- `src-vnext/features/export/lib/pdf/parseHtmlToNodes.ts`
 
-### Shot Creation Improvements
-- Title/description split: buildShotTitle() returns family name only, colorway goes to description field
-- Gender auto-tagging: GENDER_TAG_MAP with default tag IDs (default-gender-men/women/unisex), no duplicate tags
-- Shot number format: formatShotNumber() changed from "SH-001" to "01" (2-digit, no prefix)
+## Deleted Files
+- `src-vnext/features/shots/components/ShotsPdfExportDialog.tsx`
+- `src-vnext/features/shots/components/ShotPdfExportDialog.tsx`
+- `src-vnext/features/shots/lib/buildShotsPdfRows.ts`
+- `src-vnext/features/shots/lib/buildShotsPdfRows.test.ts`
+- `src-vnext/features/shots/lib/shotsPdfTemplates.tsx`
 
-### Shoot Readiness Fixes
-- Removed ConfidenceBadge component — UrgencyBadge is sole indicator
-- SKU-level project linkage: extended useProductProjectMap to track skuIds, "In X projects" badge on expanded colorway rows
-- Fixed \u2026 literal text in JSX attribute (needs {} wrapper)
-- Filter completed/archived projects from bulk-add dropdown
-
-### CI Performance Fix
-- run-vitest.cjs: skip --pool threads --singleThread override on CI (detected by Codex)
-- vitest.config.ts: global CI timeout 30s → 60s
-- Result: CI tests went from 26min timeouts to ~3min pass
-
-## New Infrastructure (S17)
-- `features/export/hooks/useExportData.ts`
-- `features/export/components/ExportDataProvider.tsx`
-- `features/export/components/SortableBlock.tsx`
-- `features/export/components/blocks/ShotDetailBlockView.tsx`
-- `features/export/components/blocks/ProductTableBlockView.tsx`
-- `features/export/components/blocks/PullSheetBlockView.tsx`
-- `features/export/components/blocks/CrewListBlockView.tsx`
-- `features/export/lib/pdf/` (13 files)
-- `dashboard/hooks/useProductProjectMap.ts` — now tracks skuProjectMap
+## Pending Deployment
+- `firebase deploy --only firestore:rules,storage`
+- Firestore index exemptions for exportReports subcollection
