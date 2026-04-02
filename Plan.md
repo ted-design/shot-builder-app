@@ -1045,7 +1045,7 @@ Admin (role-gated: admin only)
 
 **Goal:** Address user-reported UX friction across multiple surfaces, informed by competitive analysis of Saturation (export builder), SetHero (call sheet), and KoboLabs (PLM). Ship quick wins first, then bigger redesigns.
 
-**Status:** S15a + S15b COMPLETE. S15c-e pending.
+**Status:** S15a-d COMPLETE. S15c upgraded to full v2 in Sprint S17 (PR #378). S15e pending.
 
 **Research:** 4 competitive/internal audit docs in `docs/research/`. Action plan in `docs/research/s15-action-plan.md`. 3 HTML mockups approved in `mockups/s15-*.html`.
 
@@ -1061,13 +1061,18 @@ Admin (role-gated: admin only)
 - [x] **S15b-2: Locations table view** — `LocationsTable.tsx` with sortable columns (name, address, city, contact, projects). List/Table toggle, localStorage persistence. 8 tests.
 - [x] **S15b-4: Shot view consolidation** — Gallery+Visual merged into Card. ViewMode: "card"|"table". Shortcuts: 1=Card, 2=Table. Old localStorage migrated. ShotVisualCard no longer rendered.
 
-### S15c: Export Builder Redesign (pending)
+### S15c / S17: Export Builder v2 (PR #378 merged)
 
-- [ ] **S15c-1: Block model** — Block types (Text, Image, ShotGrid, ShotDetail, ProductTable, Divider, PageBreak), document model
-- [ ] **S15c-2: Builder UI** — 3-panel layout (block palette, WYSIWYG preview, block settings)
-- [ ] **S15c-3: Template system** — Built-in + user-saved templates
-- [ ] **S15c-4: Variable system** — Dynamic tokens (project name, dates, page numbers)
-- [ ] **S15c-5: Data blocks** — ShotGrid and ProductTable pull live data with column toggles
+- [x] **S15c-1: Block model** — 9 block types (Text, Image, ShotGrid, ShotDetail, ProductTable, PullSheet, CrewList, Divider, PageBreak), ExportDocument model with pages + settings
+- [x] **S15c-2: Builder UI** — 3-panel layout (block palette, WYSIWYG preview, block settings), drag-and-drop reorder via @dnd-kit
+- [x] **S15c-3: Template system** — 5 built-in templates + user-saved (localStorage), TemplateDialog with preview
+- [x] **S15c-4: Variable system** — 8 dynamic variables from Firestore + custom variables (add/edit/delete), resolves in text blocks and PDF
+- [x] **S15c-5: Data blocks** — All 5 data blocks pull live Firestore data via ExportDataProvider context, column toggles on ShotGrid/ProductTable
+- [x] **S17-1: PDF generation** — Per-block PDF components via @react-pdf/renderer (lazy), image pre-resolution pipeline, watermark overlay, page numbers
+- [x] **S17-2: Auto-save** — Debounced localStorage persistence, loads on mount
+- [x] **S17-3: Shot creation improvements** — Title/description split, gender auto-tagging (default tag IDs), shot numbers "01, 02"
+- [x] **S17-4: Readiness fixes** — Remove confidence badge (urgency sole indicator), SKU project linkage, project filter, \u2026 fix
+- [x] **S17-5: CI fix** — Forks pool on CI (not threads+singleThread), global 60s timeout
 
 ### S15d: Call Sheet Improvements (commit 6f0184c)
 
