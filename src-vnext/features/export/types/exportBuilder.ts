@@ -166,12 +166,20 @@ export interface ExportPage {
   readonly blocks: readonly ExportBlock[]
 }
 
+/** A user-defined custom variable */
+export interface CustomVariable {
+  readonly key: string
+  readonly label: string
+  readonly value: string
+}
+
 /** The complete export document */
 export interface ExportDocument {
   readonly id: string
   readonly name: string
   readonly pages: readonly ExportPage[]
   readonly settings: PageSettings
+  readonly customVariables?: readonly CustomVariable[]
   readonly createdAt: string
   readonly updatedAt: string
 }

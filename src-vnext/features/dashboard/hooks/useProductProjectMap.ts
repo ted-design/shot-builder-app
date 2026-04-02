@@ -19,7 +19,23 @@ interface RawProjectShot {
   readonly projectId: string
   readonly projectName: string
   readonly familyIds: readonly string[]
+  readonly skuIds: readonly string[]
   readonly deleted: boolean
+}
+
+function extractProductIds(items: readonly Record<string, unknown>[]): {
+  familyIds: string[]
+  skuIds: string[]
+} {
+  const familyIdSet = new Set<string>()
+  const skuIdSet = new Set<string>()
+  for (const p of items) {
+    const fid = (p["familyId"] ?? p["productId"]) as string | undefined
+    if (fid) familyIdSet.add(fid)
+    const sid = (p["skuId"] ?? p["colourId"]) as string | undefined
+    if (sid) skuIdSet.add(sid)
+  }
+  return { familyIds: [...familyIdSet], skuIds: [...skuIdSet] }
 }
 
 function mapRawProjectShot(
@@ -33,25 +49,21 @@ function mapRawProjectShot(
     ? (data["looks"] as Record<string, unknown>[])
     : []
 
-  const familyIdSet = new Set<string>()
-  for (const p of products) {
-    const fid = (p["familyId"] ?? p["productId"]) as string | undefined
-    if (fid) familyIdSet.add(fid)
-  }
+  const directIds = extractProductIds(products)
+  const lookProducts: Record<string, unknown>[] = []
   for (const look of looks) {
-    const lookProducts = Array.isArray(look["products"])
+    const lp = Array.isArray(look["products"])
       ? (look["products"] as Record<string, unknown>[])
       : []
-    for (const p of lookProducts) {
-      const fid = (p["familyId"] ?? p["productId"]) as string | undefined
-      if (fid) familyIdSet.add(fid)
-    }
+    lookProducts.push(...lp)
   }
+  const lookIds = extractProductIds(lookProducts)
 
   return {
     projectId: (data["projectId"] as string) ?? "",
     projectName: (data["projectName"] as string) ?? "",
-    familyIds: [...familyIdSet],
+    familyIds: [...new Set([...directIds.familyIds, ...lookIds.familyIds])],
+    skuIds: [...new Set([...directIds.skuIds, ...lookIds.skuIds])],
     deleted: data["deleted"] === true,
   }
 }
@@ -62,12 +74,14 @@ function mapRawProjectShot(
 
 export interface FamilyProjectMapResult {
   readonly familyProjectMap: ReadonlyMap<string, ReadonlySet<string>>
+  readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
   readonly projectNames: ReadonlyMap<string, string>
 }
 
 /**
- * Build two maps from raw shot data:
+ * Build maps from raw shot data:
  *  - familyProjectMap: familyId -> Set<projectId>
+ *  - skuProjectMap: skuId -> Set<projectId>
  *  - projectNames: projectId -> projectName
  *
  * Excludes deleted shots.
@@ -76,6 +90,7 @@ export function buildFamilyProjectMap(
   shots: readonly RawProjectShot[],
 ): FamilyProjectMapResult {
   const familyMap = new Map<string, Set<string>>()
+  const skuMap = new Map<string, Set<string>>()
   const nameMap = new Map<string, string>()
 
   for (const shot of shots) {
@@ -84,7 +99,6 @@ export function buildFamilyProjectMap(
     const projectId = shot.projectId
     if (!projectId) continue
 
-    // Track project name (last-write wins, which is fine — names are consistent per project)
     if (shot.projectName) {
       nameMap.set(projectId, shot.projectName)
     }
@@ -97,16 +111,29 @@ export function buildFamilyProjectMap(
         familyMap.set(familyId, new Set([projectId]))
       }
     }
+
+    for (const skuId of shot.skuIds) {
+      const existing = skuMap.get(skuId)
+      if (existing) {
+        existing.add(projectId)
+      } else {
+        skuMap.set(skuId, new Set([projectId]))
+      }
+    }
   }
 
-  // Convert mutable Sets to ReadonlySets for the return value
   const immutableFamilyMap = new Map<string, ReadonlySet<string>>()
   for (const [key, value] of familyMap) {
     immutableFamilyMap.set(key, value)
   }
+  const immutableSkuMap = new Map<string, ReadonlySet<string>>()
+  for (const [key, value] of skuMap) {
+    immutableSkuMap.set(key, value)
+  }
 
   return {
     familyProjectMap: immutableFamilyMap,
+    skuProjectMap: immutableSkuMap,
     projectNames: nameMap,
   }
 }
@@ -117,6 +144,7 @@ export function buildFamilyProjectMap(
 
 export interface UseProductProjectMapResult {
   readonly familyProjectMap: ReadonlyMap<string, ReadonlySet<string>>
+  readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
   readonly projectNames: ReadonlyMap<string, string>
   readonly loading: boolean
 }
@@ -140,6 +168,7 @@ export function useProductProjectMap(
 
   return {
     familyProjectMap: result.familyProjectMap,
+    skuProjectMap: result.skuProjectMap,
     projectNames: result.projectNames,
     loading,
   }

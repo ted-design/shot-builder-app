@@ -5,12 +5,14 @@ function makeShot(overrides: {
   projectId?: string
   projectName?: string
   familyIds?: readonly string[]
+  skuIds?: readonly string[]
   deleted?: boolean
 }) {
   return {
     projectId: overrides.projectId ?? "proj-1",
     projectName: overrides.projectName ?? "Project One",
     familyIds: overrides.familyIds ?? [],
+    skuIds: overrides.skuIds ?? [],
     deleted: overrides.deleted ?? false,
   }
 }

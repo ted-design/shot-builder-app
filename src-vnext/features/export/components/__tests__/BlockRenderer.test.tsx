@@ -3,6 +3,18 @@ import { render, screen, fireEvent } from "@testing-library/react"
 import { BlockRenderer } from "../BlockRenderer"
 import type { ExportVariable } from "../../types/exportBuilder"
 
+vi.mock("../ExportDataProvider", () => ({
+  useExportDataContext: () => ({
+    project: null,
+    shots: [],
+    productFamilies: [],
+    pulls: [],
+    crew: [],
+    talent: [],
+    loading: false,
+  }),
+}))
+
 const VARIABLES: readonly ExportVariable[] = []
 
 describe("BlockRenderer", () => {

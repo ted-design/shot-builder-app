@@ -79,13 +79,59 @@ describe("bulkCreateShotsFromProducts", () => {
     expect(docData["products"]).toHaveLength(1)
   })
 
-  it("builds title with em-dash for SKU items", async () => {
+  it("builds title with family name only for SKU items", async () => {
     const items = [
       { familyId: "fam1", familyName: "Classic Tee", skuId: "sku1", skuName: "Black" },
     ]
     await bulkCreateShotsFromProducts(makeInput({ items }))
     const docData = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
-    expect(docData["title"]).toBe("Classic Tee \u2014 Black")
+    expect(docData["title"]).toBe("Classic Tee")
+    expect(docData["description"]).toBe("Black")
+  })
+
+  it("sets empty description when no skuName is present", async () => {
+    await bulkCreateShotsFromProducts(makeInput())
+    const docData = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
+    expect(docData["title"]).toBe("Classic Tee")
+    expect(docData["description"]).toBe("")
+  })
+
+  it("adds gender tag when item has gender", async () => {
+    const items = [
+      { familyId: "fam1", familyName: "Classic Tee", gender: "men" },
+    ]
+    await bulkCreateShotsFromProducts(makeInput({ items }))
+    const docData = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
+    const tags = docData["tags"] as Array<Record<string, unknown>>
+    expect(tags).toHaveLength(1)
+    expect(tags[0]!["label"]).toBe("Men")
+    expect(tags[0]!["category"]).toBe("gender")
+    expect(typeof tags[0]!["id"]).toBe("string")
+  })
+
+  it("adds no gender tag when item has no gender", async () => {
+    const items = [
+      { familyId: "fam1", familyName: "Classic Tee" },
+    ]
+    await bulkCreateShotsFromProducts(makeInput({ items }))
+    const docData = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
+    const tags = docData["tags"] as Array<Record<string, unknown>>
+    expect(tags).toHaveLength(0)
+  })
+
+  it("normalizes gender labels correctly", async () => {
+    const items = [
+      { familyId: "fam1", familyName: "Tee A", gender: "women" },
+      { familyId: "fam2", familyName: "Tee B", gender: "unisex" },
+      { familyId: "fam3", familyName: "Tee C", gender: "female" },
+    ]
+    await bulkCreateShotsFromProducts(makeInput({ items }))
+    const tags0 = (mockBatchSet.mock.calls[0]![1] as Record<string, unknown>)["tags"] as Array<Record<string, unknown>>
+    const tags1 = (mockBatchSet.mock.calls[1]![1] as Record<string, unknown>)["tags"] as Array<Record<string, unknown>>
+    const tags2 = (mockBatchSet.mock.calls[2]![1] as Record<string, unknown>)["tags"] as Array<Record<string, unknown>>
+    expect(tags0[0]!["label"]).toBe("Women")
+    expect(tags1[0]!["label"]).toBe("Unisex")
+    expect(tags2[0]!["label"]).toBe("Women")
   })
 
   it("includes sku fields in product assignment when skuId present", async () => {
@@ -122,14 +168,14 @@ describe("bulkCreateShotsFromProducts", () => {
     await bulkCreateShotsFromProducts(makeInput())
     const first = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
     const second = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
-    expect(first["shotNumber"]).toBe("SH-006")
-    expect(second["shotNumber"]).toBe("SH-007")
+    expect(first["shotNumber"]).toBe("06")
+    expect(second["shotNumber"]).toBe("07")
   })
 
-  it("starts from SH-001 when no existing shots", async () => {
+  it("starts from 01 when no existing shots", async () => {
     await bulkCreateShotsFromProducts(makeInput())
     const first = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
-    expect(first["shotNumber"]).toBe("SH-001")
+    expect(first["shotNumber"]).toBe("01")
   })
 
   it("chunks items into batches of 250", async () => {

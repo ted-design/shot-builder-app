@@ -2,6 +2,10 @@ import type { ExportBlock, ExportVariable } from "../types/exportBuilder"
 import { TextBlockView } from "./blocks/TextBlockView"
 import { ImageBlockView } from "./blocks/ImageBlockView"
 import { ShotGridBlockView } from "./blocks/ShotGridBlockView"
+import { ShotDetailBlockView } from "./blocks/ShotDetailBlockView"
+import { ProductTableBlockView } from "./blocks/ProductTableBlockView"
+import { PullSheetBlockView } from "./blocks/PullSheetBlockView"
+import { CrewListBlockView } from "./blocks/CrewListBlockView"
 import { DividerBlockView } from "./blocks/DividerBlockView"
 
 interface BlockRendererProps {
@@ -28,29 +32,13 @@ function renderBlockContent(
       // Page breaks are handled at the DocumentPreview level
       return null
     case "shot-detail":
-      return (
-        <div data-testid="shot-detail-block" className="rounded border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
-          Shot Detail Block (connects to project data at export time)
-        </div>
-      )
+      return <ShotDetailBlockView block={block} />
     case "product-table":
-      return (
-        <div data-testid="product-table-block" className="rounded border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
-          Product Table Block (connects to project data at export time)
-        </div>
-      )
+      return <ProductTableBlockView block={block} />
     case "pull-sheet":
-      return (
-        <div data-testid="pull-sheet-block" className="rounded border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
-          Pull Sheet Block (connects to project data at export time)
-        </div>
-      )
+      return <PullSheetBlockView block={block} />
     case "crew-list":
-      return (
-        <div data-testid="crew-list-block" className="rounded border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
-          Crew List Block (connects to project data at export time)
-        </div>
-      )
+      return <CrewListBlockView block={block} />
     default:
       return null
   }

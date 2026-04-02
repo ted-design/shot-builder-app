@@ -7,7 +7,6 @@ import { useProductProjectMap } from "@/features/dashboard/hooks/useProductProje
 import { useProductSkus } from "@/features/products/hooks/useProducts"
 import { formatLaunchDate, countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import type { ShootReadinessItem } from "@/features/products/lib/shootReadiness"
-import type { ShootWindow } from "@/features/products/lib/shootReadiness"
 import type { ProductSku } from "@/shared/types"
 import {
   useProductSelection,
@@ -23,7 +22,6 @@ import {
   getUrgencyTimeText,
 } from "@/features/products/lib/shootUrgency"
 import type { ShootUrgency } from "@/features/products/lib/shootUrgency"
-import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
 import { Skeleton } from "@/ui/skeleton"
@@ -143,30 +141,6 @@ function formatWindowDate(date: Date | null): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function ConfidenceBadge({
-  confidence,
-}: {
-  readonly confidence: ShootWindow["confidence"]
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn("text-2xs font-normal", {
-        "border-[var(--color-status-green-border)] bg-[var(--color-status-green-bg)] text-[var(--color-status-green-text)]":
-          confidence === "high",
-        "border-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)]":
-          confidence === "medium",
-        "border-[var(--color-status-red-border)] bg-[var(--color-status-red-bg)] text-[var(--color-status-red-text)]":
-          confidence === "low",
-      })}
-    >
-      {confidence === "high" && "High \u2713"}
-      {confidence === "medium" && "Medium"}
-      {confidence === "low" && "Low"}
-    </Badge>
-  )
-}
-
 function UrgencyBadge({
   launchDate,
 }: {
@@ -242,6 +216,8 @@ interface ExpandedFamilySkusProps {
   readonly familyName: string
   readonly selectionMode: boolean
   readonly selection: ReturnType<typeof useProductSelection>
+  readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
+  readonly projectNames: ReadonlyMap<string, string>
 }
 
 function ExpandedFamilySkus({
@@ -249,6 +225,8 @@ function ExpandedFamilySkus({
   familyName,
   selectionMode,
   selection,
+  skuProjectMap,
+  projectNames,
 }: ExpandedFamilySkusProps) {
   const { data: skus, loading } = useProductSkus(familyId)
   const activeSkus = useMemo(
@@ -340,6 +318,21 @@ function ExpandedFamilySkus({
                 No requirements
               </span>
             )}
+            {(() => {
+              const linkedProjects = skuProjectMap.get(sku.id)
+              if (!linkedProjects || linkedProjects.size === 0) return null
+              const names = [...linkedProjects]
+                .map((pid) => projectNames.get(pid) ?? pid)
+                .join(", ")
+              return (
+                <span
+                  className="shrink-0 rounded-full bg-[var(--color-status-blue-bg)] px-1.5 py-0.5 text-2xs font-medium text-[var(--color-status-blue-text)]"
+                  title={names}
+                >
+                  In {linkedProjects.size} project{linkedProjects.size !== 1 ? "s" : ""}
+                </span>
+              )
+            })()}
             {skuLaunchDate && (
               <span className="ml-auto shrink-0 text-2xs text-[var(--color-text-subtle)]">
                 {skuLaunchDate}
@@ -369,6 +362,7 @@ interface ReadinessCardProps {
   readonly someFamilySkusSelected: boolean
   readonly assignedProjects: ReadonlySet<string> | undefined
   readonly projectNames: ReadonlyMap<string, string>
+  readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
 }
 
 function ReadinessCard({
@@ -383,6 +377,7 @@ function ReadinessCard({
   someFamilySkusSelected,
   assignedProjects,
   projectNames,
+  skuProjectMap,
 }: ReadinessCardProps) {
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const navigate = useNavigate()
@@ -520,12 +515,9 @@ function ReadinessCard({
                 <UrgencyBadge launchDate={item.launchDate} />
               )}
             </div>
-            {tier !== "samples_only" && item.shootWindow ? (
-              <ConfidenceBadge confidence={item.shootWindow.confidence} />
-            ) : (
-              !selectionMode && (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-subtle)]" />
-              )
+            {/* Urgency badge replaces confidence badge — no competing indicators */}
+            {!selectionMode && tier === "samples_only" && (
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-subtle)]" />
             )}
           </div>
 
@@ -639,6 +631,8 @@ function ReadinessCard({
             familyName={item.familyName}
             selectionMode={selectionMode}
             selection={selection}
+            skuProjectMap={skuProjectMap}
+            projectNames={projectNames}
           />
         </div>
       )}
@@ -656,6 +650,7 @@ export function ShootReadinessWidget() {
   const canBulkAdd = canManageProjects(role)
   const {
     familyProjectMap,
+    skuProjectMap,
     projectNames,
   } = useProductProjectMap(clientId)
 
@@ -671,6 +666,11 @@ export function ShootReadinessWidget() {
   const sortedItems = useMemo(
     () => sortItems(items, sort),
     [items, sort],
+  )
+
+  const familyGenderMap = useMemo(
+    () => new Map(items.map((item) => [item.familyId, item.gender ?? null])),
+    [items],
   )
 
   const allIds = sortedItems.map((item) =>
@@ -851,6 +851,7 @@ export function ShootReadinessWidget() {
                 someFamilySkusSelected={someFamilySkusSelected}
                 assignedProjects={familyProjectMap.get(item.familyId)}
                 projectNames={projectNames}
+                skuProjectMap={skuProjectMap}
               />
             )
           })}
@@ -870,6 +871,7 @@ export function ShootReadinessWidget() {
         <BulkAddToProjectDialog
           selectedFamilies={selection.getSelectedFamilies()}
           selectedSkus={selection.getSelectedSkus()}
+          familyGenderMap={familyGenderMap}
           onClose={() => setShowDialog(false)}
           onSuccess={handleDialogSuccess}
         />

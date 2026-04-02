@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S15 — Quick Win Improvements · Production Hub Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontSize: {
+            '3xs': '9px',
+            '2xs': '10px',
+            'xxs': '11px',
+            'xs': '12px',
+            'sm': '13px',
+            'base': '14px',
+            'lg': '16px',
+            'xl': '18px',
+            '2xl': '20px',
+            '3xl': '24px',
+          },
+          colors: {
+            zinc: {
+              50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8',
+              400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+              800: '#27272a', 850: '#1c1c1f', 900: '#18181b', 950: '#09090b',
+            }
+          },
+          keyframes: {
+            'fade-in-rise': {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            'fade-out-drop': {
+              '0%': { opacity: '1', transform: 'translateY(0)' },
+              '100%': { opacity: '0', transform: 'translateY(10px)' },
+            },
+          },
+          animation: {
+            'fade-in-rise': 'fade-in-rise 200ms ease-out forwards',
+            'fade-out-drop': 'fade-out-drop 200ms ease-in forwards',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Semantic typography classes matching Production Hub ---- */
+    .heading-page { font-size: 18px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; }
+    .heading-section { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+    .heading-subsection { font-size: 13px; font-weight: 600; letter-spacing: -0.005em; }
+    .label-meta { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: #a1a1aa; }
+    .body-text { font-size: 14px; line-height: 1.5; }
+    .caption { font-size: 12px; color: #a1a1aa; }
+
+    /* ---- Custom scrollbar ---- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+    /* ---- Transition demo keyframes ---- */
+    @keyframes page-enter {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes page-exit {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+
+    .page-transition-enter { animation: page-enter 200ms ease-out forwards; }
+    .page-transition-exit { animation: page-exit 150ms ease-in forwards; }
+
+    /* ---- Transition demo: cycling animation ---- */
+    .transition-page-a {
+      animation: show-page-a 6s ease-in-out infinite;
+    }
+    .transition-page-b {
+      animation: show-page-b 6s ease-in-out infinite;
+    }
+    @keyframes show-page-a {
+      0%   { opacity: 1; transform: translateY(0); }
+      42%  { opacity: 1; transform: translateY(0); }
+      48%  { opacity: 0; transform: translateY(-4px); }
+      50%  { opacity: 0; transform: translateY(10px); }
+      92%  { opacity: 0; transform: translateY(10px); }
+      98%  { opacity: 1; transform: translateY(0); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes show-page-b {
+      0%   { opacity: 0; transform: translateY(10px); }
+      42%  { opacity: 0; transform: translateY(10px); }
+      48%  { opacity: 0; transform: translateY(10px); }
+      50%  { opacity: 0; transform: translateY(10px); }
+      56%  { opacity: 1; transform: translateY(0); }
+      92%  { opacity: 1; transform: translateY(0); }
+      98%  { opacity: 0; transform: translateY(-4px); }
+      100% { opacity: 0; transform: translateY(10px); }
+    }
+
+    /* ---- Confirmation dialog overlay ---- */
+    .dialog-overlay {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+    }
+
+    /* ---- Delete confirmation input ---- */
+    .confirm-input {
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      color: #fafafa;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color 150ms;
+    }
+    .confirm-input:focus {
+      border-color: #ef4444;
+    }
+    .confirm-input::placeholder {
+      color: #71717a;
+    }
+
+    /* ---- Product thumbnail placeholder ---- */
+    .product-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      background: #27272a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 500;
+      color: #71717a;
+    }
+
+    /* ---- Priority badge base ---- */
+    .priority-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ---- Progress bar ---- */
+    .progress-track {
+      width: 64px;
+      height: 6px;
+      border-radius: 3px;
+      background: #27272a;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 300ms;
+    }
+
+    /* ---- Section divider ---- */
+    .section-divider {
+      border-top: 1px solid #27272a;
+      margin: 48px 0;
+    }
+
+    /* ---- Annotation callout ---- */
+    .annotation {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #93c5fd;
+      line-height: 1.5;
+    }
+    .annotation strong { color: #60a5fa; }
+
+    /* ---- Shot card checkbox ---- */
+    .shot-checkbox {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 2px solid #52525b;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 150ms;
+    }
+    .shot-checkbox.checked {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+
+    /* ---- Gender badge ---- */
+    .gender-badge {
+      display: inline-flex;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      background: #27272a;
+      color: #a1a1aa;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6 md:p-10">
+
+  <!-- ================================================================
+       HEADER — Sprint Label + Title
+       ================================================================ -->
+  <header class="mx-auto max-w-4xl mb-10">
+    <span class="label-meta">Sprint S15</span>
+    <h1 class="heading-page mt-1 text-zinc-100">Quick Win Improvements</h1>
+    <p class="caption mt-2 max-w-xl">
+      Three targeted improvements: batch delete for shots, reworked shoot readiness
+      priority badges, and subtle page transitions.
+    </p>
+  </header>
+
+  <main class="mx-auto max-w-4xl space-y-0">
+
+    <!-- ================================================================
+         SECTION 1 — Shot Batch Delete
+         ================================================================ -->
+    <section>
+      <div class="flex items-baseline gap-3 mb-1">
+        <span class="label-meta">Feature 1</span>
+      </div>
+      <h2 class="heading-section text-zinc-100 mb-2">Shot Batch Delete</h2>
+      <p class="caption mb-6 max-w-lg">
+        Adds a destructive "Delete" action to the existing bulk action bar.
+        Soft-deletes selected shots with a confirmation dialog requiring explicit typed confirmation.
+      </p>
+
+      <!-- Annotation: UX rationale -->
+      <div class="annotation mb-6">
+        <strong>UX rationale:</strong> The delete button is intentionally placed at the
+        far right, visually separated from non-destructive actions, and uses red
+        styling to signal danger. The typed confirmation ("DELETE") prevents
+        accidental bulk deletions on mobile where taps can be imprecise.
+      </div>
+
+      <!-- ---- BEFORE: Current bulk action bar ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Before — Current Bulk Action Bar</span>
+      </div>
+
+      <!-- Simulated shot list page context (dark card) -->
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-8">
+        <!-- Page header area -->
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="heading-page text-zinc-100">Shots</h3>
+          <span class="text-xs text-zinc-500">FW26 Campaign</span>
+        </div>
+
+        <!-- BEFORE: Bulk action bar without delete -->
+        <div class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2.5 mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs text-zinc-400">
+              4 selected
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Share link
+              </button>
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Export PDF
+              </button>
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Clear
+              </button>
+              <button class="inline-flex items-center rounded-md bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-zinc-200 transition-colors">
+                Create pull sheet
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sample shot rows (dimmed, context only) -->
+        <div class="space-y-1 opacity-50">
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-zinc-850">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-001 — Long Sleeve Merino Crew</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-zinc-850">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-002 — Travel Pants Slim Fit</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-zinc-850">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-005 — Merino V-Neck Tee</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-zinc-850">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-008 — Lightweight Hoodie</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- AFTER: New bulk action bar with Delete ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">After — Bulk Action Bar with Delete</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-6">
+        <!-- Page header area -->
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="heading-page text-zinc-100">Shots</h3>
+          <span class="text-xs text-zinc-500">FW26 Campaign</span>
+        </div>
+
+        <!-- AFTER: Bulk action bar WITH delete button -->
+        <!-- Note: Delete is separated from other actions with a divider and placed at the far right -->
+        <div class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2.5 mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs text-zinc-400">
+              4 selected
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Share link
+              </button>
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Export PDF
+              </button>
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Clear
+              </button>
+              <button class="inline-flex items-center rounded-md bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-zinc-200 transition-colors">
+                Create pull sheet
+              </button>
+              <!-- Divider between constructive and destructive actions -->
+              <div class="w-px h-5 bg-zinc-700 mx-1"></div>
+              <!-- NEW: Delete button — red styling, destructive action -->
+              <button class="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sample shot rows (selected, with checkmarks) -->
+        <div class="space-y-1">
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-blue-500/5 border border-blue-500/10">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-001 — Long Sleeve Merino Crew</span>
+            <span class="ml-auto text-2xs text-zinc-600">Draft</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-blue-500/5 border border-blue-500/10">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-002 — Travel Pants Slim Fit</span>
+            <span class="ml-auto text-2xs text-zinc-600">Draft</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-blue-500/5 border border-blue-500/10">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-005 — Merino V-Neck Tee</span>
+            <span class="ml-auto text-2xs text-zinc-600">In Progress</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-md px-3 py-2 bg-blue-500/5 border border-blue-500/10">
+            <div class="shot-checkbox checked">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4.5 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="text-sm text-zinc-300">SH-008 — Lightweight Hoodie</span>
+            <span class="ml-auto text-2xs text-zinc-600">Draft</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- CONFIRMATION DIALOG ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Confirmation Dialog — Typed Confirmation</span>
+      </div>
+
+      <!-- Dialog demo (inline, not overlay for mockup visibility) -->
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-6 relative">
+        <!-- Dimmed background content to simulate overlay effect -->
+        <div class="opacity-20 pointer-events-none">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="heading-page text-zinc-100">Shots</h3>
+            <span class="text-xs text-zinc-500">FW26 Campaign</span>
+          </div>
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2.5 mb-4">
+            <div class="flex items-center justify-between">
+              <div class="text-xs text-zinc-400">4 selected</div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-zinc-500">Share link</span>
+                <span class="text-xs text-zinc-500">Export PDF</span>
+                <span class="text-xs text-zinc-500">Clear</span>
+                <span class="text-xs text-zinc-500">Create pull sheet</span>
+                <span class="text-xs text-red-500/60">Delete</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="h-8 bg-zinc-850 rounded"></div>
+            <div class="h-8 bg-zinc-850 rounded"></div>
+            <div class="h-8 bg-zinc-850 rounded"></div>
+            <div class="h-8 bg-zinc-850 rounded"></div>
+          </div>
+        </div>
+
+        <!-- Confirmation dialog overlay -->
+        <div class="absolute inset-0 flex items-center justify-center dialog-overlay rounded-lg">
+          <div class="w-full max-w-sm rounded-lg border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+            <!-- Dialog header with warning icon -->
+            <div class="flex items-start gap-3 mb-4">
+              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <div>
+                <h4 class="text-base font-semibold text-zinc-100">Delete 4 shots?</h4>
+                <p class="text-sm text-zinc-400 mt-1 leading-relaxed">
+                  This will soft-delete the selected shots. They can be
+                  recovered by an administrator.
+                </p>
+              </div>
+            </div>
+
+            <!-- Typed confirmation input -->
+            <div class="mb-5">
+              <label class="block text-xs text-zinc-400 mb-1.5">
+                Type <span class="font-mono text-red-400 font-semibold">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                class="confirm-input"
+                placeholder="Type DELETE here"
+                value="DELE"
+              />
+            </div>
+
+            <!-- Dialog actions -->
+            <div class="flex justify-end gap-2">
+              <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Cancel
+              </button>
+              <!-- Delete button disabled until "DELETE" is fully typed -->
+              <button class="inline-flex items-center rounded-md bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-500 cursor-not-allowed" disabled>
+                Delete 4 shots
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Show the enabled state of the dialog -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Confirmation Dialog — Enabled State (after typing DELETE)</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-700 bg-zinc-900 p-6 shadow-2xl max-w-sm mx-auto mb-6">
+        <div class="flex items-start gap-3 mb-4">
+          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-base font-semibold text-zinc-100">Delete 4 shots?</h4>
+            <p class="text-sm text-zinc-400 mt-1 leading-relaxed">
+              This will soft-delete the selected shots. They can be
+              recovered by an administrator.
+            </p>
+          </div>
+        </div>
+        <div class="mb-5">
+          <label class="block text-xs text-zinc-400 mb-1.5">
+            Type <span class="font-mono text-red-400 font-semibold">DELETE</span> to confirm
+          </label>
+          <input
+            type="text"
+            class="confirm-input"
+            value="DELETE"
+            style="border-color: #ef4444;"
+            readonly
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="inline-flex items-center rounded-md border border-zinc-700 bg-transparent px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
+            Cancel
+          </button>
+          <!-- Delete button ENABLED — red background, fully active -->
+          <button class="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">
+            Delete 4 shots
+          </button>
+        </div>
+      </div>
+
+      <div class="annotation mb-4">
+        <strong>Implementation notes:</strong> Soft-delete sets
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">deleted: true</code>
+        on each shot document. Existing list queries already filter out
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">deleted !== true</code>
+        client-side. Recovery is via admin Firestore console or a future admin UI.
+        Uses <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">writeBatch</code>
+        chunked at 250 (matching existing bulkShotWrites pattern).
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ================================================================
+         SECTION 2 — Priority Tag Rework (Shoot Readiness)
+         ================================================================ -->
+    <section>
+      <div class="flex items-baseline gap-3 mb-1">
+        <span class="label-meta">Feature 2</span>
+      </div>
+      <h2 class="heading-section text-zinc-100 mb-2">Priority Tag Rework — Shoot Readiness</h2>
+      <p class="caption mb-6 max-w-lg">
+        Replaces the misleading "Low / Medium / High" confidence labels with
+        time-based urgency badges. Products past their launch window are now correctly
+        flagged as OVERDUE, not "Low."
+      </p>
+
+      <!-- Annotation: the problem being solved -->
+      <div class="annotation mb-6">
+        <strong>Problem:</strong> The current system marks products past their 15-day launch
+        window as "Low" priority. This is backwards — products with imminent or overdue
+        launches should be the <em>most</em> urgent items. The new system uses
+        time-to-launch as the primary signal, with clear urgency labels that match
+        production team mental models.
+      </div>
+
+      <!-- ---- BEFORE: Old confidence badges ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Before — Misleading Confidence Badges</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <h3 class="heading-section text-zinc-100">Shoot Readiness</h3>
+        </div>
+
+        <div class="space-y-2">
+          <!-- Old card: product past launch = incorrectly marked LOW -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-zinc-200">Long Sleeve Merino Crew</span>
+                <span class="inline-flex items-center rounded border border-red-500/30 bg-red-500/8 text-red-400 px-1.5 py-0 text-2xs">Launch: Mar 15</span>
+              </div>
+              <!-- WRONG: Past launch date = "Low" -->
+              <span class="inline-flex items-center rounded border border-red-500/30 bg-red-500/8 text-red-400 px-1.5 py-0 text-2xs">Low</span>
+            </div>
+            <div class="mt-1.5 text-xs text-zinc-500">6 colorways &middot; 4/6 samples arrived</div>
+            <div class="mt-1.5 flex items-center gap-2">
+              <div class="progress-track"><div class="progress-fill bg-red-500" style="width: 30%"></div></div>
+              <span class="text-2xs text-zinc-500">30%</span>
+            </div>
+          </div>
+
+          <!-- Old card: launching in 5 days = incorrectly marked MEDIUM -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-zinc-200">Travel Pants Slim Fit</span>
+                <span class="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/8 text-amber-400 px-1.5 py-0 text-2xs">Launch: Apr 5</span>
+              </div>
+              <span class="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/8 text-amber-400 px-1.5 py-0 text-2xs">Medium</span>
+            </div>
+            <div class="mt-1.5 text-xs text-zinc-500">4 colorways &middot; 3/4 samples arrived</div>
+            <div class="mt-1.5 flex items-center gap-2">
+              <div class="progress-track"><div class="progress-fill bg-amber-500" style="width: 55%"></div></div>
+              <span class="text-2xs text-zinc-500">55%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- AFTER: New urgency-based readiness badges ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">After — Time-Based Urgency Badges</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-6">
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <h3 class="heading-section text-zinc-100">Shoot Readiness</h3>
+          <span class="text-2xs text-zinc-600 ml-auto">Next 90 days</span>
+        </div>
+
+        <div class="space-y-2">
+
+          <!--
+            OVERDUE: Launch date has passed. Product needs to be shot ASAP.
+            Design: Fire red background, flame emoji reinforces urgency.
+          -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3 hover:bg-zinc-900/60 transition-colors cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="product-thumb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="1.5"><path d="M20.38 3.46L16 2 12 3.46 8 2 3.62 3.46a2 2 0 0 0-1.34 1.93v15.22a2 2 0 0 0 2.72 1.87L8 21.5l4-1.5 4 1.5 3-1.12a2 2 0 0 0 2.72-1.87V5.39a2 2 0 0 0-1.34-1.93z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-100 truncate">Long Sleeve Merino Crew</span>
+                    <span class="gender-badge">Men</span>
+                  </div>
+                  <!-- OVERDUE badge: fire red bg, flame icon -->
+                  <span class="priority-badge bg-red-600 text-white">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/>
+                    </svg>
+                    Overdue
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Launch: Mar 15 &middot; <span class="text-red-400">16 days overdue</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-x-3 text-xs text-zinc-500">
+                  <span>6 colorways</span>
+                  <span>4/6 samples arrived</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-red-500" style="width: 30%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">30%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!--
+            URGENT: Launching within 7 days. Must be shot this week.
+            Design: Amber background, alarm clock icon.
+          -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3 hover:bg-zinc-900/60 transition-colors cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="product-thumb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="1.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-100 truncate">Travel Pants Slim Fit</span>
+                    <span class="gender-badge">Men</span>
+                  </div>
+                  <!-- URGENT badge: amber bg -->
+                  <span class="priority-badge bg-amber-600 text-white">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Urgent
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Launch: Apr 5 &middot; <span class="text-amber-400">5 days left</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-x-3 text-xs text-zinc-500">
+                  <span>4 colorways</span>
+                  <span>3/4 samples arrived</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-amber-500" style="width: 55%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">55%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!--
+            SOON: Launching within 15 days. Plan and schedule now.
+            Design: Yellow badge.
+          -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3 hover:bg-zinc-900/60 transition-colors cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="product-thumb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-100 truncate">Merino V-Neck Tee</span>
+                    <span class="gender-badge">Women</span>
+                  </div>
+                  <!-- SOON badge: yellow -->
+                  <span class="priority-badge bg-yellow-500 text-zinc-900">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Soon
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Launch: Apr 12 &middot; <span class="text-yellow-400">12 days left</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-x-3 text-xs text-zinc-500">
+                  <span>3 colorways</span>
+                  <span>3/3 samples arrived</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-green-500" style="width: 85%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">85%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!--
+            UPCOMING: Launching in 15-30 days. Plenty of time, but should be tracked.
+            Design: Blue badge, calm color.
+          -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3 hover:bg-zinc-900/60 transition-colors cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="product-thumb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-100 truncate">Lightweight Hoodie</span>
+                    <span class="gender-badge">Men</span>
+                  </div>
+                  <!-- UPCOMING badge: blue -->
+                  <span class="priority-badge bg-blue-500 text-white">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    Upcoming
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Launch: Apr 22 &middot; <span class="text-blue-400">22 days left</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-x-3 text-xs text-zinc-500">
+                  <span>5 colorways</span>
+                  <span>5/5 samples arrived</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-green-500" style="width: 92%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">92%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!--
+            UNSCHEDULED: No launch date assigned. Cannot prioritize.
+            Design: Neutral zinc badge, no urgency signal.
+          -->
+          <div class="rounded-md border border-zinc-800 bg-zinc-950 p-3 hover:bg-zinc-900/60 transition-colors cursor-pointer">
+            <div class="flex items-start gap-3">
+              <div class="product-thumb">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52525b" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm font-medium text-zinc-100 truncate">Performance Boxer Brief</span>
+                    <span class="gender-badge">Men</span>
+                  </div>
+                  <!-- UNSCHEDULED badge: neutral zinc -->
+                  <span class="priority-badge bg-zinc-600 text-zinc-200">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    Unscheduled
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  No launch date assigned
+                </div>
+                <div class="mt-1.5 flex items-center gap-x-3 text-xs text-zinc-500">
+                  <span>2 colorways</span>
+                  <span>2/2 samples arrived</span>
+                </div>
+                <div class="mt-1.5 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-green-500" style="width: 100%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Badge reference table -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Badge Reference</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4 mb-6">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-zinc-800">
+              <th class="pb-2 text-xs font-medium text-zinc-400">Condition</th>
+              <th class="pb-2 text-xs font-medium text-zinc-400">Badge</th>
+              <th class="pb-2 text-xs font-medium text-zinc-400">Color</th>
+            </tr>
+          </thead>
+          <tbody class="text-sm">
+            <tr class="border-b border-zinc-800/60">
+              <td class="py-2.5 text-zinc-300">Launch date has passed</td>
+              <td class="py-2.5"><span class="priority-badge bg-red-600 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg> Overdue</span></td>
+              <td class="py-2.5 text-xs font-mono text-zinc-500">bg-red-600</td>
+            </tr>
+            <tr class="border-b border-zinc-800/60">
+              <td class="py-2.5 text-zinc-300">Launching within 7 days</td>
+              <td class="py-2.5"><span class="priority-badge bg-amber-600 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Urgent</span></td>
+              <td class="py-2.5 text-xs font-mono text-zinc-500">bg-amber-600</td>
+            </tr>
+            <tr class="border-b border-zinc-800/60">
+              <td class="py-2.5 text-zinc-300">Launching within 15 days</td>
+              <td class="py-2.5"><span class="priority-badge bg-yellow-500 text-zinc-900"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Soon</span></td>
+              <td class="py-2.5 text-xs font-mono text-zinc-500">bg-yellow-500</td>
+            </tr>
+            <tr class="border-b border-zinc-800/60">
+              <td class="py-2.5 text-zinc-300">Launching in 15 - 30 days</td>
+              <td class="py-2.5"><span class="priority-badge bg-blue-500 text-white"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Upcoming</span></td>
+              <td class="py-2.5 text-xs font-mono text-zinc-500">bg-blue-500</td>
+            </tr>
+            <tr>
+              <td class="py-2.5 text-zinc-300">No launch date</td>
+              <td class="py-2.5"><span class="priority-badge bg-zinc-600 text-zinc-200"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Unscheduled</span></td>
+              <td class="py-2.5 text-xs font-mono text-zinc-500">bg-zinc-600</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="annotation mb-4">
+        <strong>Implementation notes:</strong> The priority computation moves from
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">shootReadiness.ts</code>
+        confidence field to a new
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">getShootUrgency(launchDate)</code>
+        helper. Returns
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">"overdue" | "urgent" | "soon" | "upcoming" | "unscheduled"</code>.
+        The existing <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">confidence</code>
+        field remains for backward compatibility but the widget renders urgency badges instead.
+        Sort order: overdue first, then urgent, soon, upcoming, unscheduled last.
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ================================================================
+         SECTION 3 — Page Transitions
+         ================================================================ -->
+    <section>
+      <div class="flex items-baseline gap-3 mb-1">
+        <span class="label-meta">Feature 3</span>
+      </div>
+      <h2 class="heading-section text-zinc-100 mb-2">Page Transitions</h2>
+      <p class="caption mb-6 max-w-lg">
+        All route transitions use a subtle fade + rise animation.
+        CSS-only, no JavaScript required. 200ms ease-out on enter, 150ms ease-in on exit.
+      </p>
+
+      <div class="annotation mb-6">
+        <strong>UX rationale:</strong> Subtle animations create a sense of spatial continuity
+        between pages. The 10px vertical rise gives a grounded, material-like feel
+        without being distracting. Total animation budget is under 200ms to maintain
+        the perception of instant response.
+      </div>
+
+      <!-- ---- Live animation demo ---- -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">Live Animation Demo — Looping Transition</span>
+      </div>
+
+      <!-- Animation container: simulated app shell with transitioning content -->
+      <div class="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden mb-6">
+        <!-- Simulated top nav bar (static) -->
+        <div class="border-b border-zinc-800 bg-zinc-900 px-4 py-2.5 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded bg-zinc-800"></div>
+            <span class="text-sm font-medium text-zinc-300">Production Hub</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-zinc-800"></div>
+          </div>
+        </div>
+
+        <!-- Transitioning content area -->
+        <div class="relative" style="height: 280px; overflow: hidden;">
+
+          <!-- Page A: Shot list -->
+          <div class="absolute inset-0 p-5 transition-page-a">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="heading-page text-zinc-100">Shots</h3>
+              <span class="text-2xs text-zinc-600">FW26 Campaign</span>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2.5">
+                <div class="w-8 h-8 rounded bg-zinc-800 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-zinc-200">SH-001 — Long Sleeve Merino Crew</div>
+                  <div class="text-2xs text-zinc-500 mt-0.5">Front flat &middot; Draft</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2.5">
+                <div class="w-8 h-8 rounded bg-zinc-800 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-zinc-200">SH-002 — Travel Pants Slim Fit</div>
+                  <div class="text-2xs text-zinc-500 mt-0.5">On-model &middot; In Progress</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2.5">
+                <div class="w-8 h-8 rounded bg-zinc-800 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-zinc-200">SH-005 — Merino V-Neck Tee</div>
+                  <div class="text-2xs text-zinc-500 mt-0.5">Detail &middot; Shot</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2.5">
+                <div class="w-8 h-8 rounded bg-zinc-800 flex-shrink-0"></div>
+                <div>
+                  <div class="text-sm text-zinc-200">SH-008 — Lightweight Hoodie</div>
+                  <div class="text-2xs text-zinc-500 mt-0.5">Back flat &middot; Draft</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Page B: Product detail -->
+          <div class="absolute inset-0 p-5 transition-page-b">
+            <div class="flex items-center gap-2 mb-4">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <span class="text-xs text-zinc-500">Back to shots</span>
+            </div>
+            <div class="flex items-start gap-4 mb-4">
+              <div class="w-16 h-16 rounded-lg bg-zinc-800 flex-shrink-0"></div>
+              <div>
+                <h3 class="heading-page text-zinc-100">Long Sleeve Merino Crew</h3>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="gender-badge">Men</span>
+                  <span class="text-xs text-zinc-500">Style #MC-2601</span>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div class="rounded-md border border-zinc-800 bg-zinc-900 p-3">
+                <div class="text-xs text-zinc-400 mb-1.5">Colorways</div>
+                <div class="flex gap-2">
+                  <div class="w-6 h-6 rounded-full bg-zinc-950 border border-zinc-700" title="Black"></div>
+                  <div class="w-6 h-6 rounded-full bg-zinc-600 border border-zinc-500" title="Charcoal"></div>
+                  <div class="w-6 h-6 rounded-full bg-blue-900 border border-blue-700" title="Navy"></div>
+                  <div class="w-6 h-6 rounded-full bg-stone-600 border border-stone-500" title="Army"></div>
+                  <div class="w-6 h-6 rounded-full bg-red-900 border border-red-700" title="Burgundy"></div>
+                  <div class="w-6 h-6 rounded-full bg-zinc-200 border border-zinc-400" title="Light Grey"></div>
+                </div>
+              </div>
+              <div class="rounded-md border border-zinc-800 bg-zinc-900 p-3">
+                <div class="text-xs text-zinc-400 mb-1.5">Shoot Status</div>
+                <div class="flex items-center gap-2">
+                  <span class="priority-badge bg-red-600 text-white text-2xs">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1 0 12 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z"/></svg>
+                    Overdue
+                  </span>
+                  <span class="text-xs text-zinc-500">Launch: Mar 15</span>
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="progress-track"><div class="progress-fill bg-red-500" style="width: 30%"></div></div>
+                  <span class="text-2xs text-zinc-500 tabular-nums">30% ready</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transition label at bottom -->
+        <div class="border-t border-zinc-800 bg-zinc-900/50 px-4 py-2 text-center">
+          <span class="text-2xs text-zinc-500">
+            fade-in-rise: opacity 0 &rarr; 1, translateY(10px) &rarr; 0 &middot; 200ms ease-out
+          </span>
+        </div>
+      </div>
+
+      <!-- CSS code snippet -->
+      <div class="mb-3">
+        <span class="label-meta mb-2 block">CSS Implementation</span>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-4 mb-6 font-mono text-xs leading-relaxed overflow-x-auto">
+        <div class="text-zinc-500">/* Route transition wrapper — applied to every page component */</div>
+        <div class="mt-2">
+          <span class="text-purple-400">.page-enter</span> <span class="text-zinc-600">{</span>
+        </div>
+        <div class="pl-4">
+          <span class="text-blue-400">animation</span><span class="text-zinc-600">:</span> <span class="text-green-400">fade-in-rise</span> <span class="text-amber-400">200ms</span> <span class="text-green-400">ease-out</span> <span class="text-green-400">forwards</span><span class="text-zinc-600">;</span>
+        </div>
+        <div class="text-zinc-600">}</div>
+        <div class="mt-3">
+          <span class="text-purple-400">@keyframes</span> <span class="text-green-400">fade-in-rise</span> <span class="text-zinc-600">{</span>
+        </div>
+        <div class="pl-4">
+          <span class="text-amber-400">from</span> <span class="text-zinc-600">{</span>
+          <span class="text-blue-400"> opacity</span><span class="text-zinc-600">:</span> <span class="text-amber-400">0</span><span class="text-zinc-600">;</span>
+          <span class="text-blue-400"> transform</span><span class="text-zinc-600">:</span> <span class="text-green-400">translateY</span>(<span class="text-amber-400">10px</span>)<span class="text-zinc-600">; }</span>
+        </div>
+        <div class="pl-4">
+          <span class="text-amber-400">to</span> <span class="text-zinc-600">&nbsp;&nbsp;</span> <span class="text-zinc-600">{</span>
+          <span class="text-blue-400"> opacity</span><span class="text-zinc-600">:</span> <span class="text-amber-400">1</span><span class="text-zinc-600">;</span>
+          <span class="text-blue-400"> transform</span><span class="text-zinc-600">:</span> <span class="text-green-400">translateY</span>(<span class="text-amber-400">0</span>)<span class="text-zinc-600">;&nbsp;&nbsp; }</span>
+        </div>
+        <div class="text-zinc-600">}</div>
+        <div class="mt-3 text-zinc-500">/* Applied via React Router AnimatePresence or simple className */</div>
+        <div class="mt-1 text-zinc-500">/* No JS needed — CSS animation auto-plays on mount */</div>
+      </div>
+
+      <div class="annotation mb-4">
+        <strong>Implementation notes:</strong> Wrap every route's top-level component
+        in a <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">&lt;PageTransition&gt;</code>
+        wrapper component that applies
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">animate-fade-in-rise</code>
+        on mount. No exit animation is needed — React Router unmounts instantly, and
+        the incoming page's entrance animation provides sufficient continuity. The
+        <code class="text-xs bg-zinc-800 px-1 py-0.5 rounded">prefers-reduced-motion</code>
+        media query should disable the animation for accessibility.
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ================================================================
+         FOOTER — Summary
+         ================================================================ -->
+    <footer class="pb-12">
+      <span class="label-meta block mb-2">Summary</span>
+      <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+        <div class="space-y-3 text-sm text-zinc-300">
+          <div class="flex items-start gap-3">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-zinc-800 text-2xs font-semibold text-zinc-400 flex-shrink-0 mt-0.5">1</span>
+            <div>
+              <span class="font-medium text-zinc-100">Shot Batch Delete</span>
+              <span class="text-zinc-500"> — Red delete button in bulk action bar, typed "DELETE" confirmation dialog, soft-delete via writeBatch.</span>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-zinc-800 text-2xs font-semibold text-zinc-400 flex-shrink-0 mt-0.5">2</span>
+            <div>
+              <span class="font-medium text-zinc-100">Shoot Readiness Badges</span>
+              <span class="text-zinc-500"> — Replace confidence labels with time-based urgency: Overdue, Urgent, Soon, Upcoming, Unscheduled. Sort by urgency.</span>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-zinc-800 text-2xs font-semibold text-zinc-400 flex-shrink-0 mt-0.5">3</span>
+            <div>
+              <span class="font-medium text-zinc-100">Page Transitions</span>
+              <span class="text-zinc-500"> — CSS-only fade + rise (200ms ease-out). PageTransition wrapper, respects prefers-reduced-motion.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+
+</body>
+</html>

@@ -2,7 +2,7 @@ import type { Shot } from "@/shared/types"
 
 /**
  * Scans all shots and returns the highest numeric suffix found in shot numbers.
- * Shot numbers follow the pattern `SH-001`, `SH-042`, etc.
+ * Shot numbers follow the pattern `01`, `02`, etc. (legacy: `SH-001`).
  * Returns 0 if no shots have numbers.
  */
 export function computeMaxShotNumber(shots: ReadonlyArray<Shot>): number {
@@ -20,11 +20,11 @@ export function computeMaxShotNumber(shots: ReadonlyArray<Shot>): number {
 }
 
 /**
- * Formats a numeric shot number into the canonical `SH-###` string.
- * Pads to at least 3 digits: 1 -> "SH-001", 42 -> "SH-042", 1000 -> "SH-1000".
+ * Formats a numeric shot number into a zero-padded string.
+ * Pads to at least 2 digits: 1 -> "01", 42 -> "42", 100 -> "100".
  */
 export function formatShotNumber(n: number): string {
-  return `SH-${String(n).padStart(3, "0")}`
+  return String(n).padStart(2, "0")
 }
 
 /**

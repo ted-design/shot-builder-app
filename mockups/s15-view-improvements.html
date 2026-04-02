@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S15b — View Improvements · Production Hub Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #09090b; color: #f4f4f5; }
+    .heading-page { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.025em; }
+    .label-meta { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #71717a; }
+    .card-surface { background: #18181b; border: 1px solid #27272a; border-radius: 0.5rem; }
+    .table-row:hover { background: #1f1f23; }
+    .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; }
+    .toggle-active { background: #3b82f6; color: white; }
+    .toggle-inactive { background: #27272a; color: #a1a1aa; }
+    .callout { border-left: 3px solid #3b82f6; background: #172554; padding: 0.75rem 1rem; border-radius: 0 0.375rem 0.375rem 0; }
+    .callout-amber { border-left-color: #f59e0b; background: #451a03; }
+    .check-box { width: 16px; height: 16px; border-radius: 0.25rem; border: 1.5px solid #52525b; display: inline-block; }
+    .check-box.checked { background: #3b82f6; border-color: #3b82f6; }
+    .popover { background: #18181b; border: 1px solid #27272a; border-radius: 0.5rem; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+    .avatar { width: 32px; height: 32px; border-radius: 9999px; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #71717a; }
+    .thumb { width: 40px; height: 40px; border-radius: 0.375rem; background: #27272a; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; color: #52525b; }
+    .sku-row { border-bottom: 1px solid #1f1f23; }
+    .sku-row:last-child { border-bottom: none; }
+  </style>
+</head>
+<body class="min-h-screen p-6 md:p-12">
+  <div class="max-w-5xl mx-auto space-y-16">
+    <header class="space-y-2">
+      <p class="label-meta">Sprint S15b</p>
+      <h1 class="heading-page">View Improvements</h1>
+      <p class="text-sm text-zinc-400 max-w-2xl">Four improvements: table views for talent and locations, unified shot card view with property toggles, and SKU-level product selection in shoot readiness.</p>
+    </header>
+
+    <!-- TALENT TABLE -->
+    <section class="space-y-4">
+      <p class="label-meta">Feature 1</p>
+      <h2 class="heading-page">Talent Table View</h2>
+      <div class="callout"><p class="text-sm text-blue-200"><strong>UX rationale:</strong> Card view is great for casting (headshots). But producers managing 20+ talent need sortable columns for quick scanning by name, agency, or measurements.</p></div>
+      <div class="card-surface p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-zinc-200">Library &rsaquo; Talent</h3>
+          <div class="inline-flex rounded-md overflow-hidden border border-zinc-700"><button class="toggle-inactive px-3 py-1.5 text-xs">Grid</button><button class="toggle-active px-3 py-1.5 text-xs">Table</button></div>
+        </div>
+        <div class="relative"><svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Search talent..." class="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-10 pr-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-zinc-800 text-left text-zinc-400 font-medium"><th class="py-2 px-3 w-12"></th><th class="py-2 px-3">Name &#8593;</th><th class="py-2 px-3">Gender</th><th class="py-2 px-3">Agency</th><th class="py-2 px-3">Height</th><th class="py-2 px-3">Measurements</th><th class="py-2 px-3">Projects</th><th class="py-2 px-3 w-10"></th></tr></thead>
+            <tbody>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">SL</div></td><td class="py-2.5 px-3 font-medium">Stefan Lawrence</td><td class="py-2.5 px-3"><span class="badge bg-blue-500/20 text-blue-300">Male</span></td><td class="py-2.5 px-3 text-zinc-400">Sutherland Models</td><td class="py-2.5 px-3 text-zinc-300">6'1"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">40-32-38</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">3</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">JM</div></td><td class="py-2.5 px-3 font-medium">Jessica Martinez</td><td class="py-2.5 px-3"><span class="badge bg-pink-500/20 text-pink-300">Female</span></td><td class="py-2.5 px-3 text-zinc-400">Elite Toronto</td><td class="py-2.5 px-3 text-zinc-300">5'9"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">34-26-35</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">5</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">AK</div></td><td class="py-2.5 px-3 font-medium">Amir Khan</td><td class="py-2.5 px-3"><span class="badge bg-blue-500/20 text-blue-300">Male</span></td><td class="py-2.5 px-3 text-zinc-400">Next Models</td><td class="py-2.5 px-3 text-zinc-300">5'11"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">38-30-36</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">2</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">CW</div></td><td class="py-2.5 px-3 font-medium">Claire Wu</td><td class="py-2.5 px-3"><span class="badge bg-pink-500/20 text-pink-300">Female</span></td><td class="py-2.5 px-3 text-zinc-400">Spot 6 Mgmt</td><td class="py-2.5 px-3 text-zinc-300">5'7"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">32-25-34</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">4</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">DP</div></td><td class="py-2.5 px-3 font-medium">David Park</td><td class="py-2.5 px-3"><span class="badge bg-blue-500/20 text-blue-300">Male</span></td><td class="py-2.5 px-3 text-zinc-400">B&amp;M Models</td><td class="py-2.5 px-3 text-zinc-300">6'0"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">39-31-37</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">1</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row cursor-pointer"><td class="py-2.5 px-3"><div class="avatar">RS</div></td><td class="py-2.5 px-3 font-medium">Rachel Singh</td><td class="py-2.5 px-3"><span class="badge bg-pink-500/20 text-pink-300">Female</span></td><td class="py-2.5 px-3 text-zinc-400">Plutino Group</td><td class="py-2.5 px-3 text-zinc-300">5'8"</td><td class="py-2.5 px-3 text-zinc-400 font-mono text-xs">33-26-35</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">6</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-zinc-500">Click any row to open talent detail sheet &rsaquo;</p>
+      </div>
+    </section>
+
+    <!-- LOCATIONS TABLE -->
+    <section class="space-y-4">
+      <p class="label-meta">Feature 2</p>
+      <h2 class="heading-page">Locations Table View</h2>
+      <div class="card-surface p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-zinc-200">Library &rsaquo; Locations</h3>
+          <div class="inline-flex rounded-md overflow-hidden border border-zinc-700"><button class="toggle-inactive px-3 py-1.5 text-xs">List</button><button class="toggle-active px-3 py-1.5 text-xs">Table</button></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-zinc-800 text-left text-zinc-400 font-medium"><th class="py-2 px-3 w-14"></th><th class="py-2 px-3">Name</th><th class="py-2 px-3">Address</th><th class="py-2 px-3">City</th><th class="py-2 px-3">Contact</th><th class="py-2 px-3">Projects</th><th class="py-2 px-3 w-10"></th></tr></thead>
+            <tbody>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="thumb">&#x1F4CD;</div></td><td class="py-2.5 px-3 font-medium">Stackt Market</td><td class="py-2.5 px-3 text-zinc-400">28 Bathurst St</td><td class="py-2.5 px-3 text-zinc-300">Toronto</td><td class="py-2.5 px-3 text-zinc-400">416-555-0100</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">2</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="thumb">&#x1F4CD;</div></td><td class="py-2.5 px-3 font-medium">Pinewood Toronto Studios</td><td class="py-2.5 px-3 text-zinc-400">225 Commissioners St</td><td class="py-2.5 px-3 text-zinc-300">Toronto</td><td class="py-2.5 px-3 text-zinc-400">416-555-0200</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">4</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="thumb">&#x1F4CD;</div></td><td class="py-2.5 px-3 font-medium">Distillery District</td><td class="py-2.5 px-3 text-zinc-400">55 Mill St</td><td class="py-2.5 px-3 text-zinc-300">Toronto</td><td class="py-2.5 px-3 text-zinc-400">416-555-0300</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">3</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row border-b border-zinc-800/50 cursor-pointer"><td class="py-2.5 px-3"><div class="thumb">&#x1F4CD;</div></td><td class="py-2.5 px-3 font-medium">9 Davies Avenue Studio</td><td class="py-2.5 px-3 text-zinc-400">9 Davies Ave</td><td class="py-2.5 px-3 text-zinc-300">Toronto</td><td class="py-2.5 px-3 text-zinc-400">416-555-0400</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">5</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+              <tr class="table-row cursor-pointer"><td class="py-2.5 px-3"><div class="thumb">&#x1F4CD;</div></td><td class="py-2.5 px-3 font-medium">Trinity Bellwoods Park</td><td class="py-2.5 px-3 text-zinc-400">790 Queen St W</td><td class="py-2.5 px-3 text-zinc-300">Toronto</td><td class="py-2.5 px-3 text-zinc-400">&mdash;</td><td class="py-2.5 px-3"><span class="badge bg-zinc-700 text-zinc-300">1</span></td><td class="py-2.5 px-3 text-zinc-500">&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW CONSOLIDATION -->
+    <section class="space-y-4">
+      <p class="label-meta">Feature 3</p>
+      <h2 class="heading-page">Shot View Consolidation</h2>
+      <p class="text-sm text-zinc-400">Merge Gallery + Visual into one Card view with Display Settings. 3 views &rarr; 2.</p>
+      <div class="callout callout-amber"><p class="text-sm text-amber-200"><strong>Problem:</strong> Gallery and Visual are nearly identical card views. The only difference is which properties show. One configurable Card view replaces both.</p></div>
+      <p class="label-meta mt-6">Before &mdash; 3 views</p>
+      <div class="card-surface p-4"><div class="inline-flex rounded-md overflow-hidden border border-zinc-700"><button class="toggle-active px-3 py-1.5 text-xs">Gallery</button><button class="toggle-inactive px-3 py-1.5 text-xs">Visual</button><button class="toggle-inactive px-3 py-1.5 text-xs">Table</button></div><span class="text-xs text-zinc-500 ml-3">Gallery and Visual are near-duplicates</span></div>
+      <p class="label-meta mt-6">After &mdash; 2 views with property toggles</p>
+      <div class="card-surface p-4 space-y-4">
+        <div class="flex items-center gap-2">
+          <div class="inline-flex rounded-md overflow-hidden border border-zinc-700"><button class="toggle-active px-3 py-1.5 text-xs">Card</button><button class="toggle-inactive px-3 py-1.5 text-xs">Table</button></div>
+          <div class="relative ml-auto"><button class="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-700 rounded-md">&#9881; Display</button>
+            <div class="popover absolute right-0 top-10 w-52 p-3 space-y-1.5 z-10">
+              <p class="text-xs font-semibold text-zinc-300 mb-2">Visible Properties</p>
+              <label class="flex items-center gap-2 text-xs text-zinc-300"><span class="check-box checked"></span> Thumbnail</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300"><span class="check-box checked"></span> Shot Number</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300"><span class="check-box checked"></span> Status Badge</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-400"><span class="check-box"></span> Description</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-400"><span class="check-box"></span> Tags</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-300"><span class="check-box checked"></span> Products</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-400"><span class="check-box"></span> Talent</label>
+              <label class="flex items-center gap-2 text-xs text-zinc-400"><span class="check-box"></span> Location</label>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="card-surface p-3 space-y-2"><div class="bg-zinc-800 rounded h-28 flex items-center justify-center text-zinc-600 text-xs">Hero Image</div><div class="flex items-center justify-between"><span class="text-xs text-zinc-400">SH-001</span><span class="badge bg-zinc-700 text-zinc-300">Draft</span></div><p class="text-sm font-medium">Long Sleeve Merino Crew</p><p class="text-xs text-zinc-500">2 products</p></div>
+          <div class="card-surface p-3 space-y-2"><div class="bg-zinc-800 rounded h-28 flex items-center justify-center text-zinc-600 text-xs">Hero Image</div><div class="flex items-center justify-between"><span class="text-xs text-zinc-400">SH-002</span><span class="badge bg-blue-500/20 text-blue-300">In Progress</span></div><p class="text-sm font-medium">Travel Pants Slim Fit</p><p class="text-xs text-zinc-500">1 product</p></div>
+          <div class="card-surface p-3 space-y-2"><div class="bg-zinc-800 rounded h-28 flex items-center justify-center text-zinc-600 text-xs">Hero Image</div><div class="flex items-center justify-between"><span class="text-xs text-zinc-400">SH-005</span><span class="badge bg-zinc-700 text-zinc-300">Draft</span></div><p class="text-sm font-medium">Merino V-Neck Tee</p><p class="text-xs text-zinc-500">3 products</p></div>
+          <div class="card-surface p-3 space-y-2"><div class="bg-zinc-800 rounded h-28 flex items-center justify-center text-zinc-600 text-xs">Hero Image</div><div class="flex items-center justify-between"><span class="text-xs text-zinc-400">SH-008</span><span class="badge bg-green-500/20 text-green-300">Shot</span></div><p class="text-sm font-medium">Lightweight Hoodie</p><p class="text-xs text-zinc-500">1 product</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SKU SELECTION -->
+    <section class="space-y-4">
+      <p class="label-meta">Feature 4</p>
+      <h2 class="heading-page">SKU-Level Readiness Selection</h2>
+      <p class="text-sm text-zinc-400">Expand product families to select individual colorways for shot generation.</p>
+      <div class="callout"><p class="text-sm text-blue-200"><strong>Problem:</strong> Users can only add entire product families. They need to pick specific colorways for targeted shot lists.</p></div>
+      <p class="label-meta mt-4">Collapsed</p>
+      <div class="card-surface p-4 flex items-center gap-3">
+        <div class="thumb">IMG</div>
+        <div class="flex-1"><div class="flex items-center gap-2"><span class="text-sm font-medium">Long Sleeve Merino Crew</span><span class="badge bg-blue-500/20 text-blue-300">Men</span></div><p class="text-xs text-zinc-500">Launch: Mar 15 &middot; 6 colorways</p></div>
+        <span class="badge bg-red-600 text-white">OVERDUE</span>
+        <span class="text-zinc-500 text-lg">&#x25B8;</span>
+      </div>
+      <p class="label-meta mt-4">Expanded</p>
+      <div class="card-surface overflow-hidden">
+        <div class="p-4 flex items-center gap-3 border-b border-zinc-800">
+          <div class="thumb">IMG</div>
+          <div class="flex-1"><div class="flex items-center gap-2"><span class="text-sm font-medium">Long Sleeve Merino Crew</span><span class="badge bg-blue-500/20 text-blue-300">Men</span></div><p class="text-xs text-zinc-500">Launch: Mar 15 &middot; 6 colorways</p></div>
+          <span class="badge bg-red-600 text-white">OVERDUE</span>
+          <span class="text-zinc-400 text-lg">&#x25BE;</span>
+        </div>
+        <div class="bg-zinc-900/50 px-4">
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box checked"></span><div class="w-6 h-6 rounded-full bg-zinc-900 border border-zinc-700"></div><span class="text-sm flex-1">Black</span><span class="text-xs text-zinc-500 font-mono">(0101)</span></div>
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box checked"></span><div class="w-6 h-6 rounded-full bg-blue-950 border border-zinc-700"></div><span class="text-sm flex-1">Navy</span><span class="text-xs text-zinc-500 font-mono">(0305)</span></div>
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box"></span><div class="w-6 h-6 rounded-full bg-zinc-600 border border-zinc-700"></div><span class="text-sm flex-1">Charcoal</span><span class="text-xs text-zinc-500 font-mono">(0202)</span></div>
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box checked"></span><div class="w-6 h-6 rounded-full bg-amber-100 border border-zinc-700"></div><span class="text-sm flex-1">Oatmeal</span><span class="text-xs text-zinc-500 font-mono">(0401)</span></div>
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box"></span><div class="w-6 h-6 rounded-full bg-red-950 border border-zinc-700"></div><span class="text-sm flex-1">Burgundy</span><span class="text-xs text-zinc-500 font-mono">(0503)</span></div>
+          <div class="sku-row flex items-center gap-3 py-2.5 pl-12"><span class="check-box"></span><div class="w-6 h-6 rounded-full bg-green-950 border border-zinc-700"></div><span class="text-sm flex-1">Forest Green</span><span class="text-xs text-zinc-500 font-mono">(0604)</span></div>
+        </div>
+        <div class="p-3 border-t border-zinc-800 flex items-center justify-between bg-zinc-900/30">
+          <span class="text-xs text-zinc-500">3 of 6 colorways selected</span>
+          <button class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-md">Add 3 selected to project</button>
+        </div>
+      </div>
+      <div class="callout mt-4"><p class="text-sm text-blue-200"><strong>Implementation:</strong> Reuses existing <code class="bg-blue-900/40 px-1 rounded text-xs">BulkAddToProjectDialog</code> granularity toggle and <code class="bg-blue-900/40 px-1 rounded text-xs">useProductSelection</code> hook. Colorway swatches use SKU <code class="bg-blue-900/40 px-1 rounded text-xs">colorHex</code> field.</p></div>
+    </section>
+
+    <footer class="pt-8 border-t border-zinc-800 text-center"><p class="text-xs text-zinc-600">Sprint S15b Mockup &middot; Production Hub &middot; 2026-04-01</p></footer>
+  </div>
+</body>
+</html>
