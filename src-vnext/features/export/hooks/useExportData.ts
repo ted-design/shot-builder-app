@@ -27,8 +27,10 @@ export interface ExportData {
 
 /**
  * Aggregation hook that subscribes to all data the export builder needs.
- * Calls existing hooks unconditionally — Firebase caches aggressively
- * and subscriptions auto-detach on unmount.
+ * Opens 6 concurrent Firestore subscriptions (project, shots, products,
+ * pulls, crew, talent). All use onSnapshot and auto-detach on unmount.
+ * Firebase reuses the websocket and caches aggressively, so the overhead
+ * is acceptable — matches the CallSheetBuilderPage pattern.
  */
 export function useExportData(): ExportData {
   const { projectId } = useProjectScope()

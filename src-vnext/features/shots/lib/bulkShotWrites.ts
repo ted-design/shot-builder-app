@@ -48,6 +48,8 @@ function buildShotDescription(item: BulkShotItem): string {
   return item.skuName ?? ""
 }
 
+/** Map raw gender values to tag labels. Returns null for unrecognized
+ *  values (e.g. "Kids", "Boys") — those intentionally get no tag. */
 function normalizeGenderLabel(gender: string): string | null {
   switch (gender.toLowerCase()) {
     case "men":

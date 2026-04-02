@@ -75,6 +75,8 @@ export function BulkAddToProjectDialog({
   )
   const [loading, setLoading] = useState(false)
 
+  // Legacy projects without an explicit status field default to "active" in
+  // the mapProject mapper. The ?? fallback here is intentional compat handling.
   const activeProjects = useMemo(
     () =>
       projects.filter(

@@ -19,7 +19,14 @@ export async function resolveExportImages(
     }
   }
 
-  // Collect hero images from shots (for shot-detail blocks)
+  // Collect hero images for shot-detail and shot-grid blocks
+  const hasShotGrid = blocks.some((b) => b.type === "shot-grid")
+  if (hasShotGrid) {
+    // Shot-grid may render thumbnails — pre-resolve all shot hero images
+    for (const shot of data.shots) {
+      if (shot.heroImage?.path) urls.add(shot.heroImage.path)
+    }
+  }
   for (const block of blocks) {
     if (block.type === "shot-detail") {
       const shot = block.shotId
