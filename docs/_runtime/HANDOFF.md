@@ -1,48 +1,42 @@
-# HANDOFF — Sprint S18 Complete (2026-04-02)
+# HANDOFF — Sprint S19 In Progress (2026-04-02)
 
 ## State
-S18 (S18a+S18b+S18c) fully complete. PR #380 merged to main. Firebase rules, storage, and index exemptions deployed.
+S19 implementation complete. Build clean, lint zero, 150 test files / 1573 tests pass. Pending: code review resolution, Codex validation, visual browser verification.
 
-## What Was Built (16 phases, 72 files, +6,003 / -4,129)
+## What Was Built (2 features, 5 new files, 15 modified files)
 
-### S18a: Core Export Builder Overhaul (Phases 0-9)
-- Foundation cleanup: bug fixes, dedup, CSS tokens, shared resolvers
-- HStack column layout with drag-to-resize (Saturation's standout feature)
-- Palette-to-canvas drag & drop with drop zone indicators
-- Image upload (Firebase Storage, WebP compression, click/drag)
-- Rich text editing (FloatingTextToolbar, contentEditable, HTML→PDF)
-- Full settings panels for all 9 block types
-- Page management (add/duplicate/delete) + zoom 50-150%
-- Export entry point consolidation (dialogs deleted, single builder page)
-- UX audit: standardized view modes, loading spinner
-- Multi-report per project (Firestore persistence, report selector)
+### Feature 1: Per-Colorway Launch Dates
+- **Per-SKU date editing in Colorways section** — `InlineDateField` wired to each `ProductSkuCard` with compact mode. Shows "Family" or "Custom" label, overdue/soon badges.
+- **Per-SKU date editing in Requirements section** — `InlineDateField` wired to each `SkuRequirementsRow` with full edit mode.
+- **"Apply to all colorways" checkbox** — When editing the family-level launch date in `ProductLaunchDateField`, a checkbox appears: "Apply to all N colorways". Checked = batch updates family + all SKUs atomically via `writeBatch`.
+- **`earliestLaunchDate` denormalization fix** — `updateProductSkuLaunchDateWithSync()` batches the SKU write + family `earliestLaunchDate` recomputation in a single `writeBatch`. Prevents shoot readiness from showing stale data.
 
-### S18b: Polish (Phases A-F)
-- Block controls: inline delete/duplicate, keyboard shortcuts, context menu
-- Block styling system: per-block padding/border/background
-- Text customization: font picker, color picker, highlight, paragraph type
-- Image resize handles (drag-to-resize with width tooltip)
-- Auto-column creation (drag blocks left/right to wrap in HStack)
-- SetHero-style column width presets (XS/S/M/L/XL/Auto)
+### Feature 2: Product Version Tracking
+- **`ProductVersion` type** with `fieldChanges` array storing structured before→after values per field (enhancement over shot versioning which only stores field names).
+- **`productVersioning.ts`** library mirroring `shotVersioning.ts` — `createProductVersionSnapshot()`, `restoreProductVersion()`, `buildFieldChanges()`, `humanizeFieldLabel()`.
+- **`useProductVersions` hook** — lazy-load subscription to `productFamilyVersionsPath`, limit 25.
+- **`ProductVersionHistorySection` UI** — collapsible panel in Activity tab showing who changed what with before→after values (e.g., "Launch Date: Apr 5 → Apr 10"). Restore capability: admin/producer only, desktop-only.
+- **Version snapshots wired into all product write paths** — `updateProductFamilyLaunchDate`, `updateProductSkuLaunchDateWithSync`, `updateProductSkuAssetRequirements`, `applyLaunchDateToAllSkus`, `createProductFamilyWithSkus`, `updateProductFamilyWithSkus`. All best-effort, fire-and-forget.
 
-### S18c: Zero Tech Debt (5 deferred issues fixed)
-- Multi-page Firestore persistence (pages array, v1→v2 schema migration)
-- Page-aware operations (activePageId replaces 7x pages[0] hardcoding)
-- Layout WYSIWYG fix (removed hardcoded padding, defaults in buildLayoutStyle)
-- Render tokens in rich text PDF (token-first decision logic)
-- Shared ColumnTableSettings (140 lines of duplication eliminated)
-- PR review fixes: drop-gap page scoping, product table keys, preset query params
+## Deployment
+- No Firestore rules changes needed (version subcollection rules already exist)
+- No new collections or fields (all existed in types/rules)
+- No new npm dependencies
 
-## Deployment (Complete)
-- [x] PR #380 merged to main
-- [x] `firebase deploy --only firestore:rules` (exportReports subcollection)
-- [x] `firebase deploy --only storage` (export-images path)
-- [x] `firebase deploy --only firestore:indexes` (4 field exemptions)
+## Verification Status
+- [x] Code review findings resolved (4 fixes: batch guard, dedup timestampToInputValue, restore dialog copy, formatFieldValue Timestamp handling)
+- [x] Codex CLI validation — BLOCKED: ChatGPT account does not support any Codex models (gpt-5.4-high, o4-mini all rejected). Code review by claude code-reviewer agent completed instead (zero CRITICAL, 1 HIGH fixed, 4 MEDIUM fixed).
+- [x] Visual verification in browser — all features confirmed working:
+  - Per-SKU launch date editing in Colorways section (compact InlineDateField)
+  - Per-SKU launch date editing in Requirements section (full InlineDateField)
+  - "Apply to all 4 colorways" checkbox on family launch date
+  - Version history showing "Black: Launch Date: — → May 15, 2026" with user attribution
+  - Restore button visible for admin on desktop
+- [x] CLAUDE.md updated with S19 infrastructure notes (Section 10)
 
 ## What's Next
-- S19 backlog: Canvas image editor (Fabric.js vs Konva.js)
-- Visual verification of the full export builder in browser
-- Monitor for any runtime issues with the new Firestore subcollection
+- [ ] Codex CLI validation (pending)
+- [ ] Update Plan.md with S19 checkboxes
 
 ## To Resume
 Read this file, then `CHECKPOINT.md`, then `CLAUDE.md` Hard Rule #6b (no deferring).

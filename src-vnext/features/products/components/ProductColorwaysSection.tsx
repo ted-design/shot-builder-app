@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { ProductFamily, ProductSku } from "@/shared/types"
+import type { AuthUser, ProductFamily, ProductSku } from "@/shared/types"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { ProductSkuCard } from "@/features/products/components/ProductSkuCard"
@@ -23,6 +23,7 @@ interface ProductColorwaysSectionProps {
   readonly isFamilyDeleted: boolean
   readonly clientId: string | null
   readonly userId: string | null
+  readonly user?: AuthUser
   readonly onAddColorway?: () => void
 }
 
@@ -35,6 +36,7 @@ export function ProductColorwaysSection({
   isFamilyDeleted,
   clientId,
   userId,
+  user,
   onAddColorway,
 }: ProductColorwaysSectionProps) {
   const [bulkOpen, setBulkOpen] = useState(false)
@@ -152,6 +154,9 @@ export function ProductColorwaysSection({
               clientId={clientId}
               userId={userId}
               familyId={family.id}
+              allSkus={activeSkus}
+              family={family}
+              user={user}
             />
           ))}
         </div>

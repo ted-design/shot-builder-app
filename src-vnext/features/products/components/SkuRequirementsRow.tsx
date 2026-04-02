@@ -1,7 +1,8 @@
 import type { Timestamp } from "firebase/firestore"
-import type { ProductAssetFlag, ProductAssetRequirements, ProductSku } from "@/shared/types"
-import { ASSET_TYPES, LEGACY_ASSET_TYPES, ASSET_FLAG_OPTIONS, formatLaunchDate } from "@/features/products/lib/assetRequirements"
-import { updateProductSkuAssetRequirements } from "@/features/products/lib/productWorkspaceWrites"
+import type { AuthUser, ProductAssetFlag, ProductAssetRequirements, ProductFamily, ProductSku } from "@/shared/types"
+import { ASSET_TYPES, LEGACY_ASSET_TYPES, ASSET_FLAG_OPTIONS } from "@/features/products/lib/assetRequirements"
+import { updateProductSkuAssetRequirements, updateProductSkuLaunchDateWithSync } from "@/features/products/lib/productWorkspaceWrites"
+import { InlineDateField } from "@/features/products/components/InlineDateField"
 import { toast } from "@/shared/hooks/use-toast"
 import { AssetRequirementChip } from "@/features/products/components/AssetRequirementChip"
 import { AddRequirementPopover } from "@/features/products/components/AddRequirementPopover"
@@ -19,6 +20,9 @@ interface SkuRequirementsRowProps {
   readonly clientId: string | null
   readonly userId: string | null
   readonly familyId: string
+  readonly allSkus?: ReadonlyArray<ProductSku>
+  readonly family?: ProductFamily
+  readonly user?: AuthUser
 }
 
 function resolveChipEntries(
@@ -57,6 +61,9 @@ export function SkuRequirementsRow({
   clientId,
   userId,
   familyId,
+  allSkus,
+  family,
+  user,
 }: SkuRequirementsRowProps) {
   const chipEntries = resolveChipEntries(sku.assetRequirements)
   const usedKeys = resolveUsedKeys(sku.assetRequirements)
@@ -127,19 +134,49 @@ export function SkuRequirementsRow({
     }
   }
 
-  const launchDateDisplay = (() => {
+  const launchDateSection = (() => {
+    if (canEdit && clientId && allSkus) {
+      const hasCustom = sku.launchDate != null
+      return (
+        <InlineDateField
+          value={sku.launchDate ?? familyLaunchDate ?? null}
+          onChange={async (date) => {
+            await updateProductSkuLaunchDateWithSync({
+              clientId,
+              familyId,
+              skuId: sku.id,
+              userId,
+              launchDate: date,
+              familyLaunchDate,
+              allSkus,
+              previousSku: sku,
+              previousFamily: family,
+              user,
+            })
+          }}
+          canEdit
+          label={hasCustom ? "Custom" : "Family"}
+        />
+      )
+    }
     if (sku.launchDate) {
       return (
-        <span className="text-2xs text-[var(--color-text)]">
-          Custom: {formatLaunchDate(sku.launchDate)}
-        </span>
+        <InlineDateField
+          value={sku.launchDate}
+          onChange={async () => {}}
+          canEdit={false}
+          label="Custom"
+        />
       )
     }
     if (familyLaunchDate) {
       return (
-        <span className="text-2xs text-[var(--color-text-muted)]">
-          Family: {formatLaunchDate(familyLaunchDate)}
-        </span>
+        <InlineDateField
+          value={familyLaunchDate}
+          onChange={async () => {}}
+          canEdit={false}
+          label="Family"
+        />
       )
     }
     return <span className="text-2xs text-[var(--color-text-muted)]">&mdash;</span>
@@ -147,7 +184,7 @@ export function SkuRequirementsRow({
 
   return (
     <div className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
             className={cn(
@@ -158,7 +195,7 @@ export function SkuRequirementsRow({
           />
           <span className="text-sm font-medium text-[var(--color-text)]">{colorName}</span>
         </div>
-        {launchDateDisplay}
+        {launchDateSection}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {chipEntries.map((entry) => (

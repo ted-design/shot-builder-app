@@ -179,6 +179,32 @@ export interface ShotVersion {
   readonly changedFields?: ReadonlyArray<string>
 }
 
+// --- Product Versioning ---
+
+export type ProductVersionChangeType = "create" | "update" | "rollback"
+
+export interface ProductVersionFieldChange {
+  readonly field: string
+  readonly label: string
+  readonly previousValue: unknown
+  readonly currentValue: unknown
+}
+
+export interface ProductVersion {
+  readonly id: string
+  readonly snapshot: Record<string, unknown>
+  readonly skuSnapshots?: Record<string, Record<string, unknown>>
+  readonly fieldChanges?: ReadonlyArray<ProductVersionFieldChange>
+  readonly createdAt?: Timestamp
+  readonly createdBy?: string
+  readonly createdByName?: string | null
+  readonly createdByAvatar?: string | null
+  readonly changeType?: ProductVersionChangeType
+  readonly changedFields?: ReadonlyArray<string>
+  readonly targetSkuId?: string | null
+  readonly targetSkuLabel?: string | null
+}
+
 export type PullFirestoreStatus = "draft" | "published" | "in-progress" | "fulfilled"
 
 export type FulfillmentFirestoreStatus =

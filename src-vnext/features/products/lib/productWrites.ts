@@ -13,7 +13,8 @@ import { deleteObject, ref as storageRef, uploadBytes } from "firebase/storage"
 import { db, storage } from "@/shared/lib/firebase"
 import { productFamiliesPath, productFamilySkusPath } from "@/shared/lib/paths"
 import { compressImageToWebp } from "@/shared/lib/uploadImage"
-import type { ProductFamily, ProductSku } from "@/shared/types"
+import { createProductVersionSnapshot } from "@/features/products/lib/productVersioning"
+import type { AuthUser, ProductFamily, ProductSku } from "@/shared/types"
 
 const ACTIVE_SKU_STATUSES = new Set(["active", "phasing_out", "coming_soon"])
 
@@ -119,8 +120,9 @@ export async function createProductFamilyWithSkus(args: {
   readonly userId: string | null
   readonly family: ProductFamilyDraft
   readonly skus: ReadonlyArray<ProductSkuDraft>
+  readonly user?: AuthUser
 }): Promise<string> {
-  const { clientId, userId, family, skus } = args
+  const { clientId, userId, family, skus, user } = args
   const trimmedName = family.styleName.trim()
   if (!trimmedName) throw new Error("Style name is required.")
   const usableSkus = skus
@@ -227,6 +229,29 @@ export async function createProductFamilyWithSkus(args: {
     })
   }
 
+  // Best-effort version snapshot for creation
+  if (user) {
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily: null,
+      familyPatch: {
+        styleName: trimmedName,
+        styleNumber: family.styleNumber.trim() || null,
+        gender: family.gender.trim() || "",
+        productType: family.productType.trim() || null,
+        productSubcategory: family.productSubcategory.trim() || null,
+        status: family.status.trim() || "active",
+        archived: Boolean(family.archived),
+        notes: family.notes.trim() || null,
+      },
+      user,
+      changeType: "create",
+    }).catch((err) => {
+      console.error("[createProductFamilyWithSkus] Version snapshot failed:", err)
+    })
+  }
+
   return familyId
 }
 
@@ -237,8 +262,10 @@ export async function updateProductFamilyWithSkus(args: {
   readonly family: ProductFamilyDraft
   readonly skus: ReadonlyArray<ProductSkuDraft>
   readonly existingSkus: ReadonlyArray<ProductSku>
+  readonly existingFamily?: ProductFamily
+  readonly user?: AuthUser
 }): Promise<void> {
-  const { clientId, userId, familyId, family, skus, existingSkus } = args
+  const { clientId, userId, familyId, family, skus, existingSkus, existingFamily, user } = args
   const trimmedName = family.styleName.trim()
   if (!trimmedName) throw new Error("Style name is required.")
   const usableSkus = skus.map((s) => ({ ...s, colorName: s.colorName.trim() }))
@@ -376,6 +403,30 @@ export async function updateProductFamilyWithSkus(args: {
         updatedBy: userId,
       })
     }
+  }
+
+  // Best-effort version snapshot for update
+  if (existingFamily && user) {
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily: existingFamily,
+      familyPatch: {
+        styleName: trimmedName,
+        styleNumber: family.styleNumber.trim() || null,
+        previousStyleNumber: family.previousStyleNumber.trim() || null,
+        gender: family.gender.trim() || "",
+        productType: family.productType.trim() || null,
+        productSubcategory: family.productSubcategory.trim() || null,
+        status: family.status.trim() || "active",
+        archived: Boolean(family.archived),
+        notes: family.notes.trim() || null,
+      },
+      user,
+      changeType: "update",
+    }).catch((err) => {
+      console.error("[updateProductFamilyWithSkus] Version snapshot failed:", err)
+    })
   }
 }
 

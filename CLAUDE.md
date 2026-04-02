@@ -141,6 +141,14 @@ Phase order is the default. Override when reality demands it:
 - **Call sheet improvements:** Section toggles (show/hide via Switch), per-field customization (`EditSectionFieldsDialog` with rename/reorder/resize/toggle), layout templates (3 built-in + user-saved via `CallSheetLayoutDialog`). Field configs persist to Firestore via `callSheetConfig`.
 - **Bulk shot delete:** `bulkSoftDeleteShots()` in `shotLifecycleActions.ts`. Uses `writeBatch` chunked at 250, capped at `MAX_BULK_DELETE=500`. Typed "DELETE" confirmation dialog in `ShotListPage.tsx` bulk action bar.
 
+### 10. Sprint S19 New Infrastructure
+
+- **Per-colorway launch dates:** `updateProductSkuLaunchDateWithSync()` in `productWorkspaceWrites.ts` batches the SKU `launchDate` write + family `earliestLaunchDate` recomputation in a single `writeBatch`. `applyLaunchDateToAllSkus()` batch-writes the family + all SKU docs (capped at 498 SKUs). Both use `resolveEarliestLaunchDate()` from `assetRequirements.ts`.
+- **Product version tracking:** `productVersioning.ts` mirrors `shotVersioning.ts` pattern. `ProductVersion` type extends `ShotVersion` with `fieldChanges: ProductVersionFieldChange[]` (before→after per field) and `skuSnapshots` (sparse map of changed SKUs). Path builder: `productFamilyVersionsPath(familyId, clientId)`. Firestore rules already existed at `firestore.rules:402-408` (CREATE only, immutable).
+- **Version history UI:** `ProductVersionHistorySection.tsx` in the Activity tab. Collapsible, lazy-load via `useProductVersions`. Shows "Jessica changed Launch Date from Apr 5 to Apr 10" level detail. Restore: admin/producer only, desktop-only, family-level fields only (not per-SKU).
+- **All version writes are best-effort:** Pattern: `void createProductVersionSnapshot({...}).catch(err => console.error(...))`. Never blocks core writes.
+- **Shared utility:** `timestampToInputValue()` in `productDetailHelpers.ts` — converts Firestore Timestamp to `YYYY-MM-DD` string for HTML date inputs.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.

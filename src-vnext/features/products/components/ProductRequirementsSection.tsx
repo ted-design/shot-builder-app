@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react"
-import type { ProductFamily, ProductSku, ProductSample, ProductAssetType, ProductAssetFlag } from "@/shared/types"
+import type { AuthUser, ProductFamily, ProductSku, ProductSample, ProductAssetType, ProductAssetFlag } from "@/shared/types"
 import { ASSET_TYPES, ASSET_FLAG_OPTIONS, summarizeSkuAssetFlags } from "@/features/products/lib/assetRequirements"
 import { ProductLaunchDateField } from "@/features/products/components/ProductLaunchDateField"
 import { SkuRequirementsRow } from "@/features/products/components/SkuRequirementsRow"
@@ -63,6 +63,7 @@ interface ProductRequirementsSectionProps {
   readonly clientId: string | null
   readonly userId: string | null
   readonly isFamilyDeleted: boolean
+  readonly user?: AuthUser
 }
 
 export function ProductRequirementsSection({
@@ -73,6 +74,7 @@ export function ProductRequirementsSection({
   clientId,
   userId,
   isFamilyDeleted,
+  user,
 }: ProductRequirementsSectionProps) {
   const editEnabled = canEdit && !isFamilyDeleted && !!clientId
   const summary = useMemo(() => summarizeSkuAssetFlags(activeSkus), [activeSkus])
@@ -165,6 +167,11 @@ export function ProductRequirementsSection({
             userId={userId}
             launchDate={family.launchDate}
             canEdit={editEnabled}
+            skuIds={activeSkus.map((s) => s.id)}
+            skuCount={activeSkus.length}
+            allSkus={activeSkus}
+            previousFamily={family}
+            user={user}
           />
         </div>
       </div>
@@ -213,6 +220,9 @@ export function ProductRequirementsSection({
               clientId={clientId}
               userId={userId}
               familyId={family.id}
+              allSkus={activeSkus}
+              family={family}
+              user={user}
             />
           ))}
         </div>

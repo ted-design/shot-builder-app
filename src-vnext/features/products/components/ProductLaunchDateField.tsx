@@ -1,11 +1,13 @@
 import { useState } from "react"
 import type { Timestamp } from "firebase/firestore"
-import { parseDateInput } from "@/features/products/lib/productDetailHelpers"
+import type { AuthUser, ProductFamily, ProductSku } from "@/shared/types"
+import { parseDateInput, timestampToInputValue } from "@/features/products/lib/productDetailHelpers"
 import { formatLaunchDate, getLaunchDeadlineWarning } from "@/features/products/lib/assetRequirements"
-import { updateProductFamilyLaunchDate } from "@/features/products/lib/productWorkspaceWrites"
+import { updateProductFamilyLaunchDate, applyLaunchDateToAllSkus } from "@/features/products/lib/productWorkspaceWrites"
 import { toast } from "@/shared/hooks/use-toast"
 import { CalendarDays, Pencil, X } from "lucide-react"
 import { Button } from "@/ui/button"
+import { Checkbox } from "@/ui/checkbox"
 
 interface ProductLaunchDateFieldProps {
   readonly familyId: string
@@ -13,19 +15,11 @@ interface ProductLaunchDateFieldProps {
   readonly userId: string | null
   readonly launchDate: Timestamp | null | undefined
   readonly canEdit: boolean
-}
-
-function timestampToInputValue(ts: Timestamp | null | undefined): string {
-  if (!ts) return ""
-  try {
-    const d = ts.toDate()
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, "0")
-    const day = String(d.getDate()).padStart(2, "0")
-    return `${y}-${m}-${day}`
-  } catch {
-    return ""
-  }
+  readonly skuIds?: ReadonlyArray<string>
+  readonly skuCount?: number
+  readonly allSkus?: ReadonlyArray<ProductSku>
+  readonly previousFamily?: ProductFamily
+  readonly user?: AuthUser
 }
 
 export function ProductLaunchDateField({
@@ -34,10 +28,16 @@ export function ProductLaunchDateField({
   userId,
   launchDate,
   canEdit,
+  skuIds,
+  skuCount,
+  allSkus,
+  previousFamily,
+  user,
 }: ProductLaunchDateFieldProps) {
   const [editing, setEditing] = useState(false)
   const [inputValue, setInputValue] = useState(() => timestampToInputValue(launchDate))
   const [saving, setSaving] = useState(false)
+  const [applyToAll, setApplyToAll] = useState(false)
 
   const warning = getLaunchDeadlineWarning(launchDate)
 
@@ -46,8 +46,34 @@ export function ProductLaunchDateField({
     const parsed = inputValue.trim() ? parseDateInput(inputValue) : null
     setSaving(true)
     try {
-      await updateProductFamilyLaunchDate({ clientId, familyId, userId, launchDate: parsed })
+      if (applyToAll && skuIds && skuIds.length > 0) {
+        await applyLaunchDateToAllSkus({
+          clientId,
+          familyId,
+          skuIds,
+          userId,
+          launchDate: parsed,
+          previousFamily,
+          previousSkus: allSkus,
+          user,
+        })
+        toast({
+          title: "Launch date applied",
+          description: `Updated family and ${skuIds.length} colorway${skuIds.length === 1 ? "" : "s"}.`,
+        })
+      } else {
+        await updateProductFamilyLaunchDate({
+          clientId,
+          familyId,
+          userId,
+          launchDate: parsed,
+          allSkus,
+          previousFamily,
+          user,
+        })
+      }
       setEditing(false)
+      setApplyToAll(false)
     } catch (err) {
       toast({
         title: "Save failed",
@@ -62,9 +88,35 @@ export function ProductLaunchDateField({
     if (!clientId) return
     setSaving(true)
     try {
-      await updateProductFamilyLaunchDate({ clientId, familyId, userId, launchDate: null })
+      if (applyToAll && skuIds && skuIds.length > 0) {
+        await applyLaunchDateToAllSkus({
+          clientId,
+          familyId,
+          skuIds,
+          userId,
+          launchDate: null,
+          previousFamily,
+          previousSkus: allSkus,
+          user,
+        })
+        toast({
+          title: "Launch date cleared",
+          description: `Cleared family and ${skuIds.length} colorway${skuIds.length === 1 ? "" : "s"}.`,
+        })
+      } else {
+        await updateProductFamilyLaunchDate({
+          clientId,
+          familyId,
+          userId,
+          launchDate: null,
+          allSkus,
+          previousFamily,
+          user,
+        })
+      }
       setInputValue("")
       setEditing(false)
+      setApplyToAll(false)
     } catch (err) {
       toast({
         title: "Clear failed",
@@ -77,33 +129,48 @@ export function ProductLaunchDateField({
 
   if (editing && canEdit) {
     return (
-      <div className="flex items-center gap-2">
-        <input
-          type="date"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-text)]"
-          disabled={saving}
-        />
-        <Button size="sm" variant="outline" disabled={saving} onClick={() => void handleSave()}>
-          Save
-        </Button>
-        {launchDate && (
-          <Button size="sm" variant="ghost" disabled={saving} onClick={() => void handleClear()}>
-            <X className="h-3 w-3" />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-text)]"
+            disabled={saving}
+          />
+          <Button size="sm" variant="outline" disabled={saving} onClick={() => void handleSave()}>
+            Save
           </Button>
+          {launchDate && (
+            <Button size="sm" variant="ghost" disabled={saving} onClick={() => void handleClear()}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={saving}
+            onClick={() => {
+              setEditing(false)
+              setInputValue(timestampToInputValue(launchDate))
+              setApplyToAll(false)
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+        {skuCount != null && skuCount > 0 && (
+          <label className="flex items-center gap-2">
+            <Checkbox
+              checked={applyToAll}
+              onCheckedChange={(v) => setApplyToAll(v === true)}
+              disabled={saving}
+            />
+            <span className="text-2xs text-[var(--color-text-muted)]">
+              Apply to all {skuCount} colorway{skuCount === 1 ? "" : "s"}
+            </span>
+          </label>
         )}
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={saving}
-          onClick={() => {
-            setEditing(false)
-            setInputValue(timestampToInputValue(launchDate))
-          }}
-        >
-          Cancel
-        </Button>
       </div>
     )
   }
@@ -128,6 +195,7 @@ export function ProductLaunchDateField({
           onClick={() => {
             setInputValue(timestampToInputValue(launchDate))
             setEditing(true)
+            setApplyToAll(false)
           }}
           className="rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
         >

@@ -10,6 +10,7 @@ import { Separator } from "@/ui/separator"
 import { Textarea } from "@/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 import { Activity as ActivityIcon, MessageSquare } from "lucide-react"
+import { ProductVersionHistorySection } from "@/features/products/components/ProductVersionHistorySection"
 
 interface ProductActivitySectionProps {
   readonly family: ProductFamily
@@ -184,6 +185,9 @@ export function ProductActivitySection({
         )}
       </div>
 
+      {/* Version History */}
+      <ProductVersionHistorySection family={family} />
+
       {/* Timeline */}
       <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
@@ -191,7 +195,7 @@ export function ProductActivitySection({
           Timeline
         </div>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Created/updated metadata plus sample/doc activity. (Full version history is planned separately.)
+          Created/updated metadata plus sample/doc activity.
         </p>
 
         <div className="mt-3 flex flex-col gap-2 text-sm">

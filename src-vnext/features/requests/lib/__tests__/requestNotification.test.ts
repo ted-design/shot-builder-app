@@ -48,8 +48,10 @@ describe("submitShotRequest — notification trigger", () => {
       submittedBy: "uid-1",
     })
 
-    // Allow the fire-and-forget promise to settle
-    await new Promise((r) => setTimeout(r, 0))
+    // Flush microtask queue to let the fire-and-forget promise chain settle.
+    // A single setTimeout(0) is unreliable under singleThread pool contention.
+    await new Promise((r) => queueMicrotask(r))
+    await new Promise((r) => queueMicrotask(r))
 
     expect(mockCallFunction).toHaveBeenCalledWith("sendRequestNotification", {
       requestId: "new-req-id",
@@ -102,8 +104,9 @@ describe("submitShotRequest — notification trigger", () => {
       }),
     ).resolves.toBe("new-req-id")
 
-    // Let async rejection settle without unhandled rejection
-    await new Promise((r) => setTimeout(r, 0))
+    // Flush microtask queue to let rejected promise .catch() settle
+    await new Promise((r) => queueMicrotask(r))
+    await new Promise((r) => queueMicrotask(r))
   })
 
   it("returns the new document id", async () => {

@@ -4,7 +4,9 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  Timestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore"
 import { deleteObject, ref as storageRef, uploadBytes } from "firebase/storage"
 import { db, storage } from "@/shared/lib/firebase"
@@ -16,7 +18,16 @@ import {
   productFamilySkusPath,
 } from "@/shared/lib/paths"
 import { compressImageToWebp } from "@/shared/lib/uploadImage"
-import type { ProductAssetRequirements, ProductSampleStatus, ProductSampleType } from "@/shared/types"
+import { resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
+import { createProductVersionSnapshot } from "@/features/products/lib/productVersioning"
+import type {
+  AuthUser,
+  ProductAssetRequirements,
+  ProductFamily,
+  ProductSampleStatus,
+  ProductSampleType,
+  ProductSku,
+} from "@/shared/types"
 
 function cleanFileName(name: string): string {
   const normalized = name.split("/").join("-").split("\\").join("-")
@@ -251,14 +262,37 @@ export async function updateProductFamilyLaunchDate(args: {
   readonly familyId: string
   readonly userId: string | null
   readonly launchDate: Date | null
+  readonly allSkus?: ReadonlyArray<ProductSku>
+  readonly previousFamily?: ProductFamily
+  readonly user?: AuthUser
 }): Promise<void> {
-  const { clientId, familyId, userId, launchDate } = args
+  const { clientId, familyId, userId, launchDate, allSkus, previousFamily, user } = args
   const path = productFamiliesPath(clientId)
+
+  const launchTimestamp = launchDate ? Timestamp.fromDate(launchDate) : null
+  const earliest = allSkus
+    ? resolveEarliestLaunchDate(launchTimestamp, allSkus)
+    : launchTimestamp
+
   await updateDoc(doc(db, path[0]!, ...path.slice(1), familyId), {
     launchDate: launchDate ?? null,
+    earliestLaunchDate: earliest,
     updatedAt: new Date(),
     updatedBy: userId,
   })
+
+  if (previousFamily && user) {
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily,
+      familyPatch: { launchDate: launchDate ?? null },
+      user,
+      changeType: "update",
+    }).catch((err) => {
+      console.error("[updateProductFamilyLaunchDate] Version snapshot failed:", err)
+    })
+  }
 }
 
 export async function updateProductSkuAssetRequirements(args: {
@@ -267,14 +301,36 @@ export async function updateProductSkuAssetRequirements(args: {
   readonly skuId: string
   readonly userId: string | null
   readonly assetRequirements: ProductAssetRequirements
+  readonly previousSku?: ProductSku
+  readonly previousFamily?: ProductFamily
+  readonly user?: AuthUser
 }): Promise<void> {
-  const { clientId, familyId, skuId, userId, assetRequirements } = args
+  const { clientId, familyId, skuId, userId, assetRequirements, previousSku, previousFamily, user } = args
   const path = productFamilySkusPath(familyId, clientId)
   await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
     assetRequirements,
     updatedAt: new Date(),
     updatedBy: userId,
   })
+
+  if (previousSku && previousFamily && user) {
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily,
+      familyPatch: {},
+      user,
+      changeType: "update",
+      skuChanges: [{
+        skuId,
+        skuLabel: previousSku.colorName ?? previousSku.name,
+        previousSku,
+        skuPatch: { assetRequirements },
+      }],
+    }).catch((err) => {
+      console.error("[updateProductSkuAssetRequirements] Version snapshot failed:", err)
+    })
+  }
 }
 
 export async function updateProductSkuLaunchDate(args: {
@@ -291,6 +347,143 @@ export async function updateProductSkuLaunchDate(args: {
     updatedAt: new Date(),
     updatedBy: userId,
   })
+}
+
+export async function updateProductSkuLaunchDateWithSync(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuId: string
+  readonly userId: string | null
+  readonly launchDate: Date | null
+  readonly familyLaunchDate: Timestamp | null | undefined
+  readonly allSkus: ReadonlyArray<ProductSku>
+  readonly previousSku?: ProductSku
+  readonly previousFamily?: ProductFamily
+  readonly user?: AuthUser
+}): Promise<void> {
+  const {
+    clientId, familyId, skuId, userId, launchDate,
+    familyLaunchDate, allSkus, previousSku, previousFamily, user,
+  } = args
+
+  const batch = writeBatch(db)
+  const now = new Date()
+
+  // 1. Update SKU document
+  const skuPath = productFamilySkusPath(familyId, clientId)
+  const skuRef = doc(db, skuPath[0]!, ...skuPath.slice(1), skuId)
+  batch.update(skuRef, {
+    launchDate: launchDate ?? null,
+    updatedAt: now,
+    updatedBy: userId,
+  })
+
+  // 2. Recompute earliestLaunchDate with the patched SKU
+  const launchTimestamp = launchDate ? Timestamp.fromDate(launchDate) : null
+  const patchedSkus = allSkus.map((s) =>
+    s.id === skuId ? { ...s, launchDate: launchTimestamp } : s,
+  )
+  const earliest = resolveEarliestLaunchDate(familyLaunchDate, patchedSkus)
+
+  const familyPath = productFamiliesPath(clientId)
+  const familyRef = doc(db, familyPath[0]!, ...familyPath.slice(1), familyId)
+  batch.update(familyRef, {
+    earliestLaunchDate: earliest,
+    updatedAt: now,
+    updatedBy: userId,
+  })
+
+  await batch.commit()
+
+  // 3. Best-effort version snapshot
+  if (previousSku && previousFamily && user) {
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily,
+      familyPatch: {},
+      user,
+      changeType: "update",
+      skuChanges: [{
+        skuId,
+        skuLabel: previousSku.colorName ?? previousSku.name,
+        previousSku,
+        skuPatch: { launchDate: launchDate ?? null },
+      }],
+    }).catch((err) => {
+      console.error("[updateProductSkuLaunchDateWithSync] Version snapshot failed:", err)
+    })
+  }
+}
+
+export async function applyLaunchDateToAllSkus(args: {
+  readonly clientId: string
+  readonly familyId: string
+  readonly skuIds: ReadonlyArray<string>
+  readonly userId: string | null
+  readonly launchDate: Date | null
+  readonly previousFamily?: ProductFamily
+  readonly previousSkus?: ReadonlyArray<ProductSku>
+  readonly user?: AuthUser
+}): Promise<void> {
+  const {
+    clientId, familyId, skuIds, userId, launchDate,
+    previousFamily, previousSkus, user,
+  } = args
+
+  if (skuIds.length > 498) {
+    throw new Error(`Too many colorways (${skuIds.length}). Maximum 498 per batch.`)
+  }
+
+  const batch = writeBatch(db)
+  const now = new Date()
+
+  // 1. Update family document
+  const familyPath = productFamiliesPath(clientId)
+  const familyRef = doc(db, familyPath[0]!, ...familyPath.slice(1), familyId)
+  batch.update(familyRef, {
+    launchDate: launchDate ?? null,
+    earliestLaunchDate: launchDate ?? null,
+    updatedAt: now,
+    updatedBy: userId,
+  })
+
+  // 2. Update all SKU documents
+  const skuBasePath = productFamilySkusPath(familyId, clientId)
+  for (const skuId of skuIds) {
+    const skuRef = doc(db, skuBasePath[0]!, ...skuBasePath.slice(1), skuId)
+    batch.update(skuRef, {
+      launchDate: launchDate ?? null,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+  }
+
+  await batch.commit()
+
+  // 3. Best-effort version snapshot
+  if (previousFamily && previousSkus && user) {
+    const skuChanges = previousSkus
+      .filter((s) => skuIds.includes(s.id))
+      .map((s) => ({
+        skuId: s.id,
+        skuLabel: s.colorName ?? s.name,
+        previousSku: s,
+        skuPatch: { launchDate: launchDate ?? null } as Record<string, unknown>,
+      }))
+
+    void createProductVersionSnapshot({
+      clientId,
+      familyId,
+      previousFamily,
+      familyPatch: { launchDate: launchDate ?? null },
+      user,
+      changeType: "update",
+      skuChanges,
+    }).catch((err) => {
+      console.error("[applyLaunchDateToAllSkus] Version snapshot failed:", err)
+    })
+  }
 }
 
 export async function replaceProductSkuImage(args: {

@@ -1,31 +1,37 @@
-# CHECKPOINT — Sprint S18 Complete (2026-04-02)
+# CHECKPOINT — Sprint S19 Implementation Complete (2026-04-02)
 
-## PR #380 merged to main. Firebase deployed.
+## Build clean. Lint zero. 150 test files / 1573 tests pass.
 
-## All 16 Phases Complete
+## Files Changed
 
-| Sprint | Phase | Deliverable |
-|--------|-------|-------------|
-| S18a | 0: Foundation | Bug fixes, dedup, CSS tokens, shared resolvers |
-| S18a | 1: HStack Columns | Type system, 6 ops, canvas + PDF, resize handles |
-| S18a | 2: Palette DnD | Hoisted DndContext, draggable palette, drop zones |
-| S18a | 3: Image Upload | Storage rules, WebP upload, click/drag-to-upload |
-| S18a | 4: Rich Text | FloatingTextToolbar, contentEditable, HTML→PDF |
-| S18a | 5: Data Blocks | All block settings, column reorder, pull selector |
-| S18a | 6: Page Mgmt | Add/duplicate/delete pages, zoom 50-150% |
-| S18a | 7: Export Consolidation | Dialogs deleted, navigate with presets |
-| S18a | 8: UX Audit | View modes standardized, loading spinner |
-| S18a | 9: Multi-Report | Firestore persistence, report selector, import flow |
-| S18b | A: Block Controls | Inline delete/duplicate, keyboard, context menu |
-| S18b | B: Styling System | Per-block padding/border/background + PDF |
-| S18b | C: Text Customization | Font/color/highlight picker, paragraph type |
-| S18b | D: Image Resize | Drag-to-resize handles with width tooltip |
-| S18b | E: Auto-Columns | Drag left/right to wrap in HStack |
-| S18b | F: Column Widths | SetHero-style presets (XS/S/M/L/XL/Auto) |
-| S18c | All 5 issues | Multi-page persistence, page-aware ops, WYSIWYG, render tokens, settings dedup |
+### New Files (5)
+| File | Purpose | Lines |
+|------|---------|-------|
+| `src-vnext/features/products/lib/productVersioning.ts` | Core versioning library | ~280 |
+| `src-vnext/features/products/lib/mapProductVersion.ts` | Firestore doc mapper | ~85 |
+| `src-vnext/features/products/hooks/useProductVersions.ts` | Version subscription hook | ~15 |
+| `src-vnext/features/products/components/ProductVersionHistorySection.tsx` | Version history UI | ~230 |
+| `src-vnext/features/products/lib/productVersioning.test.ts` | Unit tests (26 tests) | ~250 |
+
+### Modified Files (15)
+| File | Change |
+|------|--------|
+| `shared/types/index.ts` | Added ProductVersion, ProductVersionChangeType, ProductVersionFieldChange |
+| `shared/lib/paths.ts` | Added productFamilyPath, productFamilyVersionsPath |
+| `features/products/lib/productWorkspaceWrites.ts` | Added updateProductSkuLaunchDateWithSync, applyLaunchDateToAllSkus; enhanced existing writes |
+| `features/products/lib/productWrites.ts` | Added user param and version snapshots to create/update |
+| `features/products/components/ProductSkuCard.tsx` | Per-SKU date editing via InlineDateField |
+| `features/products/components/SkuRequirementsRow.tsx` | Per-SKU date editing via InlineDateField |
+| `features/products/components/InlineDateField.tsx` | Added compact prop |
+| `features/products/components/ProductLaunchDateField.tsx` | Added "Apply to all colorways" checkbox |
+| `features/products/components/ProductRequirementsSection.tsx` | Threaded user, allSkus, family props |
+| `features/products/components/ProductColorwaysSection.tsx` | Threaded user prop |
+| `features/products/components/ProductDetailPage.tsx` | Threaded user to child sections |
+| `features/products/components/ProductActivitySection.tsx` | Integrated ProductVersionHistorySection |
+| `features/products/components/ProductEditorPage.tsx` | Threaded user and existingFamily to write functions |
+| `features/products/components/ProductUpsertDialog.tsx` | Threaded user and existingFamily to write functions |
 
 ## Stats
-- 72 files changed, 149 test files, 1,547 tests pass
+- 150 test files, 1573 tests pass (26 new in productVersioning.test.ts)
 - Lint: zero warnings
-- All code review + Codex findings resolved — zero deferred issues
-- CLAUDE.md Hard Rule #6b added (no deferring known issues)
+- Build: clean

@@ -285,6 +285,7 @@ export default function ProductDetailPage() {
               isFamilyDeleted={isFamilyDeleted}
               clientId={clientId}
               userId={user?.uid ?? null}
+              user={user ?? undefined}
               onAddColorway={() => navigate(`/products/${family.id}/edit?returnTo=${encodeURIComponent(detailUrl)}&productsReturnTo=${encodeURIComponent(productsReturnTo)}`)}
             />
           )}
@@ -325,6 +326,7 @@ export default function ProductDetailPage() {
               clientId={clientId}
               userId={user?.uid ?? null}
               isFamilyDeleted={isFamilyDeleted}
+              user={user ?? undefined}
             />
           )}
           {activeSection === "shots" && (
