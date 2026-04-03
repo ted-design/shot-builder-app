@@ -120,9 +120,15 @@ export function computeSuggestedShootWindow(args: {
     confidence = "low"
   }
 
+  // Ensure start is always before end (overdue products can invert the window)
+  const finalStart = latestShootMs !== null && earliestShootMs > latestShootMs
+    ? latestShootMs
+    : earliestShootMs
+  const finalEnd = latestShootMs
+
   return {
-    suggestedStart: new Date(earliestShootMs),
-    suggestedEnd: latestShootMs !== null ? new Date(latestShootMs) : null,
+    suggestedStart: new Date(finalStart),
+    suggestedEnd: finalEnd !== null ? new Date(finalEnd) : null,
     confidence,
     constraints,
     tier,
