@@ -149,6 +149,16 @@ Phase order is the default. Override when reality demands it:
 - **All version writes are best-effort:** Pattern: `void createProductVersionSnapshot({...}).catch(err => console.error(...))`. Never blocks core writes.
 - **Shared utility:** `timestampToInputValue()` in `productDetailHelpers.ts` — converts Firestore Timestamp to `YYYY-MM-DD` string for HTML date inputs.
 
+### 11. Sprint S20 New Infrastructure
+
+- **Approved field:** `activeRequirementCount` on ProductFamily documents. Denormalized count of SKUs with active (needed/in_progress) asset requirements. Maintained atomically via `writeBatch` in `updateProductSkuAssetRequirements()`. Backfilled via `scripts/migrations/2026-04-backfill-denormalized-counts.ts`.
+- **Sample count denormalization:** `createProductSample()` and `updateProductSample()` now atomically sync `sampleCount`, `samplesArrivedCount`, `earliestSampleEta` to the family doc via `writeBatch` when `allSamples` is provided. Callers in `ProductSamplesSection` thread the samples array.
+- **Shoot Readiness widget decomposed:** `ShootReadinessWidget.tsx` (263 lines orchestrator) + `ReadinessCard.tsx`, `ExpandedFamilySkus.tsx`, `ReadinessToolbar.tsx`, `BulkClearLaunchDatesDialog.tsx`, `readinessFilters.ts`.
+- **Readiness eligibility Tier 4:** Products with `activeRequirementCount > 0` appear in readiness even without launch dates or samples.
+- **"Has shoot requirements" filter:** Shows products with launch dates AND/OR active requirements. Persisted to `localStorage` key `sb:readiness-requirements-filter`. Default OFF.
+- **Always-visible checkboxes:** No selection mode toggle. Checkboxes always visible on readiness cards. Mobile: card body tap expands/collapses. Desktop: card body click navigates to product detail.
+- **Bulk clear:** `BulkClearLaunchDatesDialog` clears family + all SKU dates via sequential `applyLaunchDateToAllSkus` calls. Fetches SKU IDs via one-time `getDocs`.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.
