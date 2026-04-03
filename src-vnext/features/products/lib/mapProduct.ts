@@ -87,6 +87,7 @@ export function mapProductFamily(id: string, data: Record<string, unknown>): Pro
     samplesArrivedCount: asNumber(data["samplesArrivedCount"]),
     earliestSampleEta: normalizeTimestamp(data["earliestSampleEta"]),
     earliestLaunchDate: normalizeTimestamp(data["earliestLaunchDate"]),
+    activeRequirementCount: asNumber(data["activeRequirementCount"]),
     deleted: asBoolean(data["deleted"]),
     deletedAt: normalizeTimestamp(data["deletedAt"]),
     createdAt: normalizeTimestamp(data["createdAt"]),

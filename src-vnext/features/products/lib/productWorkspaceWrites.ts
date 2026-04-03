@@ -18,7 +18,7 @@ import {
   productFamilySkusPath,
 } from "@/shared/lib/paths"
 import { compressImageToWebp } from "@/shared/lib/uploadImage"
-import { resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
+import { countActiveRequirements, resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
 import { createProductVersionSnapshot } from "@/features/products/lib/productVersioning"
 import type {
   AuthUser,
@@ -301,17 +301,49 @@ export async function updateProductSkuAssetRequirements(args: {
   readonly skuId: string
   readonly userId: string | null
   readonly assetRequirements: ProductAssetRequirements
+  readonly allSkus?: ReadonlyArray<ProductSku>
   readonly previousSku?: ProductSku
   readonly previousFamily?: ProductFamily
   readonly user?: AuthUser
 }): Promise<void> {
-  const { clientId, familyId, skuId, userId, assetRequirements, previousSku, previousFamily, user } = args
-  const path = productFamilySkusPath(familyId, clientId)
-  await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
-    assetRequirements,
-    updatedAt: new Date(),
-    updatedBy: userId,
-  })
+  const { clientId, familyId, skuId, userId, assetRequirements, allSkus, previousSku, previousFamily, user } = args
+  const now = new Date()
+
+  if (allSkus) {
+    // Batch: update SKU + recompute family activeRequirementCount
+    const batch = writeBatch(db)
+    const skuPath = productFamilySkusPath(familyId, clientId)
+    batch.update(doc(db, skuPath[0]!, ...skuPath.slice(1), skuId), {
+      assetRequirements,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+
+    // Recompute count with the patched SKU
+    let count = 0
+    for (const s of allSkus) {
+      if (s.deleted === true) continue
+      const reqs = s.id === skuId ? assetRequirements : s.assetRequirements
+      count += countActiveRequirements(reqs)
+    }
+
+    const familyPath = productFamiliesPath(clientId)
+    batch.update(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+      activeRequirementCount: count,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+
+    await batch.commit()
+  } else {
+    // Fallback: SKU-only update (no family sync)
+    const path = productFamilySkusPath(familyId, clientId)
+    await updateDoc(doc(db, path[0]!, ...path.slice(1), skuId), {
+      assetRequirements,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+  }
 
   if (previousSku && previousFamily && user) {
     void createProductVersionSnapshot({

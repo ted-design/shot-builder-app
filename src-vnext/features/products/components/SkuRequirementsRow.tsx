@@ -81,6 +81,10 @@ export function SkuRequirementsRow({
         skuId: sku.id,
         userId,
         assetRequirements: next,
+        allSkus,
+        previousSku: sku,
+        previousFamily: family,
+        user,
       })
     } catch (err) {
       toast({
@@ -101,6 +105,10 @@ export function SkuRequirementsRow({
         skuId: sku.id,
         userId,
         assetRequirements: next,
+        allSkus,
+        previousSku: sku,
+        previousFamily: family,
+        user,
       })
     } catch (err) {
       toast({
@@ -125,6 +133,10 @@ export function SkuRequirementsRow({
         skuId: sku.id,
         userId,
         assetRequirements: next,
+        allSkus,
+        previousSku: sku,
+        previousFamily: family,
+        user,
       })
     } catch (err) {
       toast({

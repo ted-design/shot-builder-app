@@ -1,37 +1,32 @@
-# CHECKPOINT — Sprint S19 Implementation Complete (2026-04-02)
+# CHECKPOINT — Sprint S20 Complete (2026-04-02)
 
-## Build clean. Lint zero. 150 test files / 1573 tests pass.
+## Build clean. Lint zero. 150 test files / 1574 tests pass.
 
 ## Files Changed
 
-### New Files (5)
+### New Files (6)
 | File | Purpose | Lines |
 |------|---------|-------|
-| `src-vnext/features/products/lib/productVersioning.ts` | Core versioning library | ~280 |
-| `src-vnext/features/products/lib/mapProductVersion.ts` | Firestore doc mapper | ~85 |
-| `src-vnext/features/products/hooks/useProductVersions.ts` | Version subscription hook | ~15 |
-| `src-vnext/features/products/components/ProductVersionHistorySection.tsx` | Version history UI | ~230 |
-| `src-vnext/features/products/lib/productVersioning.test.ts` | Unit tests (26 tests) | ~250 |
+| `features/dashboard/components/ReadinessCard.tsx` | Extracted card with sample cross-reference | 418 |
+| `features/dashboard/components/ExpandedFamilySkus.tsx` | Extracted SKU rows | 169 |
+| `features/dashboard/components/ReadinessToolbar.tsx` | Search + sort + filter controls | 98 |
+| `features/dashboard/components/BulkClearLaunchDatesDialog.tsx` | Bulk date clearing dialog | 113 |
+| `features/dashboard/lib/readinessFilters.ts` | Pure filter + sort functions | 95 |
 
-### Modified Files (15)
+### Modified Files (8)
 | File | Change |
 |------|--------|
-| `shared/types/index.ts` | Added ProductVersion, ProductVersionChangeType, ProductVersionFieldChange |
-| `shared/lib/paths.ts` | Added productFamilyPath, productFamilyVersionsPath |
-| `features/products/lib/productWorkspaceWrites.ts` | Added updateProductSkuLaunchDateWithSync, applyLaunchDateToAllSkus; enhanced existing writes |
-| `features/products/lib/productWrites.ts` | Added user param and version snapshots to create/update |
-| `features/products/components/ProductSkuCard.tsx` | Per-SKU date editing via InlineDateField |
-| `features/products/components/SkuRequirementsRow.tsx` | Per-SKU date editing via InlineDateField |
-| `features/products/components/InlineDateField.tsx` | Added compact prop |
-| `features/products/components/ProductLaunchDateField.tsx` | Added "Apply to all colorways" checkbox |
-| `features/products/components/ProductRequirementsSection.tsx` | Threaded user, allSkus, family props |
-| `features/products/components/ProductColorwaysSection.tsx` | Threaded user prop |
-| `features/products/components/ProductDetailPage.tsx` | Threaded user to child sections |
-| `features/products/components/ProductActivitySection.tsx` | Integrated ProductVersionHistorySection |
-| `features/products/components/ProductEditorPage.tsx` | Threaded user and existingFamily to write functions |
-| `features/products/components/ProductUpsertDialog.tsx` | Threaded user and existingFamily to write functions |
+| `shared/types/index.ts` | Added `activeRequirementCount` to ProductFamily |
+| `features/products/lib/mapProduct.ts` | Map `activeRequirementCount` |
+| `features/products/lib/productWorkspaceWrites.ts` | Batch-sync `activeRequirementCount` |
+| `features/products/hooks/useShootReadiness.ts` | Tier 4 eligibility + `skusWithFlags` + `earliestSampleEta` |
+| `features/products/lib/shootReadiness.ts` | Added `earliestSampleEta` to ShootReadinessItem |
+| `features/products/components/SkuRequirementsRow.tsx` | Thread `allSkus` to asset requirements write |
+| `features/dashboard/components/ShootReadinessWidget.tsx` | Decomposed + filters + selection UX + dual action bar (881→263 lines) |
+| `features/dashboard/components/ShootReadinessWidget.test.tsx` | Updated for new UI structure + new filter tests |
 
 ## Stats
-- 150 test files, 1573 tests pass (26 new in productVersioning.test.ts)
+- 150 test files, 1574 tests pass (1 new test added)
 - Lint: zero warnings
 - Build: clean
+- Widget decomposed: 881 → 263 lines orchestrator

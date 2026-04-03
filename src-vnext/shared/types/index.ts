@@ -303,6 +303,8 @@ export interface ProductFamily {
   readonly earliestSampleEta?: Timestamp | null
   /** Denormalized: earliest launch date across family + all SKUs. */
   readonly earliestLaunchDate?: Timestamp | null
+  /** Denormalized: count of SKUs with active (needed/in_progress) asset requirements. */
+  readonly activeRequirementCount?: number
 
   // Soft-delete (legacy)
   readonly deleted?: boolean

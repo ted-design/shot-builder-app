@@ -1,42 +1,50 @@
-# HANDOFF — Sprint S19 In Progress (2026-04-02)
+# HANDOFF — Sprint S20 Complete (2026-04-02)
 
 ## State
-S19 implementation complete. Build clean, lint zero, 150 test files / 1573 tests pass. Pending: code review resolution, Codex validation, visual browser verification.
+S20 implementation complete. Build clean, lint zero, 150 test files / 1574 tests pass. Visual verification done in browser.
 
-## What Was Built (2 features, 5 new files, 15 modified files)
+## What Was Built
 
-### Feature 1: Per-Colorway Launch Dates
-- **Per-SKU date editing in Colorways section** — `InlineDateField` wired to each `ProductSkuCard` with compact mode. Shows "Family" or "Custom" label, overdue/soon badges.
-- **Per-SKU date editing in Requirements section** — `InlineDateField` wired to each `SkuRequirementsRow` with full edit mode.
-- **"Apply to all colorways" checkbox** — When editing the family-level launch date in `ProductLaunchDateField`, a checkbox appears: "Apply to all N colorways". Checked = batch updates family + all SKUs atomically via `writeBatch`.
-- **`earliestLaunchDate` denormalization fix** — `updateProductSkuLaunchDateWithSync()` batches the SKU write + family `earliestLaunchDate` recomputation in a single `writeBatch`. Prevents shoot readiness from showing stale data.
+### Feature 1: Shoot Readiness Filtering
+- **"Has shoot requirements" toggle** (default ON) — only shows products with active asset requirements (`activeRequirementCount > 0`). Persisted to `localStorage` key `sb:readiness-requirements-filter`.
+- **Sample status filter** — dropdown: All, Awaiting samples, Samples arrived, No samples tracked.
+- **Search** — client-side filter by product family name.
+- **New eligibility condition** — Products with `activeRequirementCount > 0` now appear in readiness even without launch dates or samples (Tier 4).
 
-### Feature 2: Product Version Tracking
-- **`ProductVersion` type** with `fieldChanges` array storing structured before→after values per field (enhancement over shot versioning which only stores field names).
-- **`productVersioning.ts`** library mirroring `shotVersioning.ts` — `createProductVersionSnapshot()`, `restoreProductVersion()`, `buildFieldChanges()`, `humanizeFieldLabel()`.
-- **`useProductVersions` hook** — lazy-load subscription to `productFamilyVersionsPath`, limit 25.
-- **`ProductVersionHistorySection` UI** — collapsible panel in Activity tab showing who changed what with before→after values (e.g., "Launch Date: Apr 5 → Apr 10"). Restore capability: admin/producer only, desktop-only.
-- **Version snapshots wired into all product write paths** — `updateProductFamilyLaunchDate`, `updateProductSkuLaunchDateWithSync`, `updateProductSkuAssetRequirements`, `applyLaunchDateToAllSkus`, `createProductFamilyWithSkus`, `updateProductFamilyWithSkus`. All best-effort, fire-and-forget.
+### Feature 2: Selection UX Overhaul
+- **Always-visible checkboxes** on every card (no toggle mode, no "Select" button).
+- **Inline [+] quick-add button** per card for single-product add-to-project.
+- **Sticky dual-action bar** within the widget: "Clear Dates" + "Add to Project".
+- **"All" / "Clear" selection helpers** in the header.
+
+### Feature 3: Sample Cross-Reference
+- **Sample ETA displayed** on readiness cards: "2/4 samples arrived, ETA: Apr 10".
+- **"X need shoot" count** displayed when `skusWithFlags > 0`.
+- **`earliestSampleEta`** added to `ShootReadinessItem` interface and mapped through.
+
+### Feature 4: Bulk Launch Date Clearing
+- **BulkClearLaunchDatesDialog** — confirmation dialog listing selected products, warning about readiness view changes.
+- Clears family + all SKU dates via `applyLaunchDateToAllSkus` (sequential per-family processing).
+- Version snapshots created per-family (existing infrastructure).
+
+### Feature 5: Widget Decomposition
+- 881-line monolith → 263-line orchestrator + 4 focused sub-components.
+- `ReadinessCard.tsx` (418 lines), `ExpandedFamilySkus.tsx` (169 lines), `ReadinessToolbar.tsx` (98 lines), `readinessFilters.ts` (95 lines).
+
+### Infrastructure
+- **`activeRequirementCount`** denormalized field on ProductFamily (approved schema addition).
+- `updateProductSkuAssetRequirements` now batch-syncs the count to the family doc.
+- `useShootReadiness` Tier 4 eligibility: `activeRequirementCount > 0`.
+- **Backfill migration needed**: `activeRequirementCount` is `undefined` for existing products until migrated or requirements are edited.
 
 ## Deployment
-- No Firestore rules changes needed (version subcollection rules already exist)
-- No new collections or fields (all existed in types/rules)
+- No Firestore rules changes needed
+- Backfill migration recommended (one-time script to compute `activeRequirementCount` for all families)
 - No new npm dependencies
 
-## Verification Status
-- [x] Code review findings resolved (4 fixes: batch guard, dedup timestampToInputValue, restore dialog copy, formatFieldValue Timestamp handling)
-- [x] Codex CLI validation — BLOCKED: ChatGPT account does not support any Codex models (gpt-5.4-high, o4-mini all rejected). Code review by claude code-reviewer agent completed instead (zero CRITICAL, 1 HIGH fixed, 4 MEDIUM fixed).
-- [x] Visual verification in browser — all features confirmed working:
-  - Per-SKU launch date editing in Colorways section (compact InlineDateField)
-  - Per-SKU launch date editing in Requirements section (full InlineDateField)
-  - "Apply to all 4 colorways" checkbox on family launch date
-  - Version history showing "Black: Launch Date: — → May 15, 2026" with user attribution
-  - Restore button visible for admin on desktop
-- [x] CLAUDE.md updated with S19 infrastructure notes (Section 10)
-
 ## What's Next
-- [ ] Codex CLI validation (pending)
-- [ ] Update Plan.md with S19 checkboxes
+- Run backfill migration for `activeRequirementCount`
+- Monitor readiness page performance with Tier 4 eligibility expanding the product set
 
 ## To Resume
 Read this file, then `CHECKPOINT.md`, then `CLAUDE.md` Hard Rule #6b (no deferring).
