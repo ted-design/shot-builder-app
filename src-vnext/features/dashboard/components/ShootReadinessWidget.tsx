@@ -29,9 +29,9 @@ const FILTER_KEY = "sb:readiness-requirements-filter"
 
 function getPersistedRequirementsFilter(): boolean {
   try {
-    return globalThis.localStorage?.getItem(FILTER_KEY) !== "false"
+    return globalThis.localStorage?.getItem(FILTER_KEY) === "true"
   } catch {
-    return true
+    return false
   }
 }
 

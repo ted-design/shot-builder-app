@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
 import type { ShootReadinessItem } from "@/features/products/lib/shootReadiness"
 import {
@@ -174,6 +175,7 @@ export function ReadinessCard({
 }: ReadinessCardProps) {
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   const tier = item.shootWindow?.tier ?? "samples_only"
   const selectionId = makeFamilySelectionId(item.familyId, item.familyName)
@@ -195,15 +197,24 @@ export function ReadinessCard({
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault()
-        handleNavigate()
+        if (isMobile) {
+          onToggleExpand(item.familyId)
+        } else {
+          handleNavigate()
+        }
       }
     },
-    [handleNavigate],
+    [handleNavigate, isMobile, onToggleExpand, item.familyId],
   )
 
   const handleCardClick = useCallback(() => {
-    handleNavigate()
-  }, [handleNavigate])
+    if (isMobile) {
+      // On mobile, card body tap expands/collapses (small chevron is hard to hit)
+      onToggleExpand(item.familyId)
+    } else {
+      handleNavigate()
+    }
+  }, [handleNavigate, isMobile, onToggleExpand, item.familyId])
 
   const toggleDetails = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
