@@ -1,5 +1,5 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { ShootReadinessWidget } from "./ShootReadinessWidget"
@@ -32,9 +32,27 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsDesktop: () => true,
 }))
 
+vi.mock("@/features/dashboard/hooks/useProductProjectMap", () => ({
+  useProductProjectMap: () => ({
+    familyProjectMap: new Map(),
+    skuProjectMap: new Map(),
+    projectNames: new Map(),
+  }),
+}))
+
 vi.mock("@/features/products/components/BulkAddToProjectDialog", () => ({
   BulkAddToProjectDialog: () => null,
 }))
+
+// Clear the filter persistence so the default (true) applies. Tests that need
+// items visible should set skusWithFlags > 0 on their mock items.
+beforeEach(() => {
+  try {
+    globalThis.localStorage?.removeItem("sb:readiness-requirements-filter")
+  } catch {
+    // Ignore
+  }
+})
 
 function renderWidget() {
   return render(
@@ -49,12 +67,7 @@ describe("ShootReadinessWidget", () => {
     it("renders skeleton placeholders when loading", () => {
       mockLoading = true
       mockItems = []
-      const { container } = renderWidget()
-      expect(screen.getByText("Shoot Readiness")).toBeInTheDocument()
-      // Skeletons are rendered (3 divs with Skeleton class)
-      const skeletons = container.querySelectorAll("[class*='skeleton'], [class*='Skeleton']")
-      expect(skeletons.length).toBeGreaterThanOrEqual(0)
-      // The heading is always present in loading state
+      renderWidget()
       expect(screen.getByText("Shoot Readiness")).toBeInTheDocument()
       mockLoading = false
     })
@@ -66,7 +79,7 @@ describe("ShootReadinessWidget", () => {
       mockLoading = false
       renderWidget()
       expect(
-        screen.getByText("No products with upcoming launches or tracked samples."),
+        screen.getByText("No products with upcoming launches, tracked samples, or shoot requirements."),
       ).toBeInTheDocument()
     })
   })
@@ -79,7 +92,7 @@ describe("ShootReadinessWidget", () => {
           familyName: "Summer Tee",
           launchDate: null,
           totalSkus: 2,
-          skusWithFlags: 0,
+          skusWithFlags: 1,
           samplesArrived: 3,
           samplesTotal: 3,
           readinessPct: 100,
@@ -106,7 +119,7 @@ describe("ShootReadinessWidget", () => {
           familyName: "Winter Jacket",
           launchDate: null,
           totalSkus: 1,
-          skusWithFlags: 0,
+          skusWithFlags: 1,
           samplesArrived: 2,
           samplesTotal: 5,
           readinessPct: 40,
@@ -131,7 +144,7 @@ describe("ShootReadinessWidget", () => {
           familyName: "Boot",
           launchDate: null,
           totalSkus: 1,
-          skusWithFlags: 0,
+          skusWithFlags: 1,
           samplesArrived: 1,
           samplesTotal: 3,
           readinessPct: 33,
@@ -177,7 +190,6 @@ describe("ShootReadinessWidget", () => {
       renderWidget()
       expect(screen.getByText("Spring Dress")).toBeInTheDocument()
       expect(screen.getByText(/Shoot window:/)).toBeInTheDocument()
-      // Urgency badge replaces confidence badge
       expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
     })
 
@@ -204,7 +216,7 @@ describe("ShootReadinessWidget", () => {
       mockLoading = false
       renderWidget()
       expect(screen.getByText("4 colorways")).toBeInTheDocument()
-      expect(screen.getByText("2/6 samples arrived")).toBeInTheDocument()
+      expect(screen.getByText(/2\/6 samples arrived/)).toBeInTheDocument()
       expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
     })
 
@@ -215,7 +227,7 @@ describe("ShootReadinessWidget", () => {
           familyName: "Overdue Item",
           launchDate: ts(-5 * DAY_MS),
           totalSkus: 1,
-          skusWithFlags: 0,
+          skusWithFlags: 1,
           samplesArrived: 0,
           samplesTotal: 2,
           readinessPct: 0,
@@ -231,20 +243,19 @@ describe("ShootReadinessWidget", () => {
       mockLoading = false
       renderWidget()
       expect(screen.getByTestId("urgency-badge")).toBeInTheDocument()
-      // Confidence badge should NOT be present
       expect(screen.queryByText("Low")).not.toBeInTheDocument()
     })
   })
 
-  describe("header", () => {
-    it("shows 'Next 90 days' subtitle when items exist", () => {
+  describe("filters", () => {
+    it("shows filter toolbar when items exist", () => {
       mockItems = [
         {
           familyId: "f7",
           familyName: "Any Product",
           launchDate: ts(10 * DAY_MS),
           totalSkus: 1,
-          skusWithFlags: 0,
+          skusWithFlags: 1,
           samplesArrived: 0,
           samplesTotal: 0,
           readinessPct: 0,
@@ -259,7 +270,33 @@ describe("ShootReadinessWidget", () => {
       ]
       mockLoading = false
       renderWidget()
-      expect(screen.getByText("Next 90 days")).toBeInTheDocument()
+      expect(screen.getByPlaceholderText("Search products...")).toBeInTheDocument()
+      expect(screen.getByText("Has shoot requirements")).toBeInTheDocument()
+    })
+
+    it("shows requirement count on cards when skusWithFlags > 0", () => {
+      mockItems = [
+        {
+          familyId: "f8",
+          familyName: "Product With Reqs",
+          launchDate: ts(10 * DAY_MS),
+          totalSkus: 5,
+          skusWithFlags: 3,
+          samplesArrived: 0,
+          samplesTotal: 0,
+          readinessPct: 0,
+          shootWindow: {
+            suggestedStart: new Date(),
+            suggestedEnd: new Date(Date.now() + 10 * DAY_MS),
+            confidence: "medium",
+            constraints: [],
+            tier: "full",
+          },
+        },
+      ]
+      mockLoading = false
+      renderWidget()
+      expect(screen.getByText("3 need shoot")).toBeInTheDocument()
     })
   })
 })

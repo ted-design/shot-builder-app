@@ -12,10 +12,11 @@ import {
 } from "@/features/products/lib/shootUrgency"
 
 /**
- * Returns shoot readiness data for product families using 3-tier eligibility:
+ * Returns shoot readiness data for product families using 4-tier eligibility:
  *   1. Launch date within 90 days (full tier)
  *   2. Earliest SKU launch date within 90 days (full tier)
  *   3. Has tracked samples (samples_only tier)
+ *   4. Has active asset requirements (requirements tier)
  *
  * Uses denormalized family-level fields only to avoid N subscription fan-out
  * (CLAUDE.md Rule 5).
@@ -50,12 +51,16 @@ export function useShootReadiness(): {
       const hasSamples =
         (f.sampleCount ?? 0) > 0 || (f.samplesArrivedCount ?? 0) > 0
 
+      // Tier 4: Has active asset requirements (needed/in_progress)
+      const hasActiveRequirements = (f.activeRequirementCount ?? 0) > 0
+
       return (
         hasUpcomingLaunch ||
         hasOverdueLaunch ||
         hasUpcomingEarliestLaunch ||
         hasOverdueEarliestLaunch ||
-        hasSamples
+        hasSamples ||
+        hasActiveRequirements
       )
     })
 
@@ -92,12 +97,13 @@ export function useShootReadiness(): {
         gender: family.gender ?? null,
         launchDate: effectiveLaunchDate,
         totalSkus: family.activeSkuCount ?? family.skuCount ?? 0,
-        skusWithFlags: 0,
+        skusWithFlags: family.activeRequirementCount ?? 0,
         samplesArrived,
         samplesTotal,
         readinessPct,
         shootWindow,
         requestDeadline: null,
+        earliestSampleEta: family.earliestSampleEta ?? null,
       }
     })
 
