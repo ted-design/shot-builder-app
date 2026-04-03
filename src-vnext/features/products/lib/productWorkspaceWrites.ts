@@ -29,6 +29,66 @@ import type {
   ProductSku,
 } from "@/shared/types"
 
+// ---------------------------------------------------------------------------
+// Sample count denormalization helper
+// ---------------------------------------------------------------------------
+
+interface SampleCountAggregates {
+  readonly sampleCount: number
+  readonly samplesArrivedCount: number
+  readonly earliestSampleEta: Date | null
+}
+
+function computeSampleAggregates(
+  samples: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>,
+): SampleCountAggregates {
+  let total = 0
+  let arrived = 0
+  let earliestEtaMs = Number.MAX_SAFE_INTEGER
+  let earliestEta: Date | null = null
+
+  for (const s of samples) {
+    if (s.deleted === true) continue
+    total += 1
+    if (s.status === "arrived") arrived += 1
+    if (s.eta && s.status !== "arrived") {
+      try {
+        const etaDate = typeof s.eta === "object" && s.eta !== null && "toDate" in s.eta
+          ? (s.eta as { toDate: () => Date }).toDate()
+          : s.eta instanceof Date ? s.eta : null
+        if (etaDate) {
+          const ms = etaDate.getTime()
+          if (ms < earliestEtaMs) {
+            earliestEtaMs = ms
+            earliestEta = etaDate
+          }
+        }
+      } catch {
+        // Skip invalid timestamps
+      }
+    }
+  }
+
+  return { sampleCount: total, samplesArrivedCount: arrived, earliestSampleEta: earliestEta }
+}
+
+async function syncFamilySampleCounts(
+  clientId: string,
+  familyId: string,
+  userId: string | null,
+  allSamples: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>,
+): Promise<void> {
+  const agg = computeSampleAggregates(allSamples)
+  const familyPath = productFamiliesPath(clientId)
+  await updateDoc(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+    sampleCount: agg.sampleCount,
+    samplesArrivedCount: agg.samplesArrivedCount,
+    earliestSampleEta: agg.earliestSampleEta,
+    updatedAt: new Date(),
+    updatedBy: userId,
+  })
+}
+
 function cleanFileName(name: string): string {
   const normalized = name.split("/").join("-").split("\\").join("-")
   return normalized.split("..").join(".").trim().slice(0, 120)
@@ -96,6 +156,7 @@ export async function createProductSample(args: {
   readonly scopeSkuId?: string | null
   readonly returnDueDate?: Date | null
   readonly condition?: string | null
+  readonly allSamples?: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>
 }): Promise<string> {
   const {
     clientId,
@@ -135,6 +196,14 @@ export async function createProductSample(args: {
     updatedBy: userId,
   })
 
+  // Sync family denormalized sample counts
+  if (args.allSamples) {
+    const newSample = { status, eta: eta ?? null, deleted: false }
+    void syncFamilySampleCounts(clientId, familyId, userId, [...args.allSamples, newSample]).catch((err) => {
+      console.error("[createProductSample] Sample count sync failed:", err)
+    })
+  }
+
   return ref.id
 }
 
@@ -157,6 +226,7 @@ export async function updateProductSample(args: {
     readonly condition: string | null
     readonly deleted: boolean
   }>
+  readonly allSamples?: ReadonlyArray<{ readonly id?: string; readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>
 }): Promise<void> {
   const { clientId, familyId, sampleId, userId, patch } = args
   const base = productFamilySamplesPath(familyId, clientId)
@@ -180,6 +250,24 @@ export async function updateProductSample(args: {
   if (patch.deleted !== undefined) update.deleted = patch.deleted
 
   await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
+
+  // Sync family denormalized sample counts
+  if (args.allSamples) {
+    const patchedSamples = args.allSamples.map((s) => {
+      if ("id" in s && s.id === sampleId) {
+        return {
+          ...s,
+          status: patch.status ?? s.status,
+          eta: patch.eta !== undefined ? patch.eta : s.eta,
+          deleted: patch.deleted !== undefined ? patch.deleted : s.deleted,
+        }
+      }
+      return s
+    })
+    void syncFamilySampleCounts(clientId, familyId, userId, patchedSamples).catch((err) => {
+      console.error("[updateProductSample] Sample count sync failed:", err)
+    })
+  }
 }
 
 export async function createProductDocument(args: {

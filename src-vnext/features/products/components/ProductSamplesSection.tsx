@@ -196,6 +196,7 @@ export function ProductSamplesSection({
             returnDueDate,
             condition: draft.condition || null,
           },
+          allSamples: samples,
         })
       : createProductSample({
           clientId,
@@ -211,6 +212,7 @@ export function ProductSamplesSection({
           scopeSkuId: draft.scopeSkuId || null,
           returnDueDate,
           condition: draft.condition || null,
+          allSamples: samples,
         })
 
     void Promise.resolve(op)
@@ -239,6 +241,7 @@ export function ProductSamplesSection({
         status: nextStatus,
         arrivedAt: nextStatus === "arrived" && !sample.arrivedAt ? new Date() : undefined,
       },
+      allSamples: samples,
     })
       .catch((err) => {
         toast({
@@ -562,6 +565,7 @@ export function ProductSamplesSection({
             sampleId: activeSample.id,
             userId,
             patch: { deleted: true },
+            allSamples: samples,
           })
             .then(() => {
               toast({ title: "Deleted", description: "Sample deleted." })
