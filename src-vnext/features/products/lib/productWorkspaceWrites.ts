@@ -72,23 +72,6 @@ function computeSampleAggregates(
   return { sampleCount: total, samplesArrivedCount: arrived, earliestSampleEta: earliestEta }
 }
 
-async function syncFamilySampleCounts(
-  clientId: string,
-  familyId: string,
-  userId: string | null,
-  allSamples: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>,
-): Promise<void> {
-  const agg = computeSampleAggregates(allSamples)
-  const familyPath = productFamiliesPath(clientId)
-  await updateDoc(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
-    sampleCount: agg.sampleCount,
-    samplesArrivedCount: agg.samplesArrivedCount,
-    earliestSampleEta: agg.earliestSampleEta,
-    updatedAt: new Date(),
-    updatedBy: userId,
-  })
-}
-
 function cleanFileName(name: string): string {
   const normalized = name.split("/").join("-").split("\\").join("-")
   return normalized.split("..").join(".").trim().slice(0, 120)
@@ -177,34 +160,51 @@ export async function createProductSample(args: {
   const cleanedSizes = parseSizeRunCsv(sizeRunCsv)
 
   const path = productFamilySamplesPath(familyId, clientId)
-  const ref = await addDoc(collection(db, path[0]!, ...path.slice(1)), {
+  const samplesCol = collection(db, path[0]!, ...path.slice(1))
+  const sampleRef = doc(samplesCol)
+  const now = new Date()
+
+  const sampleData = {
     type,
     status,
     sizeRun: cleanedSizes,
     carrier: carrier?.trim() || null,
     tracking: tracking?.trim() || null,
     eta: eta ?? null,
-    arrivedAt: status === "arrived" ? new Date() : null,
+    arrivedAt: status === "arrived" ? now : null,
     notes: notes?.trim() || null,
     scopeSkuId: scopeSkuId?.trim() || null,
     returnDueDate: returnDueDate ?? null,
     condition: condition?.trim() || null,
     deleted: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
     createdBy: userId,
     updatedBy: userId,
-  })
-
-  // Sync family denormalized sample counts
-  if (args.allSamples) {
-    const newSample = { status, eta: eta ?? null, deleted: false }
-    void syncFamilySampleCounts(clientId, familyId, userId, [...args.allSamples, newSample]).catch((err) => {
-      console.error("[createProductSample] Sample count sync failed:", err)
-    })
   }
 
-  return ref.id
+  if (args.allSamples) {
+    // Atomic: create sample + sync family counts in one batch
+    const batch = writeBatch(db)
+    batch.set(sampleRef, sampleData)
+
+    const newSample = { status, eta: eta ?? null, deleted: false }
+    const agg = computeSampleAggregates([...args.allSamples, newSample])
+    const familyPath = productFamiliesPath(clientId)
+    batch.update(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+      sampleCount: agg.sampleCount,
+      samplesArrivedCount: agg.samplesArrivedCount,
+      earliestSampleEta: agg.earliestSampleEta,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+
+    await batch.commit()
+  } else {
+    await setDoc(sampleRef, sampleData)
+  }
+
+  return sampleRef.id
 }
 
 export async function updateProductSample(args: {
@@ -249,10 +249,11 @@ export async function updateProductSample(args: {
   if (patch.condition !== undefined) update.condition = patch.condition?.trim() || null
   if (patch.deleted !== undefined) update.deleted = patch.deleted
 
-  await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
-
-  // Sync family denormalized sample counts
   if (args.allSamples) {
+    // Atomic: update sample + sync family counts in one batch
+    const batch = writeBatch(db)
+    batch.update(doc(db, base[0]!, ...base.slice(1), sampleId), update)
+
     const patchedSamples = args.allSamples.map((s) => {
       if ("id" in s && s.id === sampleId) {
         return {
@@ -264,9 +265,19 @@ export async function updateProductSample(args: {
       }
       return s
     })
-    void syncFamilySampleCounts(clientId, familyId, userId, patchedSamples).catch((err) => {
-      console.error("[updateProductSample] Sample count sync failed:", err)
+    const agg = computeSampleAggregates(patchedSamples)
+    const familyPath = productFamiliesPath(clientId)
+    batch.update(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+      sampleCount: agg.sampleCount,
+      samplesArrivedCount: agg.samplesArrivedCount,
+      earliestSampleEta: agg.earliestSampleEta,
+      updatedAt: new Date(),
+      updatedBy: userId,
     })
+
+    await batch.commit()
+  } else {
+    await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
   }
 }
 
