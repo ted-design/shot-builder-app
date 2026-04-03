@@ -29,6 +29,49 @@ import type {
   ProductSku,
 } from "@/shared/types"
 
+// ---------------------------------------------------------------------------
+// Sample count denormalization helper
+// ---------------------------------------------------------------------------
+
+interface SampleCountAggregates {
+  readonly sampleCount: number
+  readonly samplesArrivedCount: number
+  readonly earliestSampleEta: Date | null
+}
+
+function computeSampleAggregates(
+  samples: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>,
+): SampleCountAggregates {
+  let total = 0
+  let arrived = 0
+  let earliestEtaMs = Number.MAX_SAFE_INTEGER
+  let earliestEta: Date | null = null
+
+  for (const s of samples) {
+    if (s.deleted === true) continue
+    total += 1
+    if (s.status === "arrived") arrived += 1
+    if (s.eta && s.status !== "arrived") {
+      try {
+        const etaDate = typeof s.eta === "object" && s.eta !== null && "toDate" in s.eta
+          ? (s.eta as { toDate: () => Date }).toDate()
+          : s.eta instanceof Date ? s.eta : null
+        if (etaDate) {
+          const ms = etaDate.getTime()
+          if (ms < earliestEtaMs) {
+            earliestEtaMs = ms
+            earliestEta = etaDate
+          }
+        }
+      } catch {
+        // Skip invalid timestamps
+      }
+    }
+  }
+
+  return { sampleCount: total, samplesArrivedCount: arrived, earliestSampleEta: earliestEta }
+}
+
 function cleanFileName(name: string): string {
   const normalized = name.split("/").join("-").split("\\").join("-")
   return normalized.split("..").join(".").trim().slice(0, 120)
@@ -96,6 +139,7 @@ export async function createProductSample(args: {
   readonly scopeSkuId?: string | null
   readonly returnDueDate?: Date | null
   readonly condition?: string | null
+  readonly allSamples?: ReadonlyArray<{ readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>
 }): Promise<string> {
   const {
     clientId,
@@ -116,26 +160,51 @@ export async function createProductSample(args: {
   const cleanedSizes = parseSizeRunCsv(sizeRunCsv)
 
   const path = productFamilySamplesPath(familyId, clientId)
-  const ref = await addDoc(collection(db, path[0]!, ...path.slice(1)), {
+  const samplesCol = collection(db, path[0]!, ...path.slice(1))
+  const sampleRef = doc(samplesCol)
+  const now = new Date()
+
+  const sampleData = {
     type,
     status,
     sizeRun: cleanedSizes,
     carrier: carrier?.trim() || null,
     tracking: tracking?.trim() || null,
     eta: eta ?? null,
-    arrivedAt: status === "arrived" ? new Date() : null,
+    arrivedAt: status === "arrived" ? now : null,
     notes: notes?.trim() || null,
     scopeSkuId: scopeSkuId?.trim() || null,
     returnDueDate: returnDueDate ?? null,
     condition: condition?.trim() || null,
     deleted: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
     createdBy: userId,
     updatedBy: userId,
-  })
+  }
 
-  return ref.id
+  if (args.allSamples) {
+    // Atomic: create sample + sync family counts in one batch
+    const batch = writeBatch(db)
+    batch.set(sampleRef, sampleData)
+
+    const newSample = { status, eta: eta ?? null, deleted: false }
+    const agg = computeSampleAggregates([...args.allSamples, newSample])
+    const familyPath = productFamiliesPath(clientId)
+    batch.update(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+      sampleCount: agg.sampleCount,
+      samplesArrivedCount: agg.samplesArrivedCount,
+      earliestSampleEta: agg.earliestSampleEta,
+      updatedAt: now,
+      updatedBy: userId,
+    })
+
+    await batch.commit()
+  } else {
+    await setDoc(sampleRef, sampleData)
+  }
+
+  return sampleRef.id
 }
 
 export async function updateProductSample(args: {
@@ -157,6 +226,7 @@ export async function updateProductSample(args: {
     readonly condition: string | null
     readonly deleted: boolean
   }>
+  readonly allSamples?: ReadonlyArray<{ readonly id?: string; readonly status?: string; readonly eta?: { toDate?: () => Date } | Date | null; readonly deleted?: boolean }>
 }): Promise<void> {
   const { clientId, familyId, sampleId, userId, patch } = args
   const base = productFamilySamplesPath(familyId, clientId)
@@ -179,7 +249,36 @@ export async function updateProductSample(args: {
   if (patch.condition !== undefined) update.condition = patch.condition?.trim() || null
   if (patch.deleted !== undefined) update.deleted = patch.deleted
 
-  await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
+  if (args.allSamples) {
+    // Atomic: update sample + sync family counts in one batch
+    const batch = writeBatch(db)
+    batch.update(doc(db, base[0]!, ...base.slice(1), sampleId), update)
+
+    const patchedSamples = args.allSamples.map((s) => {
+      if ("id" in s && s.id === sampleId) {
+        return {
+          ...s,
+          status: patch.status ?? s.status,
+          eta: patch.eta !== undefined ? patch.eta : s.eta,
+          deleted: patch.deleted !== undefined ? patch.deleted : s.deleted,
+        }
+      }
+      return s
+    })
+    const agg = computeSampleAggregates(patchedSamples)
+    const familyPath = productFamiliesPath(clientId)
+    batch.update(doc(db, familyPath[0]!, ...familyPath.slice(1), familyId), {
+      sampleCount: agg.sampleCount,
+      samplesArrivedCount: agg.samplesArrivedCount,
+      earliestSampleEta: agg.earliestSampleEta,
+      updatedAt: new Date(),
+      updatedBy: userId,
+    })
+
+    await batch.commit()
+  } else {
+    await updateDoc(doc(db, base[0]!, ...base.slice(1), sampleId), update)
+  }
 }
 
 export async function createProductDocument(args: {

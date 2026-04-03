@@ -69,9 +69,11 @@ export function filterReadinessItems(
       if (!item.familyName.toLowerCase().includes(q)) return false
     }
 
-    // Shoot requirements filter
-    if (filters.requireShootRequirements && item.skusWithFlags <= 0) {
-      return false
+    // Shoot requirements filter: show items with upcoming launch dates AND/OR active requirements
+    if (filters.requireShootRequirements) {
+      const hasRequirements = item.skusWithFlags > 0
+      const hasLaunchDate = item.launchDate != null
+      if (!hasRequirements && !hasLaunchDate) return false
     }
 
     // Sample status filter
