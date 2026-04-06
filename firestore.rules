@@ -293,7 +293,8 @@ service cloud.firestore {
           request.resource.data.createdBy == resource.data.createdBy &&
           request.resource.data.createdAt == resource.data.createdAt &&
           request.resource.data.createdByName == resource.data.createdByName &&
-          request.resource.data.createdByAvatar == resource.data.createdByAvatar;
+          request.resource.data.createdByAvatar == resource.data.createdByAvatar &&
+          request.resource.data.body == resource.data.body;
 
         // Only comment author can delete (soft delete) their own comment
         allow delete: if clientMatches(clientId) && isAuthed() &&
@@ -390,7 +391,8 @@ service cloud.firestore {
           request.resource.data.createdBy == resource.data.createdBy &&
           request.resource.data.createdAt == resource.data.createdAt &&
           request.resource.data.createdByName == resource.data.createdByName &&
-          request.resource.data.createdByAvatar == resource.data.createdByAvatar;
+          request.resource.data.createdByAvatar == resource.data.createdByAvatar &&
+          request.resource.data.body == resource.data.body;
 
         // Allow hard delete by the author (UI uses soft-delete via update).
         allow delete: if clientMatches(clientId) && isAuthed() &&

@@ -59,6 +59,8 @@ export function ShotCommentsSection({
     return canManageShots(role)
   }, [canComment, clientId, role, user?.uid])
 
+  const isSelfDelete = Boolean(deleteId && comments.find((c) => c.id === deleteId)?.createdBy === user?.uid)
+
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="flex items-center justify-between gap-3">
@@ -205,9 +207,9 @@ export function ShotCommentsSection({
         onOpenChange={(open) => {
           if (!open) setDeleteId(null)
         }}
-        title={deleteId && comments.find((c) => c.id === deleteId)?.createdBy !== user?.uid ? "Remove comment?" : "Delete comment?"}
+        title={isSelfDelete ? "Delete comment?" : "Remove comment?"}
         description="This hides the comment for everyone. You can’t undo this action."
-        confirmLabel={deleteId && comments.find((c) => c.id === deleteId)?.createdBy !== user?.uid ? "Remove" : "Delete"}
+        confirmLabel={isSelfDelete ? "Delete" : "Remove"}
         destructive
         onConfirm={() => {
           if (!clientId || !deleteId) return
