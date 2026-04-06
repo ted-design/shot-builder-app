@@ -166,7 +166,7 @@ export function ProductActivitySection({
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2 text-xs text-[var(--color-error)] hover:text-[var(--color-error)]"
-                        onClick={() => setDeleteId(comment.id)}
+                        onClick={() => { if (clientId) setDeleteId(comment.id) }}
                       >
                         {mine ? "Delete" : "Remove"}
                       </Button>
@@ -190,6 +190,7 @@ export function ProductActivitySection({
         destructive
         onConfirm={() => {
           if (!clientId || !deleteId) return
+          const failTitle = isSelfDelete ? "Delete failed" : "Remove failed"
           void setProductCommentDeleted({
             clientId,
             familyId: family.id,
@@ -197,7 +198,7 @@ export function ProductActivitySection({
             deleted: true,
           }).catch((err) => {
             toast({
-              title: isSelfDelete ? "Delete failed" : "Remove failed",
+              title: failTitle,
               description: err instanceof Error ? err.message : "Failed to remove comment.",
             })
           })
