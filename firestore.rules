@@ -287,7 +287,7 @@ service cloud.firestore {
         allow create: if clientMatches(clientId) && isAuthed() &&
           request.resource.data.createdBy == request.auth.uid;
 
-        // Author or admin can update (soft-delete). Immutable fields protected.
+        // Author or admin can update. Only the deleted flag can change; all other fields are immutable.
         allow update: if clientMatches(clientId) && isAuthed() &&
           (isAdmin() || resource.data.createdBy == request.auth.uid) &&
           request.resource.data.createdBy == resource.data.createdBy &&
@@ -296,7 +296,7 @@ service cloud.firestore {
           request.resource.data.createdByAvatar == resource.data.createdByAvatar &&
           request.resource.data.body == resource.data.body;
 
-        // Only comment author can delete (soft delete) their own comment
+        // Only comment author can hard-delete their own comment (UI uses soft-delete via update)
         allow delete: if clientMatches(clientId) && isAuthed() &&
           resource.data.createdBy == request.auth.uid;
       }
@@ -385,7 +385,7 @@ service cloud.firestore {
         allow create: if clientMatches(clientId) && isAuthed() &&
           request.resource.data.createdBy == request.auth.uid;
 
-        // Author or admin can update (soft-delete). Immutable fields protected.
+        // Author or admin can update. Only the deleted flag can change; all other fields are immutable.
         allow update: if clientMatches(clientId) && isAuthed() &&
           (isAdmin() || resource.data.createdBy == request.auth.uid) &&
           request.resource.data.createdBy == resource.data.createdBy &&

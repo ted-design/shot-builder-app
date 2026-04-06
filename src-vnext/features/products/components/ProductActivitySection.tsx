@@ -49,7 +49,9 @@ export function ProductActivitySection({
   const [commentSaving, setCommentSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const visibleComments = comments.filter((c) => c.deleted !== true)
+  // Non-deleted count for empty-state check only; render loop shows all comments (deleted as placeholder)
+  const activeCommentCount = comments.filter((c) => c.deleted !== true).length
+  const isSelfDelete = Boolean(deleteId && comments.find((c) => c.id === deleteId)?.createdBy === userId)
 
   const handlePostComment = async () => {
     if (!clientId || !userId) return
@@ -135,7 +137,7 @@ export function ProductActivitySection({
 
         {commentsLoading ? (
           <LoadingState loading />
-        ) : visibleComments.length === 0 ? (
+        ) : activeCommentCount === 0 ? (
           <InlineEmpty
             icon={<MessageSquare className="h-8 w-8" />}
             title="No comments yet"
@@ -164,24 +166,7 @@ export function ProductActivitySection({
                         variant="ghost"
                         size="sm"
                         className="h-8 px-2 text-xs text-[var(--color-error)] hover:text-[var(--color-error)]"
-                        onClick={() => {
-                          if (!clientId) return
-                          if (mine) {
-                            void setProductCommentDeleted({
-                              clientId,
-                              familyId: family.id,
-                              commentId: comment.id,
-                              deleted: true,
-                            }).catch((err) => {
-                              toast({
-                                title: "Delete failed",
-                                description: err instanceof Error ? err.message : "Failed to delete comment.",
-                              })
-                            })
-                          } else {
-                            setDeleteId(comment.id)
-                          }
-                        }}
+                        onClick={() => { if (clientId) setDeleteId(comment.id) }}
                       >
                         {mine ? "Delete" : "Remove"}
                       </Button>
@@ -199,12 +184,14 @@ export function ProductActivitySection({
         onOpenChange={(open) => {
           if (!open) setDeleteId(null)
         }}
-        title="Remove comment?"
+        title={isSelfDelete ? "Delete comment?" : "Remove comment?"}
         description="This hides the comment for everyone. You can't undo this action."
-        confirmLabel="Remove"
+        confirmLabel={isSelfDelete ? "Delete" : "Remove"}
         destructive
         onConfirm={() => {
           if (!clientId || !deleteId) return
+          const failTitle = isSelfDelete ? "Delete failed" : "Remove failed"
+          const failFallback = isSelfDelete ? "Failed to delete comment." : "Failed to remove comment."
           void setProductCommentDeleted({
             clientId,
             familyId: family.id,
@@ -212,8 +199,8 @@ export function ProductActivitySection({
             deleted: true,
           }).catch((err) => {
             toast({
-              title: "Remove failed",
-              description: err instanceof Error ? err.message : "Failed to remove comment.",
+              title: failTitle,
+              description: err instanceof Error ? err.message : failFallback,
             })
           })
         }}
