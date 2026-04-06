@@ -2,6 +2,9 @@ import { useState } from "react"
 import type { ProductFamily, ProductComment, ProductSample, ProductDocument } from "@/shared/types"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
+import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { isAdmin } from "@/shared/lib/rbac"
 import { createProductComment, setProductCommentDeleted } from "@/features/products/lib/productWorkspaceWrites"
 import { formatDateTime } from "@/features/products/lib/productDetailHelpers"
 import { toast } from "@/shared/hooks/use-toast"
@@ -41,8 +44,10 @@ export function ProductActivitySection({
   userAvatar,
   isFamilyDeleted,
 }: ProductActivitySectionProps) {
+  const { role } = useAuth()
   const [commentDraft, setCommentDraft] = useState("")
   const [commentSaving, setCommentSaving] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const visibleComments = comments.filter((c) => c.deleted !== true)
 
@@ -153,7 +158,7 @@ export function ProductActivitySection({
                         {deleted ? "Deleted" : comment.body}
                       </div>
                     </div>
-                    {canEdit && mine && !deleted && (
+                    {canEdit && !deleted && (mine || isAdmin(role)) && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -161,20 +166,24 @@ export function ProductActivitySection({
                         className="h-8 px-2 text-xs text-[var(--color-error)] hover:text-[var(--color-error)]"
                         onClick={() => {
                           if (!clientId) return
-                          void setProductCommentDeleted({
-                            clientId,
-                            familyId: family.id,
-                            commentId: comment.id,
-                            deleted: true,
-                          }).catch((err) => {
-                            toast({
-                              title: "Delete failed",
-                              description: err instanceof Error ? err.message : "Failed to delete comment.",
+                          if (mine) {
+                            void setProductCommentDeleted({
+                              clientId,
+                              familyId: family.id,
+                              commentId: comment.id,
+                              deleted: true,
+                            }).catch((err) => {
+                              toast({
+                                title: "Delete failed",
+                                description: err instanceof Error ? err.message : "Failed to delete comment.",
+                              })
                             })
-                          })
+                          } else {
+                            setDeleteId(comment.id)
+                          }
                         }}
                       >
-                        Delete
+                        {mine ? "Delete" : "Remove"}
                       </Button>
                     )}
                   </div>
@@ -184,6 +193,31 @@ export function ProductActivitySection({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteId(null)
+        }}
+        title="Remove comment?"
+        description="This hides the comment for everyone. You can't undo this action."
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => {
+          if (!clientId || !deleteId) return
+          void setProductCommentDeleted({
+            clientId,
+            familyId: family.id,
+            commentId: deleteId,
+            deleted: true,
+          }).catch((err) => {
+            toast({
+              title: "Remove failed",
+              description: err instanceof Error ? err.message : "Failed to remove comment.",
+            })
+          })
+        }}
+      />
 
       {/* Version History */}
       <ProductVersionHistorySection family={family} />
