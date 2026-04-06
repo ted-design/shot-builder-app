@@ -191,6 +191,7 @@ export function ProductActivitySection({
         onConfirm={() => {
           if (!clientId || !deleteId) return
           const failTitle = isSelfDelete ? "Delete failed" : "Remove failed"
+          const failFallback = isSelfDelete ? "Failed to delete comment." : "Failed to remove comment."
           void setProductCommentDeleted({
             clientId,
             familyId: family.id,
@@ -199,7 +200,7 @@ export function ProductActivitySection({
           }).catch((err) => {
             toast({
               title: failTitle,
-              description: err instanceof Error ? err.message : "Failed to remove comment.",
+              description: err instanceof Error ? err.message : failFallback,
             })
           })
         }}
