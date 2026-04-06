@@ -1,59 +1,62 @@
-# HANDOFF — Permissions Fix + Admin Comment Moderation (2026-04-05)
+# HANDOFF — Sprint S21: Share Column Config, Tag Dedup, Tag Colors, Export Improvements (2026-04-06)
 
 ## State
-All fixes implemented and deployed. Build clean, 206 tests pass. Firestore rules deployed twice (P0 then P2).
+All 4 workstreams implemented + final audit fixes. Build clean, lint zero. 151 test files / 1593 tests pass. Production build succeeds.
 
-## What Was Fixed
-
-### Firestore Rules: Admin User Doc CREATE — P0 (deployed)
-- `firestore.rules:333` — CREATE rule was self-only, blocking admin invite of existing Firebase Auth users
-- Fixed: `isAdmin() || (isAuthed() && request.auth.uid == userId)`
-- Resolves: "missing or insufficient permissions" when inviting andrew@unboundmerino.com
-
-### Export Reports: saveReport Defensive Hardening — P1
-- `useExportReports.ts` — `setDoc(merge: true)` → `updateDoc` for save path
-
-### Admin Comment Moderation — P2 (deployed)
-- Shot + product comment Firestore rules: added `isAdmin()` to update rule (Option C — full immutable field protection for everyone)
-- `ShotCommentsSection.tsx` — admins see "Remove" button on others' comments, with confirm dialog
-- `ProductActivitySection.tsx` — same pattern, with confirm dialog for admin moderation
-- Request comments unchanged (immutable audit trail by design)
-- Admin-only (not producers). Write functions reused unchanged.
-
-## Previous State (S19 + S20)
-S19 + S20 fully complete. 5 PRs merged to main (#382-#386). Backfill migration executed.
+## Final Audit Fixes (post-implementation)
+- **XSS fix:** `isSafeUrl()` removed base URL parameter — `javascript:` URLs now correctly rejected
+- **Tag dedup at boundary:** `mapShot.normalizeTags()` now calls `deduplicateTags()` to collapse same-label tags
+- **Share tags canonicalized:** `resolveShotsForShare` now applies `canonicalizeTag` + `deduplicateTags`
+- **Undated shots included:** Removed `orderBy("date")` from share query (Firestore silently excludes docs without field)
+- **PDF tag colors:** Changed to neutral body (`#FFFFFF`) with accent border only (matches CLAUDE.md rule)
+- **Search uses status labels:** Haystack now uses `getShotStatusLabel()` instead of raw Firestore values
+- **Search icon added:** Public share page search input follows DESIGN_SYSTEM.md pattern
+- **PDF shotNumber fix:** Missing numbers show em-dash instead of "000"
+- **PDF tag label truncation:** Labels capped at 24 chars to prevent layout overflow
+- **Button size consistency:** Print button matched to `size="sm"`
+- **mergeShareColumnConfig hardened:** Guards against NaN/corrupted order values
 
 ## What Was Built
 
-### Sprint S19 (PR #382) — Per-Colorway Launch Dates + Product Version Tracking
-- Per-SKU inline launch date editing in Colorways + Requirements sections
-- "Apply to all colorways" checkbox on family launch date
-- `earliestLaunchDate` denormalization fix (atomic batch sync)
-- Product version tracking with before→after field changes (`ProductVersionFieldChange`)
-- Version history UI in Activity tab with restore capability
-- 26 unit tests for versioning library
+### WS-1: Tag Deduplication Fix
+- **Root cause fixed:** Tags were deduplicated by ID, not label. Two "Men" tags with different IDs (`default-gender-men` vs `tag-12345-abc`) appeared separately.
+- **`tagDedup.ts`** (NEW) — shared utilities: `normalizeTagLabel`, `findCanonicalTag`, `canonicalizeTag`, `deduplicateTags`
+- **`mapShot.ts`** — tags are now canonicalized at the Firestore→React boundary. ALL downstream consumers (filters, management writes, export) automatically work with canonical IDs.
+- **`useAvailableTags.ts`** — label-keyed aggregation replaces ID-keyed
+- **`TagManagementPage.tsx`** — `buildTagLibrary()` uses label-keyed aggregation with unioned shotIds
+- **`TagEditor.tsx`** — `createOrReuse()` checks `findCanonicalTag()` before generating random IDs
+- **Migration script** (`scripts/migrations/2026-04-deduplicate-shot-tags.ts`) — groups tags by normalized label, keeps canonical IDs, dry-run by default
+- **19 unit tests** for `tagDedup.ts`
 
-### Sprint S20 (PRs #383-#386) — Shoot Readiness Overhaul
-- **Widget decomposition:** 881→263 lines + 5 focused sub-components
-- **Filtering toolbar:** search, sort, "Has shoot requirements" toggle, sample status filter
-- **Selection UX:** always-visible checkboxes, inline [+] quick-add, sticky dual-action bar
-- **Sample cross-reference:** ETA dates + arrival counts on cards, "X need shoot" badges
-- **Bulk launch date clearing:** confirmation dialog with sequential per-family processing
-- **`activeRequirementCount`** denormalized field on ProductFamily (approved, backfilled)
-- **Sample count denormalization fix:** `createProductSample` and `updateProductSample` now atomically sync `sampleCount`, `samplesArrivedCount`, `earliestSampleEta` to family doc via `writeBatch`
-- **Filter logic correction:** "Has shoot requirements" shows products with launch dates AND/OR requirements (not requirements-only)
-- **Mobile UX fix:** card body tap expands/collapses on mobile (< 768px), navigates on desktop
-- **Shoot window date fix:** start clamped to never exceed end for overdue products
-- **Backfill migration** executed: 215 families, all 4 denormalized fields populated
+### WS-2: Share Link Column Configuration
+- **`shotTableColumns.ts`** — added `ShareColumnEntry` type, `PUBLIC_SHARE_COLUMNS` constant (9 columns), `mergeShareColumnConfig()` helper
+- **`ColumnSettingsList.tsx`** (NEW) — extracted DnD list from `ColumnSettingsPopover.tsx` for reuse
+- **`ColumnSettingsPopover.tsx`** — refactored to use `ColumnSettingsList` (188→59 lines)
+- **`resolveShotsForShare.ts`** — extended `ResolvedPublicShot` with `tags` and `referenceLinks`; fixed `where("deleted","==",false)` anti-pattern
+- **`ShotsShareDialog.tsx`** — added column config UI (drag-to-reorder + visibility toggles); persists `columnConfig` to Firestore
+- **`PublicShotSharePage.tsx`** — fully rebuilt as column-config-driven table; viewer can toggle columns via popover; tags render with `TagBadge`; localStorage persistence per share token
 
-## Deployment
-- **Firestore rules deployed** (user doc CREATE fix + comment moderation)
-- No new npm dependencies
-- Backfill migration already executed (215 families)
+### WS-3: Tag Colors in Export
+- **`pdfStyles.ts`** — added `PDF_TAG_CATEGORY_COLORS` (priority=red, gender=blue, media=emerald, other=neutral)
+- **`ShotGridBlockPdf.tsx`** — tags render as styled mini-badges with category-accent left borders (matches web `TagBadge` pattern)
+
+### WS-4: Export Column Reorder + Page Break
+- **`exportBuilder.ts`** — added `order?: number` to `ShotGridColumn` and `ProductTableColumn`
+- **`blockDefaults.ts`** — added order values to all default columns
+- **`ColumnTableSettings.tsx`** — added DnD reorder with `@dnd-kit` (matching `ColumnSettingsPopover` pattern)
+- **`ShotGridBlockPdf.tsx`** + **`ShotGridBlockView.tsx`** — sort by order before filtering visible columns
+- **Page break investigation:** No data loss. `wrap={false}` correctly pushes rows to next page intact.
+
+### Firestore Changes
+- **New field:** `columnConfig` on `shotShares` documents (array of `{key, visible, order}`)
+- **Extended field:** `resolvedShots` now includes `tags` and `referenceLinks`
+- **Fixed anti-pattern:** Removed `where("deleted","==",false)` from share resolution query
+- **No rule changes required**
 
 ## What's Next
-- Canvas image editor backlog (S19 original backlog item)
-- Monitor denormalized counts for drift (self-corrects on next sample/requirement interaction)
+- Run tag migration script: `npx tsx scripts/migrations/2026-04-deduplicate-shot-tags.ts --clientId=<id> --write`
+- Canvas image editor backlog
+- Monitor tag dedup (self-corrects via `mapShot` canonicalization)
 
 ## To Resume
 Read this file, then `CHECKPOINT.md`, then `CLAUDE.md` Hard Rule #6b (no deferring).

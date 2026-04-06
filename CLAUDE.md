@@ -159,6 +159,23 @@ Phase order is the default. Override when reality demands it:
 - **Always-visible checkboxes:** No selection mode toggle. Checkboxes always visible on readiness cards. Mobile: card body tap expands/collapses. Desktop: card body click navigates to product detail.
 - **Bulk clear:** `BulkClearLaunchDatesDialog` clears family + all SKU dates via sequential `applyLaunchDateToAllSkus` calls. Fetches SKU IDs via one-time `getDocs`.
 
+### 12. Hotfix: Admin Permissions + Comment Moderation (2026-04-05)
+
+- **User doc CREATE rule fix:** `firestore.rules` user doc CREATE was self-only, blocking admin invite of existing Firebase Auth users. Fixed to `isAdmin() || (isAuthed() && request.auth.uid == userId)`.
+- **Admin comment moderation:** Shot and product comment update rules allow `isAdmin()` to soft-delete others' comments with full immutable field protection (body, createdBy, createdAt, createdByName, createdByAvatar cannot change). UI: "Remove" button with `ConfirmDialog` for admin moderation. Request comments unchanged (immutable audit trail).
+- **Export saveReport hardened:** `useExportReports.ts` save path changed from `setDoc(merge: true)` to `updateDoc` to prevent accidental CREATE without `createdBy` field.
+
+### 13. Sprint S21 New Infrastructure
+
+- **Tag canonicalization:** `mapShot.ts:normalizeTags()` calls `canonicalizeTag()` from `shared/lib/tagDedup.ts` on every tag at the Firestore→React boundary. If a tag label matches a default tag (Men, Women, Photo, etc.), the canonical ID/color/category replaces the random one. ALL downstream consumers (filters, management writes, export) automatically work with canonical IDs.
+- **Shared tag utility:** `shared/lib/tagDedup.ts` exports `normalizeTagLabel()`, `findCanonicalTag()`, `canonicalizeTag()`, `deduplicateTags()`. Always use `findCanonicalTag()` before creating new tags to prevent duplicates.
+- **Share link column config:** `columnConfig` field on `shotShares` documents stores `Array<{key, visible, order}>`. `PUBLIC_SHARE_COLUMNS` in `shotTableColumns.ts` defines 9 available public columns. `mergeShareColumnConfig()` merges saved config with defaults. Viewer overrides persist to `localStorage` key `sb:share-cols:{shareToken}`.
+- **`ColumnSettingsList.tsx`:** Extracted DnD column list from `ColumnSettingsPopover.tsx`. Reusable by both the popover (shot list table) and the share dialog.
+- **`ResolvedPublicShot` extended:** Now includes `tags` and `referenceLinks` fields for public share pages.
+- **Export column reorder:** `ShotGridColumn.order?: number` (optional for backward compat). `ColumnTableSettings.tsx` has DnD via @dnd-kit. PDF and preview renderers sort by `order` before filtering visible columns.
+- **PDF tag badges:** `PDF_TAG_CATEGORY_COLORS` in `pdfStyles.ts` provides category-accent colors for PDF tag rendering. `ShotGridBlockPdf.tsx` renders tags as styled mini-badges with left border accent.
+- **Migration script:** `scripts/migrations/2026-04-deduplicate-shot-tags.ts` deduplicates existing tag data. Run with `--clientId <id>` and `--write` flag.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.

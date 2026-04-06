@@ -83,7 +83,9 @@ export function ShotGridBlockView({ block }: ShotGridBlockViewProps) {
     return sortShots(filtered, block.sortBy, block.sortDirection)
   }, [shots, block.filter, block.sortBy, block.sortDirection])
 
-  const visibleColumns = block.columns.filter((c) => c.visible)
+  const visibleColumns = [...block.columns]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .filter((c) => c.visible)
   const style = block.tableStyle
 
   const borderClass = style?.showBorders ? "border border-[var(--color-border)]" : ""

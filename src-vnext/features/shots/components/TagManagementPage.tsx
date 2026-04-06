@@ -31,6 +31,7 @@ import { TagBadge } from "@/shared/components/TagBadge"
 import { TagColorPicker } from "@/shared/components/TagColorPicker"
 import { DEFAULT_TAGS } from "@/shared/lib/defaultTags"
 import { isTagColorKey, type TagColorKey } from "@/shared/lib/tagColors"
+import { findCanonicalTag, normalizeTagLabel } from "@/shared/lib/tagDedup"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useShots } from "@/features/shots/hooks/useShots"
@@ -52,8 +53,6 @@ type TagEntry = ShotTag & {
   readonly shotIds: readonly string[]
   readonly isDefault: boolean
 }
-
-const DEFAULT_TAG_INDEX = new Map(DEFAULT_TAGS.map((t) => [t.id, t]))
 
 function normalizeTag(raw: unknown): ShotTag | null {
   if (!raw || typeof raw !== "object") return null
@@ -78,7 +77,7 @@ function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
   const map = new Map<string, TagEntry>()
 
   for (const t of DEFAULT_TAGS) {
-    map.set(t.id, { ...t, usageCount: 0, shotIds: [], isDefault: true })
+    map.set(normalizeTagLabel(t.label), { ...t, usageCount: 0, shotIds: [], isDefault: true })
   }
 
   for (const shot of shots) {
@@ -89,33 +88,36 @@ function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
       const normalized = normalizeTag(maybeTag)
       if (!normalized) continue
 
-      const defaultTag = DEFAULT_TAG_INDEX.get(normalized.id) ?? null
+      const canonical = findCanonicalTag(normalized.label)
+      const isDefault = Boolean(canonical)
       const next: TagEntry = {
-        id: normalized.id,
-        label: normalized.label || defaultTag?.label || "Untitled",
-        color: normalized.color || defaultTag?.color || "gray",
+        id: canonical?.id ?? normalized.id,
+        label: canonical?.label ?? normalized.label,
+        color: canonical?.color ?? normalized.color,
         category: resolveShotTagCategory({
-          id: normalized.id,
-          category: normalized.category ?? defaultTag?.category,
+          id: canonical?.id ?? normalized.id,
+          category: canonical?.category ?? normalized.category,
         }),
         usageCount: 1,
         shotIds: [shot.id],
-        isDefault: Boolean(defaultTag),
+        isDefault,
       }
 
-      const existing = map.get(normalized.id)
+      const labelKey = normalizeTagLabel(normalized.label)
+      const existing = map.get(labelKey)
       if (existing) {
-        map.set(normalized.id, {
+        map.set(labelKey, {
           ...existing,
-          label: next.label || existing.label,
-          color: next.color || existing.color,
-          category: next.category || existing.category,
+          id: existing.isDefault ? existing.id : next.id,
+          label: existing.label,
+          color: existing.isDefault ? existing.color : next.color,
+          category: existing.category,
           usageCount: existing.usageCount + 1,
           shotIds: [...existing.shotIds, shot.id],
           isDefault: existing.isDefault || next.isDefault,
         })
       } else {
-        map.set(normalized.id, next)
+        map.set(labelKey, next)
       }
     }
   }

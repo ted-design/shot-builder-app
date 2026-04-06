@@ -58,3 +58,48 @@ export function fieldsToColumnConfigs(
 export function columnKeyToFieldKey(columnKey: string): keyof ShotsListFields | null {
   return COLUMN_TO_FIELD[columnKey] ?? null
 }
+
+// ---------------------------------------------------------------------------
+// Share link column configuration
+// ---------------------------------------------------------------------------
+
+/** Lightweight column entry persisted in the shotShares Firestore document. */
+export interface ShareColumnEntry {
+  readonly key: string
+  readonly visible: boolean
+  readonly order: number
+}
+
+/** Columns available for public share views (excludes heroThumb, updated). */
+export const PUBLIC_SHARE_COLUMNS: readonly TableColumnConfig[] = [
+  { key: "shot", label: "Shot", defaultLabel: "Shot", visible: true, width: 260, order: 0, pinned: true },
+  { key: "description", label: "Description", defaultLabel: "Description", visible: true, width: 220, order: 1 },
+  { key: "date", label: "Date", defaultLabel: "Date", visible: true, width: 120, order: 2 },
+  { key: "location", label: "Location", defaultLabel: "Location", visible: true, width: 160, order: 3 },
+  { key: "talent", label: "Talent", defaultLabel: "Talent", visible: true, width: 220, order: 4 },
+  { key: "products", label: "Products", defaultLabel: "Products", visible: true, width: 280, order: 5 },
+  { key: "tags", label: "Tags", defaultLabel: "Tags", visible: true, width: 180, order: 6 },
+  { key: "notes", label: "Notes", defaultLabel: "Notes", visible: false, width: 260, order: 7 },
+  { key: "links", label: "Links", defaultLabel: "Links", visible: false, width: 220, order: 8 },
+  { key: "status", label: "Status", defaultLabel: "Status", visible: true, width: 110, order: 9 },
+]
+
+/** Merge saved share column entries with PUBLIC_SHARE_COLUMNS defaults.
+ * Applies saved visibility/order, adds any new default columns missing from saved config. */
+export function mergeShareColumnConfig(
+  saved: readonly ShareColumnEntry[] | null | undefined,
+): readonly TableColumnConfig[] {
+  if (!saved || saved.length === 0) return PUBLIC_SHARE_COLUMNS
+
+  const savedMap = new Map(saved.map((e) => [e.key, e]))
+  const merged = PUBLIC_SHARE_COLUMNS.map((col) => {
+    const entry = savedMap.get(col.key)
+    if (!entry) return col
+    return {
+      ...col,
+      visible: typeof entry.visible === "boolean" ? entry.visible : col.visible,
+      order: Number.isFinite(entry.order) ? entry.order : col.order,
+    }
+  })
+  return [...merged].sort((a, b) => a.order - b.order)
+}

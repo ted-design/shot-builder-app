@@ -3,6 +3,10 @@ import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { callFunction } from "@/shared/lib/callFunction"
 import { resolveShotsForShare } from "@/features/shots/lib/resolveShotsForShare"
+import { PUBLIC_SHARE_COLUMNS } from "@/features/shots/lib/shotTableColumns"
+import type { ShareColumnEntry } from "@/features/shots/lib/shotTableColumns"
+import type { TableColumnConfig } from "@/shared/types/table"
+import { ColumnSettingsList } from "@/shared/components/ColumnSettingsList"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
@@ -99,6 +103,7 @@ export function ShotsShareDialog({
   const [title, setTitle] = useState("")
   const [creating, setCreating] = useState(false)
   const [createdUrl, setCreatedUrl] = useState<string | null>(null)
+  const [shareColumns, setShareColumns] = useState<TableColumnConfig[]>(() => [...PUBLIC_SHARE_COLUMNS])
 
   useEffect(() => {
     if (!open) return
@@ -106,7 +111,29 @@ export function ShotsShareDialog({
     setTitle("")
     setCreating(false)
     setCreatedUrl(null)
+    setShareColumns([...PUBLIC_SHARE_COLUMNS])
   }, [defaultScope, open])
+
+  const handleColumnToggle = (key: string) => {
+    setShareColumns((prev) =>
+      prev.map((c) => (c.key === key && !c.pinned ? { ...c, visible: !c.visible } : c)),
+    )
+  }
+
+  const handleColumnReorder = (orderedKeys: readonly string[]) => {
+    setShareColumns((prev) => {
+      const keyOrder = new Map(orderedKeys.map((k, i) => [k, i]))
+      return [...prev]
+        .sort((a, b) => (keyOrder.get(a.key) ?? a.order) - (keyOrder.get(b.key) ?? b.order))
+        .map((c, i) => ({ ...c, order: i }))
+    })
+  }
+
+  const columnConfig: ShareColumnEntry[] = shareColumns.map((c) => ({
+    key: c.key,
+    visible: c.visible,
+    order: c.order,
+  }))
 
   const defaultTitle = useMemo(() => {
     if (scope === "selected") return `${projectName} — Selected shots`
@@ -150,6 +177,7 @@ export function ShotsShareDialog({
           await updateDoc(doc(db, "shotShares", shareToken), {
             projectName: resolved.projectName,
             resolvedShots: resolved.resolvedShots,
+            columnConfig,
           })
         } catch (patchErr) {
           // Non-fatal: public page will show empty if patch fails, but the
@@ -175,6 +203,7 @@ export function ShotsShareDialog({
           createdBy: user?.uid ?? null,
           projectName: resolved.projectName,
           resolvedShots: resolved.resolvedShots,
+          columnConfig,
         })
         shareToken = fallbackToken
       }
@@ -243,6 +272,18 @@ export function ShotsShareDialog({
               onChange={(e) => setTitle(e.target.value)}
               placeholder={defaultTitle}
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs">Columns</Label>
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <ColumnSettingsList
+                columns={shareColumns}
+                onToggleVisibility={handleColumnToggle}
+                onReorder={handleColumnReorder}
+                showReorder
+              />
+            </div>
           </div>
 
           <Separator />

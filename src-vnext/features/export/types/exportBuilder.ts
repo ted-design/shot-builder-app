@@ -89,6 +89,7 @@ export interface ShotGridColumn {
   readonly label: string
   readonly visible: boolean
   readonly width?: ColumnWidthPreset
+  readonly order?: number
 }
 
 /** Shot grid block — table of shots from project */
@@ -122,6 +123,7 @@ export interface ProductTableColumn {
   readonly label: string
   readonly visible: boolean
   readonly width?: ColumnWidthPreset
+  readonly order?: number
 }
 
 /** Product table block */

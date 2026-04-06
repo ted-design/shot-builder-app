@@ -1,37 +1,44 @@
-# CHECKPOINT — Permissions Fix + Comment Moderation (2026-04-05)
+# CHECKPOINT — Sprint S21: Share Column Config, Tag Dedup, Tag Colors, Export Improvements (2026-04-06)
 
-## All fixes deployed. Build clean. 206 tests pass. Rules live.
+## Build clean. Lint zero. 151 test files / 1593 tests pass. Production build succeeds.
 
-## Hotfix: Admin Invite Permissions (P0)
-- `firestore.rules:333` — fixed user doc CREATE rule to allow admin creation (was self-only)
-- `useExportReports.ts` — hardened saveReport from `setDoc(merge)` to `updateDoc` (P1)
-- Full permissions audit: 19 write paths audited, 1 broken (fixed), 2 latent (fixed by same rule change)
+## New/Modified Files
 
-## Admin Comment Moderation (P2)
-- Shot + product comment Firestore rules: `isAdmin() || author` with full immutable field protection (Option C)
-- `ShotCommentsSection.tsx` — "Remove" button + confirm dialog for admin moderation
-- `ProductActivitySection.tsx` — same pattern with confirm dialog
-- Request comments unchanged (immutable audit trail)
+### New Files
+| File | Purpose |
+|------|---------|
+| `src-vnext/shared/lib/tagDedup.ts` | Tag normalization, canonical lookup, deduplication |
+| `src-vnext/shared/lib/__tests__/tagDedup.test.ts` | 19 unit tests for tagDedup |
+| `src-vnext/shared/components/ColumnSettingsList.tsx` | Extracted DnD column list (reusable) |
+| `scripts/migrations/2026-04-deduplicate-shot-tags.ts` | Migration for existing tag duplicates |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `src-vnext/features/shots/lib/mapShot.ts` | Canonicalize tags at Firestore→React boundary |
+| `src-vnext/features/shots/hooks/useAvailableTags.ts` | Label-keyed aggregation |
+| `src-vnext/features/shots/components/TagManagementPage.tsx` | Label-keyed buildTagLibrary |
+| `src-vnext/features/shots/components/TagEditor.tsx` | Check DEFAULT_TAGS before creating |
+| `src-vnext/features/shots/lib/shotTableColumns.ts` | ShareColumnEntry, PUBLIC_SHARE_COLUMNS |
+| `src-vnext/shared/components/ColumnSettingsPopover.tsx` | Refactored to use ColumnSettingsList |
+| `src-vnext/features/shots/lib/resolveShotsForShare.ts` | Tags/links in resolved data; deleted filter fix |
+| `src-vnext/features/shots/components/ShotsShareDialog.tsx` | Column config UI + Firestore persistence |
+| `src-vnext/features/shots/components/PublicShotSharePage.tsx` | Column-driven table with viewer toggles |
+| `src-vnext/features/export/types/exportBuilder.ts` | order field on ShotGridColumn |
+| `src-vnext/features/export/lib/blockDefaults.ts` | order values on defaults |
+| `src-vnext/features/export/components/settings/ColumnTableSettings.tsx` | DnD column reorder |
+| `src-vnext/features/export/lib/pdf/blocks/ShotGridBlockPdf.tsx` | Sort by order; tag badge rendering |
+| `src-vnext/features/export/components/ShotGridBlockView.tsx` | Sort by order in preview |
+| `src-vnext/features/export/lib/pdf/pdfStyles.ts` | PDF_TAG_CATEGORY_COLORS |
 
 ---
 
-# Previous: Sprints S19 + S20 Complete (2026-04-03)
+# Previous: Permissions Fix + Comment Moderation (2026-04-05)
 
-## 5 PRs merged. Build clean. Lint zero. 150 test files / 1574 tests pass.
+## Hotfix: Admin Invite Permissions (P0)
+- `firestore.rules:333` — fixed user doc CREATE rule to allow admin creation
+- `useExportReports.ts` — hardened saveReport from `setDoc(merge)` to `updateDoc`
 
-## PR History
-| PR | Title | Lines |
-|----|-------|-------|
-| #382 | feat: per-colorway launch dates, product version tracking | +1,697 / -182 |
-| #383 | feat: shoot readiness overhaul — filtering, selection UX, sample cross-reference | +1,258 / -833 |
-| #384 | fix: mobile card targets, date order, filter default | +25 / -8 |
-| #385 | fix: sample count denormalization + filter logic correction | +115 / -10 |
-| #386 | chore: backfill migration for denormalized counts | +189 |
-
-## Key Infrastructure Added
-- `ProductVersion` type with `fieldChanges` (before→after)
-- `productVersioning.ts` — versioning library (382 lines)
-- `activeRequirementCount` on ProductFamily (denormalized, atomic sync)
-- `sampleCount` / `samplesArrivedCount` / `earliestSampleEta` now maintained atomically via `writeBatch` in sample CRUD
-- Widget decomposed: `ShootReadinessWidget` 881→263 lines + 5 sub-components
-- Backfill migration script: `scripts/migrations/2026-04-backfill-denormalized-counts.ts`
+## Admin Comment Moderation (P2)
+- Shot + product comment Firestore rules with full immutable field protection
+- Admin "Remove" button + confirm dialog in ShotCommentsSection + ProductActivitySection
