@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase/firestore"
 import type { Shot, ProductAssignment, ShotLook, ShotReferenceImage, ShotTag } from "@/shared/types"
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
+import { canonicalizeTag, deduplicateTags } from "@/shared/lib/tagDedup"
 import { normalizeReferenceLinks } from "@/features/shots/lib/referenceLinks"
 
 /**
@@ -66,7 +67,7 @@ function normalizeProducts(raw: unknown): ProductAssignment[] {
  */
 function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
   if (!Array.isArray(raw)) return []
-  return raw
+  const mapped = raw
     .map((t): ShotTag | null => {
       if (typeof t !== "object" || t === null) return null
       const tag = t as Record<string, unknown>
@@ -78,17 +79,20 @@ function normalizeTags(raw: unknown): ReadonlyArray<ShotTag> {
         id: tag["id"],
         label: tag["label"],
         color: tag["color"],
-      }
-
-      return {
-        ...base,
         category: resolveShotTagCategory({
-          id: base.id,
+          id: tag["id"],
           category: tag["category"] as ShotTag["category"],
         }),
       }
+
+      // Canonicalize: if label matches a default tag (e.g. "Men"),
+      // replace with canonical ID/color/category to prevent duplicates.
+      return canonicalizeTag(base)
     })
     .filter((tag): tag is ShotTag => tag !== null)
+  // Deduplicate by label — e.g. two "Men" entries with different original IDs
+  // both canonicalize to default-gender-men but need collapsing.
+  return deduplicateTags(mapped)
 }
 
 type LegacyRef = { readonly id?: unknown; readonly path?: unknown; readonly downloadURL?: unknown }

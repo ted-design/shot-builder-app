@@ -24,6 +24,7 @@ import { useAvailableTags } from "@/features/shots/hooks/useAvailableTags"
 import type { ShotTag, ShotTagCategory } from "@/shared/types"
 import type { TagColorKey } from "@/shared/lib/tagColors"
 import { getShotTagCategoryLabel, resolveShotTagCategory } from "@/shared/lib/tagCategories"
+import { findCanonicalTag } from "@/shared/lib/tagDedup"
 
 function normalizeLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ")
@@ -114,6 +115,15 @@ export function TagEditor({
     const reuse = availableByLabel.get(normalizedCreateKey) ?? null
     if (reuse) {
       toggle(reuse)
+      setCreateLabel("")
+      setCreateColor("blue")
+      setCreateCategory("other")
+      return
+    }
+
+    const canonical = findCanonicalTag(normalizedCreateLabel)
+    if (canonical) {
+      toggle(canonical)
       setCreateLabel("")
       setCreateColor("blue")
       setCreateCategory("other")

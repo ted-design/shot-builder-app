@@ -127,3 +127,12 @@ export const PDF_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   amber: { bg: "#FEF3C7", text: "#B45309" },
   green: { bg: "#D1FAE5", text: "#047857" },
 }
+
+/** Category-accent colors for tag badges in PDF — neutral body with accent left border only.
+ *  Matches CLAUDE.md rule: "neutral body with subtle category-accent left borders". */
+export const PDF_TAG_CATEGORY_COLORS: Record<string, { readonly border: string; readonly bg: string; readonly text: string }> = {
+  priority: { border: "#EF4444", bg: "#FFFFFF", text: "#52525b" },
+  gender:   { border: "#3B82F6", bg: "#FFFFFF", text: "#52525b" },
+  media:    { border: "#10B981", bg: "#FFFFFF", text: "#52525b" },
+  other:    { border: "#9CA3AF", bg: "#FFFFFF", text: "#52525b" },
+}

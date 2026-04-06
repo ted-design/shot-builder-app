@@ -15,24 +15,24 @@ import type {
 } from "../types/exportBuilder"
 
 const DEFAULT_SHOT_GRID_COLUMNS: readonly ShotGridColumn[] = [
-  { key: "shotNumber", label: "#", visible: true, width: "xs" },
-  { key: "thumbnail", label: "Thumbnail", visible: true, width: "sm" },
-  { key: "title", label: "Title", visible: true, width: "md" },
-  { key: "status", label: "Status", visible: true, width: "sm" },
-  { key: "products", label: "Products", visible: true, width: "md" },
-  { key: "talent", label: "Talent", visible: true, width: "sm" },
-  { key: "location", label: "Location", visible: true, width: "sm" },
-  { key: "description", label: "Description", visible: false, width: "lg" },
-  { key: "tags", label: "Tags", visible: false, width: "sm" },
-  { key: "notes", label: "Notes", visible: false, width: "lg" },
+  { key: "shotNumber", label: "#", visible: true, width: "xs", order: 0 },
+  { key: "thumbnail", label: "Thumbnail", visible: true, width: "sm", order: 1 },
+  { key: "title", label: "Title", visible: true, width: "md", order: 2 },
+  { key: "status", label: "Status", visible: true, width: "sm", order: 3 },
+  { key: "products", label: "Products", visible: true, width: "md", order: 4 },
+  { key: "talent", label: "Talent", visible: true, width: "sm", order: 5 },
+  { key: "location", label: "Location", visible: true, width: "sm", order: 6 },
+  { key: "description", label: "Description", visible: false, width: "lg", order: 7 },
+  { key: "tags", label: "Tags", visible: false, width: "sm", order: 8 },
+  { key: "notes", label: "Notes", visible: false, width: "lg", order: 9 },
 ]
 
 const DEFAULT_PRODUCT_TABLE_COLUMNS: readonly ProductTableColumn[] = [
-  { key: "styleName", label: "Style Name", visible: true, width: "lg" },
-  { key: "styleNumber", label: "Style #", visible: true, width: "sm" },
-  { key: "gender", label: "Gender", visible: true, width: "md" },
-  { key: "skuCount", label: "SKUs", visible: true, width: "sm" },
-  { key: "classification", label: "Classification", visible: true, width: "sm" },
+  { key: "styleName", label: "Style Name", visible: true, width: "lg", order: 0 },
+  { key: "styleNumber", label: "Style #", visible: true, width: "sm", order: 1 },
+  { key: "gender", label: "Gender", visible: true, width: "md", order: 2 },
+  { key: "skuCount", label: "SKUs", visible: true, width: "sm", order: 3 },
+  { key: "classification", label: "Classification", visible: true, width: "sm", order: 4 },
 ]
 
 function createTextBlock(): TextBlock {

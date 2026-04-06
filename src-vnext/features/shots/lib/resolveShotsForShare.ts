@@ -14,10 +14,10 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { shotsPath, projectPath, talentPath, locationsPath } from "@/shared/lib/paths"
+import { canonicalizeTag, deduplicateTags } from "@/shared/lib/tagDedup"
 import type { ProductAssignment, ShotLook } from "@/shared/types"
 
 export interface ResolvedPublicShot {
@@ -31,6 +31,8 @@ export interface ResolvedPublicShot {
   readonly productLines: readonly string[]
   readonly description: string | null
   readonly notesAddendum: string | null
+  readonly tags?: readonly { readonly id: string; readonly label: string; readonly color: string; readonly category?: string }[]
+  readonly referenceLinks?: readonly { readonly id: string; readonly title: string; readonly url: string; readonly type: string }[]
 }
 
 export interface ResolvedSharePayload {
@@ -129,17 +131,19 @@ export async function resolveShotsForShare(
     const q = query(
       shotsRef,
       where("projectId", "==", projectId),
-      where("deleted", "==", false),
-      orderBy("date", "asc"),
     )
     const snaps = await getDocs(q)
     shotDocs = snaps.docs.map((d) => ({ id: d.id, data: (d.data() ?? {}) as Record<string, unknown> }))
   }
 
-  // Filter to correct project and non-deleted
-  const shotsRaw = shotDocs.filter(
-    (d) => d.data.projectId === projectId && d.data.deleted !== true,
-  )
+  // Filter to correct project and non-deleted, sort by shotNumber client-side
+  const shotsRaw = shotDocs
+    .filter((d) => d.data.projectId === projectId && d.data.deleted !== true)
+    .sort((a, b) => {
+      const aNum = a.data.shotNumber != null ? String(a.data.shotNumber) : ""
+      const bNum = b.data.shotNumber != null ? String(b.data.shotNumber) : ""
+      return aNum.localeCompare(bNum, undefined, { numeric: true })
+    })
 
   // Collect unique talent and location IDs for batch resolution
   const talentIdSet = new Set<string>()
@@ -209,6 +213,40 @@ export async function resolveShotsForShare(
     const products = productsRaw.length > 0 ? productsRaw : fallbackProducts
     const productLines = products.map(formatProduct).filter((l): l is string => l !== null)
 
+    const tags = (() => {
+      const raw = Array.isArray(d.tags) ? d.tags : []
+      const validated = raw
+        .filter((t: unknown): t is { id: string; label: string; color: string; category?: string } =>
+          !!t && typeof t === "object" && typeof (t as Record<string, unknown>).id === "string" && typeof (t as Record<string, unknown>).label === "string"
+        )
+        .map((t) => canonicalizeTag({
+          id: t.id,
+          label: t.label,
+          color: typeof t.color === "string" ? t.color : "",
+          category: typeof t.category === "string" ? t.category as "priority" | "gender" | "media" | "other" : undefined,
+        }))
+      return deduplicateTags(validated).map((t) => ({
+        id: t.id,
+        label: t.label,
+        color: t.color,
+        category: t.category,
+      }))
+    })()
+
+    const referenceLinks = (() => {
+      const raw = Array.isArray(d.referenceLinks) ? d.referenceLinks : []
+      return raw
+        .filter((l: unknown): l is { id: string; title: string; url: string; type: string } =>
+          !!l && typeof l === "object" && typeof (l as Record<string, unknown>).url === "string"
+        )
+        .map((l) => ({
+          id: typeof l.id === "string" ? l.id : "",
+          title: typeof l.title === "string" ? l.title : "",
+          url: l.url,
+          type: typeof l.type === "string" ? l.type : "web",
+        }))
+    })()
+
     return {
       id: s.id,
       title,
@@ -220,6 +258,8 @@ export async function resolveShotsForShare(
       productLines,
       description: normaliseString(d.description) ?? null,
       notesAddendum: normaliseString(d.notesAddendum) ?? null,
+      tags,
+      referenceLinks,
     }
   })
 

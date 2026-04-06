@@ -8,7 +8,15 @@ import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
+import { Search, Settings2 } from "lucide-react"
+import { TagBadge } from "@/shared/components/TagBadge"
+import { ColumnSettingsPopover } from "@/shared/components/ColumnSettingsPopover"
+import { mergeShareColumnConfig, PUBLIC_SHARE_COLUMNS } from "@/features/shots/lib/shotTableColumns"
+import type { ShareColumnEntry } from "@/features/shots/lib/shotTableColumns"
+import type { TableColumnConfig } from "@/shared/types/table"
 import type { ResolvedPublicShot } from "@/features/shots/lib/resolveShotsForShare"
+import type { ShotTagCategory, ShotFirestoreStatus } from "@/shared/types"
+import { getShotStatusLabel } from "@/shared/lib/statusMappings"
 
 type ErrorInfo = {
   readonly heading: string
@@ -26,6 +34,113 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function renderTags(s: ResolvedPublicShot): React.ReactNode {
+  const tags = s.tags
+  if (!tags || tags.length === 0) return "\u2014"
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((t) => (
+        <TagBadge
+          key={t.id}
+          tag={{ ...t, category: t.category as ShotTagCategory | undefined }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
+  } catch {
+    return false
+  }
+}
+
+function renderLinks(s: ResolvedPublicShot): React.ReactNode {
+  const links = s.referenceLinks
+  if (!links || links.length === 0) return "\u2014"
+  const safe = links.filter((l) => isSafeUrl(l.url))
+  if (safe.length === 0) return "\u2014"
+  return (
+    <div className="flex flex-col gap-0.5">
+      {safe.map((l) => (
+        <a
+          key={l.id || l.url}
+          href={l.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="truncate text-xs text-[var(--color-text-secondary)] hover:underline"
+        >
+          {l.title || l.url}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function renderCell(s: ResolvedPublicShot, key: string): React.ReactNode {
+  switch (key) {
+    case "shot":
+      return (
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-medium text-[var(--color-text)]">{s.title}</span>
+            {s.shotNumber && (
+              <span className="text-xs text-[var(--color-text-subtle)]">#{s.shotNumber}</span>
+            )}
+          </div>
+          {s.notesAddendum && (
+            <div className="mt-1 whitespace-pre-wrap rounded-md bg-[var(--color-surface-subtle)] px-2 py-1 text-xs text-[var(--color-text-secondary)]">
+              {s.notesAddendum}
+            </div>
+          )}
+        </div>
+      )
+    case "description":
+      return s.description || "\u2014"
+    case "date":
+      return formatDate(s.date)
+    case "location":
+      return s.locationName || "\u2014"
+    case "talent":
+      return s.talentNames.length === 0 ? (
+        "\u2014"
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {s.talentNames.map((name) => (
+            <div key={name} className="truncate">
+              {name}
+            </div>
+          ))}
+        </div>
+      )
+    case "products":
+      return s.productLines.length === 0 ? (
+        "\u2014"
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {s.productLines.map((line, index) => (
+            <div key={`${line}-${index}`} className="truncate">
+              {line}
+            </div>
+          ))}
+        </div>
+      )
+    case "tags":
+      return renderTags(s)
+    case "notes":
+      return s.notesAddendum || "\u2014"
+    case "links":
+      return renderLinks(s)
+    case "status":
+      return getShotStatusLabel(s.status as ShotFirestoreStatus)
+    default:
+      return "\u2014"
+  }
+}
+
 export default function PublicShotSharePage() {
   const { shareToken } = useParams<{ shareToken: string }>()
   const [shots, setShots] = useState<readonly ResolvedPublicShot[]>([])
@@ -35,6 +150,33 @@ export default function PublicShotSharePage() {
   const [loading, setLoading] = useState(true)
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
   const [query, setQuery] = useState("")
+
+  const [columnOverrides, setColumnOverrides] = useState<Record<string, boolean>>({})
+  const [baseColumns, setBaseColumns] = useState<readonly TableColumnConfig[]>(PUBLIC_SHARE_COLUMNS)
+
+  const [overridesLoaded, setOverridesLoaded] = useState(false)
+
+  // Load viewer column overrides from localStorage (per share token)
+  useEffect(() => {
+    if (!shareToken) return
+    try {
+      const stored = localStorage.getItem(`sb:share-cols:${shareToken}`)
+      if (stored) setColumnOverrides(JSON.parse(stored) as Record<string, boolean>)
+    } catch {
+      // Ignore malformed storage
+    }
+    setOverridesLoaded(true)
+  }, [shareToken])
+
+  // Persist viewer column overrides to localStorage (skip until initial load completes)
+  useEffect(() => {
+    if (!shareToken || !overridesLoaded) return
+    if (Object.keys(columnOverrides).length === 0) {
+      localStorage.removeItem(`sb:share-cols:${shareToken}`)
+    } else {
+      localStorage.setItem(`sb:share-cols:${shareToken}`, JSON.stringify(columnOverrides))
+    }
+  }, [shareToken, columnOverrides, overridesLoaded])
 
   useEffect(() => {
     let active = true
@@ -87,6 +229,11 @@ export default function PublicShotSharePage() {
         const title = typeof data.title === "string" ? data.title : null
         const hasShotIds = Array.isArray(data.shotIds) && data.shotIds.length > 0
 
+        const rawColumnConfig = Array.isArray(data.columnConfig)
+          ? (data.columnConfig as ShareColumnEntry[])
+          : null
+        setBaseColumns(mergeShareColumnConfig(rawColumnConfig))
+
         setShots(resolved)
         setProjectName(name)
         setShareTitle(title)
@@ -106,25 +253,47 @@ export default function PublicShotSharePage() {
     }
   }, [shareToken])
 
+  const effectiveColumns = useMemo(() => {
+    return baseColumns.map((col) => {
+      const override = columnOverrides[col.key]
+      if (override === undefined) return col
+      return { ...col, visible: override }
+    })
+  }, [baseColumns, columnOverrides])
+
+  const visibleColumns = useMemo(() => {
+    return [...effectiveColumns].filter((c) => c.visible).sort((a, b) => a.order - b.order)
+  }, [effectiveColumns])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return shots
     return shots.filter((s) => {
+      const tagLabels = (s.tags ?? []).map((t) => t.label).join(" ")
       const haystack = [
         s.title,
         s.shotNumber ?? "",
-        s.status,
+        getShotStatusLabel(s.status as ShotFirestoreStatus),
         s.locationName ?? "",
         (s.talentNames ?? []).join(" "),
         (s.productLines ?? []).join(" "),
         s.description ?? "",
         s.notesAddendum ?? "",
+        tagLabels,
       ]
         .join(" ")
         .toLowerCase()
       return haystack.includes(q)
     })
   }, [query, shots])
+
+  const handleToggleColumn = (key: string) => {
+    const col = effectiveColumns.find((c) => c.key === key)
+    if (!col || col.pinned) return
+    setColumnOverrides((prev) => ({ ...prev, [key]: !col.visible }))
+  }
+
+  const handleResetColumns = () => setColumnOverrides({})
 
   if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
@@ -144,125 +313,91 @@ export default function PublicShotSharePage() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen bg-[var(--color-bg)] px-4 py-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-                Shared view
-              </span>
-              <span className="text-xs text-[var(--color-text-muted)]">{subLabel}</span>
+      <div className="min-h-screen bg-[var(--color-bg)] px-4 py-8">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                  Shared view
+                </span>
+                <span className="text-xs text-[var(--color-text-muted)]">{subLabel}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ColumnSettingsPopover
+                  columns={effectiveColumns}
+                  onToggleVisibility={handleToggleColumn}
+                  onReorder={() => {}}
+                  onReset={handleResetColumns}
+                  showReorder={false}
+                >
+                  <Button variant="outline" size="sm">
+                    <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                    Columns
+                  </Button>
+                </ColumnSettingsPopover>
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  Print
+                </Button>
+              </div>
             </div>
-            <Button variant="outline" onClick={() => window.print()}>
-              Print
-            </Button>
+            <h1 className="heading-page">{title}</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {projectName} · {filtered.length} shots
+            </p>
           </div>
-          <h1 className="heading-page">{title}</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            {projectName} · {filtered.length} shots
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search shots\u2026"
-            className="w-full sm:w-[320px]"
-          />
-        </div>
+          <div className="relative max-w-sm flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={"Search shots\u2026"}
+              className="pl-9 text-sm"
+            />
+          </div>
 
-        {filtered.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">No shots</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-[var(--color-text-muted)]">
-              No shots match your search.
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
-            <table className="w-full text-sm">
-              <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
-                <tr>
-                  <th className="min-w-[240px] px-3 py-2 text-left font-medium">Shot</th>
-                  <th className="w-28 px-3 py-2 text-left font-medium">Date</th>
-                  <th className="min-w-[180px] px-3 py-2 text-left font-medium">Location</th>
-                  <th className="min-w-[220px] px-3 py-2 text-left font-medium">Talent</th>
-                  <th className="min-w-[320px] px-3 py-2 text-left font-medium">Products</th>
-                  <th className="w-24 px-3 py-2 text-left font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-[var(--color-border)]">
-                    <td className="px-3 py-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-[var(--color-text)]">
-                          {s.title}
-                        </span>
-                        {s.shotNumber && (
-                          <span className="text-xs text-[var(--color-text-subtle)]">
-                            #{s.shotNumber}
-                          </span>
-                        )}
-                      </div>
-                      {s.description && (
-                        <div className="mt-0.5 line-clamp-2 text-xs text-[var(--color-text-muted)]">
-                          {s.description}
-                        </div>
-                      )}
-                      {s.notesAddendum && (
-                        <div className="mt-1 whitespace-pre-wrap rounded-md bg-[var(--color-surface-subtle)] px-2 py-1 text-xs text-[var(--color-text-secondary)]">
-                          {s.notesAddendum}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {formatDate(s.date)}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {s.locationName || "\u2014"}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {s.talentNames.length === 0 ? (
-                        "\u2014"
-                      ) : (
-                        <div className="flex flex-col gap-0.5">
-                          {s.talentNames.map((name) => (
-                            <div key={name} className="truncate">
-                              {name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {s.productLines.length === 0 ? (
-                        "\u2014"
-                      ) : (
-                        <div className="flex flex-col gap-0.5">
-                          {s.productLines.map((line, index) => (
-                            <div key={`${line}-${index}`} className="truncate">
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
-                      {s.status}
-                    </td>
+          {filtered.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">No shots</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-[var(--color-text-muted)]">
+                No shots match your search.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+              <table className="w-full text-sm">
+                <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
+                  <tr>
+                    {visibleColumns.map((col) => (
+                      <th
+                        key={col.key}
+                        className="px-3 py-2 text-left font-medium"
+                        style={{ minWidth: col.width }}
+                      >
+                        {col.label}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filtered.map((s) => (
+                    <tr key={s.id} className="border-b border-[var(--color-border)]">
+                      {visibleColumns.map((col) => (
+                        <td key={col.key} className="px-3 py-2 text-[var(--color-text-secondary)]">
+                          {renderCell(s, col.key)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </ErrorBoundary>
   )
 }

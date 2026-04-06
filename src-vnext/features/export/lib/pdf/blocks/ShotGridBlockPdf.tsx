@@ -2,10 +2,11 @@ import { Text, View } from "@react-pdf/renderer"
 import type { ShotGridBlock, ShotGridColumn } from "../../../types/exportBuilder"
 import { COLUMN_WIDTH_PRESETS } from "../../../types/exportBuilder"
 import type { ExportData } from "../../../hooks/useExportData"
-import type { Shot } from "@/shared/types"
+import type { Shot, ShotTag } from "@/shared/types"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import { getShotStatusLabel, getShotStatusColor } from "@/shared/lib/statusMappings"
-import { styles, PDF_STATUS_COLORS } from "../pdfStyles"
+import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
+import { styles, PDF_STATUS_COLORS, PDF_TAG_CATEGORY_COLORS } from "../pdfStyles"
 import {
   filterShots,
   sortShots,
@@ -21,7 +22,7 @@ interface ShotGridBlockPdfProps {
 
 function cellText(shot: Shot, key: string, data: ExportData): string {
   switch (key) {
-    case "shotNumber": return String(shot.shotNumber ?? "0").padStart(3, "0")
+    case "shotNumber": return shot.shotNumber ? String(shot.shotNumber).padStart(3, "0") : "\u2014"
     case "title": return shot.title
     case "products": return resolveProductNamesString(shot)
     case "talent": return resolveTalentNames(shot, data.talent)
@@ -41,7 +42,9 @@ function colFlex(col: ShotGridColumn): number {
 export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
   const filtered = filterShots(data.shots, block.filter)
   const sorted = sortShots(filtered, block.sortBy, block.sortDirection)
-  const cols = block.columns.filter((c) => c.visible && c.key !== "thumbnail")
+  const cols = [...block.columns]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .filter((c) => c.visible && c.key !== "thumbnail")
 
   if (sorted.length === 0) return null
 
@@ -74,6 +77,41 @@ export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
                   <Text style={{ ...styles.badge, backgroundColor: sc.bg, color: sc.text }}>
                     {getShotStatusLabel(shot.status as ShotFirestoreStatus)}
                   </Text>
+                </View>
+              )
+            }
+            if (col.key === "tags") {
+              const tags: readonly ShotTag[] = shot.tags ?? []
+              if (tags.length === 0) {
+                return (
+                  <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
+                    {"\u2014"}
+                  </Text>
+                )
+              }
+              return (
+                <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col), flexDirection: "row", flexWrap: "wrap", gap: 2 }}>
+                  {tags.map((t) => {
+                    const cat = resolveShotTagCategory(t)
+                    const c = PDF_TAG_CATEGORY_COLORS[cat] ?? PDF_TAG_CATEGORY_COLORS.other!
+                    return (
+                      <Text
+                        key={t.id}
+                        style={{
+                          ...styles.badge,
+                          backgroundColor: c.bg,
+                          color: c.text,
+                          borderLeftWidth: 2,
+                          borderLeftColor: c.border,
+                          borderRadius: 3,
+                          marginRight: 2,
+                          marginBottom: 1,
+                        }}
+                      >
+                        {t.label.length > 24 ? `${t.label.slice(0, 22)}\u2026` : t.label}
+                      </Text>
+                    )
+                  })}
                 </View>
               )
             }
