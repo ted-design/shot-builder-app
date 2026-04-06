@@ -7,6 +7,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   serverTimestamp,
   type Timestamp,
@@ -115,19 +116,15 @@ export function useExportReports(
       if (!clientId || !projectId) return
       const pathSegments = exportReportDocPath(clientId, projectId, reportId)
       const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
-      await setDoc(
-        docRef,
-        {
-          name: data.name,
-          pages: data.pages,
-          schemaVersion: 2,
-          settings: data.settings,
-          customVariables: data.customVariables ?? [],
-          updatedAt: serverTimestamp(),
-          updatedBy: user?.uid ?? "",
-        },
-        { merge: true },
-      )
+      await updateDoc(docRef, {
+        name: data.name,
+        pages: data.pages,
+        schemaVersion: 2,
+        settings: data.settings,
+        customVariables: data.customVariables ?? [],
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid ?? "",
+      })
     },
     [clientId, projectId, user?.uid],
   )

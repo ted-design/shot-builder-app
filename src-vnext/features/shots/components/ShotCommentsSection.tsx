@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
-import { canManageShots } from "@/shared/lib/rbac"
+import { canManageShots, isAdmin } from "@/shared/lib/rbac"
 import { useShotComments } from "@/features/shots/hooks/useShotComments"
 import {
   createShotComment,
@@ -58,6 +58,8 @@ export function ShotCommentsSection({
     if (!user?.uid) return false
     return canManageShots(role)
   }, [canComment, clientId, role, user?.uid])
+
+  const isSelfDelete = Boolean(deleteId && comments.find((c) => c.id === deleteId)?.createdBy === user?.uid)
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -182,7 +184,7 @@ export function ShotCommentsSection({
                     </div>
                   </div>
 
-                  {writeEnabled && mine && !deleted && (
+                  {writeEnabled && !deleted && (mine || isAdmin(role)) && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -190,7 +192,7 @@ export function ShotCommentsSection({
                       className="h-8 px-2 text-xs text-[var(--color-error)] hover:text-[var(--color-error)]"
                       onClick={() => setDeleteId(comment.id)}
                     >
-                      Delete
+                      {mine ? "Delete" : "Remove"}
                     </Button>
                   )}
                 </div>
@@ -205,9 +207,9 @@ export function ShotCommentsSection({
         onOpenChange={(open) => {
           if (!open) setDeleteId(null)
         }}
-        title="Delete comment?"
+        title={isSelfDelete ? "Delete comment?" : "Remove comment?"}
         description="This hides the comment for everyone. You can’t undo this action."
-        confirmLabel="Delete"
+        confirmLabel={isSelfDelete ? "Delete" : "Remove"}
         destructive
         onConfirm={() => {
           if (!clientId || !deleteId) return

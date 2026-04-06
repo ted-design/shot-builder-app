@@ -1,7 +1,27 @@
-# HANDOFF — Sprints S19 + S20 Complete (2026-04-03)
+# HANDOFF — Permissions Fix + Admin Comment Moderation (2026-04-05)
 
 ## State
-S19 + S20 fully complete. 5 PRs merged to main (#382-#386). Backfill migration executed. Build clean, lint zero, 1574 tests pass.
+All fixes implemented and deployed. Build clean, 206 tests pass. Firestore rules deployed twice (P0 then P2).
+
+## What Was Fixed
+
+### Firestore Rules: Admin User Doc CREATE — P0 (deployed)
+- `firestore.rules:333` — CREATE rule was self-only, blocking admin invite of existing Firebase Auth users
+- Fixed: `isAdmin() || (isAuthed() && request.auth.uid == userId)`
+- Resolves: "missing or insufficient permissions" when inviting andrew@unboundmerino.com
+
+### Export Reports: saveReport Defensive Hardening — P1
+- `useExportReports.ts` — `setDoc(merge: true)` → `updateDoc` for save path
+
+### Admin Comment Moderation — P2 (deployed)
+- Shot + product comment Firestore rules: added `isAdmin()` to update rule (Option C — full immutable field protection for everyone)
+- `ShotCommentsSection.tsx` — admins see "Remove" button on others' comments, with confirm dialog
+- `ProductActivitySection.tsx` — same pattern, with confirm dialog for admin moderation
+- Request comments unchanged (immutable audit trail by design)
+- Admin-only (not producers). Write functions reused unchanged.
+
+## Previous State (S19 + S20)
+S19 + S20 fully complete. 5 PRs merged to main (#382-#386). Backfill migration executed.
 
 ## What Was Built
 
@@ -27,7 +47,7 @@ S19 + S20 fully complete. 5 PRs merged to main (#382-#386). Backfill migration e
 - **Backfill migration** executed: 215 families, all 4 denormalized fields populated
 
 ## Deployment
-- No Firestore rules changes
+- **Firestore rules deployed** (user doc CREATE fix + comment moderation)
 - No new npm dependencies
 - Backfill migration already executed (215 families)
 
