@@ -154,6 +154,8 @@ export default function PublicShotSharePage() {
   const [columnOverrides, setColumnOverrides] = useState<Record<string, boolean>>({})
   const [baseColumns, setBaseColumns] = useState<readonly TableColumnConfig[]>(PUBLIC_SHARE_COLUMNS)
 
+  const [overridesLoaded, setOverridesLoaded] = useState(false)
+
   // Load viewer column overrides from localStorage (per share token)
   useEffect(() => {
     if (!shareToken) return
@@ -163,17 +165,18 @@ export default function PublicShotSharePage() {
     } catch {
       // Ignore malformed storage
     }
+    setOverridesLoaded(true)
   }, [shareToken])
 
-  // Persist viewer column overrides to localStorage
+  // Persist viewer column overrides to localStorage (skip until initial load completes)
   useEffect(() => {
-    if (!shareToken) return
+    if (!shareToken || !overridesLoaded) return
     if (Object.keys(columnOverrides).length === 0) {
       localStorage.removeItem(`sb:share-cols:${shareToken}`)
     } else {
       localStorage.setItem(`sb:share-cols:${shareToken}`, JSON.stringify(columnOverrides))
     }
-  }, [shareToken, columnOverrides])
+  }, [shareToken, columnOverrides, overridesLoaded])
 
   useEffect(() => {
     let active = true

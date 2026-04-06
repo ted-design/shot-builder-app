@@ -140,8 +140,8 @@ export async function resolveShotsForShare(
   const shotsRaw = shotDocs
     .filter((d) => d.data.projectId === projectId && d.data.deleted !== true)
     .sort((a, b) => {
-      const aNum = typeof a.data.shotNumber === "string" ? a.data.shotNumber : ""
-      const bNum = typeof b.data.shotNumber === "string" ? b.data.shotNumber : ""
+      const aNum = a.data.shotNumber != null ? String(a.data.shotNumber) : ""
+      const bNum = b.data.shotNumber != null ? String(b.data.shotNumber) : ""
       return aNum.localeCompare(bNum, undefined, { numeric: true })
     })
 

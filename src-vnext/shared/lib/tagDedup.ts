@@ -51,20 +51,8 @@ export function deduplicateTags(tags: readonly ShotTag[]): readonly ShotTag[] {
   const seen = new Map<string, ShotTag>()
   for (const tag of tags) {
     const key = normalizeTagLabel(tag.label)
-    const existing = seen.get(key)
-    if (!existing) {
+    if (!seen.has(key)) {
       seen.set(key, canonicalizeTag(tag))
-    } else {
-      // Prefer the canonical (default) tag over user-created ones
-      const canonical = findCanonicalTag(tag.label)
-      if (canonical && existing.id !== canonical.id) {
-        seen.set(key, {
-          id: canonical.id,
-          label: canonical.label,
-          color: canonical.color,
-          category: canonical.category,
-        })
-      }
     }
   }
   return [...seen.values()]
