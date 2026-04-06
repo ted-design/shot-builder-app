@@ -136,10 +136,14 @@ export async function resolveShotsForShare(
     shotDocs = snaps.docs.map((d) => ({ id: d.id, data: (d.data() ?? {}) as Record<string, unknown> }))
   }
 
-  // Filter to correct project and non-deleted
-  const shotsRaw = shotDocs.filter(
-    (d) => d.data.projectId === projectId && d.data.deleted !== true,
-  )
+  // Filter to correct project and non-deleted, sort by shotNumber client-side
+  const shotsRaw = shotDocs
+    .filter((d) => d.data.projectId === projectId && d.data.deleted !== true)
+    .sort((a, b) => {
+      const aNum = typeof a.data.shotNumber === "string" ? a.data.shotNumber : ""
+      const bNum = typeof b.data.shotNumber === "string" ? b.data.shotNumber : ""
+      return aNum.localeCompare(bNum, undefined, { numeric: true })
+    })
 
   // Collect unique talent and location IDs for batch resolution
   const talentIdSet = new Set<string>()

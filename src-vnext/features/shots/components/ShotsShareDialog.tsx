@@ -129,11 +129,10 @@ export function ShotsShareDialog({
     })
   }
 
-  const columnConfig: ShareColumnEntry[] = shareColumns.map((c) => ({
-    key: c.key,
-    visible: c.visible,
-    order: c.order,
-  }))
+  const columnConfig = useMemo<ShareColumnEntry[]>(
+    () => shareColumns.map((c) => ({ key: c.key, visible: c.visible, order: c.order })),
+    [shareColumns],
+  )
 
   const defaultTitle = useMemo(() => {
     if (scope === "selected") return `${projectName} — Selected shots`

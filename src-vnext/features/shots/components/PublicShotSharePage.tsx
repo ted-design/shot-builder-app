@@ -131,7 +131,7 @@ function renderCell(s: ResolvedPublicShot, key: string): React.ReactNode {
     case "tags":
       return renderTags(s)
     case "notes":
-      return s.notesAddendum || s.description || "\u2014"
+      return s.notesAddendum || "\u2014"
     case "links":
       return renderLinks(s)
     case "status":
