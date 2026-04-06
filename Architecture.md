@@ -190,7 +190,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   │   └── comments/{commentId}/          # Sprint S12B — conversation threads (admin+producer read/write)
   └── pendingInvitations/{normalizedEmail}/  # Sprint S9 — pre-signup role invitations
 
-/shotShares/{shareToken}               # Denormalized public share docs
+/shotShares/{shareToken}               # Denormalized public share docs (S21: includes columnConfig + resolvedShots with tags/links)
 /systemAdmins/{email}                  # System admin list
 /_functionQueue/{docId}                # Cloud Function invocation queue (Firestore trigger)
 ```
@@ -511,7 +511,11 @@ Generated primitives in `src/components/ui/` (legacy) and `src-vnext/ui/` (vNext
 
 ### Custom UI Components
 
-`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation), `CommandPalette` (Cmd+K universal search — Fuse.js + cmdk, Sprint S14), `BulkSelectionBar` (floating action bar for multi-select workflows, Sprint S12C), `ViewModeToggle` (unified view toggle — Button variant=default/outline, Sprint S16), `SearchBar` (consistent search input with icon + clear button, Sprint S16), `ColumnSettingsPopover` (Saturation-style column config — eye icon visibility, drag reorder, Sprint S16), `ResizableHeader` (table `<th>` with drag-to-resize handle, Sprint S16)
+`LoadingSpinner`, `LoadingState` (skeleton prop + stuck overlay), `EmptyState`, `InlineEmpty` (dashed border sub-section empties), `Skeleton` (SkeletonLine, SkeletonBlock, ListPageSkeleton, TableSkeleton, DetailPageSkeleton, CardSkeleton), `PageHeader`, `PageToolbar`, `StatusBadge`, `TagBadge`, `ErrorBoundary`, `OfflineBanner`, `NetworkErrorBanner`, `ForbiddenPage` (403), `NotFoundPage` (404), `SearchCommand`, `NotificationBell`, `FilterPresetManager`, `ResponsiveDialog`, `FloatingActionBar`, `ActiveEditorsBar` (presence: expandable editor list), `CompactActiveEditors` (presence: avatar dots + ping), `InlineEdit` (click-to-edit inline field), `ConfirmDialog` (destructive action confirmation), `CommandPalette` (Cmd+K universal search — Fuse.js + cmdk, Sprint S14), `BulkSelectionBar` (floating action bar for multi-select workflows, Sprint S12C), `ViewModeToggle` (unified view toggle — Button variant=default/outline, Sprint S16), `SearchBar` (consistent search input with icon + clear button, Sprint S16), `ColumnSettingsPopover` (Saturation-style column config — delegates to ColumnSettingsList, Sprint S16/S21), `ColumnSettingsList` (reusable DnD column visibility+reorder list — shared by shot table popover and share dialog, Sprint S21), `ResizableHeader` (table `<th>` with drag-to-resize handle, Sprint S16)
+
+### Tag Canonicalization (Sprint S21)
+
+Tags are canonicalized at the `mapShot` boundary (`mapShot.ts:normalizeTags()` → `canonicalizeTag()` → `deduplicateTags()`). If a tag's label matches a default tag (Men, Women, Photo, etc.), the canonical ID/color/category replaces the raw Firestore value. All downstream consumers (filters, management writes, export, public shares) automatically receive canonical IDs. Shared utilities in `shared/lib/tagDedup.ts`: `normalizeTagLabel()`, `findCanonicalTag()`, `canonicalizeTag()`, `deduplicateTags()`.
 
 ### Interactive Table System (Sprint S16)
 

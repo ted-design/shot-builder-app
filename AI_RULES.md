@@ -120,6 +120,21 @@ All new vNext components must work in dark mode:
 7. **FOUC prevention:** Three interconnected pieces must agree — `tokens.css` `.dark` selector, `ThemeProvider` class toggle, FOUC `<script>` in `index.html`. All three use `.dark` CSS class and `sb:theme` localStorage key. A mismatch between any two causes bugs.
 8. **Image/logo assets:** When a logo or image must be visible on both light and dark backgrounds, use `dark:hidden` / `hidden dark:block` to swap between color variants (e.g., `immediate-logo-black.png` for light, `immediate-logo-white.png` for dark). Never hardcode a single color variant if the container respects theme.
 
+### Tag Canonicalization Pattern (Sprint S21)
+
+When creating or updating tags anywhere in the codebase:
+1. **Before creating a new tag**, call `findCanonicalTag(label)` from `shared/lib/tagDedup.ts`. If a default tag matches, use its ID/color/category instead of generating a random ID.
+2. **At the Firestore→React boundary** (`mapShot.ts:normalizeTags()`), all tags are canonicalized and deduplicated automatically. Downstream consumers receive canonical data.
+3. **Never compare tags by ID alone** for display purposes — aggregate by normalized label instead.
+4. **Migration:** `scripts/migrations/2026-04-deduplicate-shot-tags.ts` cleans existing Firestore data. Run once per client with `--write` flag.
+
+### Column Configuration Persistence Pattern (Sprint S21)
+
+- **Web tables:** localStorage only (key: `sb:{feature}-table-config`)
+- **Public shares:** Firestore `columnConfig` field (creator's config) + localStorage `sb:share-cols:{shareToken}` (viewer's overrides)
+- **Export builder:** Inline on block data (persisted with export document)
+- **Reusable component:** `ColumnSettingsList.tsx` — DnD column list shared by shot table popover and share dialog
+
 ---
 
 ## Off-Limits Without Approval

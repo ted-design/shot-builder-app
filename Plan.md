@@ -1156,6 +1156,50 @@ Admin (role-gated: admin only)
 
 ---
 
+## Sprint S17: Export Builder v2
+
+**Status:** COMPLETE (PR #378 merged). Tracked under S15c above.
+
+## Sprint S18: Export Builder v3
+
+**Status:** COMPLETE (PR #380 merged). 16 phases, Firebase rules/storage/index deployed.
+
+## Sprint S19: Per-Colorway Launch Dates + Product Version Tracking
+
+**Status:** COMPLETE (PR #382 merged).
+
+- [x] Per-SKU inline launch date editing
+- [x] "Apply to all colorways" checkbox
+- [x] `earliestLaunchDate` denormalization fix
+- [x] Product version tracking with before→after field changes
+- [x] Version history UI with restore capability
+
+## Sprint S20: Shoot Readiness Overhaul
+
+**Status:** COMPLETE (PRs #383-#386 merged). Backfill migration executed.
+
+- [x] Widget decomposed (881→263 lines)
+- [x] Filtering toolbar + "Has shoot requirements" toggle
+- [x] Always-visible checkboxes + sticky dual-action bar
+- [x] Bulk date clearing
+- [x] `activeRequirementCount` denormalization
+- [x] Sample count denormalization fix
+
+## Sprint S21: Share Column Config, Tag Dedup, Tag Colors, Export Improvements
+
+**Status:** COMPLETE (PR #390 merged 2026-04-06).
+
+- [x] **S21-1:** Tag deduplication — canonicalize at `mapShot` boundary (`tagDedup.ts`)
+- [x] **S21-2:** Share link column configuration — `columnConfig` field on `shotShares`, `ColumnSettingsList` extraction, public page rebuilt as column-driven
+- [x] **S21-3:** PDF tag badge colors — `PDF_TAG_CATEGORY_COLORS` with neutral body + accent borders
+- [x] **S21-4:** Export column reorder — `order` field on `ShotGridColumn`, DnD in `ColumnTableSettings`
+- [x] **S21-5:** Security fixes — `isSafeUrl` XSS prevention, `deleted` filter anti-pattern, `orderBy("date")` undated shot exclusion
+- [x] **S21-6:** Description column added to public share view
+- [x] **S21-7:** 28 new unit tests (tagDedup + mergeShareColumnConfig)
+- [x] **S21-8:** Migration script for existing tag duplicates
+
+---
+
 ## Cross-Phase Requirements
 
 These apply to every phase:

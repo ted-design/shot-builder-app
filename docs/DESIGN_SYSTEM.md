@@ -93,8 +93,12 @@ These components exist and MUST be used. Do not create local variants.
 - `Select` / `SelectTrigger` / `SelectContent` — Radix select
 - `Dialog` / `Sheet` — Radix dialog and sheet (with built-in enter/exit animations)
 
+### Column Settings
+- `ColumnSettingsList` — reusable DnD column visibility + reorder list (shared by shot table popover and share dialog). Uses `@dnd-kit` with `GripVertical` drag handles and `Eye`/`EyeOff` toggles.
+- `ColumnSettingsPopover` — popover wrapper around `ColumnSettingsList` with header + reset button. Used in shot list, library tables.
+
 ### Data Display
-- `TagBadge` — tag rendering with category accent borders
+- `TagBadge` — tag rendering with neutral body + category-accent left borders (priority=red, gender=blue, media=emerald, other=neutral). Web rendering uses CSS variables. PDF rendering uses `PDF_TAG_CATEGORY_COLORS` in `pdfStyles.ts` with hardcoded hex values (neutral `#FFFFFF` body, category-specific border colors).
 - `Badge` (from `@/ui/badge`) — generic badge
 - `ProductImage` — resolves Firebase Storage paths via `useStorageUrl`
 - `Skeleton`, `ListPageSkeleton`, `TableSkeleton`, `DetailPageSkeleton` — loading skeletons
