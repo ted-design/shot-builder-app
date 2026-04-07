@@ -154,6 +154,7 @@ export default function PublicShotSharePage() {
   const [columnOverrides, setColumnOverrides] = useState<Record<string, boolean>>({})
   const [baseColumns, setBaseColumns] = useState<readonly TableColumnConfig[]>(PUBLIC_SHARE_COLUMNS)
 
+  const [orderOverrides, setOrderOverrides] = useState<Record<string, number>>({})
   const [overridesLoaded, setOverridesLoaded] = useState(false)
 
   // Load viewer column overrides from localStorage (per share token)
@@ -161,7 +162,16 @@ export default function PublicShotSharePage() {
     if (!shareToken) return
     try {
       const stored = localStorage.getItem(`sb:share-cols:${shareToken}`)
-      if (stored) setColumnOverrides(JSON.parse(stored) as Record<string, boolean>)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        // Support both legacy (Record<string, boolean>) and new format ({vis, order})
+        if (parsed && typeof parsed === "object" && parsed.vis) {
+          setColumnOverrides(parsed.vis as Record<string, boolean>)
+          if (parsed.order) setOrderOverrides(parsed.order as Record<string, number>)
+        } else {
+          setColumnOverrides(parsed as Record<string, boolean>)
+        }
+      }
     } catch {
       // Ignore malformed storage
     }
@@ -171,12 +181,17 @@ export default function PublicShotSharePage() {
   // Persist viewer column overrides to localStorage (skip until initial load completes)
   useEffect(() => {
     if (!shareToken || !overridesLoaded) return
-    if (Object.keys(columnOverrides).length === 0) {
+    const hasVis = Object.keys(columnOverrides).length > 0
+    const hasOrder = Object.keys(orderOverrides).length > 0
+    if (!hasVis && !hasOrder) {
       localStorage.removeItem(`sb:share-cols:${shareToken}`)
     } else {
-      localStorage.setItem(`sb:share-cols:${shareToken}`, JSON.stringify(columnOverrides))
+      localStorage.setItem(`sb:share-cols:${shareToken}`, JSON.stringify({
+        vis: columnOverrides,
+        order: orderOverrides,
+      }))
     }
-  }, [shareToken, columnOverrides, overridesLoaded])
+  }, [shareToken, columnOverrides, orderOverrides, overridesLoaded])
 
   useEffect(() => {
     let active = true
@@ -255,11 +270,16 @@ export default function PublicShotSharePage() {
 
   const effectiveColumns = useMemo(() => {
     return baseColumns.map((col) => {
-      const override = columnOverrides[col.key]
-      if (override === undefined) return col
-      return { ...col, visible: override }
+      const visOverride = columnOverrides[col.key]
+      const orderOverride = orderOverrides[col.key]
+      if (visOverride === undefined && orderOverride === undefined) return col
+      return {
+        ...col,
+        visible: visOverride !== undefined ? visOverride : col.visible,
+        order: orderOverride !== undefined ? orderOverride : col.order,
+      }
     })
-  }, [baseColumns, columnOverrides])
+  }, [baseColumns, columnOverrides, orderOverrides])
 
   const visibleColumns = useMemo(() => {
     return [...effectiveColumns].filter((c) => c.visible).sort((a, b) => a.order - b.order)
@@ -293,7 +313,18 @@ export default function PublicShotSharePage() {
     setColumnOverrides((prev) => ({ ...prev, [key]: !col.visible }))
   }
 
-  const handleResetColumns = () => setColumnOverrides({})
+  const handleReorderColumns = (orderedKeys: readonly string[]) => {
+    const newOrder: Record<string, number> = {}
+    for (let i = 0; i < orderedKeys.length; i++) {
+      newOrder[orderedKeys[i]!] = i
+    }
+    setOrderOverrides(newOrder)
+  }
+
+  const handleResetColumns = () => {
+    setColumnOverrides({})
+    setOrderOverrides({})
+  }
 
   if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
@@ -327,9 +358,9 @@ export default function PublicShotSharePage() {
                 <ColumnSettingsPopover
                   columns={effectiveColumns}
                   onToggleVisibility={handleToggleColumn}
-                  onReorder={() => {}}
+                  onReorder={handleReorderColumns}
                   onReset={handleResetColumns}
-                  showReorder={false}
+                  showReorder={true}
                 >
                   <Button variant="outline" size="sm">
                     <Settings2 className="mr-1.5 h-3.5 w-3.5" />
