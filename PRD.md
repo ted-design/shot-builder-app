@@ -17,7 +17,7 @@ Production Hub is the production planning tool for fashion and commercial photog
 | Tier | Scope | Phases | Status |
 |------|-------|--------|--------|
 | **Now** | Fix broken workflows, complete library entities (crew/locations/talent), polish UX consistency, clean up tech debt, admin panel + user onboarding, design system realignment, shot request inbox, create project from request | 7A-7E, S1-S5b, 8, 8.5 | **COMPLETE** |
-| **Next** | Casting engine (measurement-based talent search + auto-match) | 9 | **COMPLETE** |
+| **Next** | Casting engine (measurement-based talent search + auto-match) + project casting board + external stakeholder review + share link management | 9, S24 | **COMPLETE** |
 | **Future** | Per-product asset requirements, sample logistics (PLM), dashboard shoot readiness | 10 + 10R | **COMPLETE** |
 | **Polish** | UX overhaul (competitive parity), export builder, call sheet improvements, interactive tables, design system enforcement | S15, S16 | **COMPLETE** |
 | **Planned** | Canvas image editor (multi-layer composition — Fabric.js or Konva.js), advanced call sheet (SetHero feature parity) | S17+ | Backlog |
@@ -182,12 +182,21 @@ Every shot progresses through four statuses. These labels are canonical across a
 - Data model: `clients/{clientId}/shotRequests/{requestId}`, with `comments` subcollection.
 - "Create new project from request" — AbsorbDialog has a mode toggle: absorb into existing project OR create a new project atomically (Phase 8.5, complete).
 
-### Journey 8: Casting Engine (Phase 9 — future)
+### Journey 8: Casting Engine (Phase 9 — COMPLETE, extended in S24)
 
 - Searchable talent database: filter by measurements (height range, bust, waist, gender), availability, past work.
 - Auto-match: given a casting brief's requirements, suggest top matching talent with similarity scores.
 - Shot history: every talent profile shows past shots they appeared in (reverse lookup from shot.talent[]).
 - Casting session workflow: shortlist → book → confirm → assign to shots.
+
+**Casting Board (Sprint S24):** Project-scoped casting workflow with external stakeholder review.
+
+- **Internal casting board** (`/projects/:id/casting`): select talent from org library → add to project casting board → set status (Shortlist/Hold/Booked/Passed) → assign roles → add notes.
+- **External share link**: admin/producer generates a configurable share link. Controls which fields are visible to external reviewers (headshot, name always visible; agency, measurements, portfolio, casting notes toggleable). Optional reviewer instructions.
+- **External casting review** (`/casting/shared/:shareToken`): unauthenticated page. Reviewers enter name + email (stored in localStorage, not verified). Vote on each talent: Approve / Maybe / Pass. Add optional comments. Attributed voting — all reviewers see each other's votes and comments.
+- **Vote aggregation**: admin reviews votes on the casting board. Individual reviewer names + decisions visible. "Book" action transitions talent to project assets.
+- **Share link management** (`/projects/:id/links`): unified view of all shot shares, casting shares, and pull shares. Copy URL, toggle enable/disable, set expiry, delete.
+- Data model: `castingBoard` subcollection (project-scoped), `castingShares` root collection (denormalized at creation), `votes` subcollection (deterministic doc IDs prevent duplicate votes).
 
 ### Journey 9: Asset Requirements & PLM (Phase 10 — COMPLETE)
 
@@ -205,7 +214,7 @@ Every shot progresses through four statuses. These labels are canonical across a
 | **Must-Have** | Projects + dashboard with readiness, shots (inline edit + detail panel), product assignment to shots, pull sheet generation + fulfillment + sharing, call sheets, Cmd+K command palette, keyboard shortcuts, mobile/tablet operations, admin/settings + user onboarding | Shipped (Phases 2-7E, S1-S3, S14) |
 | **Must-Have** | User management: project visibility (team/restricted/private), enhanced admin roster, deactivation/reactivation, bulk project assignment, invitation emails (Resend), first-run experience | Shipped (Sprint S10) |
 | **Shipped** | Shot request inbox (admin+producer submit + triage), create project from request, request notifications (email via Resend), conversation threads, product/reference attachments, bulk shot generation from product library | Shipped (Phases 8, 8.5, Sprint S12) |
-| **Shipped** | Casting engine (measurement search, auto-match, shot history) | Shipped (Phase 9) |
+| **Shipped** | Casting engine (measurement search, auto-match, shot history) + project casting board with external stakeholder review + share link management | Shipped (Phase 9, Sprint S24) |
 | **Shipped** | Asset requirements & PLM (asset flags, launch dates, samples, shoot readiness) | Shipped (Phase 10) |
 | **Should-Have** | Product library CRUD, talent/crew/locations library, comments + activity feed, tags, notifications, board column reorder + show/hide | Largely shipped; notifications + board config outstanding |
 | **Shipped** | UX overhaul: batch shot delete, time-based urgency badges, page transitions, talent/location table views, shot view consolidation, block-based export builder, call sheet section toggles + field customization + layout templates | Shipped (Sprint S15a-d) |

@@ -177,6 +177,17 @@ Phase order is the default. Override when reality demands it:
 - **PDF tag badges:** `PDF_TAG_CATEGORY_COLORS` in `pdfStyles.ts` provides category-accent colors for PDF tag rendering. `ShotGridBlockPdf.tsx` renders tags as styled mini-badges with left border accent.
 - **Migration script:** `scripts/migrations/2026-04-deduplicate-shot-tags.ts` deduplicates existing tag data. Run with `--clientId <id>` and `--write` flag.
 
+### 14. Sprint S24 New Infrastructure
+
+- **Casting board:** `castingBoard` subcollection under `clients/{clientId}/projects/{projectId}/castingBoard/{entryId}`. Stores project-scoped casting state: `talentId`, `talentName` (denormalized fallback), `status` (`shortlist`|`hold`|`booked`|`passed`), `roleLabel`, `notes`, `sortOrder`. Covered by existing wildcard catch-all in `firestore.rules` (admin/producer write). Doc ID = talentId.
+- **Casting shares:** `castingShares/{shareToken}` root-level collection. Mirrors `shotShares` pattern. Contains `resolvedTalent` (denormalized at creation), `visibleFields` (agency/measurements/portfolio/castingNotes toggles), `reviewerInstructions`, `showVoteTallies`. Must always write `expiresAt: null` — omitting the field causes rules denial (see Firestore missing field gotcha below).
+- **Casting votes:** `castingShares/{shareToken}/votes/{voteId}` subcollection. Unauthenticated reviewers create/update votes. Doc ID is deterministic: `{normalizedEmail}_{talentId}`. Fields: `reviewerEmail`, `reviewerName`, `talentId`, `decision` (`approve`|`disapprove`|`maybe`), `comment`. Rules enforce `keys().hasOnly([...])` and immutability on update (email, name, talentId locked).
+- **Casting status labels:** Canonical labels from `castingStatuses.ts`: shortlist→"Shortlist", hold→"Hold", booked→"Booked", passed→"Passed". Use these everywhere — not alternative labels.
+- **Share link management:** `SharedLinksPage` at `/projects/:id/links` shows all shot shares, casting shares, and pull shares in a unified table. Queries `shotShares` and `castingShares` with composite indexes (`clientId` + `projectId`). Pull shares queried from `pulls` subcollection where `shareEnabled == true`.
+- **Firestore missing field gotcha:** In Firestore rules, `resource.data.someField` on a document where the field doesn't exist **throws an error** causing the rule to deny. Always write optional fields with explicit `null` value (not omit them). Use defensive checks in rules: `!('fieldName' in resource.data) || resource.data.fieldName == null || ...`.
+- **Talent import script:** `scripts/import-talent-roster.ts` — dry-run by default, `--write` to execute. Reads Excel (Men/Women sheets), normalizes measurements, matches by name (Levenshtein fuzzy for near-misses), additive-only merge. Force-match aliases for confirmed duplicates. Uploads headshots as WebP (1600px, q82).
+- **Measurement parser:** `parseMeasurementValue` regex updated to handle spaces in heights (`6' 1"`) and half-inches (`5'11.5"`). `normalizeGender()` handles `male`/`female`/`man`/`woman` in addition to `men`/`women`. "Chest" added to men's `MEASUREMENT_GROUPS`.
+
 ## Legacy Codebase Context
 
 The existing `src/` directory contains the **legacy JavaScript app** (~583 files, `.js`/`.jsx`). vNext is a **ground-up TypeScript rebuild** — not a migration or refactor of legacy files.
@@ -234,3 +245,16 @@ Canonical labels (from `requestStatusMappings.ts`). Use these everywhere:
 | `rejected` | **Rejected** | gray |
 
 `requestStatusMappings.ts` is the single source of truth for request statuses.
+
+## Casting Status Labels
+
+Canonical labels (from `castingStatuses.ts`). Use these everywhere:
+
+| Firestore value | Display label | Color |
+|---|---|---|
+| `shortlist` | **Shortlist** | gray |
+| `hold` | **Hold** | amber |
+| `booked` | **Booked** | blue |
+| `passed` | **Passed** | red |
+
+`castingStatuses.ts` is the single source of truth for casting statuses.
