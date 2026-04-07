@@ -613,8 +613,8 @@ export default function PublicCastingReviewPage() {
           </div>
         )}
 
-        {/* Reviewer identity banner (sticky) */}
-        <div className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-3">
+        {/* Reviewer identity banner (sticky, solid bg to prevent content bleed-through) */}
+        <div className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
           <div className="mx-auto max-w-5xl">
             {showIdentityForm ? (
               <div>
