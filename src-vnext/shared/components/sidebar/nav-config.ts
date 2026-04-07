@@ -24,6 +24,7 @@ export type NavItemIcon =
   | "tag"
   | "file-output"
   | "user-check"
+  | "link-2"
 
 export type SurfaceBadge = "Limited" | "Reader" | "Editor"
 
@@ -123,6 +124,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       {
         type: "item",
         item: { label: "Tags", to: `${prefix}/tags`, iconName: "tag", desktopOnly: true },
+      },
+      {
+        type: "item",
+        item: { label: "Shared Links", to: `${prefix}/links`, iconName: "link-2", desktopOnly: true },
       },
       { type: "divider" },
       { type: "item", item: { label: "Products", to: "/products", iconName: "package", surfaceBadge: "Reader" } },

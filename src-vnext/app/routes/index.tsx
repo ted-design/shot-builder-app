@@ -86,6 +86,9 @@ const CastingBoardPage = lazy(
 const PublicCastingReviewPage = lazy(
   () => import("@/features/casting/components/PublicCastingReviewPage"),
 )
+const SharedLinksPage = lazy(
+  () => import("@/features/links/components/SharedLinksPage"),
+)
 
 // Dev-only components — only imported in development to keep them out of production bundles
 const DevImportQ2 = import.meta.env.DEV
@@ -186,6 +189,16 @@ export function AppRoutes() {
               <ProjectScopeProvider>
                 <RequireDesktop label="Tag management">
                   <TagManagementPage />
+                </RequireDesktop>
+              </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="projects/:id/links"
+            element={
+              <ProjectScopeProvider>
+                <RequireDesktop label="Shared Links">
+                  <SharedLinksPage />
                 </RequireDesktop>
               </ProjectScopeProvider>
             }

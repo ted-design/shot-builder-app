@@ -74,6 +74,22 @@
         { "fieldPath": "deleted", "mode": "ASCENDING" },
         { "fieldPath": "updatedAt", "mode": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "shotShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "projectId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "castingShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "projectId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
