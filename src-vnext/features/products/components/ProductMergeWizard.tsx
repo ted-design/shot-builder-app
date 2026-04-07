@@ -132,11 +132,9 @@ export function ProductMergeWizard({
   }, [])
 
   const handleSwap = useCallback(() => {
-    setWinner((prevWinner) => {
-      setLoser(prevWinner)
-      return loser
-    })
-  }, [loser])
+    setWinner(loser)
+    setLoser(winner)
+  }, [winner, loser])
 
   const handlePlanMerge = useCallback(async () => {
     if (!winner || !loser) return

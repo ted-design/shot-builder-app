@@ -11,6 +11,7 @@ import {
   type ShotsListFields,
   type ShotGroup,
   DEFAULT_FIELDS,
+  STATUS_LABELS,
   filterByQuery,
   sortShots,
   computeInsights,
@@ -42,13 +43,6 @@ const MISSING_LABELS: Record<string, string> = {
   talent: "Talent",
   location: "Location",
   image: "Hero Image",
-}
-
-const STATUS_LABEL_MAP: Record<string, string> = {
-  todo: "Draft",
-  in_progress: "In Progress",
-  on_hold: "On Hold",
-  complete: "Shot",
 }
 
 // ---------------------------------------------------------------------------
@@ -497,7 +491,7 @@ export function useShotListState(params: {
       case "location": return locationNameById.get(id) ?? id
       case "product": return productNameById.get(id) ?? id
       case "tag": return tagLabelById.get(id) ?? id
-      case "status": return STATUS_LABEL_MAP[id] ?? id.replace("_", " ")
+      case "status": return STATUS_LABELS[id as ShotFirestoreStatus] ?? id.replace("_", " ")
       case "missing": return MISSING_LABELS[id] ?? id
       default: return id
     }

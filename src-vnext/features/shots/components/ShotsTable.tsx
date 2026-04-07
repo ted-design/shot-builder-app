@@ -81,6 +81,30 @@ function SortableRow(props: ShotsTableRowProps & { readonly reorderEnabled: bool
   )
 }
 
+/** Wraps children with DndContext + SortableContext when enabled, passthrough otherwise. */
+function DndWrapper({
+  enabled,
+  sensors: dndSensors,
+  items,
+  onDragEnd: onEnd,
+  children,
+}: {
+  readonly enabled: boolean
+  readonly sensors: ReturnType<typeof useSensors>
+  readonly items: string[]
+  readonly onDragEnd: (event: DragEndEvent) => void
+  readonly children: ReactNode
+}) {
+  if (!enabled) return <>{children}</>
+  return (
+    <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={onEnd}>
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  )
+}
+
 export function ShotsTable({
   shots,
   fields,
@@ -204,6 +228,12 @@ export function ShotsTable({
         </div>
       )}
 
+      <DndWrapper
+        enabled={reorderEnabled}
+        sensors={sensors}
+        items={shots.map((s) => s.id)}
+        onDragEnd={handleDragEnd}
+      >
       <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
         <table
           ref={tableRef}
@@ -380,15 +410,6 @@ export function ShotsTable({
             </tr>
           </thead>
           {reorderEnabled ? (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={shots.map((s) => s.id)}
-                strategy={verticalListSortingStrategy}
-              >
                 <tbody>
                   {shots.map((shot, index) => (
                     <SortableRow
@@ -411,8 +432,6 @@ export function ShotsTable({
                     />
                   ))}
                 </tbody>
-              </SortableContext>
-            </DndContext>
           ) : (
             <tbody>
               {shots.map((shot, index) => (
@@ -438,6 +457,7 @@ export function ShotsTable({
           )}
         </table>
       </div>
+      </DndWrapper>
     </div>
   )
 }

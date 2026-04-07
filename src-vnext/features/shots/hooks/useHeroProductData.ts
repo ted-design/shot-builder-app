@@ -67,7 +67,7 @@ export function useHeroProductData(
     return [...ids]
   }, [shots])
 
-  const familyIdsKey = heroFamilyIds.join(",")
+  const familyIdsKey = [...heroFamilyIds].sort().join(",")
 
   useEffect(() => {
     if (!clientId || heroFamilyIds.length === 0) {

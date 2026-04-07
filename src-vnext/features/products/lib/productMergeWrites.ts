@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -17,6 +18,7 @@ import {
   productFamilySamplesPath,
   productFamilySkusPath,
   pullsPath,
+  shotRequestsPath,
   shotsPath,
 } from "@/shared/lib/paths"
 import { countActiveRequirements, resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
@@ -265,9 +267,10 @@ async function updateShotReferences(args: {
   for (const chunk of chunks) {
     const batch = writeBatch(db)
 
-    for (const shotId of chunk) {
-      const shotRef = buildDocRef(shotBasePath, shotId)
-      const shotSnap = await getDoc(shotRef)
+    const shotSnaps = await Promise.all(
+      chunk.map((shotId) => getDoc(buildDocRef(shotBasePath, shotId)))
+    )
+    for (const shotSnap of shotSnaps) {
       if (!shotSnap.exists()) continue
 
       const shotData = shotSnap.data()
@@ -318,7 +321,7 @@ async function updateShotReferences(args: {
       })
 
       if (changed) {
-        batch.update(shotRef, {
+        batch.update(shotSnap.ref, {
           products: newProducts,
           looks: newLooks,
           updatedAt: serverTimestamp(),
@@ -399,7 +402,8 @@ async function updateRequestReferences(args: {
 }): Promise<number> {
   const { loserId, winnerId, clientId } = args
 
-  const requestsCol = collection(db, "clients", clientId, "shotRequests")
+  const requestPath = shotRequestsPath(clientId)
+  const requestsCol = collection(db, requestPath[0]!, ...requestPath.slice(1))
   const q = query(requestsCol, where("relatedFamilyIds", "array-contains", loserId))
   const snap = await getDocs(q)
   if (snap.empty) return 0
@@ -549,15 +553,15 @@ async function getProjectIdsFromShots(
 ): Promise<string[]> {
   const ids = new Set<string>()
   const shotCol = buildCollectionRef(shotsPath(clientId))
-  for (const shotId of shotIds) {
-    try {
-      const shotDoc = await getDoc(doc(shotCol, shotId))
-      if (shotDoc.exists()) {
-        const data = shotDoc.data()
-        if (data.projectId) ids.add(data.projectId as string)
-      }
-    } catch {
-      // Skip unreadable shots
+  const results = await Promise.all(
+    shotIds.map((shotId) =>
+      getDoc(doc(shotCol, shotId)).catch(() => null),
+    ),
+  )
+  for (const shotDoc of results) {
+    if (shotDoc?.exists()) {
+      const data = shotDoc.data()
+      if (data.projectId) ids.add(data.projectId as string)
     }
   }
   return [...ids]
@@ -621,152 +625,160 @@ export async function executeProductMerge(args: {
   }
   await updateDoc(loserRef, { mergeInProgress: winnerId, updatedAt: serverTimestamp() })
 
-  // Build the loserSkuId -> winnerSkuId map from matched SKUs
-  const matchedSkuMap = new Map<string, string>()
-  for (const match of plan.matchedSkus) {
-    matchedSkuMap.set(match.loserId, match.winnerId)
-  }
+  try {
+    // Build the loserSkuId -> winnerSkuId map from matched SKUs
+    const matchedSkuMap = new Map<string, string>()
+    for (const match of plan.matchedSkus) {
+      matchedSkuMap.set(match.loserId, match.winnerId)
+    }
 
-  // Pre-merge version snapshot on the winner (audit trail)
-  if (winnerFamily && user) {
-    void createProductVersionSnapshot({
-      clientId,
-      familyId: winnerId,
-      previousFamily: winnerFamily,
-      familyPatch: {},
-      user,
-      changeType: "update",
-    }).catch((err) => {
-      console.error("[executeProductMerge] Pre-merge version snapshot failed:", err)
-    })
-  }
-
-  // Step 1: Transfer new SKUs
-  const skusCreated = await transferNewSkus({
-    newSkus: plan.newSkus,
-    winnerId,
-    clientId,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 1 (transferNewSkus) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 2: Transfer samples
-  const samplesTransferred = await transferSamples({
-    loserId,
-    winnerId,
-    clientId,
-    matchedSkuMap,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 2 (transferSamples) failed after ${skusCreated} SKUs created: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 3: Transfer comments
-  const commentsTransferred = await transferComments({
-    loserId,
-    winnerId,
-    clientId,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 3 (transferComments) failed after ${skusCreated} SKUs, ${samplesTransferred} samples: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 4: Transfer documents
-  const documentsTransferred = await transferDocuments({
-    loserId,
-    winnerId,
-    clientId,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 4 (transferDocuments) failed after ${skusCreated} SKUs, ${samplesTransferred} samples, ${commentsTransferred} comments: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 5: Update shot references
-  const shotsUpdated = await updateShotReferences({
-    affectedShotIds: plan.affectedShotIds,
-    loserId,
-    winnerId,
-    winnerName: plan.winner.styleName,
-    clientId,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 5 (updateShotReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 6: Update pull references — derive project IDs from affected shots
-  const affectedProjectIds = Array.from(new Set(
-    plan.affectedShotIds.length > 0
-      ? await getProjectIdsFromShots(plan.affectedShotIds, clientId)
-      : [],
-  ))
-  const pullsUpdated = await updatePullReferences({
-    affectedProjectIds,
-    loserId,
-    winnerId,
-    winnerName: plan.winner.styleName,
-    clientId,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 6 (updatePullReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 7: Update shot request references
-  const requestsUpdated = await updateRequestReferences({
-    loserId,
-    winnerId,
-    clientId,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 7 (updateRequestReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 8: Recompute winner aggregates
-  const loserShotIds = plan.affectedShotIds
-  await recomputeWinnerAggregates({
-    winnerId,
-    clientId,
-    mergedBy,
-    loserShotIds,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 8 (recomputeWinnerAggregates) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Step 9: Soft-delete the loser (LAST step)
-  await softDeleteLoser({
-    loserId,
-    winnerId,
-    clientId,
-    mergedBy,
-  }).catch((err) => {
-    throw new Error(`[executeProductMerge] Step 9 (softDeleteLoser) failed: ${err instanceof Error ? err.message : String(err)}`)
-  })
-
-  // Post-merge version snapshot on the winner (audit trail)
-  if (user) {
-    const familyPath = productFamiliesPath(clientId)
-    const familyRef = buildDocRef(familyPath, winnerId)
-    const freshSnap = await getDoc(familyRef).catch(() => null)
-    if (freshSnap?.exists() && winnerFamily) {
+    // Pre-merge version snapshot on the winner (audit trail)
+    if (winnerFamily && user) {
       void createProductVersionSnapshot({
         clientId,
         familyId: winnerId,
         previousFamily: winnerFamily,
-        familyPatch: freshSnap.data() as Record<string, unknown>,
+        familyPatch: {},
         user,
         changeType: "update",
       }).catch((err) => {
-        console.error("[executeProductMerge] Post-merge version snapshot failed:", err)
+        console.error("[executeProductMerge] Pre-merge version snapshot failed:", err)
       })
     }
-  }
 
-  return {
-    skusCreated,
-    skusMerged: plan.matchedSkus.length,
-    samplesTransferred,
-    commentsTransferred,
-    documentsTransferred,
-    shotsUpdated,
-    pullsUpdated,
-    requestsUpdated,
+    // Step 1: Transfer new SKUs
+    const skusCreated = await transferNewSkus({
+      newSkus: plan.newSkus,
+      winnerId,
+      clientId,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 1 (transferNewSkus) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 2: Transfer samples
+    const samplesTransferred = await transferSamples({
+      loserId,
+      winnerId,
+      clientId,
+      matchedSkuMap,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 2 (transferSamples) failed after ${skusCreated} SKUs created: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 3: Transfer comments
+    const commentsTransferred = await transferComments({
+      loserId,
+      winnerId,
+      clientId,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 3 (transferComments) failed after ${skusCreated} SKUs, ${samplesTransferred} samples: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 4: Transfer documents
+    const documentsTransferred = await transferDocuments({
+      loserId,
+      winnerId,
+      clientId,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 4 (transferDocuments) failed after ${skusCreated} SKUs, ${samplesTransferred} samples, ${commentsTransferred} comments: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 5: Update shot references
+    const shotsUpdated = await updateShotReferences({
+      affectedShotIds: plan.affectedShotIds,
+      loserId,
+      winnerId,
+      winnerName: plan.winner.styleName,
+      clientId,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 5 (updateShotReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 6: Update pull references — derive project IDs from affected shots
+    const affectedProjectIds = Array.from(new Set(
+      plan.affectedShotIds.length > 0
+        ? await getProjectIdsFromShots(plan.affectedShotIds, clientId)
+        : [],
+    ))
+    const pullsUpdated = await updatePullReferences({
+      affectedProjectIds,
+      loserId,
+      winnerId,
+      winnerName: plan.winner.styleName,
+      clientId,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 6 (updatePullReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 7: Update shot request references
+    const requestsUpdated = await updateRequestReferences({
+      loserId,
+      winnerId,
+      clientId,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 7 (updateRequestReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 8: Recompute winner aggregates
+    const loserShotIds = plan.affectedShotIds
+    await recomputeWinnerAggregates({
+      winnerId,
+      clientId,
+      mergedBy,
+      loserShotIds,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 8 (recomputeWinnerAggregates) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Step 9: Soft-delete the loser (LAST step)
+    await softDeleteLoser({
+      loserId,
+      winnerId,
+      clientId,
+      mergedBy,
+    }).catch((err) => {
+      throw new Error(`[executeProductMerge] Step 9 (softDeleteLoser) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
+    // Post-merge version snapshot on the winner (audit trail)
+    if (user) {
+      const familyPath = productFamiliesPath(clientId)
+      const familyRef = buildDocRef(familyPath, winnerId)
+      const freshSnap = await getDoc(familyRef).catch(() => null)
+      if (freshSnap?.exists() && winnerFamily) {
+        void createProductVersionSnapshot({
+          clientId,
+          familyId: winnerId,
+          previousFamily: winnerFamily,
+          familyPatch: freshSnap.data() as Record<string, unknown>,
+          user,
+          changeType: "update",
+        }).catch((err) => {
+          console.error("[executeProductMerge] Post-merge version snapshot failed:", err)
+        })
+      }
+    }
+
+    return {
+      skusCreated,
+      skusMerged: plan.matchedSkus.length,
+      samplesTransferred,
+      commentsTransferred,
+      documentsTransferred,
+      shotsUpdated,
+      pullsUpdated,
+      requestsUpdated,
+    }
+  } catch (err) {
+    // Clear mergeInProgress flag so the merge can be retried
+    try {
+      await updateDoc(loserRef, { mergeInProgress: deleteField(), updatedAt: serverTimestamp() })
+    } catch { /* ignore cleanup failure */ }
+    throw err
   }
 }
