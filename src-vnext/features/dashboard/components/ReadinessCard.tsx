@@ -156,6 +156,7 @@ export interface ReadinessCardProps {
   readonly projectNames: ReadonlyMap<string, string>
   readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
   readonly onQuickAdd?: () => void
+  readonly filterByRequirements?: boolean
 }
 
 export function ReadinessCard({
@@ -172,6 +173,7 @@ export function ReadinessCard({
   projectNames,
   skuProjectMap,
   onQuickAdd,
+  filterByRequirements,
 }: ReadinessCardProps) {
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const navigate = useNavigate()
@@ -448,6 +450,7 @@ export function ReadinessCard({
             selection={selection}
             skuProjectMap={skuProjectMap}
             projectNames={projectNames}
+            filterByRequirements={filterByRequirements}
           />
         </div>
       )}

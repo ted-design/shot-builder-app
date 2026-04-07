@@ -43,7 +43,7 @@ describe("backfillMissingShotDates", () => {
     vi.clearAllMocks()
   })
 
-  it("updates only non-deleted shots missing list-required fields", async () => {
+  it("updates only non-deleted shots missing date field", async () => {
     const { getDocs } = await import("firebase/firestore")
     ;(getDocs as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({
       size: 5,
@@ -51,7 +51,7 @@ describe("backfillMissingShotDates", () => {
         makeDoc("a", { projectId: "p1", deleted: false }), // missing date -> update
         makeDoc("b", { projectId: "p1", deleted: false, date: null }), // already present -> no update
         makeDoc("c", { projectId: "p1", deleted: true }), // deleted -> no update
-        makeDoc("d", { projectId: "p1" }), // missing deleted, missing date -> update (needs deleted:false too)
+        makeDoc("d", { projectId: "p1" }), // missing date, deleted undefined -> update (date only, no deleted patch)
         makeDoc("e", { projectId: "p1", date: { seconds: 1, nanoseconds: 0 } }), // has date -> no update
       ],
     })
@@ -63,14 +63,15 @@ describe("backfillMissingShotDates", () => {
     })
 
     expect(res.scanned).toBe(5)
-    expect(res.updated).toBe(3)
-    expect(mockWriteBatchUpdate).toHaveBeenCalledTimes(3)
+    expect(res.updated).toBe(2)
+    expect(mockWriteBatchUpdate).toHaveBeenCalledTimes(2)
     expect(mockWriteBatchCommit).toHaveBeenCalledTimes(1)
 
     const payloads = mockWriteBatchUpdate.mock.calls.map((c) => c?.[1]) as Record<string, unknown>[]
     expect(payloads.every((p) => p.updatedBy === "u1")).toBe(true)
     expect(payloads.every((p) => (p.updatedAt as { __serverTs?: boolean } | undefined)?.__serverTs === true)).toBe(true)
-    expect(payloads.some((p) => p.date === null)).toBe(true)
-    expect(payloads.some((p) => p.deleted === false)).toBe(true)
+    expect(payloads.every((p) => p.date === null)).toBe(true)
+    // Must NOT touch the deleted field — that's managed by shot lifecycle actions
+    expect(payloads.every((p) => !("deleted" in p))).toBe(true)
   })
 })

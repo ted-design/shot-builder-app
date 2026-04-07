@@ -1,62 +1,62 @@
-# HANDOFF — Sprint S21: Share Column Config, Tag Dedup, Tag Colors, Export Improvements (2026-04-06)
+# HANDOFF — Sprint S23: Production Workflow Precision (2026-04-07)
 
 ## State
-All 4 workstreams implemented + final audit fixes. Build clean, lint zero. 151 test files / 1593 tests pass. Production build succeeds.
-
-## Final Audit Fixes (post-implementation)
-- **XSS fix:** `isSafeUrl()` removed base URL parameter — `javascript:` URLs now correctly rejected
-- **Tag dedup at boundary:** `mapShot.normalizeTags()` now calls `deduplicateTags()` to collapse same-label tags
-- **Share tags canonicalized:** `resolveShotsForShare` now applies `canonicalizeTag` + `deduplicateTags`
-- **Undated shots included:** Removed `orderBy("date")` from share query (Firestore silently excludes docs without field)
-- **PDF tag colors:** Changed to neutral body (`#FFFFFF`) with accent border only (matches CLAUDE.md rule)
-- **Search uses status labels:** Haystack now uses `getShotStatusLabel()` instead of raw Firestore values
-- **Search icon added:** Public share page search input follows DESIGN_SYSTEM.md pattern
-- **PDF shotNumber fix:** Missing numbers show em-dash instead of "000"
-- **PDF tag label truncation:** Labels capped at 24 chars to prevent layout overflow
-- **Button size consistency:** Print button matched to `size="sm"`
-- **mergeShareColumnConfig hardened:** Guards against NaN/corrupted order values
+Phases 1-3 + 4B complete. Phase 4A (product deduplication) pending user mockup review. Build clean, lint zero. 158 test files / 1782 tests pass. Production build succeeds.
 
 ## What Was Built
 
-### WS-1: Tag Deduplication Fix
-- **Root cause fixed:** Tags were deduplicated by ID, not label. Two "Men" tags with different IDs (`default-gender-men` vs `tag-12345-abc`) appeared separately.
-- **`tagDedup.ts`** (NEW) — shared utilities: `normalizeTagLabel`, `findCanonicalTag`, `canonicalizeTag`, `deduplicateTags`
-- **`mapShot.ts`** — tags are now canonicalized at the Firestore→React boundary. ALL downstream consumers (filters, management writes, export) automatically work with canonical IDs.
-- **`useAvailableTags.ts`** — label-keyed aggregation replaces ID-keyed
-- **`TagManagementPage.tsx`** — `buildTagLibrary()` uses label-keyed aggregation with unioned shotIds
-- **`TagEditor.tsx`** — `createOrReuse()` checks `findCanonicalTag()` before generating random IDs
-- **Migration script** (`scripts/migrations/2026-04-deduplicate-shot-tags.ts`) — groups tags by normalized label, keeps canonical IDs, dry-run by default
-- **19 unit tests** for `tagDedup.ts`
+### Phase 1: Critical Bug Fixes
+- **Ghost shot fix (3 vectors):** (a) `backfillShotDates.ts` no longer touches `deleted` field, (b) `requestWrites.ts` idempotency guard checks `absorbedAsShotId`, (c) client-side defense filter in `useShotListState`
+- **Launch date sort fix:** `skuById` threaded to sort comparator. SKU launch date no longer falls back to family aggregate — if SKU has no date, returns null
+- **Filter typography:** Missing filter labels now Title Case (Products, Talent, Location, Hero Image)
+- **Code review fixes:** SKU data threading in drag view + grouped card view, inline type imports cleaned
 
-### WS-2: Share Link Column Configuration
-- **`shotTableColumns.ts`** — added `ShareColumnEntry` type, `PUBLIC_SHARE_COLUMNS` constant (9 columns), `mergeShareColumnConfig()` helper
-- **`ColumnSettingsList.tsx`** (NEW) — extracted DnD list from `ColumnSettingsPopover.tsx` for reuse
-- **`ColumnSettingsPopover.tsx`** — refactored to use `ColumnSettingsList` (188→59 lines)
-- **`resolveShotsForShare.ts`** — extended `ResolvedPublicShot` with `tags` and `referenceLinks`; fixed `where("deleted","==",false)` anti-pattern
-- **`ShotsShareDialog.tsx`** — added column config UI (drag-to-reorder + visibility toggles); persists `columnConfig` to Firestore
-- **`PublicShotSharePage.tsx`** — fully rebuilt as column-config-driven table; viewer can toggle columns via popover; tags render with `TagBadge`; localStorage persistence per share token
+### Phase 2: Column & Display Enhancements
+- **Shot number column:** Dedicated `#` column (pinned, order 1, 56px, tabular-nums). Removed from title cell
+- **Reqs column types:** Shows "On-fig e-comm", "Lifestyle" etc. instead of "2 needed". Falls back to count for family-level data
+- **Style number display:** Shown below product names in `text-2xs text-[var(--color-text-subtle)]` in both table and card views
+- **Sort cache optimization:** Pre-computed sort keys for launchDate/requirements (O(N) instead of O(N log N))
 
-### WS-3: Tag Colors in Export
-- **`pdfStyles.ts`** — added `PDF_TAG_CATEGORY_COLORS` (priority=red, gender=blue, media=emerald, other=neutral)
-- **`ShotGridBlockPdf.tsx`** — tags render as styled mini-badges with category-accent left borders (matches web `TagBadge` pattern)
+### Phase 3: Advanced Filtering System
+- **9 filter fields:** Status, Tag, Talent, Location, Product, Missing, Launch Date, Has Requirements, Has Hero Image
+- **7 operators:** is, is not, is before, is on or after, is between, has no value, equals
+- **URL persistence:** Single `filters` param with compact serialization
+- **Backward compatible:** Legacy URL params auto-migrate on first load
+- **UI:** Condition-based filter sheet with add/remove/update, operator switching, value pickers per field type
+- **Files:** filterConditions.ts, filterSerializer.ts, filterEngine.ts + 98 tests
+- **State:** useShotListState rewritten — conditions drive everything, backward-compat derived fields
 
-### WS-4: Export Column Reorder + Page Break
-- **`exportBuilder.ts`** — added `order?: number` to `ShotGridColumn` and `ProductTableColumn`
-- **`blockDefaults.ts`** — added order values to all default columns
-- **`ColumnTableSettings.tsx`** — added DnD reorder with `@dnd-kit` (matching `ColumnSettingsPopover` pattern)
-- **`ShotGridBlockPdf.tsx`** + **`ShotGridBlockView.tsx`** — sort by order before filtering visible columns
-- **Page break investigation:** No data loss. `wrap={false}` correctly pushes rows to next page intact.
+### Phase 4B: Sample Tracking Links
+- **Carrier auto-detection:** DHL (10-digit), UPS (1Z*), FedEx (12/15-digit), USPS (20-22 digit), Canada Post (13-16 alpha)
+- **Deep links:** Clickable external-link icon on sample rows → opens carrier tracking page
+- **Edit form hint:** "Detected: DHL — click to fill" when tracking entered but no carrier
+- **32 tests** for all carriers + edge cases
 
-### Firestore Changes
-- **New field:** `columnConfig` on `shotShares` documents (array of `{key, visible, order}`)
-- **Extended field:** `resolvedShots` now includes `tags` and `referenceLinks`
-- **Fixed anti-pattern:** Removed `where("deleted","==",false)` from share resolution query
-- **No rule changes required**
+## New Files
+| File | Lines | Purpose |
+|------|-------|---------|
+| `features/shots/lib/filterConditions.ts` | ~80 | Filter types + metadata |
+| `features/shots/lib/filterSerializer.ts` | ~140 | URL serialization + legacy migration |
+| `features/shots/lib/filterEngine.ts` | ~190 | Condition evaluation engine |
+| `features/shots/lib/filterConditions.test.ts` | ~60 | 8 metadata tests |
+| `features/shots/lib/filterSerializer.test.ts` | ~200 | 32 serialization tests |
+| `features/shots/lib/filterEngine.test.ts` | ~350 | 58 evaluation tests |
+| `features/shots/components/AddFilterMenu.tsx` | ~99 | Filter field picker popover |
+| `features/shots/components/FilterConditionRow.tsx` | ~124 | Single condition row UI |
+| `features/shots/components/FilterValuePicker.tsx` | ~249 | Value input switcher |
+| `shared/lib/carrierDetection.ts` | ~105 | Carrier detection + URL generation |
+| `shared/lib/carrierDetection.test.ts` | ~130 | 32 carrier detection tests |
+| `docs/mockups/product-merge-wizard.html` | ~325 | Interactive merge wizard mockup |
 
-## What's Next
-- Run tag migration script: `npx tsx scripts/migrations/2026-04-deduplicate-shot-tags.ts --clientId=<id> --write`
-- Canvas image editor backlog
-- Monitor tag dedup (self-corrects via `mapShot` canonicalization)
+## Pending
+- [ ] User review of product merge wizard mockup
+- [ ] Phase 4A: Product deduplication implementation (after mockup approval)
+- [ ] Git commit + PR
+- [ ] CLAUDE.md update for S23 infrastructure
+- [ ] Plan.md checkbox updates
 
 ## To Resume
-Read this file, then `CHECKPOINT.md`, then `CLAUDE.md` Hard Rule #6b (no deferring).
+1. Read this file
+2. Check if user approved the merge wizard mockup
+3. If yes, implement Phase 4A
+4. If not, iterate on mockup based on feedback

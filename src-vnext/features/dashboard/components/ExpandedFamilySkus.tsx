@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useProductSkus } from "@/features/products/hooks/useProducts"
 import { formatLaunchDate, countActiveRequirements } from "@/features/products/lib/assetRequirements"
 import type { ProductSku } from "@/shared/types"
@@ -41,6 +41,7 @@ export interface ExpandedFamilySkusProps {
   readonly selection: ReturnType<typeof useProductSelection>
   readonly skuProjectMap: ReadonlyMap<string, ReadonlySet<string>>
   readonly projectNames: ReadonlyMap<string, string>
+  readonly filterByRequirements?: boolean
 }
 
 export function ExpandedFamilySkus({
@@ -50,12 +51,21 @@ export function ExpandedFamilySkus({
   selection,
   skuProjectMap,
   projectNames,
+  filterByRequirements,
 }: ExpandedFamilySkusProps) {
   const { data: skus, loading } = useProductSkus(familyId)
+  const [showAll, setShowAll] = useState(false)
   const activeSkus = useMemo(
     () => skus.filter((s) => s.deleted !== true),
     [skus],
   )
+  const displaySkus = useMemo(() => {
+    if (!filterByRequirements || showAll) return activeSkus
+    return activeSkus.filter((sku) => {
+      const activeReqs = countActiveRequirements(sku.assetRequirements)
+      return activeReqs > 0 || sku.launchDate != null
+    })
+  }, [activeSkus, filterByRequirements, showAll])
 
   if (loading) {
     return (
@@ -74,9 +84,17 @@ export function ExpandedFamilySkus({
     )
   }
 
+  if (filterByRequirements && !showAll && displaySkus.length === 0 && activeSkus.length > 0) {
+    return (
+      <div className="px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+        No colorways match the requirements filter
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col">
-      {activeSkus.map((sku) => {
+      {displaySkus.map((sku) => {
         const skuSelId = makeSkuSelectionId(
           familyId,
           familyName,
@@ -164,6 +182,18 @@ export function ExpandedFamilySkus({
           </div>
         )
       })}
+      {filterByRequirements && !showAll && displaySkus.length < activeSkus.length && (
+        <div className="flex items-center justify-between px-3 py-1.5 text-2xs text-[var(--color-text-muted)]">
+          <span>Showing {displaySkus.length} of {activeSkus.length} colorways</span>
+          <button
+            type="button"
+            className="text-[var(--color-primary)] hover:underline"
+            onClick={() => setShowAll(true)}
+          >
+            Show all
+          </button>
+        </div>
+      )}
     </div>
   )
 }

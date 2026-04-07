@@ -2,11 +2,13 @@ import { describe, it, expect } from "vitest"
 import { Timestamp } from "firebase/firestore"
 import {
   ASSET_TYPES,
+  ASSET_TYPE_SHORT_LABELS,
   ASSET_FLAG_OPTIONS,
   LEGACY_ASSET_TYPES,
   normalizeAssetFlag,
   isRequirementActionable,
   countActiveRequirements,
+  getActiveRequirementKeys,
   getLaunchDeadlineWarning,
   formatLaunchDate,
   summarizeSkuAssetFlags,
@@ -115,6 +117,59 @@ describe("assetRequirements", () => {
 
     it("returns 0 for empty object", () => {
       expect(countActiveRequirements({})).toBe(0)
+    })
+  })
+
+  describe("ASSET_TYPE_SHORT_LABELS", () => {
+    it("has labels for all canonical asset types", () => {
+      for (const entry of ASSET_TYPES) {
+        expect(ASSET_TYPE_SHORT_LABELS[entry.key]).toBeDefined()
+      }
+    })
+
+    it("has labels for legacy types", () => {
+      for (const entry of LEGACY_ASSET_TYPES) {
+        expect(ASSET_TYPE_SHORT_LABELS[entry.key]).toBeDefined()
+      }
+    })
+  })
+
+  describe("getActiveRequirementKeys", () => {
+    it("returns empty array for null/undefined", () => {
+      expect(getActiveRequirementKeys(null)).toEqual([])
+      expect(getActiveRequirementKeys(undefined)).toEqual([])
+    })
+
+    it("returns keys of needed and in_progress flags", () => {
+      const result = getActiveRequirementKeys({
+        ecomm_on_figure: "needed",
+        lifestyle: "in_progress",
+        off_figure_pinup: "delivered",
+        video: "not_needed",
+      })
+      expect(result).toEqual(expect.arrayContaining(["ecomm_on_figure", "lifestyle"]))
+      expect(result).toHaveLength(2)
+    })
+
+    it("ignores other_label key", () => {
+      const result = getActiveRequirementKeys({
+        other: "needed",
+        other_label: "Custom type",
+      })
+      expect(result).toEqual(["other"])
+    })
+
+    it("returns empty array for empty object", () => {
+      expect(getActiveRequirementKeys({})).toEqual([])
+    })
+
+    it("returns empty array when all flags are non-actionable", () => {
+      const result = getActiveRequirementKeys({
+        ecomm_on_figure: "delivered",
+        lifestyle: "not_needed",
+        video: "ai_generated",
+      })
+      expect(result).toEqual([])
     })
   })
 

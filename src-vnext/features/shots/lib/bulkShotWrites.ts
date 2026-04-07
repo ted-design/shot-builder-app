@@ -162,6 +162,7 @@ export async function bulkCreateShotsFromProducts(
         label: "Look 1",
         order: 0,
         products: [assignment],
+        heroProductId: assignment.familyId,
       }
 
       const genderTag = buildGenderTag(item)

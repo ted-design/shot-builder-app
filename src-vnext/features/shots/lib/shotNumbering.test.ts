@@ -3,6 +3,7 @@ import {
   computeMaxShotNumber,
   formatShotNumber,
   nextShotNumber,
+  previewRenumber,
 } from "./shotNumbering"
 import type { Shot } from "@/shared/types"
 
@@ -100,5 +101,105 @@ describe("nextShotNumber", () => {
       makeShot({ id: "s2", shotNumber: "07" }),
     ]
     expect(nextShotNumber(shots)).toBe("08")
+  })
+})
+
+describe("previewRenumber", () => {
+  it("returns 0 changes when shots are already sequential", () => {
+    const shots = [
+      makeShot({ id: "a", shotNumber: "01", sortOrder: 0 }),
+      makeShot({ id: "b", shotNumber: "02", sortOrder: 1 }),
+      makeShot({ id: "c", shotNumber: "03", sortOrder: 2 }),
+    ]
+    const result = previewRenumber(shots)
+    expect(result.changes).toHaveLength(0)
+    expect(result.unchangedCount).toBe(3)
+  })
+
+  it("detects gaps in shot numbers", () => {
+    const shots = [
+      makeShot({ id: "a", shotNumber: "02", sortOrder: 0 }),
+      makeShot({ id: "b", shotNumber: "05", sortOrder: 1 }),
+      makeShot({ id: "c", shotNumber: "06", sortOrder: 2 }),
+      makeShot({ id: "d", shotNumber: "10", sortOrder: 3 }),
+    ]
+    const result = previewRenumber(shots)
+    expect(result.changes).toHaveLength(4)
+    expect(result.changes[0]).toEqual({
+      shotId: "a",
+      title: "Test",
+      currentNumber: "02",
+      newNumber: "01",
+    })
+    expect(result.changes[1]).toEqual({
+      shotId: "b",
+      title: "Test",
+      currentNumber: "05",
+      newNumber: "02",
+    })
+    expect(result.changes[3]).toEqual({
+      shotId: "d",
+      title: "Test",
+      currentNumber: "10",
+      newNumber: "04",
+    })
+    expect(result.unchangedCount).toBe(0)
+  })
+
+  it("handles shots missing shotNumber", () => {
+    const shots = [
+      makeShot({ id: "a", shotNumber: null, sortOrder: 0 }),
+      makeShot({ id: "b", shotNumber: "02", sortOrder: 1 }),
+    ]
+    const result = previewRenumber(shots)
+    // Shot "a" has null shotNumber -> needs "01", shot "b" already has "02" and sortOrder 1
+    expect(result.changes).toHaveLength(1)
+    expect(result.changes[0]).toEqual({
+      shotId: "a",
+      title: "Test",
+      currentNumber: "\u2014",
+      newNumber: "01",
+    })
+    expect(result.unchangedCount).toBe(1)
+  })
+
+  it("uses Untitled for shots without a title", () => {
+    const shots = [
+      makeShot({ id: "a", title: "", shotNumber: "05", sortOrder: 0 }),
+    ]
+    const result = previewRenumber(shots)
+    expect(result.changes[0]!.title).toBe("Untitled")
+  })
+
+  it("detects mismatched sortOrder even when shotNumber is correct", () => {
+    const shots = [
+      makeShot({ id: "a", shotNumber: "01", sortOrder: 5 }),
+      makeShot({ id: "b", shotNumber: "02", sortOrder: 10 }),
+    ]
+    const result = previewRenumber(shots)
+    expect(result.changes).toHaveLength(2)
+    expect(result.unchangedCount).toBe(0)
+  })
+
+  it("returns empty changes for empty array", () => {
+    const result = previewRenumber([])
+    expect(result.changes).toHaveLength(0)
+    expect(result.unchangedCount).toBe(0)
+  })
+
+  it("mixes unchanged and changed shots correctly", () => {
+    const shots = [
+      makeShot({ id: "a", shotNumber: "01", sortOrder: 0 }),
+      makeShot({ id: "b", shotNumber: "05", sortOrder: 1 }),
+      makeShot({ id: "c", shotNumber: "06", sortOrder: 2 }),
+    ]
+    const result = previewRenumber(shots)
+    // "a" is correct (01, sortOrder 0). "b" needs 02 not 05. "c" needs 03 not 06.
+    expect(result.unchangedCount).toBe(1)
+    expect(result.changes).toHaveLength(2)
+    expect(result.changes[0]!.shotId).toBe("b")
+    expect(result.changes[0]!.newNumber).toBe("02")
+    expect(result.changes[1]!.shotId).toBe("c")
+    expect(result.changes[1]!.newNumber).toBe("03")
   })
 })

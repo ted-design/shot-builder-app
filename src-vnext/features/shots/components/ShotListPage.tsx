@@ -24,27 +24,21 @@ import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import { Camera, Plus, Info, BarChart3, Trash2 } from "lucide-react"
+import { Camera, Plus, Info, BarChart3, Trash2, Hash } from "lucide-react"
 import type { Shot } from "@/shared/types"
 import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
-import { bulkSoftDeleteShots } from "@/features/shots/lib/shotLifecycleActions"
+import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { BulkDeleteShotsDialog } from "@/features/shots/components/BulkDeleteShotsDialog"
+import { RenumberShotsDialog } from "@/features/shots/components/RenumberShotsDialog"
+import { useHeroProductData } from "@/features/shots/hooks/useHeroProductData"
 import { Checkbox } from "@/ui/checkbox"
-import { Input } from "@/ui/input"
 import { Skeleton } from "@/ui/skeleton"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/dialog"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
 
@@ -88,7 +82,7 @@ export default function ShotListPage() {
   }, [searchParams, setSearchParamsFab])
 
   // -- Dialog state --
-  const [mobileOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
+  const [reorderOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [createPullOpen, setCreatePullOpen] = useState(false)
@@ -99,8 +93,7 @@ export default function ShotListPage() {
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [bulkDeleteText, setBulkDeleteText] = useState("")
-  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [renumberOpen, setRenumberOpen] = useState(false)
 
   // -- Role-based flags --
   const showCreate = canManageShots(role)
@@ -115,12 +108,15 @@ export default function ShotListPage() {
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
   const locationNameById = useMemo(() => new Map(locationRecords.map((l) => [l.id, l.name])), [locationRecords])
   const productNameById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p.styleName])), [productFamilies])
+  const familyById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p])), [productFamilies])
+  const { skuById, samplesByFamily } = useHeroProductData(shots, clientId)
 
   // -- All filter / sort / view state --
   const {
     sortKey, sortDir, viewMode, groupKey, isCustomSort,
     queryParam, talentParam, locationParam, productParam,
     statusFilter, missingFilter, tagFilter,
+    conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
     toggleStatus, toggleMissing, toggleTag,
@@ -131,7 +127,7 @@ export default function ShotListPage() {
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
-    shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById,
+    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById,
   })
 
   // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
@@ -390,10 +386,7 @@ export default function ShotListPage() {
                 variant="destructive"
                 size="sm"
                 disabled={selectedIds.size === 0}
-                onClick={() => {
-                  setBulkDeleteText("")
-                  setBulkDeleteOpen(true)
-                }}
+                onClick={() => setBulkDeleteOpen(true)}
               >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                 Delete
@@ -429,22 +422,14 @@ export default function ShotListPage() {
             open={filtersOpen}
             onOpenChange={setFiltersOpen}
             isMobile={isMobile}
-            statusFilter={statusFilter}
-            onToggleStatus={toggleStatus}
-            missingFilter={missingFilter}
-            onToggleMissing={toggleMissing}
-            talentParam={talentParam}
-            onTalentChange={setTalentFilter}
-            talentRecords={talentRecords}
-            locationParam={locationParam}
-            onLocationChange={setLocationFilter}
-            locationRecords={locationRecords}
-            productParam={productParam}
-            onProductChange={setProductFilter}
-            productFamilies={productFamilies}
-            tagFilter={tagFilter}
-            onToggleTag={toggleTag}
+            conditions={conditions}
+            onAddCondition={addCondition}
+            onUpdateCondition={updateCondition}
+            onRemoveCondition={removeCondition}
             tagOptions={tagOptions}
+            talentRecords={talentRecords}
+            locationRecords={locationRecords}
+            productFamilies={productFamilies}
             hasActiveFilters={hasActiveFilters}
             onClearFilters={clearFilters}
             canRepair={canRepair}
@@ -489,6 +474,21 @@ export default function ShotListPage() {
                   Showing {displayShots.length} of {shots.length}
                 </span>
               </div>
+
+              {canReorder && (
+                <>
+                  <div className="h-4 w-px bg-[var(--color-border)]" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    onClick={() => setRenumberOpen(true)}
+                  >
+                    <Hash className="h-3.5 w-3.5" />
+                    Renumber
+                  </Button>
+                </>
+              )}
 
               <div className="h-4 w-px bg-[var(--color-border)]" />
 
@@ -673,6 +673,9 @@ export default function ShotListPage() {
                   actionControl={renderLifecycleAction(shot)}
                   talentNameById={talentNameById}
                   locationNameById={locationNameById}
+                  familyById={familyById}
+                  skuById={skuById}
+                  samplesByFamily={samplesByFamily}
                 />
               </div>
             </div>
@@ -685,20 +688,6 @@ export default function ShotListPage() {
               <Info className="h-3.5 w-3.5 flex-shrink-0" />
               <span>
                 Grouping is available in Card view.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("card")}
-                >
-                  Switch to cards
-                </button>
-              </span>
-            </div>
-          )}
-          {isCustomSort && canReorder && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-              <Info className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Reordering is available in Card view.{" "}
                 <button
                   className="underline hover:text-[var(--color-text)]"
                   onClick={() => setViewMode("card")}
@@ -722,6 +711,16 @@ export default function ShotListPage() {
             }
             onOpenShot={handleShotClick}
             onFieldToggle={(key) => setFields({ ...fields, [key]: !fields[key] })}
+            familyById={familyById}
+            skuById={skuById}
+            samplesByFamily={samplesByFamily}
+            reorderEnabled={isCustomSort && canReorder && !hasActiveFilters && !hasActiveGrouping}
+            onReorder={(reordered, range) => {
+              setMobileOptimistic(reordered)
+              persistShotOrder(reordered, clientId!, range)
+                .catch(() => toast.error("Failed to save shot order."))
+                .finally(() => setMobileOptimistic(null))
+            }}
           />
         </>
       ) : (
@@ -750,6 +749,9 @@ export default function ShotListPage() {
                       actionControl={renderLifecycleAction(shot)}
                       talentNameById={talentNameById}
                       locationNameById={locationNameById}
+                      familyById={familyById}
+                      skuById={skuById}
+                      samplesByFamily={samplesByFamily}
                     />
                   ))}
                 </div>
@@ -766,6 +768,9 @@ export default function ShotListPage() {
             onOpenShot={handleShotClick}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
+            familyById={familyById}
+            skuById={skuById}
+            samplesByFamily={samplesByFamily}
             selection={
               selectionEnabled
                 ? { enabled: true, selectedIds, onToggle: toggleSelected }
@@ -867,77 +872,23 @@ export default function ShotListPage() {
         }}
       />
 
-      <Dialog
+      <BulkDeleteShotsDialog
         open={bulkDeleteOpen}
-        onOpenChange={(next) => {
-          if (!bulkDeleting) {
-            setBulkDeleteOpen(next)
-            if (!next) setBulkDeleteText("")
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {selectedIds.size} shot{selectedIds.size === 1 ? "" : "s"}?</DialogTitle>
-            <DialogDescription>
-              This hides the selected shots from active project lists and schedules. Type <strong>DELETE</strong> to confirm.
-            </DialogDescription>
-          </DialogHeader>
+        onOpenChange={setBulkDeleteOpen}
+        selectedIds={selectedIds}
+        clientId={clientId}
+        user={user}
+        onDeleted={clearSelection}
+      />
 
-          <div className="space-y-2">
-            <Input
-              value={bulkDeleteText}
-              onChange={(event) => setBulkDeleteText(event.target.value)}
-              placeholder="Type DELETE"
-              disabled={bulkDeleting}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setBulkDeleteOpen(false)
-                setBulkDeleteText("")
-              }}
-              disabled={bulkDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={bulkDeleting || bulkDeleteText.trim() !== "DELETE"}
-              onClick={() => {
-                if (!clientId || bulkDeleteText.trim() !== "DELETE") return
-                setBulkDeleting(true)
-                const ids = Array.from(selectedIds)
-                const count = ids.length
-                void bulkSoftDeleteShots({
-                  clientId,
-                  shotIds: ids,
-                  user,
-                })
-                  .then(() => {
-                    toast.success(`${count} shot${count === 1 ? "" : "s"} deleted`)
-                    clearSelection()
-                  })
-                  .catch((err) => {
-                    toast.error("Failed to delete shots", {
-                      description: err instanceof Error ? err.message : "Unknown error",
-                    })
-                  })
-                  .finally(() => {
-                    setBulkDeleting(false)
-                    setBulkDeleteText("")
-                    setBulkDeleteOpen(false)
-                  })
-              }}
-            >
-              {bulkDeleting ? "Deleting…" : `Delete ${selectedIds.size} shot${selectedIds.size === 1 ? "" : "s"}`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenumberShotsDialog
+        open={renumberOpen}
+        onOpenChange={setRenumberOpen}
+        shots={displayShots}
+        clientId={clientId}
+        sortKey={sortKey}
+        sortDir={sortDir}
+      />
 
       {canShare && (
         <ShotsShareDialog

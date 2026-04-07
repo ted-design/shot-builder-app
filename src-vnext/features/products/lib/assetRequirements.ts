@@ -30,6 +30,19 @@ export const ASSET_FLAG_OPTIONS: ReadonlyArray<{ readonly value: ProductAssetFla
   { value: "not_needed", label: "Not needed" },
 ]
 
+export const ASSET_TYPE_SHORT_LABELS: Readonly<Record<string, string>> = {
+  ecomm_on_figure: "On-fig e-comm",
+  lifestyle: "Lifestyle",
+  off_figure_pinup: "Off-fig pinup",
+  off_figure_detail: "Off-fig detail",
+  video: "Video",
+  other: "Other",
+  // Legacy types
+  ecomm: "E-comm",
+  campaign: "Campaign",
+  ai_generated: "AI-gen",
+}
+
 const VALID_FLAGS = new Set<string>(["needed", "in_progress", "delivered", "not_needed", "ai_generated"])
 
 export function normalizeAssetFlag(value: unknown): ProductAssetFlag | undefined {
@@ -52,6 +65,20 @@ export function countActiveRequirements(reqs: ProductAssetRequirements | null | 
     }
   }
   return count
+}
+
+/** Return the keys of actionable (needed / in_progress) requirements. */
+export function getActiveRequirementKeys(reqs: ProductAssetRequirements | null | undefined): ReadonlyArray<string> {
+  if (!reqs) return []
+  const keys: string[] = []
+  for (const key of Object.keys(reqs)) {
+    if (key === "other_label") continue
+    const flag = reqs[key]
+    if (typeof flag === "string" && isRequirementActionable(flag as ProductAssetFlag)) {
+      keys.push(key)
+    }
+  }
+  return keys
 }
 
 export type LaunchDeadlineWarning = "overdue" | "soon" | "ok" | "none"

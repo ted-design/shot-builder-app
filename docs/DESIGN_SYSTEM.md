@@ -98,7 +98,7 @@ These components exist and MUST be used. Do not create local variants.
 - `ColumnSettingsPopover` — popover wrapper around `ColumnSettingsList` with header + reset button. Used in shot list, library tables.
 
 ### Data Display
-- `TagBadge` — tag rendering with neutral body + category-accent left borders (priority=red, gender=blue, media=emerald, other=neutral). Web rendering uses CSS variables. PDF rendering uses `PDF_TAG_CATEGORY_COLORS` in `pdfStyles.ts` with hardcoded hex values (neutral `#FFFFFF` body, category-specific border colors).
+- `TagBadge` — tag rendering with neutral body + tag-color left borders (category as fallback). Color resolution: tag `color` property checked first via `isTagColorKey()`, then falls back to category accent (priority=red, gender=blue, media=emerald, other=neutral). Web rendering uses CSS variables. PDF rendering uses `PDF_TAG_COLOR_MAP` (per-tag-color hex) with fallback to `PDF_TAG_CATEGORY_COLORS` in `pdfStyles.ts`.
 - `Badge` (from `@/ui/badge`) — generic badge
 - `ProductImage` — resolves Firebase Storage paths via `useStorageUrl`
 - `Skeleton`, `ListPageSkeleton`, `TableSkeleton`, `DetailPageSkeleton` — loading skeletons

@@ -21,7 +21,7 @@ import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { GripVertical } from "lucide-react"
 import { toast } from "sonner"
-import type { Shot } from "@/shared/types"
+import type { Shot, ProductFamily, ProductSku, ProductSample } from "@/shared/types"
 
 interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
@@ -31,6 +31,9 @@ interface DraggableShotListProps {
   readonly onOpenShot?: (shotId: string) => void
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
+  readonly familyById?: ReadonlyMap<string, ProductFamily>
+  readonly skuById?: ReadonlyMap<string, ProductSku>
+  readonly samplesByFamily?: ReadonlyMap<string, ReadonlyArray<ProductSample>>
   readonly selection?: {
     readonly enabled: boolean
     readonly selectedIds: ReadonlySet<string>
@@ -46,6 +49,9 @@ export function DraggableShotList({
   onOpenShot,
   talentNameById,
   locationNameById,
+  familyById,
+  skuById,
+  samplesByFamily,
   selection,
 }: DraggableShotListProps) {
   const { clientId } = useAuth()
@@ -94,6 +100,9 @@ export function DraggableShotList({
             actionControl={actionControl?.(shot)}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
+            familyById={familyById}
+            skuById={skuById}
+            samplesByFamily={samplesByFamily}
           />
         ))}
       </div>
@@ -120,6 +129,9 @@ export function DraggableShotList({
               onOpenShot={onOpenShot}
               talentNameById={talentNameById}
               locationNameById={locationNameById}
+              familyById={familyById}
+              skuById={skuById}
+              samplesByFamily={samplesByFamily}
             />
           ))}
         </div>
@@ -135,6 +147,9 @@ function SortableShotCard({
   onOpenShot,
   talentNameById,
   locationNameById,
+  familyById,
+  skuById,
+  samplesByFamily,
 }: {
   readonly shot: Shot
   readonly visibleFields?: Partial<ShotCardVisibleFields>
@@ -142,6 +157,9 @@ function SortableShotCard({
   readonly onOpenShot?: (shotId: string) => void
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
+  readonly familyById?: ReadonlyMap<string, ProductFamily>
+  readonly skuById?: ReadonlyMap<string, ProductSku>
+  readonly samplesByFamily?: ReadonlyMap<string, ReadonlyArray<ProductSample>>
 }) {
   const {
     attributes,
@@ -179,6 +197,9 @@ function SortableShotCard({
         actionControl={actionControl?.(shot)}
         talentNameById={talentNameById}
         locationNameById={locationNameById}
+        familyById={familyById}
+        skuById={skuById}
+        samplesByFamily={samplesByFamily}
       />
     </div>
   )

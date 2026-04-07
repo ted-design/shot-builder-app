@@ -51,7 +51,7 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 - Use `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — never `text-[13px]`, `text-[14px]`, `text-[15px]`. These sizes are overridden in `tailwind.config.js` to be 1-2px smaller than Tailwind defaults.
 - Page headings use `heading-page` semantic class (weight 300 editorial) — never `text-xl font-semibold` or `text-2xl font-bold`.
 - Section headings use `heading-section` — never `text-base font-semibold`. Subsections use `heading-subsection`.
-- Tag badges use neutral body with subtle category-accent left borders — never use rainbow `getTagColorClasses()` on `TagBadge`.
+- Tag badges use neutral body with subtle tag-color left borders (category as fallback) — never use rainbow `getTagColorClasses()` on `TagBadge`.
 - Every surface uses the same building blocks. No one-off component variants for a single page.
 - Fewer surfaces, fewer modes. Each new page/modal must justify its existence.
 

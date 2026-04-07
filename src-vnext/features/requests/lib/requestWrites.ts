@@ -94,6 +94,11 @@ export async function triageAbsorbRequest(
       throw new Error(`Cannot absorb request with status "${requestData.status as string}"`)
     }
 
+    // Idempotency guard: prevent duplicate shot creation from same request
+    if (typeof requestData.absorbedAsShotId === "string" && requestData.absorbedAsShotId.length > 0) {
+      throw new Error("Request has already been absorbed into a shot.")
+    }
+
     const newShotRef = doc(shotsCollRef)
     tx.set(newShotRef, {
       title: requestData.title as string,
@@ -102,9 +107,11 @@ export async function triageAbsorbRequest(
       clientId: params.clientId,
       status: "todo",
       deleted: false,
+      date: null,
       talent: [],
       products: [],
       sortOrder: Date.now(),
+      sourceRequestId: params.requestId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       createdBy: params.triagedBy,
@@ -151,6 +158,11 @@ export async function createProjectFromRequest(
       throw new Error(`Cannot absorb request with status "${requestData.status as string}"`)
     }
 
+    // Idempotency guard: prevent duplicate shot creation from same request
+    if (typeof requestData.absorbedAsShotId === "string" && requestData.absorbedAsShotId.length > 0) {
+      throw new Error("Request has already been absorbed into a shot.")
+    }
+
     const newProjectRef = doc(projectsCollRef)
     tx.set(newProjectRef, {
       name: params.projectName.trim(),
@@ -176,9 +188,11 @@ export async function createProjectFromRequest(
       clientId: params.clientId,
       status: "todo",
       deleted: false,
+      date: null,
       talent: [],
       products: [],
       sortOrder: Date.now(),
+      sourceRequestId: params.requestId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       createdBy: params.createdBy,

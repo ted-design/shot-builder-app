@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Tag, Merge, Trash2 } from "lucide-react"
+import { Tag, Merge, Trash2, Lock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -150,6 +150,15 @@ export default function TagManagementPage() {
     if (!q) return library
     return library.filter((t) => t.label.toLowerCase().includes(q))
   }, [library, query])
+
+  const systemTags = useMemo(
+    () => filtered.filter((t) => t.isDefault),
+    [filtered],
+  )
+  const customTags = useMemo(
+    () => filtered.filter((t) => !t.isDefault),
+    [filtered],
+  )
 
   const selected = useMemo(() => {
     if (!selectedId) return null
@@ -364,46 +373,115 @@ export default function TagManagementPage() {
                 placeholder="Search tags…"
               />
 
-              {filtered.length === 0 ? (
-                <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                  <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  {filtered.map((t) => {
-                    const selected = selectedId === t.id
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setSelectedId(t.id)}
-                        className={`flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
-                          selected
-                            ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
-                            : "border-transparent hover:bg-[var(--color-surface-subtle)]"
-                        }`}
-                      >
-                        {canEdit ? (
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Checkbox checked={mergeIds.includes(t.id)} onCheckedChange={() => toggleMerge(t.id)} />
+              <div className="flex flex-col gap-1">
+                {/* System Tags Section */}
+                {systemTags.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5">
+                      <Lock className="h-3 w-3 text-[var(--color-text-subtle)]" />
+                      <span className="label-meta text-2xs">System Tags</span>
+                    </div>
+                    {systemTags.map((t) => {
+                      const isSelected = selectedId === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedId(t.id)}
+                          className={`flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
+                            isSelected
+                              ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
+                              : "border-transparent bg-[var(--color-surface-subtle)]/50 hover:bg-[var(--color-surface-subtle)]"
+                          }`}
+                        >
+                          {canEdit ? (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={mergeIds.includes(t.id)}
+                                onCheckedChange={() => {
+                                  if (t.isDefault) {
+                                    toast.info("System tags cannot be merged into other tags.")
+                                    return
+                                  }
+                                  toggleMerge(t.id)
+                                }}
+                                disabled={t.isDefault}
+                              />
+                            </div>
+                          ) : null}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <TagBadge tag={t} />
+                                <Lock className="h-3 w-3 text-[var(--color-text-subtle)]" aria-label="System tag" />
+                              </div>
+                              <span className="text-xs text-[var(--color-text-muted)]">
+                                {t.usageCount}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
+                              {getShotTagCategoryLabel(resolveShotTagCategory(t))}
+                            </div>
                           </div>
-                        ) : null}
-                        <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <TagBadge tag={t} />
-                          <span className="text-xs text-[var(--color-text-muted)]">
-                            {t.usageCount}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
-                          {getShotTagCategoryLabel(resolveShotTagCategory(t))}
-                        </div>
-                      </div>
-                    </button>
-                  )
-                  })}
-                </div>
-              )}
+                        </button>
+                      )
+                    })}
+                  </>
+                )}
+
+                {/* Divider between sections (only if both have tags) */}
+                {systemTags.length > 0 && customTags.length > 0 && (
+                  <div className="mx-3 my-1 border-t border-[var(--color-border)]" />
+                )}
+
+                {/* Custom Tags Section */}
+                {customTags.length > 0 && (
+                  <>
+                    <div className="px-3 py-1.5">
+                      <span className="label-meta text-2xs">Your Tags</span>
+                    </div>
+                    {customTags.map((t) => {
+                      const isSelected = selectedId === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedId(t.id)}
+                          className={`flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
+                            isSelected
+                              ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
+                              : "border-transparent hover:bg-[var(--color-surface-subtle)]"
+                          }`}
+                        >
+                          {canEdit ? (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox checked={mergeIds.includes(t.id)} onCheckedChange={() => toggleMerge(t.id)} />
+                            </div>
+                          ) : null}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <TagBadge tag={t} />
+                              <span className="text-xs text-[var(--color-text-muted)]">
+                                {t.usageCount}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-2xs uppercase tracking-wide text-[var(--color-text-subtle)]">
+                              {getShotTagCategoryLabel(resolveShotTagCategory(t))}
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </>
+                )}
+
+                {/* Empty state when search returns nothing from either section */}
+                {systemTags.length === 0 && customTags.length === 0 && (
+                  <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                    <p className="text-sm text-[var(--color-text-muted)]">No results.</p>
+                  </div>
+                )}
+              </div>
 
               <div className="text-xs text-[var(--color-text-muted)]">
                 {library.length} tag{library.length === 1 ? "" : "s"}
@@ -431,7 +509,7 @@ export default function TagManagementPage() {
                         <div data-testid="tag-details-name">
                           <InlineEdit
                             value={selected.label}
-                            disabled={!canEdit || busy || selected.usageCount === 0}
+                            disabled={!canEdit || busy || selected.usageCount === 0 || selected.isDefault}
                             onSave={(next) => applyRename(selected, next)}
                             className="heading-section"
                             placeholder="Untitled"
@@ -443,8 +521,9 @@ export default function TagManagementPage() {
                         {selected.usageCount === 0 ? " (add it to a shot first)" : ""}
                       </div>
                       {selected.isDefault ? (
-                        <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-                          Default tag
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-status-blue-bg)] px-2 py-0.5 text-2xs font-medium text-[var(--color-status-blue-text)]">
+                          <Lock className="h-2.5 w-2.5" />
+                          System Tag
                         </div>
                       ) : null}
                     </div>
@@ -521,7 +600,7 @@ export default function TagManagementPage() {
                     </div>
                     {selected.isDefault ? (
                       <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-                        Default tags can’t be deleted.
+                        System tags cannot be deleted. They are shared across all projects.
                       </div>
                     ) : null}
                   </div>

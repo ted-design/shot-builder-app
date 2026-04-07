@@ -6,7 +6,8 @@ import type { Shot, ShotTag } from "@/shared/types"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import { getShotStatusLabel, getShotStatusColor } from "@/shared/lib/statusMappings"
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
-import { styles, PDF_STATUS_COLORS, PDF_TAG_CATEGORY_COLORS } from "../pdfStyles"
+import { styles, PDF_STATUS_COLORS, PDF_TAG_CATEGORY_COLORS, PDF_TAG_COLOR_MAP } from "../pdfStyles"
+import { isTagColorKey } from "@/shared/lib/tagColors"
 import {
   filterShots,
   sortShots,
@@ -93,16 +94,19 @@ export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
                 <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col), flexDirection: "row", flexWrap: "wrap", gap: 2 }}>
                   {tags.map((t) => {
                     const cat = resolveShotTagCategory(t)
-                    const c = PDF_TAG_CATEGORY_COLORS[cat] ?? PDF_TAG_CATEGORY_COLORS.other!
+                    const catColors = PDF_TAG_CATEGORY_COLORS[cat] ?? PDF_TAG_CATEGORY_COLORS.other!
+                    const borderColor = (typeof t.color === "string" && isTagColorKey(t.color))
+                      ? (PDF_TAG_COLOR_MAP[t.color] ?? catColors.border)
+                      : catColors.border
                     return (
                       <Text
                         key={t.id}
                         style={{
                           ...styles.badge,
-                          backgroundColor: c.bg,
-                          color: c.text,
+                          backgroundColor: catColors.bg,
+                          color: catColors.text,
                           borderLeftWidth: 2,
-                          borderLeftColor: c.border,
+                          borderLeftColor: borderColor,
                           borderRadius: 3,
                           marginRight: 2,
                           marginBottom: 1,

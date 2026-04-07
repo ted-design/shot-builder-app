@@ -1,54 +1,29 @@
-import type { ShotFirestoreStatus } from "@/shared/types"
-import type { MissingKey } from "@/features/shots/lib/shotListFilters"
+import type { FilterCondition } from "@/features/shots/lib/filterConditions"
 import { STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
-import { Checkbox } from "@/ui/checkbox"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/select"
+import { FilterConditionRow } from "./FilterConditionRow"
+import { AddFilterMenu } from "./AddFilterMenu"
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
-type TalentRecord = { readonly id: string; readonly name: string }
-type LocationRecord = { readonly id: string; readonly name: string }
-type TagOption = { readonly id: string; readonly label: string }
-
-type ProductOption = { readonly id: string; readonly styleName: string }
-
 type ShotListFilterSheetProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly isMobile: boolean
-  // Status
-  readonly statusFilter: ReadonlySet<ShotFirestoreStatus>
-  readonly onToggleStatus: (status: ShotFirestoreStatus) => void
-  // Missing
-  readonly missingFilter: ReadonlySet<MissingKey>
-  readonly onToggleMissing: (key: MissingKey) => void
-  // Talent
-  readonly talentParam: string
-  readonly onTalentChange: (talentId: string) => void
-  readonly talentRecords: ReadonlyArray<TalentRecord>
-  // Location
-  readonly locationParam: string
-  readonly onLocationChange: (locationId: string) => void
-  readonly locationRecords: ReadonlyArray<LocationRecord>
-  // Product
-  readonly productParam: string
-  readonly onProductChange: (productFamilyId: string) => void
-  readonly productFamilies: ReadonlyArray<ProductOption>
-  // Tags
-  readonly tagFilter: ReadonlySet<string>
-  readonly onToggleTag: (tagId: string) => void
-  readonly tagOptions: ReadonlyArray<TagOption>
+  // Conditions
+  readonly conditions: readonly FilterCondition[]
+  readonly onAddCondition: (condition: Omit<FilterCondition, "id">) => void
+  readonly onUpdateCondition: (conditionId: string, updates: Partial<Omit<FilterCondition, "id">>) => void
+  readonly onRemoveCondition: (conditionId: string) => void
+  // Data for value pickers
+  readonly tagOptions: readonly { id: string; label: string }[]
+  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly locationRecords: readonly { id: string; name: string }[]
+  readonly productFamilies: readonly { id: string; styleName: string }[]
   // Actions
   readonly hasActiveFilters: boolean
   readonly onClearFilters: () => void
@@ -58,6 +33,15 @@ type ShotListFilterSheetProps = {
 }
 
 // ---------------------------------------------------------------------------
+// Status options (derived from canonical STATUS_LABELS)
+// ---------------------------------------------------------------------------
+
+const STATUS_OPTIONS = (["todo", "in_progress", "on_hold", "complete"] as const).map((s) => ({
+  value: s,
+  label: STATUS_LABELS[s],
+}))
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -65,22 +49,14 @@ export function ShotListFilterSheet({
   open,
   onOpenChange,
   isMobile,
-  statusFilter,
-  onToggleStatus,
-  missingFilter,
-  onToggleMissing,
-  talentParam,
-  onTalentChange,
-  talentRecords,
-  locationParam,
-  onLocationChange,
-  locationRecords,
-  productParam,
-  onProductChange,
-  productFamilies,
-  tagFilter,
-  onToggleTag,
+  conditions,
+  onAddCondition,
+  onUpdateCondition,
+  onRemoveCondition,
   tagOptions,
+  talentRecords,
+  locationRecords,
+  productFamilies,
   hasActiveFilters,
   onClearFilters,
   canRepair,
@@ -88,149 +64,45 @@ export function ShotListFilterSheet({
 }: ShotListFilterSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className={isMobile ? "max-h-[80vh]" : "sm:max-w-md"}
+      >
         <SheetHeader>
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Status
-            </div>
-            <div className="space-y-2">
-              {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => (
-                <label key={s} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={statusFilter.has(s)}
-                    onCheckedChange={(v) => {
-                      if (v === "indeterminate") return
-                      onToggleStatus(s)
-                    }}
-                  />
-                  <span>{STATUS_LABELS[s]}</span>
-                </label>
+        <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
+          {/* Active conditions */}
+          {conditions.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-subtle)]">
+              No active filters. Add a filter to narrow your shots.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {conditions.map((condition) => (
+                <FilterConditionRow
+                  key={condition.id}
+                  condition={condition}
+                  onUpdate={onUpdateCondition}
+                  onRemove={onRemoveCondition}
+                  statusOptions={STATUS_OPTIONS}
+                  tagOptions={tagOptions}
+                  talentRecords={talentRecords}
+                  locationRecords={locationRecords}
+                  productFamilies={productFamilies}
+                />
               ))}
             </div>
-          </div>
+          )}
+
+          {/* Add filter button */}
+          <AddFilterMenu conditions={conditions} onAdd={onAddCondition} />
 
           <Separator />
 
-          <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Missing
-            </div>
-            <div className="space-y-2">
-              {(["products", "talent", "location", "image"] as const).map((k) => (
-                <label key={k} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={missingFilter.has(k)}
-                    onCheckedChange={(v) => {
-                      if (v === "indeterminate") return
-                      onToggleMissing(k)
-                    }}
-                  />
-                  <span>{k === "image" ? "Hero image" : k}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Talent
-              </div>
-              <Select
-                value={talentParam.trim() ? talentParam.trim() : "__any__"}
-                onValueChange={(v) => onTalentChange(v === "__any__" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any__">Any</SelectItem>
-                  {talentRecords.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Location
-              </div>
-              <Select
-                value={locationParam.trim() ? locationParam.trim() : "__any__"}
-                onValueChange={(v) => onLocationChange(v === "__any__" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any__">Any</SelectItem>
-                  {locationRecords.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                Product
-              </div>
-              <Select
-                value={productParam.trim() ? productParam.trim() : "__any__"}
-                onValueChange={(v) => onProductChange(v === "__any__" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any__">Any</SelectItem>
-                  {productFamilies.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.styleName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Tag
-            </div>
-            <div className="max-h-44 space-y-2 overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-              {tagOptions.length === 0 ? (
-                <p className="text-xs text-[var(--color-text-subtle)]">No tags available</p>
-              ) : (
-                tagOptions.map((tag) => (
-                  <label key={tag.id} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={tagFilter.has(tag.id)}
-                      onCheckedChange={(v) => {
-                        if (v === "indeterminate") return
-                        onToggleTag(tag.id)
-                      }}
-                    />
-                    <span>{tag.label}</span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-2">
+          {/* Footer actions */}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
