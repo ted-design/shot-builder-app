@@ -34,10 +34,16 @@ jobs:
       - name: Start Firebase Emulators
         run: |
           firebase emulators:start --only auth,firestore --project demo-test &
-          # Wait for emulators to be ready
-          timeout 60 bash -c 'until curl -s http://localhost:9099 > /dev/null; do sleep 1; done' || echo "Auth emulator ready"
-          timeout 60 bash -c 'until curl -s http://localhost:8080 > /dev/null; do sleep 1; done' || echo "Firestore emulator ready"
-          echo "Firebase emulators started"
+          EMULATOR_PID=$!
+          # Wait for Auth emulator (port 9099) — fail if not ready in 60s
+          echo "Waiting for Auth emulator on port 9099..."
+          timeout 60 bash -c 'until curl -sf http://localhost:9099/ > /dev/null 2>&1; do sleep 2; done'
+          echo "Auth emulator ready"
+          # Wait for Firestore emulator (port 8080)
+          echo "Waiting for Firestore emulator on port 8080..."
+          timeout 60 bash -c 'until curl -sf http://localhost:8080/ > /dev/null 2>&1; do sleep 2; done'
+          echo "Firestore emulator ready"
+          echo "Firebase emulators started (PID: $EMULATOR_PID)"
 
       - name: Build & Preview (Vite)
         run: |
