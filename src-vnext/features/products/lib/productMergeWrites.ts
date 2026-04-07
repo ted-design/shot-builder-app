@@ -81,8 +81,9 @@ async function transferNewSkus(args: {
   readonly winnerId: string
   readonly clientId: string
   readonly mergedBy: string
+  readonly skuIdMap: Map<string, string>
 }): Promise<number> {
-  const { newSkus, winnerId, clientId, mergedBy } = args
+  const { newSkus, winnerId, clientId, mergedBy, skuIdMap } = args
   if (newSkus.length === 0) return 0
 
   const winnerSkuPath = productFamilySkusPath(winnerId, clientId)
@@ -93,6 +94,8 @@ async function transferNewSkus(args: {
     const batch = writeBatch(db)
     for (const sku of chunk) {
       const newRef = doc(winnerSkuCol)
+      // Track loser→winner SKU ID mapping for sample scope remapping
+      skuIdMap.set(sku.id, newRef.id)
       batch.set(newRef, {
         colorName: sku.colorName ?? sku.name,
         name: sku.name,
@@ -646,17 +649,18 @@ export async function executeProductMerge(args: {
       })
     }
 
-    // Step 1: Transfer new SKUs
+    // Step 1: Transfer new SKUs (also populates matchedSkuMap with loser→new mappings)
     const skusCreated = await transferNewSkus({
       newSkus: plan.newSkus,
       winnerId,
       clientId,
       mergedBy,
+      skuIdMap: matchedSkuMap,
     }).catch((err) => {
       throw new Error(`[executeProductMerge] Step 1 (transferNewSkus) failed: ${err instanceof Error ? err.message : String(err)}`)
     })
 
-    // Step 2: Transfer samples
+    // Step 2: Transfer samples (matchedSkuMap now includes both matched + newly created SKU mappings)
     const samplesTransferred = await transferSamples({
       loserId,
       winnerId,

@@ -434,6 +434,7 @@ export function useShotListState(params: {
   const clearFilters = useCallback(() => {
     const p = new URLSearchParams(searchParams)
     p.delete("filters")
+    p.delete("q")
     // Also clear legacy params if any remain
     for (const k of ["status", "missing", "talent", "location", "tag", "product"]) p.delete(k)
     setSearchParams(p, { replace: true })

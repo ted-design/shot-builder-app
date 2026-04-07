@@ -22,22 +22,25 @@ export async function persistShotOrder(
   clientId: string,
   affectedRange?: { from: number; to: number },
 ): Promise<void> {
-  // If an affected range is specified, only write that slice
+  // If an affected range is specified, only write that slice (chunked for safety)
   if (affectedRange) {
     const start = Math.min(affectedRange.from, affectedRange.to)
     const end = Math.max(affectedRange.from, affectedRange.to)
     const affected = reorderedShots.slice(start, end + 1)
 
-    const batch = writeBatch(db)
-    affected.forEach((shot, i) => {
-      const path = shotPath(shot.id, clientId)
-      const ref = doc(db, path[0]!, ...path.slice(1))
-      batch.update(ref, {
-        sortOrder: start + i,
-        updatedAt: serverTimestamp(),
+    for (let ci = 0; ci < affected.length; ci += BATCH_CHUNK_SIZE) {
+      const chunk = affected.slice(ci, ci + BATCH_CHUNK_SIZE)
+      const batch = writeBatch(db)
+      chunk.forEach((shot, i) => {
+        const path = shotPath(shot.id, clientId)
+        const ref = doc(db, path[0]!, ...path.slice(1))
+        batch.update(ref, {
+          sortOrder: start + ci + i,
+          updatedAt: serverTimestamp(),
+        })
       })
-    })
-    await batch.commit()
+      await batch.commit()
+    }
     return
   }
 
