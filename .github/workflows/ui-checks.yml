@@ -1,11 +1,9 @@
 name: ui-checks
 on:
-  push:
   pull_request:
+    branches: [main]
 jobs:
   test:
-    # Skip when required secret is not available (e.g., PRs from forks or missing repo secret)
-    if: ${{ secrets.FIREBASE_TEST_API_KEY != '' }}
     runs-on: ubuntu-latest
     env:
       # Firebase emulator mode
