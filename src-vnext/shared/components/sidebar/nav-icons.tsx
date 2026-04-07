@@ -9,6 +9,7 @@ import {
   Image,
   Landmark,
   LayoutGrid,
+  Link2,
   MapPin,
   Package,
   Palette,
@@ -40,6 +41,7 @@ const ICON_MAP: Record<NavItemIcon, LucideIcon> = {
   "shield-check": ShieldCheck,
   tag: Tag,
   "user-check": UserCheck,
+  "link-2": Link2,
 }
 
 export function NavIcon({
