@@ -16,7 +16,7 @@ import {
   where,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
-import { shotsPath, projectPath, talentPath, locationsPath } from "@/shared/lib/paths"
+import { shotsPath, projectPath, talentPath, locationsPath, productFamiliesPath } from "@/shared/lib/paths"
 import { canonicalizeTag, deduplicateTags } from "@/shared/lib/tagDedup"
 import type { ProductAssignment, ShotLook } from "@/shared/types"
 
@@ -57,9 +57,14 @@ function normaliseString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-function formatProduct(p: ProductAssignment): string | null {
+function formatProduct(
+  p: ProductAssignment,
+  styleNumbersByFamily: ReadonlyMap<string, string>,
+): string | null {
   const familyName = normaliseString(p.familyName) ?? normaliseString(p.skuName)
   if (!familyName) return null
+
+  const styleNum = p.familyId ? styleNumbersByFamily.get(p.familyId) ?? null : null
 
   const parts: string[] = []
   const colour = normaliseString(p.colourName)
@@ -76,7 +81,8 @@ function formatProduct(p: ProductAssignment): string | null {
   const qty = typeof p.quantity === "number" && Number.isFinite(p.quantity) ? p.quantity : null
   if (qty && qty > 1) parts.push(`x${qty}`)
 
-  return parts.length > 0 ? `${familyName} (${parts.join(" \u2022 ")})` : familyName
+  const name = styleNum ? `${familyName} [${styleNum}]` : familyName
+  return parts.length > 0 ? `${name} (${parts.join(" \u2022 ")})` : name
 }
 
 function primaryLookProducts(looks: readonly ShotLook[] | undefined): readonly ProductAssignment[] {
@@ -184,6 +190,33 @@ export async function resolveShotsForShare(
     }
   }
 
+  // Batch read product family style numbers
+  const familyIdSet = new Set<string>()
+  for (const s of shotsRaw) {
+    const looks = Array.isArray(s.data.looks) ? (s.data.looks as ShotLook[]) : undefined
+    const productsRaw = primaryLookProducts(looks)
+    const fallbackProducts = Array.isArray(s.data.products) ? (s.data.products as ProductAssignment[]) : []
+    const products = productsRaw.length > 0 ? productsRaw : fallbackProducts
+    for (const p of products) {
+      if (p.familyId) familyIdSet.add(p.familyId)
+    }
+  }
+
+  const styleNumbersByFamily = new Map<string, string>()
+  if (familyIdSet.size > 0) {
+    const familyRefs = Array.from(familyIdSet).map((fid) =>
+      docRef(productFamiliesPath(clientId), fid),
+    )
+    const familySnaps = await Promise.all(familyRefs.map((r) => getDoc(r)))
+    for (const snap of familySnaps) {
+      if (!snap.exists()) continue
+      const data = snap.data() as Record<string, unknown>
+      const styleNums = Array.isArray(data.styleNumbers) ? data.styleNumbers : []
+      const primary = styleNums.length > 0 ? normaliseString(String(styleNums[0])) : null
+      if (primary) styleNumbersByFamily.set(snap.id, primary)
+    }
+  }
+
   // Build resolved shots
   const resolvedShots: ResolvedPublicShot[] = shotsRaw.map((s) => {
     const d = s.data
@@ -211,7 +244,7 @@ export async function resolveShotsForShare(
     const productsRaw = primaryLookProducts(looks)
     const fallbackProducts = Array.isArray(d.products) ? (d.products as ProductAssignment[]) : []
     const products = productsRaw.length > 0 ? productsRaw : fallbackProducts
-    const productLines = products.map(formatProduct).filter((l): l is string => l !== null)
+    const productLines = products.map((p) => formatProduct(p, styleNumbersByFamily)).filter((l): l is string => l !== null)
 
     const tags = (() => {
       const raw = Array.isArray(d.tags) ? d.tags : []
