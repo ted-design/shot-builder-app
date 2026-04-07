@@ -231,6 +231,7 @@ export async function createCastingShareLink(args: {
     projectId,
     title: title.trim(),
     enabled: true,
+    expiresAt: null,
     createdAt: serverTimestamp(),
     createdBy: userId,
     resolvedTalent: resolvedTalent.map((t) => ({ ...t })),
