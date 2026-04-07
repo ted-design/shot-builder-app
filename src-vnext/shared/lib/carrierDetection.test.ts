@@ -95,7 +95,7 @@ describe("detectCarrier", () => {
       const result = detectCarrier("2243289123")
       expect(result.key).toBe("dhl")
       expect(result.name).toBe("DHL")
-      expect(result.confidence).toBe("medium")
+      expect(result.confidence).toBe("low")
       expect(result.trackingUrl).toContain("2243289123")
     })
   })

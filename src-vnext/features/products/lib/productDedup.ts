@@ -367,8 +367,9 @@ export async function buildMergePlan(args: {
         looks.some((l) => l.heroProductId === loser.id || (l.products ?? []).some((p) => p.familyId === loser.id))
       if (refsLoser) affectedShotIds.push(shotDoc.id)
     }
-  } catch {
-    // Fallback to denormalized shotIds if query fails
+  } catch (err) {
+    // Fallback to denormalized shotIds if full scan fails (e.g., quota exceeded)
+    console.error("[buildMergePlan] Shot scan failed, falling back to denormalized shotIds:", err)
     if (Array.isArray(loser.shotIds)) affectedShotIds.push(...loser.shotIds)
   }
 

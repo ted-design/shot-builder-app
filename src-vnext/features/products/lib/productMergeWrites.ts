@@ -775,10 +775,17 @@ export async function executeProductMerge(args: {
       requestsUpdated,
     }
   } catch (err) {
-    // Clear mergeInProgress flag so the merge can be retried
-    try {
-      await updateDoc(loserRef, { mergeInProgress: deleteField(), updatedAt: serverTimestamp() })
-    } catch { /* ignore cleanup failure */ }
+    // Clear mergeInProgress flag so the merge can be retried (with retry)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await updateDoc(loserRef, { mergeInProgress: deleteField(), updatedAt: serverTimestamp() })
+        break
+      } catch (cleanupErr) {
+        if (attempt === 2) {
+          console.error("[executeProductMerge] Failed to clear mergeInProgress after 3 attempts. Manual Firestore fix needed for product:", loserId, cleanupErr)
+        }
+      }
+    }
     throw err
   }
 }

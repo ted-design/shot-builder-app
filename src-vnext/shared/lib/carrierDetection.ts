@@ -80,9 +80,9 @@ export function detectCarrier(tracking: string, carrierHint?: string): CarrierIn
     return { key: "dhl", name: "DHL", trackingUrl: getTrackingUrl("dhl", trimmed), confidence: "high" }
   }
 
-  // DHL Express: exactly 10 digits
+  // DHL Express: exactly 10 digits (low confidence — could be phone/PO number)
   if (/^\d{10}$/.test(trimmed)) {
-    return { key: "dhl", name: "DHL", trackingUrl: getTrackingUrl("dhl", trimmed), confidence: "medium" }
+    return { key: "dhl", name: "DHL", trackingUrl: getTrackingUrl("dhl", trimmed), confidence: "low" }
   }
 
   // FedEx: 12 or 15 digits
