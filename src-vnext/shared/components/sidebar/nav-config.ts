@@ -23,6 +23,7 @@ export type NavItemIcon =
   | "shield-check"
   | "tag"
   | "file-output"
+  | "user-check"
 
 export type SurfaceBadge = "Limited" | "Reader" | "Editor"
 
@@ -107,6 +108,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       { type: "item", item: { label: "Shots", to: `${prefix}/shots`, iconName: "camera", surfaceBadge: "Limited" } },
       { type: "item", item: { label: "Pulls", to: `${prefix}/pulls`, iconName: "clipboard-list", surfaceBadge: "Limited" } },
       { type: "item", item: { label: "Assets", to: `${prefix}/assets`, iconName: "image", surfaceBadge: "Reader" } },
+      {
+        type: "item",
+        item: { label: "Casting", to: `${prefix}/casting`, iconName: "user-check", surfaceBadge: "Reader" },
+      },
       {
         type: "item",
         item: { label: "Call Sheet", to: `${prefix}/callsheet`, iconName: "calendar-days", desktopOnly: true },

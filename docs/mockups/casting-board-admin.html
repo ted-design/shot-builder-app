@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casting Board — Admin View</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e8e8e8;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(200, 169, 126, 0.3); }
+
+  /* ===== LAYOUT SHELL ===== */
+  .page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 100px; }
+
+  /* ===== BREADCRUMB ===== */
+  .breadcrumb {
+    font-size: 12px;
+    color: #707070;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breadcrumb a {
+    color: #707070;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: #a0a0a0; }
+  .breadcrumb .sep { color: #404040; }
+
+  /* ===== PAGE HEADING ===== */
+  .page-title {
+    font-size: 18px;
+    font-weight: 300;
+    color: #e8e8e8;
+    margin-bottom: 20px;
+    letter-spacing: 0.01em;
+  }
+
+  /* ===== TOOLBAR ===== */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+  }
+  .toolbar-search {
+    flex: 1 1 200px;
+    min-width: 160px;
+    padding: 7px 12px 7px 32px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23707070' stroke-width='1.5'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cline x1='9.5' y1='9.5' x2='13' y2='13'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+  .toolbar-search::placeholder { color: #555; }
+  .toolbar-search:focus { border-color: #c8a97e; }
+
+  .toolbar-select {
+    padding: 7px 28px 7px 10px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #a0a0a0;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23707070' stroke-width='1.5'%3E%3Cpolyline points='1,1 5,5 9,1'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: calc(100% - 8px) center;
+  }
+
+  /* View toggle */
+  .view-toggle {
+    display: flex;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .view-toggle button {
+    padding: 6px 12px;
+    background: #1a1a1a;
+    border: none;
+    color: #707070;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .view-toggle button.active {
+    background: #2a2a2a;
+    color: #e8e8e8;
+  }
+  .view-toggle button + button { border-left: 1px solid #2a2a2a; }
+
+  /* Action buttons */
+  .btn {
+    padding: 7px 14px;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #a0a0a0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: #444; color: #e8e8e8; }
+  .btn-primary {
+    background: #c8a97e;
+    border-color: #c8a97e;
+    color: #0a0a0a;
+    font-weight: 500;
+  }
+  .btn-primary:hover { background: #d4b88e; border-color: #d4b88e; }
+
+  .btn-book {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+    font-weight: 500;
+    width: 100%;
+    padding: 6px 0;
+    font-size: 11px;
+  }
+  .btn-book:hover { background: #2563eb; }
+
+  .btn-approve { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.3); color: #22c55e; }
+  .btn-approve:hover { background: rgba(34,197,94,0.2); }
+  .btn-pass { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+  .btn-pass:hover { background: rgba(239,68,68,0.2); }
+  .btn-remove { background: rgba(107,114,128,0.12); border-color: rgba(107,114,128,0.3); color: #6b7280; }
+  .btn-remove:hover { background: rgba(107,114,128,0.2); }
+
+  /* ===== CASTING GRID ===== */
+  .casting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  /* ===== CASTING CARD ===== */
+  .casting-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .casting-card:hover { border-color: #3a3a3a; }
+  .casting-card.selected { border-color: #c8a97e; }
+
+  /* Checkbox */
+  .card-checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    background: rgba(0,0,0,0.45);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    transition: all 0.15s;
+  }
+  .card-checkbox.checked {
+    background: #c8a97e;
+    border-color: #c8a97e;
+  }
+  .card-checkbox.checked::after {
+    content: "";
+    display: block;
+    width: 5px;
+    height: 9px;
+    border: solid #0a0a0a;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+
+  /* Headshot */
+  .card-headshot {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    position: relative;
+  }
+
+  /* Card body */
+  .card-body { padding: 10px 12px 12px; }
+
+  .card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e8e8e8;
+    line-height: 1.2;
+  }
+  .card-agency {
+    font-size: 12px;
+    color: #707070;
+    margin-top: 2px;
+  }
+  .card-role {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #c8a97e;
+    background: rgba(200,169,126,0.1);
+    border: 1px solid rgba(200,169,126,0.2);
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Status badge */
+  .card-status {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .status-pending { background: rgba(107,114,128,0.15); color: #6b7280; border: 1px solid rgba(107,114,128,0.25); }
+  .status-approved { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.25); }
+  .status-passed { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+  .status-booked { background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25); }
+
+  /* Measurements */
+  .card-measurements {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #707070;
+    letter-spacing: 0.01em;
+  }
+
+  /* Vote tally */
+  .card-votes {
+    margin-top: 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .vote-approve { color: #22c55e; }
+  .vote-pass { color: #ef4444; }
+  .vote-maybe { color: #f59e0b; }
+
+  /* Card action (book button) */
+  .card-action { margin-top: 8px; }
+
+  .booked-label {
+    display: block;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #3b82f6;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Meta row (status + role together) */
+  .card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== SELECTION BAR ===== */
+  .selection-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 100;
+    animation: slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .selection-count {
+    font-size: 13px;
+    color: #a0a0a0;
+    margin-right: 8px;
+  }
+
+  /* ===== HEADSHOT PLACEHOLDERS ===== */
+  .headshot-1 { background: linear-gradient(135deg, #3a2520 0%, #5a3830 50%, #7a4a3a 100%); }
+  .headshot-2 { background: linear-gradient(135deg, #2a3540 0%, #3a4a5a 50%, #4a5a6a 100%); }
+  .headshot-3 { background: linear-gradient(135deg, #352a20 0%, #554a3a 50%, #6a5a45 100%); }
+  .headshot-4 { background: linear-gradient(135deg, #2a2a35 0%, #3a3a4a 50%, #4a4a5a 100%); }
+  .headshot-5 { background: linear-gradient(135deg, #302a25 0%, #4a4035 50%, #5a5040 100%); }
+  .headshot-6 { background: linear-gradient(135deg, #253530 0%, #354540 50%, #455a50 100%); }
+  .headshot-7 { background: linear-gradient(135deg, #352530 0%, #4a3540 50%, #5a4050 100%); }
+  .headshot-8 { background: linear-gradient(135deg, #2a3030 0%, #3a4545 50%, #4a5a5a 100%); }
+
+  /* ===== TALENT COUNT ===== */
+  .talent-count {
+    font-size: 12px;
+    color: #707070;
+    margin-bottom: 16px;
+  }
+  .talent-count span { color: #a0a0a0; font-weight: 500; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 640px) {
+    .page { padding: 16px 16px 100px; }
+    .casting-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .toolbar-search { width: 100%; }
+    .toolbar-actions { display: flex; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="#">Projects</a>
+    <span class="sep">/</span>
+    <a href="#">SS26 Campaign</a>
+  </div>
+
+  <!-- PAGE TITLE -->
+  <h1 class="page-title">Casting</h1>
+
+  <!-- TOOLBAR -->
+  <!-- Search, filters, view toggle, and primary actions -->
+  <div class="toolbar">
+    <input type="text" class="toolbar-search" placeholder="Search talent...">
+
+    <select class="toolbar-select">
+      <option>All Status</option>
+      <option>Pending</option>
+      <option>Approved</option>
+      <option>Passed</option>
+      <option>Booked</option>
+    </select>
+
+    <select class="toolbar-select">
+      <option>Sort: Name</option>
+      <option>Sort: Agency</option>
+      <option>Sort: Most Approved</option>
+    </select>
+
+    <div class="view-toggle">
+      <button class="active">Grid</button>
+      <button>Table</button>
+    </div>
+
+    <button class="btn btn-primary">+ Add Talent</button>
+    <button class="btn">Share</button>
+  </div>
+
+  <!-- TALENT COUNT -->
+  <div class="talent-count"><span>8</span> talent in casting pool</div>
+
+  <!-- CASTING GRID -->
+  <div class="casting-grid">
+
+    <!-- ======================== -->
+    <!-- CARD 1: Approved, has role, Book button visible -->
+    <!-- ======================== -->
+    <div class="casting-card selected">
+      <div class="card-checkbox checked"></div>
+      <div class="card-headshot headshot-1"></div>
+      <div class="card-body">
+        <div class="card-name">Amara Osei</div>
+        <div class="card-agency">Wilhelmina Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-approved">Approved</span>
+          <span class="card-role">Lead Female</span>
+        </div>
+        <div class="card-measurements">5'9" &middot; W25 &middot; D4</div>
+        <div class="card-votes">
+          <span class="vote-approve">4 &#10003;</span>
+          <span class="vote-pass">0 &#10007;</span>
+        </div>
+        <div class="card-action">
+          <button class="btn btn-book">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 2: Pending, no votes -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-2"></div>
+      <div class="card-body">
+        <div class="card-name">Lucas Andersen</div>
+        <div class="card-agency">IMG Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-pending">Pending</span>
+        </div>
+        <div class="card-measurements">6'1" &middot; W32 &middot; C40R</div>
+        <div class="card-votes">
+          <span style="color:#555; font-size:11px;">No votes yet</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 3: Approved, Book button visible -->
+    <!-- ======================== -->
+    <div class="casting-card selected">
+      <div class="card-checkbox checked"></div>
+      <div class="card-headshot headshot-3"></div>
+      <div class="card-body">
+        <div class="card-name">Priya Sharma</div>
+        <div class="card-agency">Elite Model Management</div>
+        <div class="card-meta-row">
+          <span class="card-status status-approved">Approved</span>
+        </div>
+        <div class="card-measurements">5'7" &middot; W24 &middot; D2</div>
+        <div class="card-votes">
+          <span class="vote-approve">3 &#10003;</span>
+          <span class="vote-pass">1 &#10007;</span>
+        </div>
+        <div class="card-action">
+          <button class="btn btn-book">Book</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 4: Booked -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-4"></div>
+      <div class="card-body">
+        <div class="card-name">James Whitfield</div>
+        <div class="card-agency">Ford Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-booked">Booked</span>
+          <span class="card-role">Lead Male</span>
+        </div>
+        <div class="card-measurements">6'0" &middot; W31 &middot; C42R</div>
+        <div class="card-votes">
+          <span class="vote-approve">5 &#10003;</span>
+          <span class="vote-pass">0 &#10007;</span>
+        </div>
+        <div class="card-action">
+          <span class="booked-label">&#10003; Booked</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 5: Passed, mostly negative votes -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-5"></div>
+      <div class="card-body">
+        <div class="card-name">Sofia Reyes</div>
+        <div class="card-agency">Next Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-passed">Passed</span>
+        </div>
+        <div class="card-measurements">5'8" &middot; W26 &middot; D4</div>
+        <div class="card-votes">
+          <span class="vote-approve">1 &#10003;</span>
+          <span class="vote-pass">3 &#10007;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 6: Pending, no votes -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-6"></div>
+      <div class="card-body">
+        <div class="card-name">Malik Chen</div>
+        <div class="card-agency">Wilhelmina Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-pending">Pending</span>
+        </div>
+        <div class="card-measurements">5'11" &middot; W30 &middot; C38R</div>
+        <div class="card-votes">
+          <span style="color:#555; font-size:11px;">No votes yet</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 7: Passed, mostly negative -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-7"></div>
+      <div class="card-body">
+        <div class="card-name">Elena Vasquez</div>
+        <div class="card-agency">Storm Models</div>
+        <div class="card-meta-row">
+          <span class="card-status status-passed">Passed</span>
+        </div>
+        <div class="card-measurements">5'6" &middot; W25 &middot; D2</div>
+        <div class="card-votes">
+          <span class="vote-approve">0 &#10003;</span>
+          <span class="vote-pass">4 &#10007;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 8: Mixed votes (Maybe present) -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-checkbox"></div>
+      <div class="card-headshot headshot-8"></div>
+      <div class="card-body">
+        <div class="card-name">Yuki Tanaka</div>
+        <div class="card-agency">Select Model Management</div>
+        <div class="card-meta-row">
+          <span class="card-status status-pending">Pending</span>
+        </div>
+        <div class="card-measurements">5'10" &middot; W28 &middot; D6</div>
+        <div class="card-votes">
+          <span class="vote-approve">1 &#10003;</span>
+          <span class="vote-maybe">2 ?</span>
+          <span class="vote-pass">1 &#10007;</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /casting-grid -->
+
+</div>
+<!-- /page -->
+
+<!-- ===== SELECTION BAR (shown when 2+ cards selected) ===== -->
+<!-- Cards 1 and 3 are checked in this mockup -->
+<div class="selection-bar">
+  <span class="selection-count">2 selected</span>
+  <button class="btn btn-approve">Approve</button>
+  <button class="btn btn-pass">Pass</button>
+  <button class="btn btn-remove">Remove</button>
+</div>
+
+</body>
+</html>

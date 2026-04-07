@@ -736,3 +736,74 @@ export interface ShotRequest {
   /** UIDs to notify on submission. If empty/null, all admins and producers are notified. */
   readonly notifyUserIds?: readonly string[] | null
 }
+
+// --- Casting Board (project-scoped) ---
+
+export type CastingBoardStatus = "shortlist" | "hold" | "booked" | "passed"
+
+export interface CastingBoardEntry {
+  readonly id: string
+  readonly talentId: string
+  /** Denormalized for fallback display if talent is later deleted. */
+  readonly talentName: string
+  readonly talentAgency?: string | null
+  readonly status: CastingBoardStatus
+  /** Admin-only notes, never exposed to public share. */
+  readonly notes?: string | null
+  /** Free-text role label, e.g. "Lead Male", "Supporting". */
+  readonly roleLabel?: string | null
+  readonly sortOrder: number
+  readonly addedBy: string
+  readonly addedAt: unknown // Firestore Timestamp
+  readonly updatedAt: unknown // Firestore Timestamp
+}
+
+// --- Casting Share (public sharing) ---
+
+export interface ResolvedCastingTalent {
+  readonly talentId: string
+  readonly name: string
+  readonly headshotUrl: string | null
+  readonly gender: string | null
+  readonly agency: string | null
+  readonly measurements?: Record<string, string | number | null> | null
+  readonly galleryUrls: readonly string[]
+  readonly roleLabel?: string | null
+}
+
+export interface CastingShareVisibility {
+  readonly agency: boolean
+  readonly measurements: boolean
+  readonly portfolio: boolean
+  readonly castingNotes: boolean
+}
+
+export interface CastingShare {
+  readonly id: string
+  readonly clientId: string
+  readonly projectId: string
+  readonly title: string
+  readonly enabled: boolean
+  readonly expiresAt?: unknown | null // Firestore Timestamp
+  readonly createdAt: unknown // Firestore Timestamp
+  readonly createdBy: string
+  readonly resolvedTalent: readonly ResolvedCastingTalent[]
+  readonly visibleFields: CastingShareVisibility
+  readonly reviewerInstructions?: string | null
+  readonly showVoteTallies: boolean
+}
+
+// --- Casting Votes (unauthenticated reviewer actions) ---
+
+export type CastingVoteDecision = "approve" | "disapprove" | "maybe"
+
+export interface CastingVote {
+  readonly id: string
+  readonly reviewerEmail: string
+  readonly reviewerName: string
+  readonly talentId: string
+  readonly decision: CastingVoteDecision
+  readonly comment?: string | null
+  readonly createdAt: unknown // Firestore Timestamp
+  readonly updatedAt: unknown // Firestore Timestamp
+}

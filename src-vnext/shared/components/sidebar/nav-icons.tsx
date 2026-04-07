@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldCheck,
   Tag,
+  UserCheck,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -38,6 +39,7 @@ const ICON_MAP: Record<NavItemIcon, LucideIcon> = {
   settings: Settings,
   "shield-check": ShieldCheck,
   tag: Tag,
+  "user-check": UserCheck,
 }
 
 export function NavIcon({

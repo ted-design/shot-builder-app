@@ -107,3 +107,7 @@ export function canSubmitShotRequest(role: Role): boolean {
 export function canTriageShotRequests(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
+
+export function canManageCasting(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
+}

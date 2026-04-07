@@ -136,4 +136,17 @@ describe("parseMeasurementValue", () => {
   it("trims leading/trailing whitespace", () => {
     expect(parseMeasurementValue("  34  ")).toBe(34)
   })
+
+  // --- space after foot mark and decimal inches ---
+  it("parses height with space after foot mark: 6' 1\" → 73", () => {
+    expect(parseMeasurementValue("6' 1\"")).toBe(73)
+  })
+
+  it("parses half-inch height: 5'11.5\" → 71.5", () => {
+    expect(parseMeasurementValue("5'11.5\"")).toBe(71.5)
+  })
+
+  it("parses half-inch with space: 6' 0.5\" → 72.5", () => {
+    expect(parseMeasurementValue("6' 0.5\"")).toBe(72.5)
+  })
 })
