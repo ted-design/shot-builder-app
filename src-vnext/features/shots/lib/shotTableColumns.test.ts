@@ -7,15 +7,17 @@ import {
 import { DEFAULT_FIELDS, type ShotsListFields } from "./shotListFilters"
 
 describe("SHOT_TABLE_COLUMNS", () => {
-  it("defines 10 columns with unique keys", () => {
-    expect(SHOT_TABLE_COLUMNS).toHaveLength(10)
+  it("defines 14 columns with unique keys", () => {
+    expect(SHOT_TABLE_COLUMNS).toHaveLength(14)
     const keys = SHOT_TABLE_COLUMNS.map((c) => c.key)
-    expect(new Set(keys).size).toBe(10)
+    expect(new Set(keys).size).toBe(14)
   })
 
-  it("marks 'shot' column as pinned", () => {
+  it("marks 'shot' and 'shotNumber' columns as pinned", () => {
     const shotCol = SHOT_TABLE_COLUMNS.find((c) => c.key === "shot")
     expect(shotCol?.pinned).toBe(true)
+    const shotNumberCol = SHOT_TABLE_COLUMNS.find((c) => c.key === "shotNumber")
+    expect(shotNumberCol?.pinned).toBe(true)
   })
 
   it("has ascending order values", () => {
@@ -49,6 +51,9 @@ describe("fieldsToColumnConfigs", () => {
       products: false,
       links: false,
       talent: false,
+      launch: false,
+      reqs: false,
+      samples: false,
       updated: false,
     }
     const configs = fieldsToColumnConfigs(allFalse)
@@ -87,6 +92,10 @@ describe("columnKeyToFieldKey", () => {
 
   it("maps 'shot' to null (pinned)", () => {
     expect(columnKeyToFieldKey("shot")).toBeNull()
+  })
+
+  it("maps 'shotNumber' to null (pinned)", () => {
+    expect(columnKeyToFieldKey("shotNumber")).toBeNull()
   })
 
   it("maps all data columns correctly", () => {

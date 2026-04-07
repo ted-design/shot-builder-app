@@ -1,44 +1,33 @@
-# CHECKPOINT — Sprint S21: Share Column Config, Tag Dedup, Tag Colors, Export Improvements (2026-04-06)
+# CHECKPOINT — Sprint S23: Production Workflow Precision (2026-04-07)
 
-## Build clean. Lint zero. 151 test files / 1593 tests pass. Production build succeeds.
+## Build clean. Lint zero. 158 test files / 1782 tests pass. Production build succeeds.
 
-## New/Modified Files
+## Completed
+- [x] Phase 1A: Ghost shot fix (backfill + idempotency + client defense)
+- [x] Phase 1B: Launch date sort fix (SKU data in comparator, no family fallback)
+- [x] Phase 1C: Filter typography (Title Case labels)
+- [x] Phase 1D: Code review + fixes (3 HIGH resolved: SKU threading in drag/grouped views)
+- [x] Phase 2A: Shot number column (pinned, #, tabular-nums)
+- [x] Phase 2B: Reqs column shows specific types (On-fig e-comm, Lifestyle, etc.)
+- [x] Phase 2C: Style number in product column (text-2xs subtle below name)
+- [x] Phase 2D: Code review + fixes (sort cache optimization, redundant dep removed)
+- [x] Phase 3: Advanced filtering system (9 fields, 7 operators, URL serialization, 98 tests)
+- [x] Phase 3 code review: 3 HIGH fixed (crypto.randomUUID, ref guard, readiness cache)
+- [x] Phase 4B: Carrier tracking links (auto-detect, deep links, edit hint, 32 tests)
+- [x] Visual verification: ALL PASS
+- [x] Merge wizard mockup created
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `src-vnext/shared/lib/tagDedup.ts` | Tag normalization, canonical lookup, deduplication |
-| `src-vnext/shared/lib/__tests__/tagDedup.test.ts` | 19 unit tests for tagDedup |
-| `src-vnext/shared/components/ColumnSettingsList.tsx` | Extracted DnD column list (reusable) |
-| `scripts/migrations/2026-04-deduplicate-shot-tags.ts` | Migration for existing tag duplicates |
+## Pending
+- [ ] User mockup review for Phase 4A
+- [ ] Phase 4A: Product deduplication implementation
+- [ ] Git commit + PR
+- [ ] CLAUDE.md + Plan.md updates
 
-### Modified Files
-| File | Change |
-|------|--------|
-| `src-vnext/features/shots/lib/mapShot.ts` | Canonicalize tags at Firestore→React boundary |
-| `src-vnext/features/shots/hooks/useAvailableTags.ts` | Label-keyed aggregation |
-| `src-vnext/features/shots/components/TagManagementPage.tsx` | Label-keyed buildTagLibrary |
-| `src-vnext/features/shots/components/TagEditor.tsx` | Check DEFAULT_TAGS before creating |
-| `src-vnext/features/shots/lib/shotTableColumns.ts` | ShareColumnEntry, PUBLIC_SHARE_COLUMNS |
-| `src-vnext/shared/components/ColumnSettingsPopover.tsx` | Refactored to use ColumnSettingsList |
-| `src-vnext/features/shots/lib/resolveShotsForShare.ts` | Tags/links in resolved data; deleted filter fix |
-| `src-vnext/features/shots/components/ShotsShareDialog.tsx` | Column config UI + Firestore persistence |
-| `src-vnext/features/shots/components/PublicShotSharePage.tsx` | Column-driven table with viewer toggles |
-| `src-vnext/features/export/types/exportBuilder.ts` | order field on ShotGridColumn |
-| `src-vnext/features/export/lib/blockDefaults.ts` | order values on defaults |
-| `src-vnext/features/export/components/settings/ColumnTableSettings.tsx` | DnD column reorder |
-| `src-vnext/features/export/lib/pdf/blocks/ShotGridBlockPdf.tsx` | Sort by order; tag badge rendering |
-| `src-vnext/features/export/components/ShotGridBlockView.tsx` | Sort by order in preview |
-| `src-vnext/features/export/lib/pdf/pdfStyles.ts` | PDF_TAG_CATEGORY_COLORS |
-
----
-
-# Previous: Permissions Fix + Comment Moderation (2026-04-05)
-
-## Hotfix: Admin Invite Permissions (P0)
-- `firestore.rules:333` — fixed user doc CREATE rule to allow admin creation
-- `useExportReports.ts` — hardened saveReport from `setDoc(merge)` to `updateDoc`
-
-## Admin Comment Moderation (P2)
-- Shot + product comment Firestore rules with full immutable field protection
-- Admin "Remove" button + confirm dialog in ShotCommentsSection + ProductActivitySection
+## Test Coverage Delta
+| Phase | New Tests |
+|-------|-----------|
+| Phase 1 | 6 (shotProductReadiness) + 1 (backfill) |
+| Phase 2 | 11 (columns + reqs + asset types) |
+| Phase 3 | 98 (conditions + serializer + engine) |
+| Phase 4B | 32 (carrier detection) |
+| **Total** | **+148 new tests** |

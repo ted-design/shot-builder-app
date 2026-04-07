@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vote Review — Admin View</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e8e8e8;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(200, 169, 126, 0.3); }
+
+  /* ===== LAYOUT ===== */
+  .page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px; }
+
+  /* ===== BREADCRUMB ===== */
+  .breadcrumb {
+    font-size: 12px;
+    color: #707070;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breadcrumb a { color: #707070; text-decoration: none; }
+  .breadcrumb a:hover { color: #a0a0a0; }
+  .breadcrumb .sep { color: #404040; }
+
+  /* ===== PAGE HEADING ===== */
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .page-title {
+    font-size: 18px;
+    font-weight: 300;
+    color: #e8e8e8;
+    letter-spacing: 0.01em;
+  }
+
+  /* ===== VOTE SUMMARY BAR ===== */
+  /* Shows aggregate vote stats across all shared review links */
+  .vote-summary-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 18px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .summary-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .summary-value {
+    font-size: 20px;
+    font-weight: 300;
+    color: #e8e8e8;
+  }
+  .summary-label {
+    font-size: 10px;
+    color: #707070;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .summary-divider {
+    width: 1px;
+    height: 32px;
+    background: #2a2a2a;
+  }
+
+  .reviewer-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .reviewer-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px 4px 4px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 20px;
+    font-size: 11px;
+    color: #a0a0a0;
+  }
+  .reviewer-pill-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pill-avatar-1 { background: rgba(200, 169, 126, 0.15); color: #c8a97e; }
+  .pill-avatar-2 { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .pill-avatar-3 { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+  .pill-avatar-4 { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+
+  .reviewer-pill-votes {
+    font-size: 10px;
+    color: #555;
+  }
+
+  /* ===== TOOLBAR ===== */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+  }
+  .toolbar-search {
+    flex: 1 1 200px;
+    padding: 7px 12px 7px 32px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23707070' stroke-width='1.5'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cline x1='9.5' y1='9.5' x2='13' y2='13'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+  .toolbar-search::placeholder { color: #555; }
+  .toolbar-search:focus { border-color: #c8a97e; }
+
+  .toolbar-select {
+    padding: 7px 28px 7px 10px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #a0a0a0;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23707070' stroke-width='1.5'%3E%3Cpolyline points='1,1 5,5 9,1'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: calc(100% - 8px) center;
+  }
+
+  .btn {
+    padding: 7px 14px;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #a0a0a0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: #444; color: #e8e8e8; }
+  .btn-primary {
+    background: #c8a97e;
+    border-color: #c8a97e;
+    color: #0a0a0a;
+    font-weight: 500;
+  }
+  .btn-primary:hover { background: #d4b88e; }
+  .btn-book {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+    font-weight: 500;
+    font-size: 11px;
+    padding: 6px 14px;
+  }
+  .btn-book:hover { background: #2563eb; }
+
+  /* ===== CASTING GRID (Expanded cards) ===== */
+  .casting-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+
+  /* ===== EXPANDED CASTING CARD ===== */
+  .casting-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .casting-card:hover { border-color: #3a3a3a; }
+
+  /* Card top: headshot + basic info side-by-side */
+  .card-top {
+    display: flex;
+    gap: 14px;
+    padding: 14px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .card-headshot {
+    width: 90px;
+    min-height: 120px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    aspect-ratio: 3 / 4;
+  }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e8e8e8;
+    margin-bottom: 2px;
+  }
+  .card-agency {
+    font-size: 12px;
+    color: #707070;
+  }
+  .card-role {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #c8a97e;
+    background: rgba(200,169,126,0.1);
+    border: 1px solid rgba(200,169,126,0.2);
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .card-measurements {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #707070;
+  }
+
+  /* Status badge */
+  .card-status {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .status-pending { background: rgba(107,114,128,0.15); color: #6b7280; border: 1px solid rgba(107,114,128,0.25); }
+  .status-approved { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.25); }
+  .status-passed { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+  .status-booked { background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25); }
+
+  /* Status dropdown (admin can change status) */
+  .status-select {
+    margin-top: 8px;
+    padding: 4px 24px 4px 8px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #a0a0a0;
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='none' stroke='%23707070' stroke-width='1.5'%3E%3Cpolyline points='1,1 4,4 7,1'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: calc(100% - 6px) center;
+  }
+
+  /* ===== VOTE BAR (visual proportional bar) ===== */
+  .vote-bar-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .vote-bar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .vote-bar-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .vote-bar-tally {
+    font-size: 11px;
+    display: flex;
+    gap: 8px;
+  }
+  .tally-approve { color: #22c55e; }
+  .tally-maybe { color: #f59e0b; }
+  .tally-pass { color: #ef4444; }
+
+  .vote-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: #1a1a1a;
+  }
+  .vote-bar-segment {
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .bar-approve { background: #22c55e; }
+  .bar-maybe { background: #f59e0b; }
+  .bar-pass { background: #ef4444; }
+
+  /* ===== INDIVIDUAL VOTES ===== */
+  .votes-list {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .votes-list-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .vote-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+  }
+  .vote-row + .vote-row { border-top: 1px solid #1a1a1a; }
+
+  .vote-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .va-1 { background: rgba(200, 169, 126, 0.15); color: #c8a97e; }
+  .va-2 { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .va-3 { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+  .va-4 { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+
+  .vote-content { flex: 1; min-width: 0; }
+  .vote-reviewer-name {
+    font-size: 12px;
+    color: #a0a0a0;
+    font-weight: 500;
+  }
+  .vote-verdict {
+    font-size: 11px;
+    margin-left: 6px;
+  }
+  .verdict-approve { color: #22c55e; }
+  .verdict-maybe { color: #f59e0b; }
+  .verdict-pass { color: #ef4444; }
+
+  .vote-comment {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #707070;
+    line-height: 1.5;
+  }
+  .vote-date {
+    font-size: 10px;
+    color: #444;
+    margin-top: 2px;
+  }
+
+  /* ===== CARD ACTIONS ===== */
+  .card-actions {
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ===== HEADSHOT PLACEHOLDERS ===== */
+  .hs-1 { background: linear-gradient(135deg, #3a2520 0%, #5a3830 50%, #7a4a3a 100%); }
+  .hs-2 { background: linear-gradient(135deg, #2a3540 0%, #3a4a5a 50%, #4a5a6a 100%); }
+  .hs-3 { background: linear-gradient(135deg, #352a20 0%, #554a3a 50%, #6a5a45 100%); }
+  .hs-4 { background: linear-gradient(135deg, #2a2a35 0%, #3a3a4a 50%, #4a4a5a 100%); }
+  .hs-5 { background: linear-gradient(135deg, #302a25 0%, #4a4035 50%, #5a5040 100%); }
+
+  /* ===== COMPACT CARD (non-expanded) ===== */
+  .compact-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+    cursor: pointer;
+  }
+  .compact-card:hover { border-color: #3a3a3a; }
+  .compact-top {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+  }
+  .compact-headshot {
+    width: 60px;
+    min-height: 80px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    aspect-ratio: 3 / 4;
+  }
+  .compact-info { flex: 1; min-width: 0; }
+  .compact-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e8e8e8;
+  }
+  .compact-agency {
+    font-size: 11px;
+    color: #707070;
+    margin-top: 1px;
+  }
+  .compact-votes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+  .compact-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+  }
+  .compact-expand {
+    font-size: 10px;
+    color: #555;
+    margin-top: 6px;
+  }
+
+  /* ===== SECTION LABEL ===== */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    margin-top: 8px;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 700px) {
+    .casting-grid { grid-template-columns: 1fr; }
+    .vote-summary-bar { flex-direction: column; align-items: flex-start; }
+    .summary-divider { width: 100%; height: 1px; }
+    .reviewer-pills { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="#">Projects</a>
+    <span class="sep">/</span>
+    <a href="#">SS26 Campaign</a>
+    <span class="sep">/</span>
+    <a href="#">Casting</a>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1 class="page-title">Casting &mdash; Vote Review</h1>
+    <button class="btn">Export Summary</button>
+  </div>
+
+  <!-- ===== VOTE SUMMARY BAR ===== -->
+  <!-- Aggregate stats: how many reviewers, total votes, response rate -->
+  <div class="vote-summary-bar">
+    <div class="summary-stat">
+      <span class="summary-value">4</span>
+      <span class="summary-label">Reviewers</span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-stat">
+      <span class="summary-value">26</span>
+      <span class="summary-label">Total Votes</span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-stat">
+      <span class="summary-value">81%</span>
+      <span class="summary-label">Response Rate</span>
+    </div>
+
+    <!-- Reviewer pills showing who has voted -->
+    <div class="reviewer-pills">
+      <div class="reviewer-pill">
+        <div class="reviewer-pill-avatar pill-avatar-1">AK</div>
+        Andrew K.
+        <span class="reviewer-pill-votes">8/8</span>
+      </div>
+      <div class="reviewer-pill">
+        <div class="reviewer-pill-avatar pill-avatar-2">JT</div>
+        Jessica T.
+        <span class="reviewer-pill-votes">8/8</span>
+      </div>
+      <div class="reviewer-pill">
+        <div class="reviewer-pill-avatar pill-avatar-3">MR</div>
+        Mike R.
+        <span class="reviewer-pill-votes">6/8</span>
+      </div>
+      <div class="reviewer-pill">
+        <div class="reviewer-pill-avatar pill-avatar-4">SL</div>
+        Sarah L.
+        <span class="reviewer-pill-votes">4/8</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <input type="text" class="toolbar-search" placeholder="Search talent...">
+    <select class="toolbar-select">
+      <option>All Status</option>
+      <option>Pending</option>
+      <option selected>Most Consensus</option>
+      <option>Most Contested</option>
+    </select>
+    <select class="toolbar-select">
+      <option>Sort: Most Approved</option>
+      <option>Sort: Name</option>
+      <option>Sort: Most Contested</option>
+    </select>
+  </div>
+
+  <!-- ===== EXPANDED CARDS (vote detail visible) ===== -->
+  <div class="section-label">Expanded view &mdash; 3 talent with vote details</div>
+
+  <div class="casting-grid">
+
+    <!-- ======================== -->
+    <!-- CARD 1: Strong consensus (Approved) -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-top">
+        <div class="card-headshot hs-1"></div>
+        <div class="card-info">
+          <div class="card-name">Amara Osei</div>
+          <div class="card-agency">Wilhelmina Models</div>
+          <span class="card-role">Lead Female</span>
+          <div class="card-measurements">5'9" &middot; W25 &middot; D4</div>
+          <span class="card-status status-approved">Approved</span>
+        </div>
+      </div>
+
+      <!-- Visual vote bar -->
+      <div class="vote-bar-section">
+        <div class="vote-bar-header">
+          <span class="vote-bar-label">Vote Distribution</span>
+          <div class="vote-bar-tally">
+            <span class="tally-approve">3 approve</span>
+            <span class="tally-maybe">1 maybe</span>
+            <span class="tally-pass">0 pass</span>
+          </div>
+        </div>
+        <div class="vote-bar">
+          <div class="vote-bar-segment bar-approve" style="width: 75%;"></div>
+          <div class="vote-bar-segment bar-maybe" style="width: 25%;"></div>
+        </div>
+      </div>
+
+      <!-- Individual reviewer votes -->
+      <div class="votes-list">
+        <div class="votes-list-label">Individual Votes</div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-1">AK</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Andrew K.</span>
+              <span class="vote-verdict verdict-approve">&#10003; Approve</span>
+            </div>
+            <div class="vote-comment">Great look for the spring campaign. Strong portfolio.</div>
+            <div class="vote-date">Apr 7, 2:34 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-2">JT</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Jessica T.</span>
+              <span class="vote-verdict verdict-approve">&#10003; Approve</span>
+            </div>
+            <div class="vote-comment">Great energy, fits the spring look perfectly.</div>
+            <div class="vote-date">Apr 7, 11:15 AM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-3">MR</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Mike R.</span>
+              <span class="vote-verdict verdict-maybe">? Maybe</span>
+            </div>
+            <div class="vote-comment">Good option but let's see who else comes in.</div>
+            <div class="vote-date">Apr 7, 3:02 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-4">SL</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Sarah L.</span>
+              <span class="vote-verdict verdict-approve">&#10003; Approve</span>
+            </div>
+            <div class="vote-date">Apr 7, 4:20 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin actions -->
+      <div class="card-actions">
+        <select class="status-select">
+          <option>Pending</option>
+          <option selected>Approved</option>
+          <option>Passed</option>
+          <option>Booked</option>
+        </select>
+        <button class="btn btn-book" style="margin-left:auto;">Book</button>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 2: Contested (mixed votes) -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-top">
+        <div class="card-headshot hs-2"></div>
+        <div class="card-info">
+          <div class="card-name">Lucas Andersen</div>
+          <div class="card-agency">IMG Models</div>
+          <div class="card-measurements">6'1" &middot; W32 &middot; C40R</div>
+          <span class="card-status status-pending">Pending</span>
+        </div>
+      </div>
+
+      <!-- Visual vote bar -->
+      <div class="vote-bar-section">
+        <div class="vote-bar-header">
+          <span class="vote-bar-label">Vote Distribution</span>
+          <div class="vote-bar-tally">
+            <span class="tally-approve">1 approve</span>
+            <span class="tally-maybe">2 maybe</span>
+            <span class="tally-pass">1 pass</span>
+          </div>
+        </div>
+        <div class="vote-bar">
+          <div class="vote-bar-segment bar-approve" style="width: 25%;"></div>
+          <div class="vote-bar-segment bar-maybe" style="width: 50%;"></div>
+          <div class="vote-bar-segment bar-pass" style="width: 25%;"></div>
+        </div>
+      </div>
+
+      <!-- Individual reviewer votes -->
+      <div class="votes-list">
+        <div class="votes-list-label">Individual Votes</div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-1">AK</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Andrew K.</span>
+              <span class="vote-verdict verdict-maybe">? Maybe</span>
+            </div>
+            <div class="vote-comment">Interesting look, not 100% sure about fit.</div>
+            <div class="vote-date">Apr 7, 2:41 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-2">JT</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Jessica T.</span>
+              <span class="vote-verdict verdict-approve">&#10003; Approve</span>
+            </div>
+            <div class="vote-comment">Strong jawline, great for the tailored shots.</div>
+            <div class="vote-date">Apr 7, 11:20 AM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-3">MR</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Mike R.</span>
+              <span class="vote-verdict verdict-pass">&#10007; Pass</span>
+            </div>
+            <div class="vote-comment">Too similar to James. We don't need two of the same type.</div>
+            <div class="vote-date">Apr 7, 3:08 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-4">SL</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Sarah L.</span>
+              <span class="vote-verdict verdict-maybe">? Maybe</span>
+            </div>
+            <div class="vote-date">Apr 7, 4:22 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin actions -->
+      <div class="card-actions">
+        <select class="status-select">
+          <option selected>Pending</option>
+          <option>Approved</option>
+          <option>Passed</option>
+          <option>Booked</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ======================== -->
+    <!-- CARD 3: Clear pass (mostly negative) -->
+    <!-- ======================== -->
+    <div class="casting-card">
+      <div class="card-top">
+        <div class="card-headshot hs-5"></div>
+        <div class="card-info">
+          <div class="card-name">Sofia Reyes</div>
+          <div class="card-agency">Next Models</div>
+          <div class="card-measurements">5'8" &middot; W26 &middot; D4</div>
+          <span class="card-status status-passed">Passed</span>
+        </div>
+      </div>
+
+      <!-- Visual vote bar -->
+      <div class="vote-bar-section">
+        <div class="vote-bar-header">
+          <span class="vote-bar-label">Vote Distribution</span>
+          <div class="vote-bar-tally">
+            <span class="tally-approve">0 approve</span>
+            <span class="tally-maybe">1 maybe</span>
+            <span class="tally-pass">3 pass</span>
+          </div>
+        </div>
+        <div class="vote-bar">
+          <div class="vote-bar-segment bar-maybe" style="width: 25%;"></div>
+          <div class="vote-bar-segment bar-pass" style="width: 75%;"></div>
+        </div>
+      </div>
+
+      <!-- Individual reviewer votes -->
+      <div class="votes-list">
+        <div class="votes-list-label">Individual Votes</div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-1">AK</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Andrew K.</span>
+              <span class="vote-verdict verdict-pass">&#10007; Pass</span>
+            </div>
+            <div class="vote-date">Apr 7, 2:48 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-2">JT</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Jessica T.</span>
+              <span class="vote-verdict verdict-pass">&#10007; Pass</span>
+            </div>
+            <div class="vote-comment">Not the right energy for this campaign.</div>
+            <div class="vote-date">Apr 7, 11:32 AM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-3">MR</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Mike R.</span>
+              <span class="vote-verdict verdict-pass">&#10007; Pass</span>
+            </div>
+            <div class="vote-date">Apr 7, 3:15 PM</div>
+          </div>
+        </div>
+
+        <div class="vote-row">
+          <div class="vote-avatar va-4">SL</div>
+          <div class="vote-content">
+            <div>
+              <span class="vote-reviewer-name">Sarah L.</span>
+              <span class="vote-verdict verdict-maybe">? Maybe</span>
+            </div>
+            <div class="vote-comment">She has potential but maybe for a different project.</div>
+            <div class="vote-date">Apr 7, 4:28 PM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin actions -->
+      <div class="card-actions">
+        <select class="status-select">
+          <option>Pending</option>
+          <option>Approved</option>
+          <option selected>Passed</option>
+          <option>Booked</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+  <!-- /casting-grid (expanded) -->
+
+  <!-- ===== REMAINING CARDS (compact, click to expand) ===== -->
+  <div class="section-label" style="margin-top:28px;">Remaining talent (click to expand)</div>
+
+  <div class="casting-grid" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
+
+    <!-- Compact card: James Whitfield (Booked) -->
+    <div class="compact-card">
+      <div class="compact-top">
+        <div class="compact-headshot hs-4"></div>
+        <div class="compact-info">
+          <div class="compact-name">James Whitfield</div>
+          <div class="compact-agency">Ford Models &middot; <span style="color:#3b82f6;">Booked</span></div>
+          <div class="compact-votes">
+            <span class="tally-approve" style="font-size:11px;">5&#10003;</span>
+            <span class="tally-pass" style="font-size:11px;">0&#10007;</span>
+            <div class="compact-bar-wrap">
+              <div class="vote-bar-segment bar-approve" style="width:100%;"></div>
+            </div>
+          </div>
+          <div class="compact-expand">Click to expand vote details</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact card: Priya Sharma (Approved) -->
+    <div class="compact-card">
+      <div class="compact-top">
+        <div class="compact-headshot hs-3"></div>
+        <div class="compact-info">
+          <div class="compact-name">Priya Sharma</div>
+          <div class="compact-agency">Elite Model Mgmt &middot; <span style="color:#22c55e;">Approved</span></div>
+          <div class="compact-votes">
+            <span class="tally-approve" style="font-size:11px;">3&#10003;</span>
+            <span class="tally-pass" style="font-size:11px;">1&#10007;</span>
+            <div class="compact-bar-wrap">
+              <div class="vote-bar-segment bar-approve" style="width:75%;"></div>
+              <div class="vote-bar-segment bar-pass" style="width:25%;"></div>
+            </div>
+          </div>
+          <div class="compact-expand">Click to expand vote details</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact card: Malik Chen (Pending) -->
+    <div class="compact-card">
+      <div class="compact-top">
+        <div class="compact-headshot" style="background: linear-gradient(135deg, #253530 0%, #354540 50%, #455a50 100%);"></div>
+        <div class="compact-info">
+          <div class="compact-name">Malik Chen</div>
+          <div class="compact-agency">Wilhelmina Models &middot; <span style="color:#6b7280;">Pending</span></div>
+          <div class="compact-votes">
+            <span class="tally-approve" style="font-size:11px;">2&#10003;</span>
+            <span class="tally-maybe" style="font-size:11px;">1?</span>
+            <span class="tally-pass" style="font-size:11px;">0&#10007;</span>
+            <div class="compact-bar-wrap">
+              <div class="vote-bar-segment bar-approve" style="width:67%;"></div>
+              <div class="vote-bar-segment bar-maybe" style="width:33%;"></div>
+            </div>
+          </div>
+          <div class="compact-expand">Click to expand vote details</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact card: Elena Vasquez (Passed) -->
+    <div class="compact-card">
+      <div class="compact-top">
+        <div class="compact-headshot" style="background: linear-gradient(135deg, #352530 0%, #4a3540 50%, #5a4050 100%);"></div>
+        <div class="compact-info">
+          <div class="compact-name">Elena Vasquez</div>
+          <div class="compact-agency">Storm Models &middot; <span style="color:#ef4444;">Passed</span></div>
+          <div class="compact-votes">
+            <span class="tally-approve" style="font-size:11px;">0&#10003;</span>
+            <span class="tally-pass" style="font-size:11px;">4&#10007;</span>
+            <div class="compact-bar-wrap">
+              <div class="vote-bar-segment bar-pass" style="width:100%;"></div>
+            </div>
+          </div>
+          <div class="compact-expand">Click to expand vote details</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact card: Yuki Tanaka (Pending, mixed) -->
+    <div class="compact-card">
+      <div class="compact-top">
+        <div class="compact-headshot" style="background: linear-gradient(135deg, #2a3030 0%, #3a4545 50%, #4a5a5a 100%);"></div>
+        <div class="compact-info">
+          <div class="compact-name">Yuki Tanaka</div>
+          <div class="compact-agency">Select Model Mgmt &middot; <span style="color:#6b7280;">Pending</span></div>
+          <div class="compact-votes">
+            <span class="tally-approve" style="font-size:11px;">1&#10003;</span>
+            <span class="tally-maybe" style="font-size:11px;">2?</span>
+            <span class="tally-pass" style="font-size:11px;">1&#10007;</span>
+            <div class="compact-bar-wrap">
+              <div class="vote-bar-segment bar-approve" style="width:25%;"></div>
+              <div class="vote-bar-segment bar-maybe" style="width:50%;"></div>
+              <div class="vote-bar-segment bar-pass" style="width:25%;"></div>
+            </div>
+          </div>
+          <div class="compact-expand">Click to expand vote details</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /compact grid -->
+
+</div>
+<!-- /page -->
+
+</body>
+</html>

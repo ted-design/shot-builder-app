@@ -9,9 +9,11 @@ import { textPreview } from "@/shared/lib/textPreview"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { TagBadge } from "@/shared/components/TagBadge"
 import { sortTagsByCategory } from "@/shared/lib/tagSort"
-import { getShotNotesPreview, getShotPrimaryLookProductLabels, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
+import { getShotNotesPreview, getShotPrimaryLookProductEntries, resolveIdsToNames, summarizeLabels } from "@/features/shots/lib/shotListSummaries"
 import { NotesPreviewText } from "@/features/shots/components/NotesPreviewText"
-import type { Shot, ShotReferenceLinkType } from "@/shared/types"
+import type { Shot, ShotReferenceLinkType, ProductFamily, ProductSku, ProductSample } from "@/shared/types"
+import { computeShotReadiness, formatLaunchDateShort, launchUrgencyClass } from "@/features/shots/lib/shotProductReadiness"
+import { ASSET_TYPE_SHORT_LABELS } from "@/features/products/lib/assetRequirements"
 
 interface ShotCardProps {
   readonly shot: Shot
@@ -24,6 +26,9 @@ interface ShotCardProps {
   readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly talentNameById?: ReadonlyMap<string, string> | null
   readonly locationNameById?: ReadonlyMap<string, string> | null
+  readonly familyById?: ReadonlyMap<string, ProductFamily>
+  readonly skuById?: ReadonlyMap<string, ProductSku>
+  readonly samplesByFamily?: ReadonlyMap<string, ReadonlyArray<ProductSample>>
 }
 
 export interface ShotCardVisibleFields {
@@ -79,6 +84,9 @@ export function ShotCard({
   visibleFields,
   talentNameById,
   locationNameById,
+  familyById,
+  skuById,
+  samplesByFamily,
 }: ShotCardProps) {
   const navigate = useNavigate()
   const { projectId } = useProjectScope()
@@ -95,8 +103,8 @@ export function ShotCard({
     ...visibleFields,
   }
 
-  const productLabels = getShotPrimaryLookProductLabels(shot)
-  const hasProducts = productLabels.length > 0
+  const productEntries = getShotPrimaryLookProductEntries(shot, familyById)
+  const hasProducts = productEntries.length > 0
   const referenceLinks = shot.referenceLinks ?? []
 
   const talentIds = shot.talentIds ?? shot.talent
@@ -131,15 +139,18 @@ export function ShotCard({
   const showLocationDetails = fields.location && hasLocation
   const showProductsDetails = fields.products && hasProducts
   const showReferenceLinksDetails = fields.links && referenceLinks.length > 0
-  const showReadiness =
-    fields.readiness &&
-    !showTalentDetails &&
-    !showLocationDetails &&
-    !showProductsDetails
+  const shotReadiness = fields.readiness && familyById
+    ? computeShotReadiness(shot, familyById, skuById, samplesByFamily)
+    : null
+  const showReadiness = fields.readiness && shotReadiness !== null && (
+    shotReadiness.earliestLaunchDate !== null ||
+    shotReadiness.totalRequirements > 0 ||
+    shotReadiness.totalSamples > 0
+  )
   const showHeroImage = fields.heroThumb && !!heroUrl && imgVisible
   const allTags = sortTagsByCategory(shot.tags ?? [])
-  const productPreview = productLabels.slice(0, PRODUCT_PREVIEW_LIMIT)
-  const hiddenProductCount = Math.max(0, productLabels.length - productPreview.length)
+  const productPreview = productEntries.slice(0, PRODUCT_PREVIEW_LIMIT)
+  const hiddenProductCount = Math.max(0, productEntries.length - productPreview.length)
   const referenceLinkPreview = referenceLinks.slice(0, REFERENCE_LINK_PREVIEW_LIMIT)
   const hiddenReferenceLinkCount = Math.max(0, referenceLinks.length - referenceLinkPreview.length)
   const notesPreview = fields.notes ? getShotNotesPreview(shot, 320) : ""
@@ -240,11 +251,20 @@ export function ShotCard({
                 )}
 
                 {showProductsDetails && (
-                  <MetaField icon={Package} label="Products" title={productLabels.join("\n")}>
-                    <div className="space-y-0.5">
-                      {productPreview.map((label, index) => (
-                        <div key={`${label}-${index}`} className="truncate">
-                          {label}
+                  <MetaField
+                    icon={Package}
+                    label="Products"
+                    title={productEntries.map((e) => `${e.label}${e.styleNumber ? ` (${e.styleNumber})` : ""}`).join("\n")}
+                  >
+                    <div className="space-y-1">
+                      {productPreview.map((entry, index) => (
+                        <div key={`${entry.label}-${index}`}>
+                          <div className="truncate">{entry.label}</div>
+                          {entry.styleNumber && (
+                            <div className="truncate text-2xs text-[var(--color-text-subtle)]">
+                              {entry.styleNumber}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {hiddenProductCount > 0 && (
@@ -285,11 +305,42 @@ export function ShotCard({
                   </MetaField>
                 )}
 
-                {showReadiness && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-subtle)] px-2.5 py-2 text-xxs">
-                    <ReadinessIndicator icon={Package} ready={hasProducts} label="Products" />
-                    <ReadinessIndicator icon={Users} ready={hasTalent} label="Talent" />
-                    <ReadinessIndicator icon={MapPin} ready={hasLocation} label="Location" />
+                {showReadiness && shotReadiness && (
+                  <div
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--color-border)] pt-2 text-2xs"
+                    title={shotReadiness.heroFamilyNames.length > 0 ? `Based on: ${shotReadiness.heroFamilyNames.join(", ")}` : undefined}
+                  >
+                    {shotReadiness.earliestLaunchDate ? (
+                      <span className={launchUrgencyClass(shotReadiness.earliestLaunchDate)}>
+                        {formatLaunchDateShort(shotReadiness.earliestLaunchDate)}
+                      </span>
+                    ) : null}
+                    {shotReadiness.activeRequirementTypes.length > 0 ? (
+                      <span
+                        className="text-[var(--color-status-amber-text)]"
+                        title={shotReadiness.activeRequirementTypes
+                          .map((k) => ASSET_TYPE_SHORT_LABELS[k] ?? k)
+                          .join(", ")}
+                      >
+                        {shotReadiness.activeRequirementTypes
+                          .slice(0, 2)
+                          .map((k) => ASSET_TYPE_SHORT_LABELS[k] ?? k)
+                          .join(", ")}
+                        {shotReadiness.activeRequirementTypes.length > 2
+                          ? ` +${shotReadiness.activeRequirementTypes.length - 2}`
+                          : ""}
+                      </span>
+                    ) : shotReadiness.totalRequirements > 0 ? (
+                      <span className="text-[var(--color-status-amber-text)]">
+                        {shotReadiness.totalRequirements} req
+                      </span>
+                    ) : null}
+                    {shotReadiness.totalSamples > 0 ? (
+                      <span className={shotReadiness.arrivedSamples >= shotReadiness.totalSamples ? "text-[var(--color-status-green-text)]" : "text-[var(--color-status-amber-text)]"}>
+                        {shotReadiness.arrivedSamples}/{shotReadiness.totalSamples}
+                        {shotReadiness.arrivedSamples >= shotReadiness.totalSamples ? " \u2713" : ""}
+                      </span>
+                    ) : null}
                   </div>
                 )}
               </div>

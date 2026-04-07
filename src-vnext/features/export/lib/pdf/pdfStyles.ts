@@ -129,10 +129,25 @@ export const PDF_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 /** Category-accent colors for tag badges in PDF — neutral body with accent left border only.
- *  Matches CLAUDE.md rule: "neutral body with subtle category-accent left borders". */
+ *  Category colors are the fallback when a tag has no recognized color key. */
 export const PDF_TAG_CATEGORY_COLORS: Record<string, { readonly border: string; readonly bg: string; readonly text: string }> = {
   priority: { border: "#EF4444", bg: "#FFFFFF", text: "#52525b" },
   gender:   { border: "#3B82F6", bg: "#FFFFFF", text: "#52525b" },
   media:    { border: "#10B981", bg: "#FFFFFF", text: "#52525b" },
   other:    { border: "#9CA3AF", bg: "#FFFFFF", text: "#52525b" },
+}
+
+/** Per-tag-color border hex values for PDF rendering — tag color takes priority over category. */
+export const PDF_TAG_COLOR_MAP: Record<string, string> = {
+  red: "#ef4444",
+  orange: "#f97316",
+  amber: "#f59e0b",
+  yellow: "#eab308",
+  green: "#22c55e",
+  emerald: "#10b981",
+  blue: "#3b82f6",
+  indigo: "#6366f1",
+  purple: "#a855f7",
+  pink: "#ec4899",
+  gray: "#737373",
 }

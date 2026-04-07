@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku } from "@/shared/types"
 import {
   type SortKey,
   type SortDir,
@@ -11,11 +11,39 @@ import {
   type ShotsListFields,
   type ShotGroup,
   DEFAULT_FIELDS,
-  parseCsv,
-  applyFiltersAndSort,
+  STATUS_LABELS,
+  filterByQuery,
+  sortShots,
   computeInsights,
   groupShots,
 } from "@/features/shots/lib/shotListFilters"
+import { deserializeFilters, serializeFilters, migrateLegacyParams } from "@/features/shots/lib/filterSerializer"
+import { applyFilterConditions } from "@/features/shots/lib/filterEngine"
+import type { FilterCondition } from "@/features/shots/lib/filterConditions"
+import { OPERATOR_LABELS } from "@/features/shots/lib/filterConditions"
+
+// ---------------------------------------------------------------------------
+// Constants (badge label lookups)
+// ---------------------------------------------------------------------------
+
+const FIELD_LABELS: Record<string, string> = {
+  status: "Status",
+  tag: "Tag",
+  talent: "Talent",
+  location: "Location",
+  product: "Product",
+  missing: "Missing",
+  launchDate: "Launch Date",
+  hasRequirements: "Has Requirements",
+  hasHeroImage: "Has Hero Image",
+}
+
+const MISSING_LABELS: Record<string, string> = {
+  products: "Products",
+  talent: "Talent",
+  location: "Location",
+  image: "Hero Image",
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +69,11 @@ export type ShotListState = {
   readonly statusFilter: ReadonlySet<ShotFirestoreStatus>
   readonly missingFilter: ReadonlySet<MissingKey>
   readonly tagFilter: ReadonlySet<string>
+  // Condition-based filtering
+  readonly conditions: readonly FilterCondition[]
+  readonly addCondition: (condition: Omit<FilterCondition, "id">) => void
+  readonly removeCondition: (conditionId: string) => void
+  readonly updateCondition: (conditionId: string, updates: Partial<Omit<FilterCondition, "id">>) => void
   // Query draft (debounced)
   readonly queryDraft: string
   readonly setQueryDraft: (value: string) => void
@@ -78,14 +111,16 @@ export type ShotListState = {
 
 export function useShotListState(params: {
   readonly shots: ReadonlyArray<Shot>
-  readonly mobileOptimistic: ReadonlyArray<Shot> | null
+  readonly reorderOptimistic: ReadonlyArray<Shot> | null
   readonly clientId: string | null | undefined
   readonly projectId: string
   readonly talentNameById: ReadonlyMap<string, string>
   readonly locationNameById: ReadonlyMap<string, string>
   readonly productNameById: ReadonlyMap<string, string>
+  readonly familyById?: ReadonlyMap<string, ProductFamily>
+  readonly skuById?: ReadonlyMap<string, ProductSku>
 }): ShotListState {
-  const { shots, mobileOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById } = params
+  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById } = params
 
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -96,32 +131,72 @@ export function useShotListState(params: {
     (searchParams.get("dir") as SortDir) ||
     (sortKey === "created" || sortKey === "updated" ? "desc" : "asc")
   const queryParam = searchParams.get("q") ?? ""
-  const talentParam = searchParams.get("talent") ?? ""
-  const locationParam = searchParams.get("location") ?? ""
-  const productParam = searchParams.get("product") ?? ""
   const viewParam = searchParams.get("view") ?? null
   const groupParam = (searchParams.get("group") as GroupKey) || null
 
-  // -- Parsed filter sets --
-  const statusFilter = useMemo(() => {
-    const values = parseCsv(searchParams.get("status"))
+  // -- Condition-based filters (from URL `filters` param) --
+  const conditions = useMemo(
+    () => deserializeFilters(searchParams.get("filters")),
+    [searchParams],
+  )
+
+  // -- Legacy migration: convert old flat params to conditions on mount --
+  const migrationDone = useRef(false)
+  useEffect(() => {
+    if (migrationDone.current) return
+    migrationDone.current = true
+    const migrated = migrateLegacyParams(searchParams)
+    if (migrated) {
+      const p = new URLSearchParams(searchParams)
+      for (const k of ["status", "missing", "talent", "location", "tag", "product"]) p.delete(k)
+      p.set("filters", serializeFilters(migrated))
+      setSearchParams(p, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  // -- Derive backward-compatible filter values from conditions --
+  const statusFilter = useMemo((): ReadonlySet<ShotFirestoreStatus> => {
+    const cond = conditions.find((c) => c.field === "status" && c.operator === "in")
+    const values = (cond?.value as readonly string[] | undefined) ?? []
     const set = new Set<ShotFirestoreStatus>()
     for (const v of values) {
       if (v === "todo" || v === "in_progress" || v === "complete" || v === "on_hold") set.add(v)
     }
     return set
-  }, [searchParams])
+  }, [conditions])
 
-  const missingFilter = useMemo(() => {
-    const values = parseCsv(searchParams.get("missing"))
+  const missingFilter = useMemo((): ReadonlySet<MissingKey> => {
+    const cond = conditions.find((c) => c.field === "missing" && c.operator === "in")
+    const values = (cond?.value as readonly string[] | undefined) ?? []
     const set = new Set<MissingKey>()
     for (const v of values) {
       if (v === "products" || v === "talent" || v === "location" || v === "image") set.add(v)
     }
     return set
-  }, [searchParams])
+  }, [conditions])
 
-  const tagFilter = useMemo(() => new Set(parseCsv(searchParams.get("tag"))), [searchParams])
+  const tagFilter = useMemo((): ReadonlySet<string> => {
+    const cond = conditions.find((c) => c.field === "tag" && c.operator === "in")
+    return new Set((cond?.value as readonly string[] | undefined) ?? [])
+  }, [conditions])
+
+  const talentParam = useMemo((): string => {
+    const cond = conditions.find((c) => c.field === "talent" && c.operator === "in")
+    const values = (cond?.value as readonly string[] | undefined) ?? []
+    return values[0] ?? ""
+  }, [conditions])
+
+  const locationParam = useMemo((): string => {
+    const cond = conditions.find((c) => c.field === "location" && c.operator === "in")
+    const values = (cond?.value as readonly string[] | undefined) ?? []
+    return values[0] ?? ""
+  }, [conditions])
+
+  const productParam = useMemo((): string => {
+    const cond = conditions.find((c) => c.field === "product" && c.operator === "in")
+    const values = (cond?.value as readonly string[] | undefined) ?? []
+    return values[0] ?? ""
+  }, [conditions])
 
   // -- Query draft with debounce --
   const [queryDraft, setQueryDraft] = useState(queryParam)
@@ -204,7 +279,7 @@ export function useShotListState(params: {
   const isCustomSort = sortKey === "custom"
 
   // -- Setters (URL params) --
-  const setSortKey = (key: SortKey) => {
+  const setSortKey = useCallback((key: SortKey) => {
     const next = new URLSearchParams(searchParams)
     if (key === "custom") { next.delete("sort"); next.delete("dir") }
     else {
@@ -212,113 +287,177 @@ export function useShotListState(params: {
       if (!next.get("dir")) next.set("dir", key === "created" || key === "updated" ? "desc" : "asc")
     }
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
-  const setSortDir = (dir: SortDir) => {
+  const setSortDir = useCallback((dir: SortDir) => {
     if (sortKey === "custom") return
     const next = new URLSearchParams(searchParams)
     next.set("dir", dir)
     setSearchParams(next, { replace: true })
-  }
+  }, [sortKey, searchParams, setSearchParams])
 
-  const setViewMode = (mode: ViewMode) => {
+  const setViewMode = useCallback((mode: ViewMode) => {
     const next = new URLSearchParams(searchParams)
     next.set("view", mode)
     setSearchParams(next, { replace: true })
     if (storageKeyBase) {
       try { window.localStorage.setItem(`${storageKeyBase}:view:v1`, mode) } catch { /* ignore */ }
     }
-  }
+  }, [searchParams, setSearchParams, storageKeyBase])
 
-  const setGroupKey = (key: GroupKey) => {
+  const setGroupKey = useCallback((key: GroupKey) => {
     const next = new URLSearchParams(searchParams)
     if (key === "none") next.delete("group")
     else next.set("group", key)
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
-  const clearQuery = () => {
+  const clearQuery = useCallback(() => {
     const next = new URLSearchParams(searchParams)
     next.delete("q")
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
-  const setTalentFilter = (talentId: string) => {
-    const next = new URLSearchParams(searchParams)
-    const id = talentId.trim()
-    if (!id) next.delete("talent")
-    else next.set("talent", id)
-    setSearchParams(next, { replace: true })
-  }
+  // -- Condition mutators --
+  const writeConditions = useCallback((next: readonly FilterCondition[]) => {
+    const p = new URLSearchParams(searchParams)
+    const serialized = serializeFilters(next)
+    if (serialized) p.set("filters", serialized)
+    else p.delete("filters")
+    setSearchParams(p, { replace: true })
+  }, [searchParams, setSearchParams])
 
-  const setLocationFilter = (locationId: string) => {
-    const next = new URLSearchParams(searchParams)
-    const id = locationId.trim()
-    if (!id) next.delete("location")
-    else next.set("location", id)
-    setSearchParams(next, { replace: true })
-  }
+  const addCondition = useCallback((condition: Omit<FilterCondition, "id">) => {
+    writeConditions([...conditions, { ...condition, id: crypto.randomUUID() }])
+  }, [conditions, writeConditions])
 
-  const setProductFilter = (productFamilyId: string) => {
-    const next = new URLSearchParams(searchParams)
-    const id = productFamilyId.trim()
-    if (!id) next.delete("product")
-    else next.set("product", id)
-    setSearchParams(next, { replace: true })
-  }
+  const removeCondition = useCallback((conditionId: string) => {
+    writeConditions(conditions.filter((c) => c.id !== conditionId))
+  }, [conditions, writeConditions])
 
-  const toggleTag = (tagId: string) => {
+  const updateCondition = useCallback((conditionId: string, updates: Partial<Omit<FilterCondition, "id">>) => {
+    writeConditions(conditions.map((c) =>
+      c.id === conditionId ? { ...c, ...updates } : c,
+    ))
+  }, [conditions, writeConditions])
+
+  // -- Convenience toggle/set callbacks (manipulate conditions under the hood) --
+  const toggleStatus = useCallback((status: ShotFirestoreStatus) => {
+    const existing = conditions.find((c) => c.field === "status" && c.operator === "in")
+    if (existing) {
+      const currentValues = (existing.value as readonly string[]) ?? []
+      const newValues = currentValues.includes(status)
+        ? currentValues.filter((v) => v !== status)
+        : [...currentValues, status]
+      if (newValues.length === 0) {
+        removeCondition(existing.id)
+      } else {
+        updateCondition(existing.id, { value: newValues })
+      }
+    } else {
+      addCondition({ field: "status", operator: "in", value: [status] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
+
+  const toggleMissing = useCallback((key: MissingKey) => {
+    const existing = conditions.find((c) => c.field === "missing" && c.operator === "in")
+    if (existing) {
+      const currentValues = (existing.value as readonly string[]) ?? []
+      const newValues = currentValues.includes(key)
+        ? currentValues.filter((v) => v !== key)
+        : [...currentValues, key]
+      if (newValues.length === 0) {
+        removeCondition(existing.id)
+      } else {
+        updateCondition(existing.id, { value: newValues })
+      }
+    } else {
+      addCondition({ field: "missing", operator: "in", value: [key] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
+
+  const toggleTag = useCallback((tagId: string) => {
     const id = tagId.trim()
     if (!id) return
-    const next = new Set(tagFilter)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    const p = new URLSearchParams(searchParams)
-    if (next.size === 0) p.delete("tag")
-    else p.set("tag", Array.from(next).join(","))
-    setSearchParams(p, { replace: true })
-  }
+    const existing = conditions.find((c) => c.field === "tag" && c.operator === "in")
+    if (existing) {
+      const currentValues = (existing.value as readonly string[]) ?? []
+      const newValues = currentValues.includes(id)
+        ? currentValues.filter((v) => v !== id)
+        : [...currentValues, id]
+      if (newValues.length === 0) {
+        removeCondition(existing.id)
+      } else {
+        updateCondition(existing.id, { value: newValues })
+      }
+    } else {
+      addCondition({ field: "tag", operator: "in", value: [id] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
 
-  const toggleStatus = (status: ShotFirestoreStatus) => {
-    const next = new Set(statusFilter)
-    if (next.has(status)) next.delete(status)
-    else next.add(status)
-    const p = new URLSearchParams(searchParams)
-    if (next.size === 0) p.delete("status")
-    else p.set("status", Array.from(next).join(","))
-    setSearchParams(p, { replace: true })
-  }
+  const setTalentFilter = useCallback((talentId: string) => {
+    const id = talentId.trim()
+    const existing = conditions.find((c) => c.field === "talent" && c.operator === "in")
+    if (!id) {
+      if (existing) removeCondition(existing.id)
+    } else if (existing) {
+      updateCondition(existing.id, { value: [id] })
+    } else {
+      addCondition({ field: "talent", operator: "in", value: [id] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
 
-  const toggleMissing = (key: MissingKey) => {
-    const next = new Set(missingFilter)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    const p = new URLSearchParams(searchParams)
-    if (next.size === 0) p.delete("missing")
-    else p.set("missing", Array.from(next).join(","))
-    setSearchParams(p, { replace: true })
-  }
+  const setLocationFilter = useCallback((locationId: string) => {
+    const id = locationId.trim()
+    const existing = conditions.find((c) => c.field === "location" && c.operator === "in")
+    if (!id) {
+      if (existing) removeCondition(existing.id)
+    } else if (existing) {
+      updateCondition(existing.id, { value: [id] })
+    } else {
+      addCondition({ field: "location", operator: "in", value: [id] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
 
-  const clearFilters = () => {
-    const next = new URLSearchParams(searchParams)
-    for (const k of ["q", "status", "missing", "talent", "location", "tag", "product"]) next.delete(k)
-    setSearchParams(next, { replace: true })
-  }
+  const setProductFilter = useCallback((productFamilyId: string) => {
+    const id = productFamilyId.trim()
+    const existing = conditions.find((c) => c.field === "product" && c.operator === "in")
+    if (!id) {
+      if (existing) removeCondition(existing.id)
+    } else if (existing) {
+      updateCondition(existing.id, { value: [id] })
+    } else {
+      addCondition({ field: "product", operator: "in", value: [id] })
+    }
+  }, [conditions, addCondition, removeCondition, updateCondition])
+
+  const clearFilters = useCallback(() => {
+    const p = new URLSearchParams(searchParams)
+    p.delete("filters")
+    p.delete("q")
+    // Also clear legacy params if any remain
+    for (const k of ["status", "missing", "talent", "location", "tag", "product"]) p.delete(k)
+    setSearchParams(p, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // -- Computed --
   const displayShots = useMemo(() => {
-    const base = mobileOptimistic ?? shots
-    return applyFiltersAndSort(base, {
-      statusFilter, missingFilter, talentId: talentParam,
-      locationId: locationParam, tagFilter, productFamilyId: productParam,
-      query: queryParam, sortKey, sortDir,
-    })
-  }, [shots, mobileOptimistic, sortKey, sortDir, statusFilter, missingFilter, talentParam, locationParam, tagFilter, productParam, queryParam])
+    const base = reorderOptimistic ?? shots
+    // Defense-in-depth: exclude soft-deleted shots even if the Firestore query leaks them
+    const alive = base.filter((s) => s.deleted !== true)
 
-  const hasActiveFilters =
-    queryParam.trim().length > 0 || statusFilter.size > 0 || missingFilter.size > 0 ||
-    talentParam.trim().length > 0 || locationParam.trim().length > 0 ||
-    productParam.trim().length > 0 || tagFilter.size > 0
+    // Apply condition-based filters
+    const ctx = { familyById: familyById ?? new Map(), skuById: skuById ?? undefined }
+    const filtered = applyFilterConditions(alive, conditions, ctx)
+
+    // Apply text query (separate from conditions)
+    const queried = filterByQuery(filtered, queryParam)
+
+    // Sort
+    return sortShots(queried, sortKey, sortDir, familyById, skuById)
+  }, [shots, reorderOptimistic, conditions, queryParam, sortKey, sortDir, familyById, skuById])
+
+  const hasActiveFilters = conditions.length > 0 || queryParam.trim().length > 0
 
   const hasActiveGrouping = groupKey !== "none"
 
@@ -346,55 +485,70 @@ export function useShotListState(params: {
       .sort((a, b) => collator.compare(a.label, b.label))
   }, [tagLabelById])
 
+  // -- Name lookup for badge labels --
+  const resolveName = useCallback((field: string, id: string): string => {
+    switch (field) {
+      case "talent": return talentNameById.get(id) ?? id
+      case "location": return locationNameById.get(id) ?? id
+      case "product": return productNameById.get(id) ?? id
+      case "tag": return tagLabelById.get(id) ?? id
+      case "status": return STATUS_LABELS[id as ShotFirestoreStatus] ?? id.replace("_", " ")
+      case "missing": return MISSING_LABELS[id] ?? id
+      default: return id
+    }
+  }, [talentNameById, locationNameById, productNameById, tagLabelById])
+
   const activeFilterBadges = useMemo((): ReadonlyArray<FilterBadge> => {
     const badges: FilterBadge[] = []
+
+    // Query badge (not condition-based)
     if (queryParam.trim()) {
       badges.push({
         key: "q",
         label: `Search: ${queryParam.trim()}`,
-        onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("q"); setSearchParams(n, { replace: true }) },
+        onRemove: clearQuery,
       })
     }
-    if (talentParam.trim()) {
-      const id = talentParam.trim()
+
+    // One badge per condition
+    for (const cond of conditions) {
+      const fieldLabel = FIELD_LABELS[cond.field] ?? cond.field
+      const operatorLabel = OPERATOR_LABELS[cond.operator] ?? cond.operator
+
+      let valueLabel: string
+      if (cond.value === null) {
+        valueLabel = ""
+      } else if (typeof cond.value === "boolean") {
+        valueLabel = cond.value ? "Yes" : "No"
+      } else if (Array.isArray(cond.value)) {
+        const names = (cond.value as readonly string[]).map((v) => resolveName(cond.field, v))
+        valueLabel = names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`
+      } else if (typeof cond.value === "object" && "from" in cond.value) {
+        valueLabel = `${cond.value.from} to ${cond.value.to}`
+      } else {
+        valueLabel = String(cond.value)
+      }
+
+      const label = cond.operator === "empty"
+        ? `${fieldLabel} ${operatorLabel}`
+        : `${fieldLabel} ${operatorLabel} ${valueLabel}`
+
+      const condId = cond.id
       badges.push({
-        key: `talent:${id}`,
-        label: `Talent: ${talentNameById.get(id) ?? id}`,
-        onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("talent"); setSearchParams(n, { replace: true }) },
+        key: condId,
+        label,
+        onRemove: () => removeCondition(condId),
       })
     }
-    if (locationParam.trim()) {
-      const id = locationParam.trim()
-      badges.push({
-        key: `location:${id}`,
-        label: `Location: ${locationNameById.get(id) ?? id}`,
-        onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("location"); setSearchParams(n, { replace: true }) },
-      })
-    }
-    if (productParam.trim()) {
-      const id = productParam.trim()
-      badges.push({
-        key: `product:${id}`,
-        label: `Product: ${productNameById.get(id) ?? id}`,
-        onRemove: () => { const n = new URLSearchParams(searchParams); n.delete("product"); setSearchParams(n, { replace: true }) },
-      })
-    }
-    for (const id of tagFilter) {
-      badges.push({ key: `tag:${id}`, label: `Tag: ${tagLabelById.get(id) ?? id}`, onRemove: () => toggleTag(id) })
-    }
-    for (const s of statusFilter) {
-      badges.push({ key: `status:${s}`, label: `Status: ${s.replace("_", " ")}`, onRemove: () => toggleStatus(s) })
-    }
-    for (const m of missingFilter) {
-      badges.push({ key: `missing:${m}`, label: `Missing: ${m}`, onRemove: () => toggleMissing(m) })
-    }
+
     return badges
-  }, [locationNameById, locationParam, missingFilter, productNameById, productParam, queryParam, searchParams, setSearchParams, statusFilter, tagFilter, tagLabelById, talentNameById, talentParam])
+  }, [queryParam, conditions, clearQuery, removeCondition, resolveName])
 
   return {
     sortKey, sortDir, viewMode, groupKey, isCustomSort,
     queryParam, talentParam, locationParam, productParam,
     statusFilter, missingFilter, tagFilter,
+    conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
     toggleStatus, toggleMissing, toggleTag,

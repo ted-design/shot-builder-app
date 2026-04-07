@@ -79,6 +79,7 @@ export const MEASUREMENT_PLACEHOLDERS: Readonly<Record<string, string>> = {
   height: `e.g. 5'9"`,
   bust: `e.g. 34"`,
   waist: `e.g. 25"`,
+  chest: `e.g. 42"`,
   hips: `e.g. 35"`,
   inseam: `e.g. 32"`,
   dress: "e.g. 2",

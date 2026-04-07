@@ -180,6 +180,79 @@ service cloud.firestore {
         resource.data.clientId == userClient();
     }
 
+    // Public casting sharing — share docs live at /castingShares/{shareToken} (doc id = token).
+    // Resolved talent data is denormalized into the doc at creation time.
+    // External reviewers submit votes to the votes subcollection without auth.
+    match /castingShares/{shareToken} {
+      // Allow unauthenticated get when sharing is enabled and not expired.
+      // Security: Requires knowledge of the exact share token (UUID / 32+ chars).
+      allow get: if resource.data.enabled == true
+        && (resource.data.expiresAt == null || resource.data.expiresAt > request.time);
+
+      // Authenticated admin/producer reads (management UI)
+      allow get, list: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+
+      allow create: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        request.resource.data.clientId == userClient() &&
+        request.resource.data.projectId is string &&
+        request.resource.data.enabled is bool;
+
+      allow update, delete: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+
+      // Votes subcollection — unauthenticated reviewers can create/update votes.
+      // Doc ID is deterministic: {normalizedEmail}_{talentId} (prevents duplicates).
+      // Votes are intentionally visible to all share link viewers (attributed voting).
+      match /votes/{voteId} {
+        // Unauthenticated vote creation — constrained to allowed fields only.
+        allow create: if
+          get(/databases/$(database)/documents/castingShares/$(shareToken)).data.enabled == true &&
+          (get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt == null ||
+           get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt > request.time) &&
+          request.resource.data.keys().hasOnly(['reviewerEmail', 'reviewerName', 'talentId', 'decision', 'comment', 'createdAt', 'updatedAt']) &&
+          request.resource.data.reviewerEmail is string &&
+          request.resource.data.reviewerEmail.size() >= 5 &&
+          request.resource.data.reviewerName is string &&
+          request.resource.data.reviewerName.size() >= 1 &&
+          request.resource.data.talentId is string &&
+          request.resource.data.decision in ['approve', 'disapprove', 'maybe'] &&
+          (request.resource.data.comment == null ||
+           (request.resource.data.comment is string && request.resource.data.comment.size() <= 2000));
+
+        // Reviewer can update their own vote (email + talentId + reviewerName immutable).
+        allow update: if
+          get(/databases/$(database)/documents/castingShares/$(shareToken)).data.enabled == true &&
+          (get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt == null ||
+           get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt > request.time) &&
+          request.resource.data.keys().hasOnly(['reviewerEmail', 'reviewerName', 'talentId', 'decision', 'comment', 'createdAt', 'updatedAt']) &&
+          request.resource.data.reviewerEmail == resource.data.reviewerEmail &&
+          request.resource.data.reviewerName == resource.data.reviewerName &&
+          request.resource.data.talentId == resource.data.talentId &&
+          request.resource.data.decision in ['approve', 'disapprove', 'maybe'] &&
+          (request.resource.data.comment == null ||
+           (request.resource.data.comment is string && request.resource.data.comment.size() <= 2000));
+
+        // Unauthenticated list when share is enabled and not expired.
+        // Intentionally open: all reviewers' votes are visible (attributed voting model).
+        allow list: if
+          get(/databases/$(database)/documents/castingShares/$(shareToken)).data.enabled == true &&
+          (get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt == null ||
+           get(/databases/$(database)/documents/castingShares/$(shareToken)).data.expiresAt > request.time);
+
+        // Authenticated admin/producer can read all votes.
+        allow read: if isAuthed() &&
+          (isAdmin() || isProducer()) &&
+          get(/databases/$(database)/documents/castingShares/$(shareToken)).data.clientId == userClient();
+
+        // Votes are immutable once cast (no delete).
+        allow delete: if false;
+      }
+    }
+
     // LEGACY COLLECTIONS - DEPRECATED
     // These root-level collections are no longer used in the application.
     // All data has been migrated to client-scoped collections under /clients/{clientId}/
@@ -379,11 +452,12 @@ service cloud.firestore {
       }
 
       // Comments - discussion thread on a product family
+      // Admin override on create: allows comment transfer during product merge
       match /comments/{commentId} {
         allow read: if clientMatches(clientId) && isAuthed();
 
         allow create: if clientMatches(clientId) && isAuthed() &&
-          request.resource.data.createdBy == request.auth.uid;
+          (request.resource.data.createdBy == request.auth.uid || isAdmin());
 
         // Author or admin can update. Only the deleted flag can change; all other fields are immutable.
         allow update: if clientMatches(clientId) && isAuthed() &&

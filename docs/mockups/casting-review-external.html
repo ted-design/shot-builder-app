@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casting Review — External Reviewer</title>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e8e8e8;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(200, 169, 126, 0.3); }
+
+  /* ===== LAYOUT ===== */
+  .page-mobile {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 0 0 80px;
+    border-left: 1px solid #1a1a1a;
+    border-right: 1px solid #1a1a1a;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* ===== HEADER ===== */
+  .review-header {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .review-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #c8a97e;
+    background: rgba(200, 169, 126, 0.1);
+    border: 1px solid rgba(200, 169, 126, 0.2);
+    border-radius: 3px;
+    margin-bottom: 8px;
+  }
+  .review-project-title {
+    font-size: 18px;
+    font-weight: 300;
+    color: #e8e8e8;
+    margin-bottom: 2px;
+  }
+  .review-talent-count {
+    font-size: 12px;
+    color: #707070;
+  }
+
+  /* ===== REVIEWER INSTRUCTIONS ===== */
+  .reviewer-instructions {
+    padding: 12px 16px;
+    background: #141414;
+    border-bottom: 1px solid #1e1e1e;
+    font-size: 13px;
+    color: #a0a0a0;
+    line-height: 1.5;
+  }
+
+  /* ===== REVIEWER IDENTITY BANNER ===== */
+  /* Sticky bar showing who is reviewing. Two states: unidentified and identified. */
+  .identity-banner {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #141414;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 12px 16px;
+  }
+
+  /* Unidentified state */
+  .identity-unidentified {
+    display: none; /* Hidden in this mockup — showing identified state */
+  }
+  .identity-unidentified .identity-prompt {
+    font-size: 13px;
+    color: #a0a0a0;
+    margin-bottom: 10px;
+  }
+  .identity-inputs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .identity-input {
+    flex: 1;
+    padding: 8px 10px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-size: 13px;
+    outline: none;
+  }
+  .identity-input::placeholder { color: #555; }
+  .identity-input:focus { border-color: #c8a97e; }
+
+  .btn {
+    padding: 8px 14px;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #a0a0a0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn:hover { border-color: #444; color: #e8e8e8; }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+  .btn-primary {
+    background: #c8a97e;
+    border-color: #c8a97e;
+    color: #0a0a0a;
+    font-weight: 500;
+  }
+  .btn-primary:hover { background: #d4b88e; }
+
+  /* Identified state */
+  .identity-identified {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .identity-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .identity-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(200, 169, 126, 0.15);
+    color: #c8a97e;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .identity-name {
+    font-size: 13px;
+    color: #e8e8e8;
+  }
+  .identity-email {
+    font-size: 11px;
+    color: #707070;
+  }
+  .identity-change {
+    font-size: 12px;
+    color: #c8a97e;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .identity-change:hover { text-decoration: underline; }
+
+  /* ===== TALENT CARD (MOBILE) ===== */
+  .talent-card {
+    margin: 16px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .talent-headshot {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+  }
+
+  .talent-body { padding: 14px 16px 16px; }
+
+  .talent-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e8e8e8;
+    margin-bottom: 2px;
+  }
+  .talent-agency {
+    font-size: 13px;
+    color: #707070;
+  }
+  .talent-measurements {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #707070;
+    letter-spacing: 0.01em;
+  }
+  .talent-measurements span {
+    color: #a0a0a0;
+  }
+
+  /* Vote buttons */
+  .vote-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .vote-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #a0a0a0;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    font-family: inherit;
+  }
+  .vote-btn:hover { border-color: #444; }
+
+  .vote-btn.vote-approve-selected {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #22c55e;
+  }
+  .vote-btn.vote-maybe-selected {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #f59e0b;
+  }
+  .vote-btn.vote-pass-selected {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #ef4444;
+  }
+
+  .vote-emoji { font-size: 16px; }
+
+  /* Comment area */
+  .talent-comment {
+    margin-top: 12px;
+  }
+  .comment-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+    min-height: 36px;
+    transition: border-color 0.15s;
+  }
+  .comment-input::placeholder { color: #555; }
+  .comment-input:focus { border-color: #c8a97e; min-height: 64px; }
+
+  /* Other reviewers' votes */
+  .other-votes {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #1e1e1e;
+  }
+  .other-votes-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .voter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .voter-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .voter-avatar-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+  .voter-avatar-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+  .voter-avatar-amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+  .voter-name {
+    font-size: 12px;
+    color: #a0a0a0;
+  }
+  .voter-verdict {
+    font-size: 11px;
+    margin-left: auto;
+  }
+  .verdict-approved { color: #22c55e; }
+  .verdict-passed { color: #ef4444; }
+  .verdict-maybe { color: #f59e0b; }
+
+  /* Other comments */
+  .other-comment {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #1a1a1a;
+    border-radius: 4px;
+    border-left: 2px solid #2a2a2a;
+  }
+  .other-comment-text {
+    font-size: 12px;
+    color: #a0a0a0;
+    line-height: 1.5;
+  }
+  .other-comment-meta {
+    font-size: 10px;
+    color: #555;
+    margin-top: 4px;
+  }
+
+  /* ===== PROGRESS FOOTER ===== */
+  .progress-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #141414;
+    border-top: 1px solid #2a2a2a;
+    padding: 10px 16px 14px;
+    z-index: 50;
+  }
+  .progress-text {
+    font-size: 12px;
+    color: #a0a0a0;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .progress-text span { color: #e8e8e8; font-weight: 500; }
+  .progress-bar {
+    width: 100%;
+    height: 3px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    overflow: hidden;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 62.5%; /* 5 of 8 */
+    background: #c8a97e;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* ===== HEADSHOT PLACEHOLDERS ===== */
+  .hs-1 { background: linear-gradient(135deg, #3a2520 0%, #5a3830 50%, #7a4a3a 100%); }
+  .hs-2 { background: linear-gradient(135deg, #2a3540 0%, #3a4a5a 50%, #4a5a6a 100%); }
+  .hs-3 { background: linear-gradient(135deg, #352a20 0%, #554a3a 50%, #6a5a45 100%); }
+
+  /* ===== DESKTOP LAYOUT ===== */
+  /* Below mobile, we also show a desktop preview */
+  .desktop-section {
+    margin-top: 60px;
+    padding: 40px 24px;
+    border-top: 2px dashed #2a2a2a;
+  }
+  .desktop-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 24px;
+  }
+  .desktop-container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .desktop-header {
+    padding: 20px 0;
+    border-bottom: 1px solid #1e1e1e;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .desktop-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .desktop-card {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .desktop-card-headshot {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+  }
+  .desktop-card-body { padding: 12px 14px 14px; }
+  .desktop-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e8e8e8;
+  }
+  .desktop-card-agency {
+    font-size: 12px;
+    color: #707070;
+    margin-top: 2px;
+  }
+  .desktop-card-measurements {
+    font-size: 11px;
+    color: #707070;
+    margin-top: 6px;
+  }
+  .desktop-vote-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .desktop-vote-btn {
+    flex: 1;
+    padding: 7px 0;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #a0a0a0;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+  }
+
+  /* ===== SECTION DIVIDER (MOCKUP) ===== */
+  .mockup-divider {
+    text-align: center;
+    padding: 40px 0 20px;
+    position: relative;
+  }
+  .mockup-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    right: 16px;
+    height: 1px;
+    background: #2a2a2a;
+  }
+  .mockup-divider span {
+    position: relative;
+    background: #0a0a0a;
+    padding: 0 12px;
+    font-size: 10px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* ===== UNIDENTIFIED STATE SECTION ===== */
+  .unidentified-section {
+    margin: 16px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 20px 16px;
+  }
+  .unidentified-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e8e8e8;
+    margin-bottom: 4px;
+  }
+  .unidentified-subtitle {
+    font-size: 12px;
+    color: #707070;
+    margin-bottom: 14px;
+  }
+  .unidentified-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================== -->
+<!-- MOBILE VIEW (~400px)                                               -->
+<!-- Shows the "identified" reviewer state with talent cards stacked    -->
+<!-- ================================================================== -->
+
+<div class="page-mobile">
+
+  <!-- HEADER -->
+  <div class="review-header">
+    <div class="review-badge">Casting Review</div>
+    <div class="review-project-title">SS26 Campaign</div>
+    <div class="review-talent-count">8 talent for review</div>
+  </div>
+
+  <!-- REVIEWER INSTRUCTIONS (set by admin in share dialog) -->
+  <div class="reviewer-instructions">
+    Please review and vote on each talent. We need final decisions by April 12.
+  </div>
+
+  <!-- REVIEWER IDENTITY BANNER (identified state) -->
+  <div class="identity-banner">
+    <div class="identity-identified">
+      <div class="identity-info">
+        <div class="identity-avatar">AK</div>
+        <div>
+          <div class="identity-name">Andrew K.</div>
+          <div class="identity-email">andrew@brand.com</div>
+        </div>
+      </div>
+      <a class="identity-change">Change</a>
+    </div>
+  </div>
+
+  <!-- ======================== -->
+  <!-- TALENT CARD 1: Voted "Approve" (selected state) -->
+  <!-- ======================== -->
+  <div class="talent-card">
+    <div class="talent-headshot hs-1"></div>
+    <div class="talent-body">
+      <div class="talent-name">Amara Osei</div>
+      <div class="talent-agency">Wilhelmina Models</div>
+      <div class="talent-measurements">
+        Height <span>5'9"</span> &middot; Waist <span>25"</span> &middot; Dress <span>4</span>
+      </div>
+
+      <!-- Vote buttons — Approve is selected -->
+      <div class="vote-buttons">
+        <button class="vote-btn vote-approve-selected">
+          <span class="vote-emoji">&#128077;</span> Approve
+        </button>
+        <button class="vote-btn">
+          <span class="vote-emoji">&#129300;</span> Maybe
+        </button>
+        <button class="vote-btn">
+          <span class="vote-emoji">&#128078;</span> Pass
+        </button>
+      </div>
+
+      <!-- Comment area -->
+      <div class="talent-comment">
+        <textarea class="comment-input" placeholder="Add a note...">Great look for the spring campaign. Strong portfolio.</textarea>
+      </div>
+
+      <!-- Other reviewers' votes (visible because admin enabled this in share settings) -->
+      <div class="other-votes">
+        <div class="other-votes-label">Other reviews</div>
+        <div class="voter-row">
+          <div class="voter-avatar voter-avatar-green">JT</div>
+          <span class="voter-name">Jessica T.</span>
+          <span class="voter-verdict verdict-approved">Approved</span>
+        </div>
+        <div class="voter-row">
+          <div class="voter-avatar voter-avatar-red">MR</div>
+          <span class="voter-name">Mike R.</span>
+          <span class="voter-verdict verdict-passed">Passed</span>
+        </div>
+        <div class="voter-row">
+          <div class="voter-avatar voter-avatar-green">SL</div>
+          <span class="voter-name">Sarah L.</span>
+          <span class="voter-verdict verdict-approved">Approved</span>
+        </div>
+
+        <!-- Comment from another reviewer -->
+        <div class="other-comment">
+          <div class="other-comment-text">Great energy, fits the spring look perfectly.</div>
+          <div class="other-comment-meta">Jessica T. &middot; Apr 7</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== -->
+  <!-- TALENT CARD 2: Not yet voted -->
+  <!-- ======================== -->
+  <div class="talent-card">
+    <div class="talent-headshot hs-2"></div>
+    <div class="talent-body">
+      <div class="talent-name">Lucas Andersen</div>
+      <div class="talent-agency">IMG Models</div>
+      <div class="talent-measurements">
+        Height <span>6'1"</span> &middot; Waist <span>32"</span> &middot; Chest <span>40R</span>
+      </div>
+
+      <!-- Vote buttons — none selected -->
+      <div class="vote-buttons">
+        <button class="vote-btn">
+          <span class="vote-emoji">&#128077;</span> Approve
+        </button>
+        <button class="vote-btn">
+          <span class="vote-emoji">&#129300;</span> Maybe
+        </button>
+        <button class="vote-btn">
+          <span class="vote-emoji">&#128078;</span> Pass
+        </button>
+      </div>
+
+      <div class="talent-comment">
+        <textarea class="comment-input" placeholder="Add a note..."></textarea>
+      </div>
+
+      <div class="other-votes">
+        <div class="other-votes-label">Other reviews</div>
+        <div class="voter-row">
+          <div class="voter-avatar voter-avatar-amber">JT</div>
+          <span class="voter-name">Jessica T.</span>
+          <span class="voter-verdict verdict-maybe">Maybe</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== -->
+  <!-- UNIDENTIFIED STATE DEMO -->
+  <!-- Shows what a new reviewer sees before entering their name -->
+  <!-- ======================== -->
+  <div class="mockup-divider">
+    <span>Unidentified state (first visit)</span>
+  </div>
+
+  <div class="unidentified-section">
+    <div class="unidentified-title">Enter your info to review</div>
+    <div class="unidentified-subtitle">Your name will appear alongside your votes.</div>
+    <div class="unidentified-inputs">
+      <input type="text" class="identity-input" placeholder="Your name" style="width:100%">
+      <input type="email" class="identity-input" placeholder="Email address" style="width:100%">
+    </div>
+    <button class="btn btn-primary" style="width:100%;">Continue</button>
+  </div>
+
+</div>
+<!-- /page-mobile -->
+
+<!-- ===== PROGRESS FOOTER (sticky bottom) ===== -->
+<div class="progress-footer">
+  <div class="progress-text">Reviewed <span>5 of 8</span></div>
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- DESKTOP VIEW (3-column grid)                                       -->
+<!-- Same content as mobile, but wider cards in a grid layout            -->
+<!-- ================================================================== -->
+
+<div class="desktop-section">
+  <div class="desktop-label">Desktop Layout (wider viewport)</div>
+
+  <div class="desktop-container">
+    <!-- Desktop header -->
+    <div class="desktop-header">
+      <div>
+        <div class="review-badge" style="margin-bottom:6px;">Casting Review</div>
+        <div style="font-size:18px; font-weight:300; color:#e8e8e8;">SS26 Campaign</div>
+        <div style="font-size:12px; color:#707070; margin-top:2px;">8 talent for review</div>
+      </div>
+      <div class="identity-identified" style="gap:10px;">
+        <div class="identity-info">
+          <div class="identity-avatar">AK</div>
+          <div>
+            <div class="identity-name">Andrew K.</div>
+            <div class="identity-email">andrew@brand.com</div>
+          </div>
+        </div>
+        <a class="identity-change">Change</a>
+      </div>
+    </div>
+
+    <!-- Desktop grid -->
+    <div class="desktop-grid">
+      <!-- Card 1 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot hs-1"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">Amara Osei</div>
+          <div class="desktop-card-agency">Wilhelmina Models</div>
+          <div class="desktop-card-measurements">5'9" &middot; W25 &middot; D4</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn" style="background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.35); color:#22c55e;">&#128077; Approve</button>
+            <button class="desktop-vote-btn">&#129300; Maybe</button>
+            <button class="desktop-vote-btn">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+      <!-- Card 2 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot hs-2"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">Lucas Andersen</div>
+          <div class="desktop-card-agency">IMG Models</div>
+          <div class="desktop-card-measurements">6'1" &middot; W32 &middot; C40R</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn">&#128077; Approve</button>
+            <button class="desktop-vote-btn">&#129300; Maybe</button>
+            <button class="desktop-vote-btn">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+      <!-- Card 3 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot hs-3"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">Priya Sharma</div>
+          <div class="desktop-card-agency">Elite Model Mgmt</div>
+          <div class="desktop-card-measurements">5'7" &middot; W24 &middot; D2</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn">&#128077; Approve</button>
+            <button class="desktop-vote-btn" style="background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.35); color:#f59e0b;">&#129300; Maybe</button>
+            <button class="desktop-vote-btn">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+      <!-- Card 4 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot" style="background: linear-gradient(135deg, #2a2a35 0%, #3a3a4a 50%, #4a4a5a 100%);"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">James Whitfield</div>
+          <div class="desktop-card-agency">Ford Models</div>
+          <div class="desktop-card-measurements">6'0" &middot; W31 &middot; C42R</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn">&#128077; Approve</button>
+            <button class="desktop-vote-btn">&#129300; Maybe</button>
+            <button class="desktop-vote-btn" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.35); color:#ef4444;">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+      <!-- Card 5 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot" style="background: linear-gradient(135deg, #302a25 0%, #4a4035 50%, #5a5040 100%);"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">Sofia Reyes</div>
+          <div class="desktop-card-agency">Next Models</div>
+          <div class="desktop-card-measurements">5'8" &middot; W26 &middot; D4</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn" style="background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.35); color:#22c55e;">&#128077; Approve</button>
+            <button class="desktop-vote-btn">&#129300; Maybe</button>
+            <button class="desktop-vote-btn">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+      <!-- Card 6 -->
+      <div class="desktop-card">
+        <div class="desktop-card-headshot" style="background: linear-gradient(135deg, #253530 0%, #354540 50%, #455a50 100%);"></div>
+        <div class="desktop-card-body">
+          <div class="desktop-card-name">Malik Chen</div>
+          <div class="desktop-card-agency">Wilhelmina Models</div>
+          <div class="desktop-card-measurements">5'11" &middot; W30 &middot; C38R</div>
+          <div class="desktop-vote-buttons">
+            <button class="desktop-vote-btn">&#128077; Approve</button>
+            <button class="desktop-vote-btn">&#129300; Maybe</button>
+            <button class="desktop-vote-btn">&#128078; Pass</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop progress bar -->
+    <div style="text-align:center; margin-top:24px;">
+      <div class="progress-text">Reviewed <span>5 of 8</span></div>
+      <div class="progress-bar" style="max-width:600px; margin:6px auto 0;">
+        <div class="progress-fill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

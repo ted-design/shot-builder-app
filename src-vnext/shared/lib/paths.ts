@@ -278,3 +278,36 @@ export const exportReportDocPath = (
   projectId: string,
   reportId: string,
 ): string[] => [...exportReportsPath(clientId, projectId), reportId]
+
+// --- Casting Board (project-scoped) ---
+
+export const castingBoardPath = (
+  projectId: string,
+  clientId: string,
+): string[] => [...projectPath(projectId, clientId), "castingBoard"]
+
+export const castingBoardDocPath = (
+  entryId: string,
+  projectId: string,
+  clientId: string,
+): string[] => [...castingBoardPath(projectId, clientId), entryId]
+
+// --- Casting Shares (root-level, like shotShares) ---
+
+export const castingSharesPath = (): string[] => ["castingShares"]
+
+export const castingShareDocPath = (shareToken: string): string[] => [
+  "castingShares",
+  shareToken,
+]
+
+export const castingShareVotesPath = (shareToken: string): string[] => [
+  "castingShares",
+  shareToken,
+  "votes",
+]
+
+export const castingShareVoteDocPath = (
+  shareToken: string,
+  voteId: string,
+): string[] => ["castingShares", shareToken, "votes", voteId]

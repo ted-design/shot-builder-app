@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Merge Wizard — Production Hub</title>
+<style>
+  :root {
+    --bg: #1a1a1a; --surface: #242424; --border: #333; --text: #e5e5e5;
+    --subtle: #888; --green: #4ade80; --amber: #fbbf24; --red: #ef4444;
+    --radius: 8px; --green-dim: rgba(74,222,128,.12); --amber-dim: rgba(251,191,36,.12);
+    --red-dim: rgba(239,68,68,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .shell { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-weight: 300; font-size: 24px; margin-bottom: 4px; }
+  h2 { font-weight: 300; font-size: 20px; margin-bottom: 16px; }
+  h3 { font-weight: 400; font-size: 14px; color: var(--subtle); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .subtitle { color: var(--subtle); font-size: 13px; margin-bottom: 28px; }
+
+  /* Wizard nav */
+  .steps { display: flex; gap: 2px; margin-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .step-btn { background: none; border: none; color: var(--subtle); font-size: 13px; padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; }
+  .step-btn.active { color: var(--text); border-bottom-color: var(--green); }
+  .step-btn:hover:not(.active) { color: var(--text); }
+  .step-btn .num { display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: var(--border); text-align: center; line-height: 20px; font-size: 11px; margin-right: 6px; }
+  .step-btn.active .num { background: var(--green); color: #111; }
+  .step-btn.done .num { background: var(--green-dim); color: var(--green); }
+
+  .panel { display: none; animation: fadeIn .25s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
+  .card-row { display: flex; justify-content: space-between; align-items: center; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+  .badge-amber { background: var(--amber-dim); color: var(--amber); }
+  .badge-green { background: var(--green-dim); color: var(--green); }
+  .badge-red { background: var(--red-dim); color: var(--red); }
+
+  .style-num { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: var(--subtle); }
+  .product-name { font-size: 16px; font-weight: 400; margin: 4px 0; }
+  .diff-preview { font-size: 12px; color: var(--amber); margin-top: 8px; }
+
+  /* Buttons */
+  .btn { padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+  .btn-primary { background: var(--green); color: #111; }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--subtle); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ghost { background: none; border: none; color: var(--subtle); cursor: pointer; font-size: 13px; }
+  .btn-ghost:hover { color: var(--text); }
+  .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* Step 1 */
+  .summary-bar { display: flex; gap: 24px; margin-bottom: 20px; font-size: 13px; }
+  .summary-bar span { color: var(--subtle); }
+  .summary-bar strong { color: var(--text); font-weight: 500; }
+  .detection-note { font-size: 12px; color: var(--subtle); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; }
+
+  /* Step 2 — compare */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-card { position: relative; }
+  .compare-card.winner { border-color: var(--green); }
+  .crown { position: absolute; top: -10px; right: 16px; background: var(--green); color: #111; font-size: 10px; font-weight: 600; padding: 2px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .field-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .field-row:last-child { border: none; }
+  .field-label { color: var(--subtle); }
+  .field-val { text-align: right; }
+  .field-row.diff { color: var(--amber); }
+  .field-row.diff .field-label { color: var(--amber); }
+  .swap-area { text-align: center; margin: 16px 0 8px; }
+  .swap-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .swap-btn:hover { border-color: var(--subtle); }
+
+  /* Step 3 — preview */
+  .merge-section { margin-bottom: 20px; }
+  .merge-section h3 { margin-bottom: 8px; }
+  .merge-item { display: flex; align-items: baseline; gap: 8px; font-size: 13px; padding: 5px 0; }
+  .merge-item .icon { flex-shrink: 0; }
+  .shot-ref { font-size: 12px; color: var(--subtle); padding: 4px 0 4px 24px; }
+  .checklist { list-style: none; margin-top: 12px; }
+  .checklist li { font-size: 13px; padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+  .checklist input[type="checkbox"] { accent-color: var(--green); width: 16px; height: 16px; }
+  .check-ok { color: var(--green); }
+  .loser-fate { background: var(--red-dim); border: 1px solid rgba(239,68,68,.2); border-radius: var(--radius); padding: 14px 18px; font-size: 13px; margin-top: 12px; }
+
+  /* Step 4 — result */
+  .result-center { text-align: center; padding: 48px 0; }
+  .result-icon { font-size: 48px; margin-bottom: 16px; }
+  .result-title { font-weight: 300; font-size: 22px; margin-bottom: 8px; }
+  .result-sub { color: var(--subtle); font-size: 14px; margin-bottom: 24px; }
+  .result-stats { display: inline-flex; gap: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 28px; margin-bottom: 28px; font-size: 13px; }
+  .result-stats span { color: var(--subtle); }
+  .result-stats strong { color: var(--green); font-weight: 500; }
+  .result-note { font-size: 12px; color: var(--subtle); margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <h1>Product Deduplication</h1>
+  <p class="subtitle">Detect and merge duplicate product entries safely</p>
+
+  <nav class="steps">
+    <button class="step-btn active" data-step="1"><span class="num">1</span>Detection</button>
+    <button class="step-btn" data-step="2"><span class="num">2</span>Compare</button>
+    <button class="step-btn" data-step="3"><span class="num">3</span>Merge Preview</button>
+    <button class="step-btn" data-step="4"><span class="num">4</span>Result</button>
+  </nav>
+
+  <!-- STEP 1 -->
+  <div class="panel active" id="step-1">
+    <div class="summary-bar">
+      <span><strong>3</strong> duplicate groups</span>
+      <span><strong>215</strong> products scanned</span>
+      <span>Method: <strong>style number + fuzzy name</strong></span>
+    </div>
+    <div class="detection-note">Products are matched when they share the same style number and a similar name. Only high-confidence duplicates are flagged.</div>
+
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <span class="style-num">W-TP-LS-1066</span>
+          <div class="product-name">Women's Long Sleeve Merino Crew</div>
+          <span class="badge badge-amber">2 duplicates</span>
+          <div class="diff-preview">Category mismatch: "Long Sleeve" vs "Long Sleeves"</div>
+        </div>
+        <button class="btn btn-primary" onclick="goStep(2)">Review &amp; Merge</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <span class="style-num">M-TP-SS-0842</span>
+          <div class="product-name">Men's Short Sleeve Merino Polo</div>
+          <span class="badge badge-amber">2 duplicates</span>
+          <div class="diff-preview">Created by different users, identical product data</div>
+        </div>
+        <button class="btn btn-outline" onclick="goStep(2)">Review &amp; Merge</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <span class="style-num">U-AC-BN-0215</span>
+          <div class="product-name">Merino Beanie</div>
+          <span class="badge badge-amber">2 duplicates</span>
+          <div class="diff-preview">SKU count mismatch: 6 vs 4 colorways</div>
+        </div>
+        <button class="btn btn-outline" onclick="goStep(2)">Review &amp; Merge</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="panel" id="step-2">
+    <h2>Compare Duplicates</h2>
+    <p class="subtitle" style="margin-bottom:12px">Choose which product to keep. All data from the other will be merged in.</p>
+    <div class="swap-area"><button class="swap-btn" onclick="swapWinner()">&#8644; Swap Winner</button></div>
+    <div class="compare-grid">
+      <div class="card compare-card" id="card-a">
+        <span class="crown" id="crown-a">Winner</span>
+        <span class="style-num">W-TP-LS-1066</span>
+        <div class="product-name">Women's Long Sleeve Merino Crew</div>
+        <div style="margin:12px 0 8px"><span class="badge badge-amber">Long Sleeve</span></div>
+        <div class="field-row"><span class="field-label">Colorways</span><span class="field-val">14</span></div>
+        <div class="field-row"><span class="field-label">Samples</span><span class="field-val">3</span></div>
+        <div class="field-row"><span class="field-label">Active requirements</span><span class="field-val">2</span></div>
+        <div class="field-row"><span class="field-label">Shot references</span><span class="field-val">5</span></div>
+        <div class="field-row"><span class="field-label">Comments</span><span class="field-val">0</span></div>
+        <div class="field-row"><span class="field-label">Files</span><span class="field-val">2</span></div>
+        <div class="field-row diff"><span class="field-label">Category</span><span class="field-val">Long Sleeve</span></div>
+        <div class="field-row"><span class="field-label">Created</span><span class="field-val">Jan 15, 2026</span></div>
+        <div class="field-row"><span class="field-label">Last updated</span><span class="field-val">Apr 2, 2026</span></div>
+        <div style="margin-top:12px;text-align:center">
+          <button class="btn btn-outline" id="keep-a" style="width:100%" onclick="setWinner('a')">Keep this product</button>
+        </div>
+      </div>
+      <div class="card compare-card" id="card-b">
+        <span class="crown" id="crown-b" style="display:none">Winner</span>
+        <span class="style-num">W-TP-LS-1066</span>
+        <div class="product-name">Women's Long Sleeve Merino Crew</div>
+        <div style="margin:12px 0 8px"><span class="badge badge-amber">Long Sleeves</span></div>
+        <div class="field-row"><span class="field-label">Colorways</span><span class="field-val">4</span></div>
+        <div class="field-row"><span class="field-label">Samples</span><span class="field-val">2</span></div>
+        <div class="field-row"><span class="field-label">Active requirements</span><span class="field-val">0</span></div>
+        <div class="field-row"><span class="field-label">Shot references</span><span class="field-val">0</span></div>
+        <div class="field-row"><span class="field-label">Comments</span><span class="field-val">0</span></div>
+        <div class="field-row"><span class="field-label">Files</span><span class="field-val">1</span></div>
+        <div class="field-row diff"><span class="field-label">Category</span><span class="field-val">Long Sleeves</span></div>
+        <div class="field-row"><span class="field-label">Created</span><span class="field-val">Mar 28, 2026</span></div>
+        <div class="field-row"><span class="field-label">Last updated</span><span class="field-val">Mar 30, 2026</span></div>
+        <div style="margin-top:12px;text-align:center">
+          <button class="btn btn-outline" id="keep-b" style="width:100%" onclick="setWinner('b')">Keep this product</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goStep(1)">&larr; Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Continue to Preview</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" id="step-3">
+    <h2>Merge Preview</h2>
+    <p class="subtitle" style="margin-bottom:20px">Review exactly what will happen before confirming.</p>
+
+    <div class="merge-section card">
+      <h3>Data merged into winner</h3>
+      <div class="merge-item"><span class="icon" style="color:var(--green)">+</span> <strong>4 unique colorways</strong>&nbsp;will be added (10 already exist, 4 new from Product B)</div>
+      <div class="merge-item"><span class="icon" style="color:var(--green)">+</span> <strong>2 samples</strong>&nbsp;will be transferred</div>
+      <div class="merge-item"><span class="icon" style="color:var(--subtle)">-</span> <span style="color:var(--subtle)">0 comments to transfer</span></div>
+      <div class="merge-item"><span class="icon" style="color:var(--green)">+</span> <strong>1 file</strong>&nbsp;will be transferred</div>
+      <div class="merge-item"><span class="icon" style="color:var(--subtle)">~</span> <span style="color:var(--subtle)">Product B's version history will be preserved as-is (archived)</span></div>
+    </div>
+
+    <div class="merge-section card">
+      <h3>References updated</h3>
+      <div class="merge-item"><span class="icon" style="color:var(--amber)">&#8594;</span> <strong>5 shot references</strong>&nbsp;will point to the winner</div>
+      <div class="shot-ref">Shot #001 &mdash; Hero Front (Men's Crew Lookbook)</div>
+      <div class="shot-ref">Shot #004 &mdash; Flat Lay Detail (Women's LS Grid)</div>
+      <div class="shot-ref">Shot #007 &mdash; On-Model Side (Lifestyle Shoot)</div>
+      <div class="shot-ref">Shot #012 &mdash; Packshot White BG (E-Commerce)</div>
+      <div class="shot-ref">Shot #015 &mdash; Color Range Group (Catalog)</div>
+    </div>
+
+    <div class="loser-fate">
+      <strong>Product B will be:</strong><br>
+      Soft-deleted (marked as <code style="color:var(--red)">deleted: true</code>, not permanently removed).<br>
+      <span style="color:var(--subtle)">Can be restored by an admin from Admin &gt; Products &gt; Deleted.</span>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Verification checklist</h3>
+      <ul class="checklist">
+        <li><input type="checkbox" checked disabled> <span class="check-ok">All SKU colorways from Product B accounted for</span></li>
+        <li><input type="checkbox" checked disabled> <span class="check-ok">All samples transferred or already exist</span></li>
+        <li><input type="checkbox" checked disabled> <span class="check-ok">All shot references mapped</span></li>
+        <li><input type="checkbox" checked disabled> <span class="check-ok">No data loss detected</span></li>
+        <li><input type="checkbox" id="admin-confirm" onchange="updateMergeBtn()"> <label for="admin-confirm" style="cursor:pointer">I confirm this merge as an admin</label></li>
+      </ul>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goStep(2)">&larr; Back</button>
+      <button class="btn btn-danger" id="merge-btn" disabled onclick="goStep(4)">Merge Products</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel" id="step-4">
+    <div class="result-center">
+      <div class="result-icon" style="color:var(--green)">&#10003;</div>
+      <div class="result-title">Merge Complete</div>
+      <div class="result-sub">Women's Long Sleeve Merino Crew (W-TP-LS-1066) is now consolidated.</div>
+      <div class="result-stats">
+        <div><span>Colorways</span><br><strong>14 &rarr; 18</strong></div>
+        <div><span>Samples</span><br><strong>3 &rarr; 5</strong></div>
+        <div><span>Shots updated</span><br><strong>5</strong></div>
+        <div><span>Files</span><br><strong>2 &rarr; 3</strong></div>
+      </div>
+      <div class="result-note">Product B has been soft-deleted and can be restored from Admin &gt; Products &gt; Deleted.</div>
+      <div class="actions" style="justify-content:center;margin-top:28px">
+        <button class="btn btn-primary">View Merged Product</button>
+        <button class="btn btn-outline" onclick="goStep(1)">Back to Products</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let winner = 'a';
+
+  function goStep(n) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+    document.querySelectorAll('.step-btn').forEach(b => {
+      const s = +b.dataset.step;
+      b.classList.toggle('active', s === n);
+      b.classList.toggle('done', s < n);
+    });
+  }
+
+  function setWinner(side) {
+    winner = side;
+    render();
+  }
+
+  function swapWinner() {
+    winner = winner === 'a' ? 'b' : 'a';
+    render();
+  }
+
+  function render() {
+    const isA = winner === 'a';
+    document.getElementById('crown-a').style.display = isA ? '' : 'none';
+    document.getElementById('crown-b').style.display = isA ? 'none' : '';
+    document.getElementById('card-a').classList.toggle('winner', isA);
+    document.getElementById('card-b').classList.toggle('winner', !isA);
+    document.getElementById('keep-a').textContent = isA ? 'Keeping this product' : 'Keep this product';
+    document.getElementById('keep-b').textContent = isA ? 'Keep this product' : 'Keeping this product';
+    document.getElementById('keep-a').style.borderColor = isA ? 'var(--green)' : '';
+    document.getElementById('keep-b').style.borderColor = isA ? '' : 'var(--green)';
+    document.getElementById('keep-a').style.color = isA ? 'var(--green)' : '';
+    document.getElementById('keep-b').style.color = isA ? '' : 'var(--green)';
+  }
+
+  function updateMergeBtn() {
+    document.getElementById('merge-btn').disabled = !document.getElementById('admin-confirm').checked;
+  }
+
+  document.querySelectorAll('.step-btn').forEach(b => {
+    b.addEventListener('click', () => goStep(+b.dataset.step));
+  });
+
+  render();
+</script>
+</body>
+</html>

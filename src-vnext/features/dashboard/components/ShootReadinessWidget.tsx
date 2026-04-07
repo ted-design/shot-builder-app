@@ -235,6 +235,7 @@ export function ShootReadinessWidget() {
                   assignedProjects={familyProjectMap.get(item.familyId)}
                   projectNames={projectNames}
                   skuProjectMap={skuProjectMap}
+                  filterByRequirements={requireShootRequirements}
                   onQuickAdd={canBulkAdd ? () => {
                     selection.clearAll()
                     selection.toggle(selId)

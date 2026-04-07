@@ -16,6 +16,7 @@ export interface MeasurementBounds {
 const FIELD_STEPS: Readonly<Record<string, number>> = {
   height: 1,
   waist: 0.5,
+  chest: 0.5,
   hips: 0.5,
   bust: 0.5,
   inseam: 0.5,
@@ -46,6 +47,11 @@ const DEFAULT_BOUNDS: Readonly<Record<string, Record<GenderKey, MeasurementBound
     women: { min: 28, max: 44, step: 0.5 },
     men: { min: 28, max: 44, step: 0.5 },
     other: { min: 28, max: 44, step: 0.5 },
+  },
+  chest: {
+    women: { min: 30, max: 44, step: 0.5 },
+    men: { min: 34, max: 52, step: 0.5 },
+    other: { min: 30, max: 52, step: 0.5 },
   },
   shoes: {
     women: { min: 5, max: 12, step: 0.5 },

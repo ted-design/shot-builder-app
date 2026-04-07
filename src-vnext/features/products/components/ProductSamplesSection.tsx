@@ -25,8 +25,9 @@ import { Label } from "@/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import { Textarea } from "@/ui/textarea"
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/ui/sheet"
-import { AlertTriangle, Box, Clock, Plus, RotateCcw, Trash2 } from "lucide-react"
+import { AlertTriangle, Box, Clock, ExternalLink, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
+import { detectCarrier, getTrackingUrl, normalizeCarrierName, CARRIER_NAMES } from "@/shared/lib/carrierDetection"
 
 type SampleStatusFilter = "all" | ProductSampleStatus
 type SampleTypeFilter = "all" | ProductSampleType
@@ -483,6 +484,11 @@ export function ProductSamplesSection({
                   onChange={(e) => setDraft((prev) => ({ ...prev, carrier: e.target.value }))}
                   placeholder="UPS, FedEx…"
                 />
+                <CarrierAutoDetectHint
+                  tracking={draft.tracking}
+                  carrier={draft.carrier}
+                  onAccept={(name) => setDraft((prev) => ({ ...prev, carrier: name }))}
+                />
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-xs">Tracking</Label>
@@ -670,9 +676,9 @@ function SampleRow({
             </Badge>
           )}
         </div>
-        <div className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
-          Sizes: {(sample.sizeRun ?? []).join(", ") || "—"} · ETA: {formatDateTime(sample.eta)}
-          {sample.tracking ? ` · Tracking: ${sample.tracking}` : ""}
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-[var(--color-text-muted)]">
+          <span className="truncate">Sizes: {(sample.sizeRun ?? []).join(", ") || "—"} · ETA: {formatDateTime(sample.eta)}</span>
+          {sample.tracking && <TrackingLink carrier={sample.carrier} tracking={sample.tracking} />}
         </div>
       </div>
 
@@ -705,5 +711,61 @@ function SampleRow({
         </div>
       )}
     </div>
+  )
+}
+
+function TrackingLink({
+  carrier,
+  tracking,
+}: {
+  readonly carrier?: string | null
+  readonly tracking: string
+}) {
+  const detected = detectCarrier(tracking, carrier ?? undefined)
+  const url = detected.trackingUrl
+  const carrierName = detected.key !== "unknown" ? detected.name : null
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>· Tracking:</span>
+      <span className="tabular-nums">{tracking}</span>
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center text-[var(--color-primary)] hover:underline"
+          title={`Track on ${carrierName}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+    </span>
+  )
+}
+
+function CarrierAutoDetectHint({
+  tracking,
+  carrier,
+  onAccept,
+}: {
+  readonly tracking: string
+  readonly carrier: string
+  readonly onAccept: (name: string) => void
+}) {
+  if (carrier.trim() || !tracking.trim()) return null
+
+  const detected = detectCarrier(tracking)
+  if (detected.key === "unknown") return null
+
+  return (
+    <button
+      type="button"
+      className="text-left text-2xs text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
+      onClick={() => onAccept(detected.name)}
+    >
+      Detected: <span className="font-medium">{detected.name}</span> — click to fill
+    </button>
   )
 }

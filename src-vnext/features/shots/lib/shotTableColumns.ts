@@ -8,15 +8,19 @@ import type { ShotsListFields } from "./shotListFilters"
 /** All possible shot table columns with default pixel widths. */
 export const SHOT_TABLE_COLUMNS: readonly TableColumnConfig[] = [
   { key: "heroThumb", label: "Thumb", defaultLabel: "Thumb", visible: true, width: 56, order: 0 },
-  { key: "shot", label: "Shot", defaultLabel: "Shot", visible: true, width: 260, order: 1, pinned: true },
-  { key: "date", label: "Date", defaultLabel: "Date", visible: true, width: 120, order: 2 },
-  { key: "notes", label: "Notes", defaultLabel: "Notes", visible: true, width: 260, order: 3 },
-  { key: "location", label: "Location", defaultLabel: "Location", visible: true, width: 160, order: 4 },
-  { key: "products", label: "Products", defaultLabel: "Products", visible: true, width: 280, order: 5 },
-  { key: "links", label: "Links", defaultLabel: "Links", visible: true, width: 220, order: 6 },
-  { key: "talent", label: "Talent", defaultLabel: "Talent", visible: true, width: 220, order: 7 },
-  { key: "tags", label: "Tags", defaultLabel: "Tags", visible: true, width: 180, order: 8 },
-  { key: "updated", label: "Updated", defaultLabel: "Updated", visible: true, width: 110, order: 9 },
+  { key: "shotNumber", label: "#", defaultLabel: "#", visible: true, width: 56, order: 1, pinned: true },
+  { key: "shot", label: "Shot", defaultLabel: "Shot", visible: true, width: 260, order: 2, pinned: true },
+  { key: "date", label: "Date", defaultLabel: "Date", visible: true, width: 120, order: 3 },
+  { key: "notes", label: "Notes", defaultLabel: "Notes", visible: true, width: 260, order: 4 },
+  { key: "location", label: "Location", defaultLabel: "Location", visible: true, width: 160, order: 5 },
+  { key: "products", label: "Products", defaultLabel: "Products", visible: true, width: 280, order: 6 },
+  { key: "links", label: "Links", defaultLabel: "Links", visible: true, width: 220, order: 7 },
+  { key: "talent", label: "Talent", defaultLabel: "Talent", visible: true, width: 220, order: 8 },
+  { key: "tags", label: "Tags", defaultLabel: "Tags", visible: true, width: 180, order: 9 },
+  { key: "launch", label: "Launch", defaultLabel: "Launch", visible: false, width: 100, order: 10 },
+  { key: "reqs", label: "Reqs", defaultLabel: "Reqs", visible: false, width: 120, order: 11 },
+  { key: "samples", label: "Samples", defaultLabel: "Samples", visible: false, width: 100, order: 12 },
+  { key: "updated", label: "Updated", defaultLabel: "Updated", visible: true, width: 110, order: 13 },
 ]
 
 // ---------------------------------------------------------------------------
@@ -26,6 +30,7 @@ export const SHOT_TABLE_COLUMNS: readonly TableColumnConfig[] = [
 /** Map of column key -> ShotsListFields key (null = always visible / pinned). */
 const COLUMN_TO_FIELD: Record<string, keyof ShotsListFields | null> = {
   heroThumb: "heroThumb",
+  shotNumber: null, // pinned, always visible
   shot: null, // pinned, always visible
   date: "date",
   notes: "notes",
@@ -34,6 +39,9 @@ const COLUMN_TO_FIELD: Record<string, keyof ShotsListFields | null> = {
   links: "links",
   talent: "talent",
   tags: "tags",
+  launch: "launch",
+  reqs: "reqs",
+  samples: "samples",
   updated: "updated",
 }
 

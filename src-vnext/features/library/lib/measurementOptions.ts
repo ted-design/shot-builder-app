@@ -9,6 +9,7 @@ export const MEASUREMENT_GROUPS: Record<"men" | "women", readonly MeasurementFie
   men: [
     { key: "height", label: "Height" },
     { key: "waist", label: "Waist" },
+    { key: "chest", label: "Chest" },
     { key: "inseam", label: "Inseam" },
     { key: "shoes", label: "Shoes" },
     { key: "suit", label: "Suit" },
@@ -42,9 +43,9 @@ export const MEASUREMENT_LABEL_MAP: Readonly<Record<string, string>> =
   Object.fromEntries(ALL_MEASUREMENT_OPTIONS.map((e) => [e.key, e.label]))
 
 export function normalizeGender(gender: string | null | undefined): GenderKey {
-  const value = (gender ?? "").toLowerCase()
-  if (value.startsWith("men")) return "men"
-  if (value.startsWith("women")) return "women"
+  const value = (gender ?? "").toLowerCase().trim()
+  if (value === "male" || value === "man" || value.startsWith("men")) return "men"
+  if (value === "female" || value === "woman" || value.startsWith("women")) return "women"
   return "other"
 }
 

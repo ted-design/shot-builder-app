@@ -11,7 +11,7 @@
  * Returns `null` for anything it cannot confidently parse.
  */
 
-const FEET_INCHES_RE = /^(\d{1,2})'(\d{1,2})"?$/
+const FEET_INCHES_RE = /^(\d{1,2})'\s*(\d{1,2}(?:\.\d+)?)"?$/
 const INCHES_RE = /^(\d+(?:\.\d+)?)"$/
 const CM_RE = /^(\d+(?:\.\d+)?)\s*cm$/i
 const SUIT_RE = /^(\d+(?:\.\d+)?)\s*[RSXL]+$/i

@@ -1,12 +1,13 @@
-import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku } from "@/shared/types"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
+import { shotLaunchDateMs, shotRequirementsCount } from "@/features/shots/lib/shotProductReadiness"
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated"
+export type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated" | "launchDate" | "requirements"
 export type SortDir = "asc" | "desc"
 export type ViewMode = "card" | "table"
 export type MissingKey = "products" | "talent" | "location" | "image"
@@ -24,6 +25,9 @@ export type ShotsListFields = {
   readonly products: boolean
   readonly links: boolean
   readonly talent: boolean
+  readonly launch: boolean
+  readonly reqs: boolean
+  readonly samples: boolean
   readonly updated: boolean
 }
 
@@ -39,6 +43,9 @@ export const DEFAULT_FIELDS: ShotsListFields = {
   products: true,
   links: false,
   talent: true,
+  launch: false,
+  reqs: false,
+  samples: false,
   updated: false,
 }
 
@@ -53,6 +60,8 @@ export const SORT_LABELS: Record<SortKey, string> = {
   status: "Status",
   created: "Created",
   updated: "Updated",
+  launchDate: "Launch Date",
+  requirements: "Requirements",
 }
 
 export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = {
@@ -77,6 +86,8 @@ export function sortShots(
   shots: ReadonlyArray<Shot>,
   key: SortKey,
   dir: SortDir,
+  familyById?: ReadonlyMap<string, ProductFamily>,
+  skuById?: ReadonlyMap<string, ProductSku>,
 ): ReadonlyArray<Shot> {
   if (key === "custom") return shots
   const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
@@ -85,6 +96,22 @@ export function sortShots(
 
   const byNumber = (a: number, b: number) => (a - b) * dirMul
   const byString = (a: string, b: string) => collator.compare(a, b) * dirMul
+
+  // Pre-computed sort keys for expensive readiness lookups (O(N) instead of O(N log N))
+  if (key === "launchDate" || key === "requirements") {
+    const fm = familyById ?? new Map()
+    const sm = skuById ?? undefined
+    const cache = new Map<string, number>()
+    for (const s of sorted) {
+      cache.set(s.id, key === "launchDate" ? shotLaunchDateMs(s, fm, sm) : shotRequirementsCount(s, fm, sm))
+    }
+    if (key === "launchDate") {
+      sorted.sort((a, b) => byNumber(cache.get(a.id)!, cache.get(b.id)!))
+    } else {
+      sorted.sort((a, b) => byNumber(cache.get(b.id)!, cache.get(a.id)!) || byString(a.title ?? "", b.title ?? ""))
+    }
+    return sorted
+  }
 
   const compare = (a: Shot, b: Shot) => {
     switch (key) {
@@ -254,6 +281,8 @@ export function applyFiltersAndSort(
     readonly query: string
     readonly sortKey: SortKey
     readonly sortDir: SortDir
+    readonly familyById?: ReadonlyMap<string, ProductFamily>
+    readonly skuById?: ReadonlyMap<string, ProductSku>
   },
 ): ReadonlyArray<Shot> {
   const step1 = filterByStatus(shots, params.statusFilter)
@@ -263,7 +292,7 @@ export function applyFiltersAndSort(
   const step5 = filterByTag(step4, params.tagFilter)
   const step6 = filterByProduct(step5, params.productFamilyId)
   const step7 = filterByQuery(step6, params.query)
-  return sortShots(step7, params.sortKey, params.sortDir)
+  return sortShots(step7, params.sortKey, params.sortDir, params.familyById, params.skuById)
 }
 
 /**

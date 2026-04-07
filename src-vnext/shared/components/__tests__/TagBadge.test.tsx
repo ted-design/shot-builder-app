@@ -7,6 +7,13 @@ vi.mock("@/shared/lib/tagCategories", () => ({
     tag.category ?? "other",
 }))
 
+vi.mock("@/shared/lib/tagColors", () => ({
+  isTagColorKey: (value: unknown) => {
+    const validKeys = ["red", "orange", "amber", "yellow", "green", "emerald", "blue", "indigo", "purple", "pink", "gray"]
+    return typeof value === "string" && validKeys.includes(value)
+  },
+}))
+
 import { TagBadge } from "@/shared/components/TagBadge"
 import type { ShotTag } from "@/shared/types"
 
@@ -98,5 +105,37 @@ describe("TagBadge", () => {
     )
     const badge = container.firstChild as HTMLElement
     expect(badge.className).toContain("border-l-neutral-400")
+  })
+
+  it("applies border-l-pink-500 class when tag has color='pink'", () => {
+    const { container } = render(
+      <TagBadge tag={makeTag({ color: "pink", category: "gender" })} />,
+    )
+    const badge = container.firstChild as HTMLElement
+    expect(badge.className).toContain("border-l-pink-500")
+  })
+
+  it("applies border-l-red-500 class when tag has color='red'", () => {
+    const { container } = render(
+      <TagBadge tag={makeTag({ color: "red", category: "other" })} />,
+    )
+    const badge = container.firstChild as HTMLElement
+    expect(badge.className).toContain("border-l-red-500")
+  })
+
+  it("falls back to category accent when tag has no recognized color", () => {
+    const { container } = render(
+      <TagBadge tag={makeTag({ color: "#ff00ff", category: "gender" })} />,
+    )
+    const badge = container.firstChild as HTMLElement
+    expect(badge.className).toContain("border-l-blue-500")
+  })
+
+  it("falls back to category accent when tag color is undefined", () => {
+    const { container } = render(
+      <TagBadge tag={makeTag({ color: undefined, category: "media" })} />,
+    )
+    const badge = container.firstChild as HTMLElement
+    expect(badge.className).toContain("border-l-emerald-500")
   })
 })

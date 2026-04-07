@@ -80,6 +80,12 @@ const AdminPage = lazy(
 const ShotRequestCentrePage = lazy(
   () => import("@/features/requests/components/ShotRequestCentrePage"),
 )
+const CastingBoardPage = lazy(
+  () => import("@/features/casting/components/CastingBoardPage"),
+)
+const PublicCastingReviewPage = lazy(
+  () => import("@/features/casting/components/PublicCastingReviewPage"),
+)
 
 // Dev-only components — only imported in development to keep them out of production bundles
 const DevImportQ2 = import.meta.env.DEV
@@ -108,6 +114,7 @@ export function AppRoutes() {
         <Route path="/pulls/shared/:shareToken" element={<PublicPullViewPage />} />
         <Route path="/pulls/shared/:shareToken/guide" element={<WarehousePickGuidePage />} />
         <Route path="/shots/shared/:shareToken" element={<PublicShotSharePage />} />
+        <Route path="/casting/shared/:shareToken" element={<PublicCastingReviewPage />} />
         <Route
           element={
             <RequireAuth>
@@ -162,6 +169,14 @@ export function AppRoutes() {
             element={
               <ProjectScopeProvider>
                 <ProjectAssetsPage />
+              </ProjectScopeProvider>
+            }
+          />
+          <Route
+            path="projects/:id/casting"
+            element={
+              <ProjectScopeProvider>
+                <CastingBoardPage />
               </ProjectScopeProvider>
             }
           />

@@ -1,4 +1,4 @@
-import { orderBy } from "firebase/firestore"
+import { orderBy, type Timestamp } from "firebase/firestore"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFirestoreCollection } from "@/shared/hooks/useFirestoreCollection"
 import { useFirestoreDoc } from "@/shared/hooks/useFirestoreDoc"
@@ -64,6 +64,12 @@ function mapFamily(id: string, data: Record<string, unknown>): ProductFamily {
     colorNames: asStringArray(data["colorNames"]),
     sizeOptions: asStringArray(data["sizeOptions"]),
     shotIds: asStringArray(data["shotIds"]),
+    // PLM denormalized aggregates (used by product intelligence columns)
+    earliestLaunchDate: (data["earliestLaunchDate"] as Timestamp | null | undefined) ?? null,
+    activeRequirementCount: asNumber(data["activeRequirementCount"]),
+    sampleCount: asNumber(data["sampleCount"]),
+    samplesArrivedCount: asNumber(data["samplesArrivedCount"]),
+    earliestSampleEta: (data["earliestSampleEta"] as Timestamp | null | undefined) ?? null,
     deleted: asBoolean(data["deleted"]),
     clientId: asString(data["clientId"]) ?? "",
   }

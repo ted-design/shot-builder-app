@@ -29,11 +29,8 @@ export async function backfillMissingShotDates(args: {
 
   const missing = snap.docs.filter((d) => {
     const data = d.data() as Record<string, unknown>
-    const deleted = data["deleted"]
-    if (deleted === true) return false
-    const missingDate = data["date"] === undefined
-    const missingDeleted = data["deleted"] === undefined
-    return missingDate || missingDeleted
+    if (data["deleted"] === true) return false
+    return data["date"] === undefined
   })
 
   if (missing.length === 0) return { scanned, updated: 0 }
@@ -43,13 +40,11 @@ export async function backfillMissingShotDates(args: {
     const slice = missing.slice(i, i + MAX_UPDATES_PER_BATCH)
     const batch = writeBatch(db)
     for (const docSnap of slice) {
-      const data = docSnap.data() as Record<string, unknown>
       const patch: Record<string, unknown> = {
+        date: null,
         updatedAt: serverTimestamp(),
         ...(updatedBy ? { updatedBy } : {}),
       }
-      if (data["date"] === undefined) patch["date"] = null
-      if (data["deleted"] === undefined) patch["deleted"] = false
 
       batch.update(docSnap.ref, patch)
       updated += 1

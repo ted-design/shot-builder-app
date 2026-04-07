@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import { canManageProducts, canManageProjects } from "@/shared/lib/rbac"
+import { canManageProducts, canManageProjects, isAdmin } from "@/shared/lib/rbac"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
@@ -32,7 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
-import { LayoutGrid, Package, Plus, Search, SlidersHorizontal, Table, X } from "lucide-react"
+import { LayoutGrid, Merge, Package, Plus, Search, SlidersHorizontal, Table, X } from "lucide-react"
+import { ProductMergeWizard } from "@/features/products/components/ProductMergeWizard"
 import { cn } from "@/shared/lib/utils"
 import {
   deriveProductScaffoldOptions,
@@ -58,17 +59,19 @@ const CARD_PROPERTY_LABELS: Record<ProductCardPropertyKey, string> = {
 
 export default function ProductListPage() {
   const { data: families, loading, error } = useProductFamilies()
-  const { role } = useAuth()
+  const { role, user: currentUser, clientId } = useAuth()
   const isMobile = useIsMobile()
   const canCreate = canManageProducts(role)
   const canEdit = !isMobile && canCreate
   const canBulkAdd = canManageProjects(role)
+  const showMerge = isAdmin(role) && !isMobile
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
 
   const [selectionMode, setSelectionMode] = useState(false)
   const [showBulkDialog, setShowBulkDialog] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
   const selection = useProductSelection()
 
   const navigateToCreate = () => {
@@ -233,6 +236,18 @@ export default function ProductListPage() {
                   <Table className="h-4 w-4" />
                 </Button>
               </div>
+            )}
+
+            {showMerge && !selectionMode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMergeOpen(true)}
+              >
+                <Merge className="h-4 w-4 mr-1.5" />
+                Merge Duplicates
+              </Button>
             )}
 
             {canBulkAdd && !selectionMode && (
@@ -721,6 +736,16 @@ export default function ProductListPage() {
           setSelectionMode(false)
           selection.clearAll()
         }}
+      />
+    )}
+
+    {mergeOpen && clientId && (
+      <ProductMergeWizard
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        clientId={clientId}
+        userId={currentUser?.uid ?? ""}
+        families={families}
       />
     )}
     </ErrorBoundary>

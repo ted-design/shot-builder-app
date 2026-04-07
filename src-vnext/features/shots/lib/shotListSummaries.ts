@@ -1,6 +1,11 @@
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { textPreview } from "@/shared/lib/textPreview"
-import type { ProductAssignment, Shot } from "@/shared/types"
+import type { ProductAssignment, ProductFamily, Shot } from "@/shared/types"
+
+export interface ProductDisplayEntry {
+  readonly label: string
+  readonly styleNumber: string | null
+}
 
 function asNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null
@@ -53,6 +58,24 @@ export function getShotPrimaryLookProductLabels(shot: Shot): string[] {
   const primaryProducts = primaryLookProducts(shot)
   const products = primaryProducts ?? extractShotAssignedProducts(shot)
   return products.map(formatProductAssignmentLabel)
+}
+
+/**
+ * Return product labels paired with style numbers for the Primary look.
+ * Style numbers are resolved from the familyById map when available.
+ */
+export function getShotPrimaryLookProductEntries(
+  shot: Shot,
+  familyById?: ReadonlyMap<string, ProductFamily>,
+): ProductDisplayEntry[] {
+  const primaryProducts = primaryLookProducts(shot)
+  const products = primaryProducts ?? extractShotAssignedProducts(shot)
+  return products.map((p) => {
+    const label = formatProductAssignmentLabel(p)
+    const family = p.familyId && familyById ? familyById.get(p.familyId) : undefined
+    const styleNumber = family?.styleNumber ?? family?.styleNumbers?.[0] ?? null
+    return { label, styleNumber }
+  })
 }
 
 export function summarizeLabels(
