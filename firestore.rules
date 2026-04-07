@@ -186,8 +186,9 @@ service cloud.firestore {
     match /castingShares/{shareToken} {
       // Allow unauthenticated get when sharing is enabled and not expired.
       // Security: Requires knowledge of the exact share token (UUID / 32+ chars).
+      // Note: must check field existence before access — missing fields throw in rules.
       allow get: if resource.data.enabled == true
-        && (resource.data.expiresAt == null || resource.data.expiresAt > request.time);
+        && (!('expiresAt' in resource.data) || resource.data.expiresAt == null || resource.data.expiresAt > request.time);
 
       // Authenticated admin/producer reads (management UI)
       allow get, list: if isAuthed() &&
