@@ -1198,6 +1198,57 @@ Admin (role-gated: admin only)
 - [x] **S21-7:** 28 new unit tests (tagDedup + mergeShareColumnConfig)
 - [x] **S21-8:** Migration script for existing tag duplicates
 
+## Sprint S24: Casting Workflow + Talent Import + Share Link Management (2026-04-07)
+
+- [x] **Phase A — Parser & Measurement Fixes**
+  - [x] Fix `normalizeGender()` bug (handle male/female/man/woman)
+  - [x] Fix `parseMeasurementValue()` regex (spaces + half-inches in heights)
+  - [x] Add "chest" to men's MEASUREMENT_GROUPS with bounds and placeholders
+  - [x] 37 parser tests passing
+
+- [x] **Phase B — Talent Import (466 models)**
+  - [x] Build import script (`scripts/import-talent-roster.ts`) with dry-run mode
+  - [x] Levenshtein fuzzy matching + force-match aliases for confirmed duplicates
+  - [x] Execute import: 441 created, 23 updated, 2 skipped, 197 headshots uploaded
+  - [x] Import report saved to `data/import-write-report.json`
+
+- [x] **Phase C — Casting Board (Internal)**
+  - [x] Types, paths, RBAC (`canManageCasting`), status mappings
+  - [x] `useCastingBoard` hook (Firestore onSnapshot subscription)
+  - [x] `CastingBoardPage` with grid view, search, filter, sort, selection bar
+  - [x] `CastingCard` with headshot, measurements, status badge, role label
+  - [x] `AddCastingTalentDialog` with visual picker (headshot thumbnails)
+  - [x] Nav config: "Casting" between Assets and Call Sheet
+  - [x] Route: `/projects/:id/casting`
+
+- [x] **Phase D — External Casting Review**
+  - [x] `CastingShareDialog` with configurable field visibility
+  - [x] `resolveTalentForCastingShare` denormalization
+  - [x] Firestore rules for `castingShares` + `votes` subcollection (unauthenticated writes)
+  - [x] `PublicCastingReviewPage` with email identity, voting, comments
+  - [x] Vote buttons (Approve/Maybe/Pass) with attributed voting model
+  - [x] Firestore rules deployed, `expiresAt: null` backfilled
+  - [x] Route: `/casting/shared/:shareToken`
+
+- [x] **Phase E — Share Link Management**
+  - [x] `SharedLinksPage` at `/projects/:id/links`
+  - [x] Unified table: shot shares, casting shares, pull shares
+  - [x] Actions: copy URL, toggle enable/disable, set expiry, delete
+  - [x] Composite Firestore indexes deployed
+  - [x] Nav config: "Shared Links" after Tags
+
+- [x] **Phase F — Style Numbers in Shot Shares + Viewer Column Reorder**
+  - [x] Product style numbers in shared shot lists (`Family [STYLE#]` format)
+  - [x] Viewer column reordering on public share pages (localStorage persistence)
+
+- [x] **Phase G — CI/CD Fixes**
+  - [x] Fix gitleaks.yml YAML heredoc indentation
+  - [x] Fix gitleaks-weekly.yml same issue
+  - [x] Fix deploy-preview.yml job-level secrets guard
+  - [x] Fix ui-checks.yml: secrets guard + Java 21 + emulator readiness
+  - [x] Fix X-Frame-Options for public share routes (Slack compatibility)
+  - [x] 3 rounds of claude-review feedback addressed
+
 ---
 
 ## Cross-Phase Requirements

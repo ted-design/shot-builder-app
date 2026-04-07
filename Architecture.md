@@ -102,6 +102,7 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/pulls/shared/:shareToken` | PullPublicViewPage | Public pull sheet (read-only) |
 | `/pulls/shared/:shareToken/guide` | WarehousePickGuidePage | Guided pick flow (full-screen stepper) |
 | `/shots/shared/:shareToken` | PublicShotSharePage | Public shot share (vNext) |
+| `/casting/shared/:shareToken` | PublicCastingReviewPage | Public casting review (unauthenticated, email identity, voting) |
 | `/demo/*` | DemoPage | Demo mode (blocks writes) |
 
 ### Authenticated Routes
@@ -118,6 +119,8 @@ Both `src/` and `src-vnext/` are active. New code goes in `src-vnext/`.
 | `/projects/:id/assets` | ProjectAssetsPage | |
 | `/projects/:id/tags` | TagManagementPage | Desktop-only (RequireDesktop) |
 | `/projects/:id/schedules` | SchedulesRedirect | Redirects to `../callsheet` |
+| `/projects/:id/casting` | CastingBoardPage | Casting board: admin/producer edit, others view-only |
+| `/projects/:id/links` | SharedLinksPage | Unified share link management: shot, casting, pull shares. Admin/producer only, desktop-only (RequireDesktop) |
 | `/projects/:id/callsheet` | CallSheetBuilderPage | Desktop-only (RequireDesktop) |
 | `/projects/:id/schedules/:scheduleId/onset` | OnSetViewerPage | Standalone on-set viewer (all roles, no RequireDesktop). Wraps OnSetViewer component. Sprint S13. |
 | `/requests` | ShotRequestCentrePage | Org-level shot request centre. Admin+producer only (RequireRole). Desktop: two-panel (list + triage). Mobile: list only. Absorb dialog supports both "add to existing project" and "create new project" modes (Phase 8.5). `/inbox` redirects here (Sprint S11). |
@@ -162,13 +165,14 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   │   ├── departments/{departmentId}/
   │   │   └── positions/{positionId}/
   │   ├── activities/{activityId}/     # Audit trail, 90-day retention
-  │   └── schedules/{scheduleId}/
-  │       ├── entries/{entryId}/
-  │       ├── dayDetails/{detailId}/
-  │       ├── talentCalls/{talentId}/
-  │       ├── crewCalls/{crewMemberId}/
-  │       ├── clientCalls/{clientCallId}/
-  │       └── callSheet/config
+  │   ├── schedules/{scheduleId}/
+  │   │   ├── entries/{entryId}/
+  │   │   ├── dayDetails/{detailId}/
+  │   │   ├── talentCalls/{talentId}/
+  │   │   ├── crewCalls/{crewMemberId}/
+  │   │   ├── clientCalls/{clientCallId}/
+  │   │   └── callSheet/config
+  │   └── castingBoard/{entryId}/        # S24: Project-scoped casting board (doc ID = talentId, admin/producer write)
   ├── shots/{shotId}/
   │   ├── comments/{commentId}/
   │   ├── versions/{versionId}/
@@ -191,6 +195,8 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   └── pendingInvitations/{normalizedEmail}/  # Sprint S9 — pre-signup role invitations
 
 /shotShares/{shareToken}               # Denormalized public share docs (S21: includes columnConfig + resolvedShots with tags/links)
+/castingShares/{shareToken}            # Root-level casting share links (S24: denormalized talent data, unauthenticated get when enabled + not expired)
+  └── votes/{voteId}                   # Unauthenticated reviewer votes (deterministic doc ID, attributed voting model)
 /systemAdmins/{email}                  # System admin list
 /_functionQueue/{docId}                # Cloud Function invocation queue (Firestore trigger)
 ```
