@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore"
+import { collection, getDocs, query, where, doc, getDoc, limit } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 
 export interface TalentDependency {
@@ -26,6 +26,7 @@ export async function checkTalentDependencies(args: {
   const shotsQuery = query(
     shotsRef,
     where("talentIds", "array-contains", talentId),
+    limit(51), // Fetch 51 to detect "50+" overflow
   )
 
   let shots: TalentDependency[] = []
