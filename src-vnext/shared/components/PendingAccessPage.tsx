@@ -1,4 +1,4 @@
-import { LogOut, Loader2 } from "lucide-react"
+import { LogOut, RefreshCw, Loader2 } from "lucide-react"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 
@@ -8,6 +8,10 @@ interface PendingAccessPageProps {
 
 export function PendingAccessPage({ error }: PendingAccessPageProps) {
   const { signOut, claimingInvitation } = useAuth()
+
+  const handleRetry = () => {
+    window.location.reload()
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--color-bg)] p-6">
@@ -33,10 +37,16 @@ export function PendingAccessPage({ error }: PendingAccessPageProps) {
         )}
 
         {!claimingInvitation && (
-          <Button variant="outline" onClick={signOut}>
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleRetry}>
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </Button>
+            <Button variant="ghost" onClick={signOut}>
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          </div>
         )}
       </div>
     </div>
