@@ -12,7 +12,6 @@ import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePul
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { ShotListToolbar } from "@/features/shots/components/ShotListToolbar"
 import { ShotListFilterSheet } from "@/features/shots/components/ShotListFilterSheet"
-import { ShotListDisplaySheet } from "@/features/shots/components/ShotListDisplaySheet"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShotsTable } from "@/features/shots/components/ShotsTable"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
@@ -24,9 +23,9 @@ import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import { Camera, Plus, Info, BarChart3, Trash2, Hash } from "lucide-react"
+import { Camera, Plus, Info, Trash2 } from "lucide-react"
 import type { Shot } from "@/shared/types"
-import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
+import { SORT_LABELS } from "@/features/shots/lib/shotListFilters"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { backfillMissingShotDates } from "@/features/shots/lib/backfillShotDates"
@@ -89,7 +88,6 @@ export default function ShotListPage() {
   const [shareOpen, setShareOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [displayOpen, setDisplayOpen] = useState(false)
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -119,7 +117,7 @@ export default function ShotListPage() {
     conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
-    toggleStatus, toggleMissing, toggleTag,
+    toggleStatus, clearStatusFilter, toggleMissing, toggleTag,
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
@@ -129,6 +127,12 @@ export default function ShotListPage() {
   } = useShotListState({
     shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById,
   })
+
+  // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
+  const extraFilterCount = useMemo(
+    () => conditions.filter((c) => c.field !== "status" && c.field !== "missing").length,
+    [conditions],
+  )
 
   // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
   useKeyboardShortcuts([
@@ -396,7 +400,7 @@ export default function ShotListPage() {
         </div>
       )}
 
-      {/* Toolbar: search + sort + filters + view */}
+      {/* Toolbar: search + sort + inline filters + view */}
       {shots.length > 0 && (
         <>
           <ShotListToolbar
@@ -408,16 +412,23 @@ export default function ShotListPage() {
             sortDir={sortDir}
             onSortDirToggle={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
             isCustomSort={isCustomSort}
-            groupKey={groupKey}
-            onGroupKeyChange={setGroupKey}
             isMobile={isMobile}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            activeFilterCount={activeFilterBadges.length}
-            onFiltersOpen={() => setFiltersOpen(true)}
-            onDisplayOpen={() => setDisplayOpen(true)}
+            insights={insights}
+            statusFilter={statusFilter}
+            toggleStatus={toggleStatus}
+            clearStatusFilter={clearStatusFilter}
+            canReorder={canReorder}
+            hasActiveFilters={hasActiveFilters}
+            onRenumberOpen={() => setRenumberOpen(true)}
+            extraFilterCount={extraFilterCount}
+            onMoreFiltersOpen={() => setFiltersOpen(true)}
+            displayCount={displayShots.length}
+            totalCount={shots.length}
           />
 
+          {/* Advanced filters sheet (tag, talent, location, product, date range, etc.) */}
           <ShotListFilterSheet
             open={filtersOpen}
             onOpenChange={setFiltersOpen}
@@ -441,15 +452,7 @@ export default function ShotListPage() {
             onOpenChange={setShortcutsOpen}
           />
 
-          <ShotListDisplaySheet
-            open={displayOpen}
-            onOpenChange={setDisplayOpen}
-            isMobile={isMobile}
-            viewMode={viewMode}
-            fields={fields}
-            onFieldsChange={setFields}
-          />
-
+          {/* Active filter badges (removable chips) */}
           {activeFilterBadges.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center gap-1.5">
               {activeFilterBadges.map((b) => (
@@ -463,96 +466,6 @@ export default function ShotListPage() {
                   {b.label} &times;
                 </Badge>
               ))}
-            </div>
-          )}
-
-          {displayShots.length > 0 && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                <BarChart3 className="h-3.5 w-3.5" />
-                <span>
-                  Showing {displayShots.length} of {shots.length}
-                </span>
-              </div>
-
-              {canReorder && (
-                <>
-                  <div className="h-4 w-px bg-[var(--color-border)]" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1.5 px-2 text-xs"
-                    onClick={() => setRenumberOpen(true)}
-                  >
-                    <Hash className="h-3.5 w-3.5" />
-                    Renumber
-                  </Button>
-                </>
-              )}
-
-              <div className="h-4 w-px bg-[var(--color-border)]" />
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                  Status
-                </span>
-                {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => {
-                  const count = insights.statusCounts[s] ?? 0
-                  const active = statusFilter.has(s)
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => toggleStatus(s)}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors ${
-                        active
-                          ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
-                          : "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
-                      }`}
-                      aria-pressed={active}
-                      title="Click to filter"
-                    >
-                      <span>{STATUS_LABELS[s]}</span>
-                      <span className="text-[var(--color-text-subtle)]">{count}</span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-2xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
-                  Missing
-                </span>
-                {(["products", "talent", "location", "image"] as const).map((k) => {
-                  const count = insights.missingCounts[k] ?? 0
-                  const active = missingFilter.has(k)
-                  const label =
-                    k === "products"
-                      ? "Products"
-                      : k === "talent"
-                        ? "Talent"
-                        : k === "location"
-                          ? "Location"
-                          : "Image"
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => toggleMissing(k)}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors ${
-                        active
-                          ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text)]"
-                          : "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"
-                      }`}
-                      aria-pressed={active}
-                      title="Click to filter"
-                    >
-                      <span>{label}</span>
-                      <span className="text-[var(--color-text-subtle)]">{count}</span>
-                    </button>
-                  )
-                })}
-              </div>
             </div>
           )}
 
@@ -698,8 +611,9 @@ export default function ShotListPage() {
             </div>
           )}
           <ShotsTable
+            clientId={clientId}
+            projectId={projectId}
             shots={displayShots}
-            fields={fields}
             talentNameById={talentNameById}
             locationNameById={locationNameById}
             showLifecycleActions={canManageLifecycle}
@@ -710,7 +624,6 @@ export default function ShotListPage() {
                 : undefined
             }
             onOpenShot={handleShotClick}
-            onFieldToggle={(key) => setFields({ ...fields, [key]: !fields[key] })}
             familyById={familyById}
             skuById={skuById}
             samplesByFamily={samplesByFamily}

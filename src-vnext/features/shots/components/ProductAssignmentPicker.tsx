@@ -25,6 +25,7 @@ import {
   useProductSkuDoc,
 } from "@/features/shots/hooks/usePickerData"
 import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
+import { ProductQuickViewPopover } from "@/features/shots/components/ProductQuickViewPopover"
 import { Package, Plus, X, ChevronLeft, Loader2, Search } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
@@ -349,16 +350,16 @@ function AssignmentRow({
   readonly onEdit: () => void
   readonly onRemove: () => void
 }) {
-  const needsLookup =
-    !assignment.thumbUrl && !assignment.skuImageUrl && !assignment.familyImageUrl
-
   const familyId =
-    needsLookup && assignment.familyId && assignment.familyId.length > 0
+    assignment.familyId && assignment.familyId.length > 0
       ? assignment.familyId
       : null
 
+  const needsImageLookup =
+    !assignment.thumbUrl && !assignment.skuImageUrl && !assignment.familyImageUrl
+
   const skuId =
-    needsLookup
+    needsImageLookup
       ? (assignment.skuId ?? assignment.colourId ?? null)
       : null
 
@@ -389,33 +390,63 @@ function AssignmentRow({
     family?.thumbnailImagePath ??
     family?.headerImagePath
 
+  const styleNumber =
+    family?.styleNumbers?.[0] ?? family?.styleNumber ?? undefined
+
+  const launchDateDisplay = (() => {
+    const ts = sku?.launchDate ?? family?.launchDate ?? family?.earliestLaunchDate
+    if (!ts) return null
+    const d = ts.toDate()
+    return d.toLocaleDateString("en-CA")
+  })()
+
   return (
-    <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] px-2.5 py-1.5">
-      <CollapsibleThumb src={thumbSrc} alt={label} />
+    <div className="flex items-start gap-2.5 rounded-md border border-[var(--color-border)] px-2.5 py-2">
+      <CollapsibleThumb src={thumbSrc} alt={label} large />
       <div
-        className="flex min-w-0 flex-1 cursor-pointer flex-col"
+        className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5"
         onClick={disabled ? undefined : onEdit}
       >
-        <span className="truncate text-sm font-medium text-[var(--color-text)]">{label}</span>
-        {meta.length > 0 && (
+        <span className="truncate text-sm font-medium text-[var(--color-text)] leading-tight">{label}</span>
+        {styleNumber && (
+          <span className="font-mono text-2xs text-[var(--color-text-subtle)]">{styleNumber}</span>
+        )}
+        {(colourLabel || launchDateDisplay) && (
+          <span className="truncate text-xs text-[var(--color-text-subtle)]">
+            {[colourLabel, launchDateDisplay].filter(Boolean).join(" · ")}
+          </span>
+        )}
+        {!colourLabel && !launchDateDisplay && meta.length > 0 && (
           <span className="truncate text-xs text-[var(--color-text-subtle)]">
             {meta.join(" · ")}
           </span>
         )}
       </div>
-      {!disabled && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-[var(--color-text-subtle)]"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRemove()
-          }}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      <div className="flex items-center gap-1 shrink-0">
+        <ProductQuickViewPopover assignment={assignment}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Details
+          </Button>
+        </ProductQuickViewPopover>
+        {!disabled && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-[var(--color-text-subtle)]"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove()
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
@@ -425,9 +456,11 @@ function AssignmentRow({
 function CollapsibleThumb({
   src,
   alt,
+  large = false,
 }: {
   readonly src: string | undefined
   readonly alt: string
+  readonly large?: boolean
 }) {
   const resolvedSrc = useStorageUrl(src)
   const [errored, setErrored] = useState(false)
@@ -442,7 +475,7 @@ function CollapsibleThumb({
     <img
       src={resolvedSrc}
       alt={alt}
-      className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
+      className={`shrink-0 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover ${large ? "h-11 w-11" : "h-10 w-10"}`}
       onError={() => setErrored(true)}
     />
   )

@@ -169,7 +169,7 @@ export function computeShotReadiness(
     const sku = skuId && skuById ? skuById.get(skuId) : null
     if (sku) {
       usedSkuLevel = true
-      const skuLaunch = sku.launchDate ?? null
+      const skuLaunch = sku.launchDate ?? family?.earliestLaunchDate ?? null
       earliestLaunchDate = earlierTimestamp(earliestLaunchDate, skuLaunch)
 
       // --- Requirements: per-colorway ---
@@ -234,7 +234,7 @@ export function shotRequirementsCount(
 }
 
 // ---------------------------------------------------------------------------
-// Display helpers (shared by ShotCard + ShotsTableRow)
+// Display helpers (shared by ShotCard + shotColumnRenderers)
 // ---------------------------------------------------------------------------
 
 /** Format a Firestore Timestamp as "Apr 15" style short date. */
