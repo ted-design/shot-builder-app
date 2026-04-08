@@ -220,7 +220,7 @@ service cloud.firestore {
           request.resource.data.reviewerName is string &&
           request.resource.data.reviewerName.size() >= 1 &&
           request.resource.data.talentId is string &&
-          request.resource.data.decision in ['approve', 'disapprove', 'maybe'] &&
+          request.resource.data.decision in ['approve', 'disapprove', 'maybe', 'withdrawn'] &&
           (request.resource.data.comment == null ||
            (request.resource.data.comment is string && request.resource.data.comment.size() <= 2000));
 
@@ -233,7 +233,7 @@ service cloud.firestore {
           request.resource.data.reviewerEmail == resource.data.reviewerEmail &&
           request.resource.data.reviewerName == resource.data.reviewerName &&
           request.resource.data.talentId == resource.data.talentId &&
-          request.resource.data.decision in ['approve', 'disapprove', 'maybe'] &&
+          request.resource.data.decision in ['approve', 'disapprove', 'maybe', 'withdrawn'] &&
           (request.resource.data.comment == null ||
            (request.resource.data.comment is string && request.resource.data.comment.size() <= 2000));
 

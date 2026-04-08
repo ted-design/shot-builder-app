@@ -434,6 +434,9 @@ export interface ProductDocument {
 export interface TalentRecord {
   readonly id: string
   readonly name: string
+  readonly deleted?: boolean
+  readonly deletedAt?: unknown // Firestore Timestamp
+  readonly deletedBy?: string | null
   readonly firstName?: string | null
   readonly lastName?: string | null
   /** Legacy: may be a Storage path (preferred) or a URL. */
@@ -760,6 +763,12 @@ export interface CastingBoardEntry {
 
 // --- Casting Share (public sharing) ---
 
+export interface ResolvedCastingSession {
+  readonly title: string
+  readonly date: string | null
+  readonly imageUrls: readonly string[]
+}
+
 export interface ResolvedCastingTalent {
   readonly talentId: string
   readonly name: string
@@ -768,6 +777,10 @@ export interface ResolvedCastingTalent {
   readonly agency: string | null
   readonly measurements?: Record<string, string | number | null> | null
   readonly galleryUrls: readonly string[]
+  /** Flat array of all casting images (for thumbnail strips). */
+  readonly castingImageUrls?: readonly string[]
+  /** Session-grouped casting images (for detail view). */
+  readonly castingSessions?: readonly ResolvedCastingSession[]
   readonly roleLabel?: string | null
 }
 
@@ -795,7 +808,7 @@ export interface CastingShare {
 
 // --- Casting Votes (unauthenticated reviewer actions) ---
 
-export type CastingVoteDecision = "approve" | "disapprove" | "maybe"
+export type CastingVoteDecision = "approve" | "disapprove" | "maybe" | "withdrawn"
 
 export interface CastingVote {
   readonly id: string

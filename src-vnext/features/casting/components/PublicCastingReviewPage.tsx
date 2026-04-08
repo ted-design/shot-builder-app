@@ -7,7 +7,10 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
+import { ImageLightbox } from "@/shared/components/ImageLightbox"
 import { submitCastingVote } from "@/features/casting/lib/castingWrites"
+import { PublicCastingCard, getInitials, type TalentVoteState } from "@/features/casting/components/PublicCastingCard"
+import { TalentDetailSheet } from "@/features/casting/components/TalentDetailSheet"
 import type {
   CastingShareVisibility,
   CastingVoteDecision,
@@ -28,13 +31,6 @@ type ReviewerIdentity = {
   readonly email: string
 }
 
-/** Local representation of a vote (keyed by talentId). */
-type TalentVoteState = {
-  readonly decision: CastingVoteDecision | null
-  readonly comment: string
-}
-
-/** Other reviewer vote for display. */
 type OtherVote = {
   readonly reviewerName: string
   readonly reviewerEmail: string
@@ -42,49 +38,9 @@ type OtherVote = {
   readonly comment: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const VOTE_OPTIONS: readonly {
-  readonly decision: CastingVoteDecision
-  readonly label: string
-  readonly emoji: string
-  readonly selectedClass: string
-}[] = [
-  {
-    decision: "approve",
-    label: "Approve",
-    emoji: "\uD83D\uDC4D",
-    selectedClass:
-      "bg-green-500/10 border-green-500/35 text-green-500",
-  },
-  {
-    decision: "maybe",
-    label: "Maybe",
-    emoji: "\uD83E\uDD14",
-    selectedClass:
-      "bg-amber-500/10 border-amber-500/35 text-amber-500",
-  },
-  {
-    decision: "disapprove",
-    label: "Pass",
-    emoji: "\uD83D\uDC4E",
-    selectedClass:
-      "bg-red-500/10 border-red-500/35 text-red-500",
-  },
-]
-
-const DECISION_LABELS: Record<CastingVoteDecision, string> = {
-  approve: "Approved",
-  maybe: "Maybe",
-  disapprove: "Passed",
-}
-
-const DECISION_COLOR_CLASSES: Record<CastingVoteDecision, { text: string; avatar: string }> = {
-  approve: { text: "text-green-500", avatar: "bg-green-500/15 text-green-500" },
-  maybe: { text: "text-amber-500", avatar: "bg-amber-500/15 text-amber-500" },
-  disapprove: { text: "text-red-500", avatar: "bg-red-500/15 text-red-500" },
+type LightboxState = {
+  readonly images: readonly string[]
+  readonly index: number
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +56,12 @@ function loadReviewer(shareToken: string): ReviewerIdentity | null {
     const raw = localStorage.getItem(getStorageKey(shareToken))
     if (!raw) return null
     const parsed = JSON.parse(raw) as { name?: string; email?: string }
-    if (typeof parsed.name === "string" && typeof parsed.email === "string" && parsed.name && parsed.email) {
+    if (
+      typeof parsed.name === "string" &&
+      typeof parsed.email === "string" &&
+      parsed.name &&
+      parsed.email
+    ) {
       return { name: parsed.name, email: parsed.email }
     }
     return null
@@ -113,183 +74,6 @@ function saveReviewer(shareToken: string, identity: ReviewerIdentity): void {
   localStorage.setItem(getStorageKey(shareToken), JSON.stringify(identity))
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("")
-}
-
-function formatMeasurements(
-  measurements: Record<string, string | number | null> | null | undefined,
-): string | null {
-  if (!measurements) return null
-  const parts: string[] = []
-  for (const [key, val] of Object.entries(measurements)) {
-    if (val != null && val !== "") {
-      parts.push(`${key} ${String(val)}`)
-    }
-  }
-  return parts.length > 0 ? parts.join(" \u00B7 ") : null
-}
-
-// ---------------------------------------------------------------------------
-// PublicCastingCard
-// ---------------------------------------------------------------------------
-
-function PublicCastingCard(props: {
-  readonly talent: ResolvedCastingTalent
-  readonly visibleFields: CastingShareVisibility
-  readonly voteState: TalentVoteState
-  readonly otherVotes: readonly OtherVote[]
-  readonly showVoteTallies: boolean
-  readonly identified: boolean
-  readonly onVote: (talentId: string, decision: CastingVoteDecision | null) => void
-  readonly onCommentChange: (talentId: string, comment: string) => void
-  readonly onCommentBlur: (talentId: string) => void
-}) {
-  const {
-    talent,
-    visibleFields,
-    voteState,
-    otherVotes,
-    showVoteTallies,
-    identified,
-    onVote,
-    onCommentChange,
-    onCommentBlur,
-  } = props
-
-  const measurementText =
-    visibleFields.measurements ? formatMeasurements(talent.measurements) : null
-
-  return (
-    <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)]">
-      {/* Headshot */}
-      {talent.headshotUrl ? (
-        <img
-          src={talent.headshotUrl}
-          alt={talent.name}
-          className="aspect-[3/4] w-full object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="flex aspect-[3/4] w-full items-center justify-center bg-[var(--color-surface-subtle)]">
-          <span className="text-2xl font-semibold text-[var(--color-text-subtle)]">
-            {getInitials(talent.name)}
-          </span>
-        </div>
-      )}
-
-      {/* Body */}
-      <div className="flex flex-col gap-3 p-4">
-        {/* Name + agency */}
-        <div>
-          <div className="text-base font-semibold text-[var(--color-text)]">{talent.name}</div>
-          {visibleFields.agency && talent.agency && (
-            <div className="text-sm text-[var(--color-text-muted)]">{talent.agency}</div>
-          )}
-        </div>
-
-        {/* Measurements */}
-        {measurementText && (
-          <div className="text-xs text-[var(--color-text-muted)]">{measurementText}</div>
-        )}
-
-        {/* Role label */}
-        {talent.roleLabel && (
-          <div className="inline-flex self-start rounded border border-[var(--color-border)] px-2 py-0.5 text-2xs text-[var(--color-text-secondary)]">
-            {talent.roleLabel}
-          </div>
-        )}
-
-        {/* Vote buttons */}
-        <div className="flex gap-2">
-          {VOTE_OPTIONS.map((opt) => {
-            const isSelected = voteState.decision === opt.decision
-            return (
-              <button
-                key={opt.decision}
-                type="button"
-                disabled={!identified}
-                onClick={() =>
-                  onVote(talent.talentId, isSelected ? null : opt.decision)
-                }
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded border text-sm transition-colors ${
-                  isSelected
-                    ? opt.selectedClass
-                    : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-secondary)]"
-                } min-h-[44px] disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                <span className="text-base">{opt.emoji}</span>
-                {opt.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Comment input */}
-        <textarea
-          value={voteState.comment}
-          onChange={(e) => onCommentChange(talent.talentId, e.target.value)}
-          onBlur={() => onCommentBlur(talent.talentId)}
-          placeholder={identified ? "Add a note\u2026" : "Enter your info above to comment"}
-          disabled={!identified}
-          rows={1}
-          className="w-full resize-y rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-        />
-
-        {/* Other reviewers' votes */}
-        {showVoteTallies && otherVotes.length > 0 && (
-          <div className="border-t border-[var(--color-border)] pt-3">
-            <div className="mb-2 text-3xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Other reviews
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {otherVotes.map((v) => {
-                const colors = DECISION_COLOR_CLASSES[v.decision]
-                return (
-                  <div key={v.reviewerEmail} className="flex items-center gap-2">
-                    <div
-                      className={`flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full text-3xs font-semibold ${colors.avatar}`}
-                    >
-                      {getInitials(v.reviewerName)}
-                    </div>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {v.reviewerName}
-                    </span>
-                    <span className={`ml-auto text-xxs ${colors.text}`}>
-                      {DECISION_LABELS[v.decision]}
-                    </span>
-                  </div>
-                )
-              })}
-
-              {/* Other reviewer comments */}
-              {otherVotes
-                .filter((v) => v.comment)
-                .map((v) => (
-                  <div
-                    key={`comment-${v.reviewerEmail}`}
-                    className="mt-1 rounded border-l-2 border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2"
-                  >
-                    <div className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-                      {v.comment}
-                    </div>
-                    <div className="mt-1 text-3xs text-[var(--color-text-subtle)]">
-                      {v.reviewerName}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Main Page Component
@@ -298,7 +82,7 @@ function PublicCastingCard(props: {
 export default function PublicCastingReviewPage() {
   const { shareToken } = useParams<{ shareToken: string }>()
 
-  // Data
+  // Share data
   const [talent, setTalent] = useState<readonly ResolvedCastingTalent[]>([])
   const [title, setTitle] = useState("")
   const [visibleFields, setVisibleFields] = useState<CastingShareVisibility>({
@@ -323,7 +107,15 @@ export default function PublicCastingReviewPage() {
   // Votes: talentId -> vote state
   const [voteStates, setVoteStates] = useState<Record<string, TalentVoteState>>({})
   // Other reviewers' votes: talentId -> other votes
-  const [otherVotesMap, setOtherVotesMap] = useState<Record<string, readonly OtherVote[]>>({})
+  const [otherVotesMap, setOtherVotesMap] = useState<
+    Record<string, readonly OtherVote[]>
+  >({})
+
+  // Detail sheet
+  const [sheetTalentId, setSheetTalentId] = useState<string | null>(null)
+
+  // Page-level lightbox (for portfolio thumbnail strip clicks)
+  const [lightboxState, setLightboxState] = useState<LightboxState | null>(null)
 
   // Load reviewer identity from localStorage
   useEffect(() => {
@@ -386,7 +178,8 @@ export default function PublicCastingReviewPage() {
             if (expiresAt.getTime() < Date.now()) {
               setErrorInfo({
                 heading: "Link expired",
-                message: "This casting review link has expired. Ask the sender for a new one.",
+                message:
+                  "This casting review link has expired. Ask the sender for a new one.",
               })
               setLoading(false)
               return
@@ -399,10 +192,13 @@ export default function PublicCastingReviewPage() {
         const resolvedTalent = Array.isArray(data.resolvedTalent)
           ? (data.resolvedTalent as ResolvedCastingTalent[])
           : []
-        const shareTitle = typeof data.title === "string" ? data.title : "Casting Review"
+        const shareTitle =
+          typeof data.title === "string" ? data.title : "Casting Review"
         const shareVisibility = data.visibleFields as CastingShareVisibility | undefined
         const shareInstructions =
-          typeof data.reviewerInstructions === "string" ? data.reviewerInstructions : null
+          typeof data.reviewerInstructions === "string"
+            ? data.reviewerInstructions
+            : null
         const shareShowTallies = data.showVoteTallies === true
 
         setTalent(resolvedTalent)
@@ -427,19 +223,25 @@ export default function PublicCastingReviewPage() {
             talentId?: string
             reviewerEmail?: string
             reviewerName?: string
-            decision?: CastingVoteDecision
+            decision?: string
             comment?: string | null
           }
 
-          if (!vData.talentId || !vData.decision) continue
+          // 'withdrawn' votes are treated as "not voted" — skip them entirely
+          if (!vData.talentId || !vData.decision || vData.decision === "withdrawn") {
+            continue
+          }
 
-          const voteEmail = typeof vData.reviewerEmail === "string"
-            ? vData.reviewerEmail.trim().toLowerCase()
-            : ""
+          const decision = vData.decision as CastingVoteDecision
+
+          const voteEmail =
+            typeof vData.reviewerEmail === "string"
+              ? vData.reviewerEmail.trim().toLowerCase()
+              : ""
 
           if (myEmail && voteEmail === myEmail) {
             myVotes[vData.talentId] = {
-              decision: vData.decision,
+              decision,
               comment: vData.comment ?? "",
             }
           } else {
@@ -449,7 +251,7 @@ export default function PublicCastingReviewPage() {
               {
                 reviewerName: vData.reviewerName ?? "Anonymous",
                 reviewerEmail: voteEmail,
-                decision: vData.decision,
+                decision,
                 comment: vData.comment ?? null,
               },
             ]
@@ -488,7 +290,6 @@ export default function PublicCastingReviewPage() {
     setShowIdentityForm(false)
   }, [nameInput, emailInput, shareToken])
 
-  // Change reviewer identity
   const handleChangeIdentity = useCallback(() => {
     if (reviewer) {
       setNameInput(reviewer.name)
@@ -497,7 +298,14 @@ export default function PublicCastingReviewPage() {
     setShowIdentityForm(true)
   }, [reviewer])
 
-  // Vote handler
+  /**
+   * Vote handler.
+   * Toggling the same decision writes 'withdrawn' to Firestore instead of null,
+   * so the vote doc exists but is excluded from tallies.
+   *
+   * IMPORTANT: Firestore rules must allow 'withdrawn' as a decision value.
+   * See the TODO comment on TalentVoteState above.
+   */
   const handleVote = useCallback(
     (talentId: string, decision: CastingVoteDecision | null) => {
       if (!reviewer || !shareToken) return
@@ -505,14 +313,28 @@ export default function PublicCastingReviewPage() {
       const prev = voteStates[talentId] ?? { decision: null, comment: "" }
 
       if (decision === null) {
-        // Clear vote: set to null locally. We still write to Firestore with "approve"
-        // then immediately the user sees it cleared. For a true clear we write a neutral state.
-        // Since the schema only supports approve/maybe/disapprove, toggling off re-submits is
-        // handled by not showing a selected state. We won't write a null decision to Firestore.
+        // Toggle off: write 'withdrawn' to Firestore so the doc exists but is
+        // excluded from progress tracking and other-vote displays.
+        const prevDecision = prev.decision
         setVoteStates((s) => ({
           ...s,
           [talentId]: { ...prev, decision: null },
         }))
+
+        void submitCastingVote({
+          shareToken,
+          talentId,
+          reviewerEmail: reviewer.email,
+          reviewerName: reviewer.name,
+          decision: "withdrawn",
+          comment: null,
+        }).catch(() => {
+          // Rollback optimistic update on failure
+          setVoteStates((s) => ({
+            ...s,
+            [talentId]: { ...prev, decision: prevDecision },
+          }))
+        })
         return
       }
 
@@ -543,7 +365,7 @@ export default function PublicCastingReviewPage() {
     })
   }, [])
 
-  // Comment blur: persist to Firestore if there's a vote
+  // Comment blur: persist to Firestore only if there's a real vote
   const handleCommentBlur = useCallback(
     (talentId: string) => {
       if (!reviewer || !shareToken) return
@@ -564,12 +386,37 @@ export default function PublicCastingReviewPage() {
     [reviewer, shareToken, voteStates],
   )
 
-  // Progress
+  // Open detail sheet
+  const handleOpenDetail = useCallback((talentId: string) => {
+    setSheetTalentId(talentId)
+  }, [])
+
+  // Portfolio thumbnail click: collect all images for this talent and open lightbox
+  const handlePortfolioImageClick = useCallback(
+    (talentId: string, index: number) => {
+      const t = talent.find((x) => x.talentId === talentId)
+      if (!t) return
+      const images = [
+        ...(t.castingImageUrls ?? []),
+        ...t.galleryUrls,
+      ]
+      if (images.length === 0) return
+      setLightboxState({ images, index })
+    },
+    [talent],
+  )
+
+  // Progress: 'withdrawn' and null both count as not voted
   const reviewedCount = useMemo(() => {
     return talent.filter((t) => voteStates[t.talentId]?.decision != null).length
   }, [talent, voteStates])
 
   const progressPct = talent.length > 0 ? (reviewedCount / talent.length) * 100 : 0
+
+  const sheetTalent = talent.find((t) => t.talentId === sheetTalentId) ?? null
+  const sheetVoteState = sheetTalent
+    ? (voteStates[sheetTalent.talentId] ?? { decision: null, comment: "" })
+    : { decision: null, comment: "" }
 
   // -----------------------------------------------------------------------
   // Render
@@ -613,7 +460,7 @@ export default function PublicCastingReviewPage() {
           </div>
         )}
 
-        {/* Reviewer identity banner (sticky, solid bg to prevent content bleed-through) */}
+        {/* Reviewer identity banner */}
         <div className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 shadow-sm">
           <div className="mx-auto max-w-5xl">
             {showIdentityForm ? (
@@ -697,13 +544,15 @@ export default function PublicCastingReviewPage() {
                   onVote={handleVote}
                   onCommentChange={handleCommentChange}
                   onCommentBlur={handleCommentBlur}
+                  onOpenDetail={handleOpenDetail}
+                  onPortfolioImageClick={handlePortfolioImageClick}
                 />
               ))}
             </div>
           )}
         </main>
 
-        {/* Progress footer (sticky bottom) */}
+        {/* Progress footer */}
         {talent.length > 0 && (
           <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-2.5">
             <div className="mx-auto max-w-5xl">
@@ -721,6 +570,29 @@ export default function PublicCastingReviewPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Detail sheet (single instance) */}
+        <TalentDetailSheet
+          talent={sheetTalent}
+          open={sheetTalentId !== null}
+          onOpenChange={(v) => { if (!v) setSheetTalentId(null) }}
+          visibleFields={visibleFields}
+          voteState={sheetVoteState}
+          identified={reviewer != null}
+          onVote={handleVote}
+          onCommentChange={handleCommentChange}
+          onCommentBlur={handleCommentBlur}
+        />
+
+        {/* Page-level lightbox for portfolio thumbnail strip */}
+        {lightboxState && (
+          <ImageLightbox
+            open
+            onOpenChange={(v) => { if (!v) setLightboxState(null) }}
+            images={lightboxState.images}
+            initialIndex={lightboxState.index}
+          />
         )}
       </div>
     </ErrorBoundary>

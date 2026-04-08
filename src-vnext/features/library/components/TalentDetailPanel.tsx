@@ -1,52 +1,16 @@
-import { useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { Upload, Trash2, ExternalLink } from "lucide-react"
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react"
-import {
-  DndContext,
-  closestCenter,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  rectSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable"
+import type { ChangeEvent } from "react"
 import type { useSensors } from "@dnd-kit/core"
 import { Button } from "@/ui/button"
-import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog"
-import { InlineEdit } from "@/shared/components/InlineEdit"
 import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
-import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
-import type { TalentRecord } from "@/shared/types"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/select"
-import {
-  buildDisplayName,
-  initials,
-  SELECT_NONE,
-  MEASUREMENT_PLACEHOLDERS,
-  type TalentImage,
-  type CastingSession,
-} from "@/features/library/components/talentUtils"
-import { InlineInput, InlineTextarea } from "@/features/library/components/TalentInlineEditors"
-import { SanitizedHtml } from "@/shared/components/SanitizedHtml"
-import { containsHtml } from "@/shared/lib/textUtils"
-import { SortableImageTile } from "@/features/library/components/SortableImageTile"
+import { TalentHeroZone } from "@/features/library/components/TalentHeroZone"
+import { TalentContactSection } from "@/features/library/components/TalentContactSection"
+import { TalentMeasurementsSection } from "@/features/library/components/TalentMeasurementsSection"
+import { TalentNotesSection } from "@/features/library/components/TalentNotesSection"
+import { TalentPortfolioSection } from "@/features/library/components/TalentPortfolioSection"
 import { CastingSessionList } from "@/features/library/components/CastingSessionList"
-
-function tryHostname(url: string): string | null {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return null
-  }
-}
+import type { TalentRecord } from "@/shared/types"
+import type { TalentImage, CastingSession } from "@/features/library/components/talentUtils"
 
 interface TalentDetailPanelProps {
   readonly selected: TalentRecord
@@ -96,9 +60,9 @@ export function TalentDetailPanel({
   canEdit,
   isMobile,
   busy,
-  setBusy,
+  setBusy: _setBusy,
   clientId,
-  userId,
+  userId: _userId,
   activeTab,
   setActiveTab,
   selectedHeadshotUrl,
@@ -125,427 +89,171 @@ export function TalentDetailPanel({
   setCreateSessionOpen,
   setPrintSessionId,
 }: TalentDetailPanelProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const portfolioInputRef = useRef<HTMLInputElement>(null)
-  const [headshotPreviewOpen, setHeadshotPreviewOpen] = useState(false)
-
   return (
-    <div>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className={`h-28 w-28 overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]${selectedHeadshotUrl ? " cursor-pointer" : ""}`}
-              {...(selectedHeadshotUrl
-                ? {
-                    role: "button" as const,
-                    tabIndex: 0,
-                    "aria-label": "View full headshot",
-                    onClick: () => setHeadshotPreviewOpen(true),
-                    onKeyDown: (e: ReactKeyboardEvent) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        setHeadshotPreviewOpen(true)
-                      }
-                    },
-                  }
-                : {})}
-            >
-              {selectedHeadshotUrl ? (
-                <img
-                  src={selectedHeadshotUrl}
-                  alt={buildDisplayName(selected)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-[var(--color-text-muted)]">
-                  {initials(buildDisplayName(selected))}
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="label-meta">
-                Name
-              </div>
-              <div className="mt-1 max-w-[260px] truncate heading-page">
-                <div data-testid="talent-details-name">
-                  <InlineEdit
-                    value={buildDisplayName(selected)}
-                    disabled={!canEdit || busy}
-                    placeholder="Untitled"
-                    onSave={(next) => void savePatch(selected.id, { name: next })}
-                    className="heading-page"
-                  />
-                </div>
-              </div>
-              <div className="mt-1 text-xs text-[var(--color-text-muted)]">
-                {isMobile ? "Read-only on mobile." : canEdit ? "Click fields to edit." : "Read-only."}
-              </div>
-            </div>
-          </div>
-          {canEdit ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDeleteOpen(true)}
-              disabled={busy}
-              aria-label="Delete talent"
-              className="text-[var(--color-error)] hover:text-[var(--color-error)]"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          ) : null}
+    <div className="flex flex-col">
+      {/* Hero zone: headshot + name + agency + gender */}
+      <TalentHeroZone
+        selected={selected}
+        canEdit={canEdit}
+        busy={busy}
+        selectedHeadshotUrl={selectedHeadshotUrl}
+        selectedHeadshotPath={selectedHeadshotPath}
+        savePatch={savePatch}
+        onHeadshotFile={onHeadshotFile}
+        setHeadshotRemoveOpen={setHeadshotRemoveOpen}
+      />
+
+      {/* Tab bar */}
+      <div
+        role="tablist"
+        className="flex gap-0 overflow-x-auto border-b border-[var(--color-border)] px-5"
+      >
+        {(
+          [
+            { key: "detail" as const, label: "Profile" },
+            { key: "history" as const, label: "Shot History" },
+          ] as const
+        ).map((tab, idx, arr) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            tabIndex={activeTab === tab.key ? 0 : -1}
+            onClick={() => setActiveTab(tab.key)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") {
+                e.preventDefault()
+                const next = arr[(idx + 1) % arr.length]!
+                setActiveTab(next.key)
+                ;(e.currentTarget.parentElement?.querySelector(
+                  `[aria-selected="true"]`,
+                ) as HTMLElement | null)?.focus()
+              } else if (e.key === "ArrowLeft") {
+                e.preventDefault()
+                const prev = arr[(idx - 1 + arr.length) % arr.length]!
+                setActiveTab(prev.key)
+                ;(e.currentTarget.parentElement?.querySelector(
+                  `[aria-selected="true"]`,
+                ) as HTMLElement | null)?.focus()
+              }
+            }}
+            className={`-mb-px whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.key
+                ? "border-b-2 border-[var(--color-primary)] text-[var(--color-text)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Shot History tab */}
+      {activeTab === "history" && clientId ? (
+        <div className="p-5">
+          <TalentShotHistory talentId={selected.id} clientId={clientId} />
         </div>
+      ) : null}
 
-        {/* Tab bar */}
-        <div className="mt-4 flex gap-0 overflow-x-auto border-b border-[var(--color-border)]">
-          {(
-            [
-              { key: "detail" as const, label: "Profile" },
-              { key: "history" as const, label: "Shot History" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.key
-                  ? "border-b-2 border-[var(--color-primary)] text-[var(--color-text)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Profile tab */}
+      {activeTab === "detail" ? (
+        <div className="flex flex-col gap-5 p-5">
+          <TalentContactSection
+            selected={selected}
+            canEdit={canEdit}
+            busy={busy}
+            savePatch={savePatch}
+          />
 
-        {/* Shot History tab */}
-        {activeTab === "history" && clientId ? (
-          <div className="mt-5">
-            <TalentShotHistory talentId={selected.id} clientId={clientId} />
-          </div>
-        ) : null}
+          <TalentMeasurementsSection
+            selected={selected}
+            canEdit={canEdit}
+            busy={busy}
+            savePatch={savePatch}
+          />
 
-        {/* Profile tab (existing detail content) */}
-        {activeTab === "detail" ? (
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="label-meta">
-                Headshot
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                {canEdit ? (
-                  <>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={onHeadshotFile}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      disabled={busy}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="h-4 w-4" />
-                      Upload
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy || !selectedHeadshotPath}
-                      onClick={() => setHeadshotRemoveOpen(true)}
-                    >
-                      Remove
-                    </Button>
-                  </>
-                ) : (
-                  <div className="text-sm text-[var(--color-text-muted)]">
-                    —
-                  </div>
-                )}
-              </div>
-            </div>
+          <TalentNotesSection
+            selected={selected}
+            canEdit={canEdit}
+            busy={busy}
+            savePatch={savePatch}
+          />
 
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="label-meta">
-                Contact
+          {/* Projects */}
+          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <div className="heading-subsection mb-3">Projects</div>
+            {(selected.projectIds ?? []).length === 0 ? (
+              <div className="text-sm text-[var(--color-text-muted)]">
+                Not linked to any projects.
               </div>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Agency</div>
-                  <InlineEdit
-                    value={selected.agency ?? ""}
-                    disabled={!canEdit || busy}
-                    placeholder="—"
-                    onSave={(next) => void savePatch(selected.id, { agency: next || null })}
-                    className="text-sm"
-                  />
-                </div>
-                <div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Gender</div>
-                  <Select
-                    value={selected.gender ?? SELECT_NONE}
-                    onValueChange={(next) =>
-                      void savePatch(selected.id, {
-                        gender: next === SELECT_NONE ? null : next,
-                      })
-                    }
-                    disabled={!canEdit || busy}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_NONE}>—</SelectItem>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="non-binary">Non-binary</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Email</div>
-                  <InlineEdit
-                    value={selected.email ?? ""}
-                    disabled={!canEdit || busy}
-                    placeholder="—"
-                    onSave={(next) => void savePatch(selected.id, { email: next || null })}
-                    className="text-sm"
-                  />
-                </div>
-                <div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Phone</div>
-                  <InlineEdit
-                    value={selected.phone ?? ""}
-                    disabled={!canEdit || busy}
-                    placeholder="—"
-                    onSave={(next) => void savePatch(selected.id, { phone: next || null })}
-                    className="text-sm"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <div className="text-xs text-[var(--color-text-muted)]">Reference URL</div>
-                  {selected.url && tryHostname(selected.url) && (
-                    <a
-                      href={selected.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mb-1 mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      {tryHostname(selected.url)}
-                    </a>
-                  )}
-                  {canEdit ? (
-                    <InlineEdit
-                      value={selected.url ?? ""}
-                      disabled={busy}
-                      placeholder="—"
-                      onSave={(next) => void savePatch(selected.id, { url: next || null })}
-                      className="text-sm"
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="label-meta">
-                Projects
-              </div>
-              <div className="mt-3">
-                {(selected.projectIds ?? []).length === 0 ? (
-                  <div className="text-sm text-[var(--color-text-muted)]">Not linked to any projects.</div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {(selected.projectIds ?? []).map((pid) => {
-                      const projectName = projectLookup.get(pid) ?? pid
-                      return (
-                        <Link
-                          key={pid}
-                          to={`/projects/${pid}/assets`}
-                          className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
-                          title={projectName}
-                        >
-                          {projectName}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="label-meta">
-                Measurements
-              </div>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                {getMeasurementOptionsForGender(selected.gender).map((field) => {
-                  const measurements = selected.measurements ?? {}
-                  const value = (measurements as Record<string, unknown>)[field.key]
-                  const display = typeof value === "string" || typeof value === "number" ? String(value) : ""
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {(selected.projectIds ?? []).map((pid) => {
+                  const projectName = projectLookup.get(pid) ?? pid
                   return (
-                    <div key={field.key}>
-                      <div className="text-xs text-[var(--color-text-muted)]">{field.label}</div>
-                      <InlineInput
-                        value={display}
-                        placeholder={MEASUREMENT_PLACEHOLDERS[field.key] ?? "—"}
-                        disabled={!canEdit || busy}
-                        onCommit={(next) => {
-                          const nextMeasurements = {
-                            ...(selected.measurements ?? {}),
-                            [field.key]: next,
-                          }
-                          void savePatch(selected.id, { measurements: nextMeasurements })
-                        }}
-                        className="mt-1"
-                      />
-                    </div>
+                    <Link
+                      key={pid}
+                      to={`/projects/${pid}/assets`}
+                      className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
+                      title={projectName}
+                    >
+                      {projectName}
+                    </Link>
                   )
                 })}
               </div>
-              <div className="mt-3 text-xs text-[var(--color-text-muted)]">
-                {selected.gender ? `Showing fields for ${selected.gender}.` : "Set gender to show relevant fields."}
-                {" "}Tip: keep values flexible (e.g. 5&apos;9&quot;, 34&quot;).
-              </div>
-            </div>
-
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="label-meta">
-                Notes
-              </div>
-              {selected.notes && containsHtml(selected.notes) ? (
-                <SanitizedHtml html={selected.notes} className="mt-3 text-sm" />
-              ) : (
-                <InlineTextarea
-                  value={selected.notes ?? ""}
-                  disabled={!canEdit || busy}
-                  placeholder="Notes about sizing, fit, availability…"
-                  className="mt-3 min-h-[140px]"
-                  onCommit={(next) => {
-                    void savePatch(selected.id, { notes: next.trim() ? next : null })
-                  }}
-                />
-              )}
-            </div>
-
-            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="label-meta">
-                  Portfolio
-                </div>
-                {canEdit ? (
-                  <>
-                    <input
-                      ref={portfolioInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={onPortfolioFiles}
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => portfolioInputRef.current?.click()}
-                    >
-                      Upload images
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-
-              {portfolioImages.length === 0 ? (
-                <div className="mt-3 text-sm text-[var(--color-text-muted)]">
-                  {canEdit ? "Upload images to build a portfolio for this talent." : "No portfolio images."}
-                </div>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event: DragEndEvent) => {
-                    const { active, over } = event
-                    if (!over || active.id === over.id) return
-                    const oldIndex = portfolioImages.findIndex((i) => i.id === active.id)
-                    const newIndex = portfolioImages.findIndex((i) => i.id === over.id)
-                    if (oldIndex === -1 || newIndex === -1) return
-                    const reordered = arrayMove([...portfolioImages], oldIndex, newIndex)
-                    void updateGallery(reordered)
-                  }}
-                >
-                  <SortableContext
-                    items={portfolioImages.map((i) => i.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                      {portfolioImages.map((img) => (
-                        <SortableImageTile
-                          key={img.id}
-                          image={img}
-                          disabled={!canEdit || busy}
-                          onCaptionSave={(next) => {
-                            const nextImages = portfolioImages.map((i) =>
-                              i.id === img.id ? { ...i, description: next || null } : i,
-                            )
-                            void updateGallery(nextImages)
-                          }}
-                          onDelete={() => {
-                            setGalleryRemoveTarget(img)
-                            setGalleryRemoveOpen(true)
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
-            </div>
-
-            <CastingSessionList
-              castingSessions={castingSessions}
-              canEdit={canEdit}
-              isMobile={isMobile}
-              busy={busy}
-              projects={projects}
-              sensors={sensors}
-              sessionExpanded={sessionExpanded}
-              setSessionExpanded={setSessionExpanded}
-              updateCastingSessions={updateCastingSessions}
-              onCastingFiles={onCastingFiles}
-              setGalleryRemoveOpen={setGalleryRemoveOpen}
-              setGalleryRemoveTarget={setGalleryRemoveTarget}
-              setSessionRemoveOpen={setSessionRemoveOpen}
-              setSessionRemoveTarget={setSessionRemoveTarget}
-              setCreateSessionOpen={setCreateSessionOpen}
-              setPrintSessionId={setPrintSessionId}
-            />
-          </div>
-        </div>
-        ) : null}
-
-        <Dialog open={headshotPreviewOpen} onOpenChange={setHeadshotPreviewOpen}>
-          <DialogContent className="flex max-w-lg items-center justify-center bg-black/95 p-2 text-white">
-            <DialogTitle className="sr-only">Headshot preview</DialogTitle>
-            {selectedHeadshotUrl && (
-              <img
-                src={selectedHeadshotUrl}
-                alt={buildDisplayName(selected)}
-                className="max-h-[80vh] w-full rounded object-contain"
-              />
             )}
-          </DialogContent>
-        </Dialog>
+          </div>
+
+          <TalentPortfolioSection
+            canEdit={canEdit}
+            busy={busy}
+            portfolioImages={portfolioImages}
+            sensors={sensors}
+            updateGallery={updateGallery}
+            onPortfolioFiles={onPortfolioFiles}
+            setGalleryRemoveOpen={setGalleryRemoveOpen}
+            setGalleryRemoveTarget={setGalleryRemoveTarget}
+          />
+
+          <CastingSessionList
+            castingSessions={castingSessions}
+            canEdit={canEdit}
+            isMobile={isMobile}
+            busy={busy}
+            projects={projects}
+            sensors={sensors}
+            sessionExpanded={sessionExpanded}
+            setSessionExpanded={setSessionExpanded}
+            updateCastingSessions={updateCastingSessions}
+            onCastingFiles={onCastingFiles}
+            setGalleryRemoveOpen={setGalleryRemoveOpen}
+            setGalleryRemoveTarget={setGalleryRemoveTarget}
+            setSessionRemoveOpen={setSessionRemoveOpen}
+            setSessionRemoveTarget={setSessionRemoveTarget}
+            setCreateSessionOpen={setCreateSessionOpen}
+            setPrintSessionId={setPrintSessionId}
+          />
+
+          {/* Delete zone */}
+          {canEdit ? (
+            <div className="mt-2 border-t border-[var(--color-border)] pt-4">
+              <Button
+                variant="ghost"
+                className="text-[var(--color-error)] hover:text-[var(--color-error)]"
+                disabled={busy}
+                onClick={() => setDeleteOpen(true)}
+              >
+                Delete talent
+              </Button>
+              <p className="caption mt-1 text-[var(--color-text-subtle)]">
+                Permanently removes this profile.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -15,6 +15,7 @@ import {
   getCastingStatusColor,
   CASTING_STATUS_MAP,
 } from "@/features/casting/lib/castingStatuses"
+import { formatLabeledMeasurements } from "@/features/library/lib/measurementOptions"
 import type { CastingBoardEntry, CastingBoardStatus, TalentRecord } from "@/shared/types"
 
 interface CastingCardProps {
@@ -33,19 +34,6 @@ function initials(value: string): string {
   const first = parts[0]?.[0] ?? "?"
   const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : ""
   return `${first}${last}`.toUpperCase()
-}
-
-function formatMeasurements(
-  measurements: Record<string, number | string | null | undefined> | null | undefined,
-): string | null {
-  if (!measurements) return null
-  const parts: string[] = []
-  if (measurements.height) parts.push(String(measurements.height))
-  if (measurements.waist) parts.push(`W${measurements.waist}`)
-  if (measurements.dress) parts.push(`D${measurements.dress}`)
-  if (measurements.chest) parts.push(`C${measurements.chest}`)
-  if (measurements.suit) parts.push(String(measurements.suit))
-  return parts.length > 0 ? parts.join(" \u00b7 ") : null
 }
 
 function statusBadgeClasses(status: CastingBoardStatus): string {
@@ -67,10 +55,14 @@ export function CastingCard({
   const headshotUrl = useStorageUrl(headshotPath)
   const displayName = talent?.name || entry.talentName
   const agency = talent?.agency || entry.talentAgency || null
-  const measurementText = useMemo(
-    () => formatMeasurements(talent?.measurements),
-    [talent?.measurements],
-  )
+  const measurementText = useMemo(() => {
+    const text = formatLabeledMeasurements(
+      talent?.measurements,
+      talent?.gender,
+      "compact",
+    )
+    return text.length > 0 ? text : null
+  }, [talent?.measurements, talent?.gender])
 
   const showBookButton =
     canEdit && (entry.status === "shortlist" || entry.status === "hold")

@@ -284,8 +284,9 @@ export async function submitCastingVote(args: {
       talentId,
       decision,
       comment: comment?.trim() || null,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
-    { merge: true },
+    { mergeFields: ["reviewerEmail", "reviewerName", "talentId", "decision", "comment", "updatedAt"] },
   )
 }

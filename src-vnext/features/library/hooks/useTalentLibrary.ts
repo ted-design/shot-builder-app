@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { orderBy } from "firebase/firestore"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFirestoreCollection } from "@/shared/hooks/useFirestoreCollection"
@@ -27,14 +28,17 @@ function mapTalent(id: string, data: Record<string, unknown>): TalentRecord {
     castingSessions:
       (data["castingSessions"] as TalentRecord["castingSessions"]) ?? undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
+    deleted: data["deleted"] === true,
   }
 }
 
 export function useTalentLibrary() {
   const { clientId } = useAuth()
-  return useFirestoreCollection<TalentRecord>(
+  const result = useFirestoreCollection<TalentRecord>(
     clientId ? talentPath(clientId) : null,
     [orderBy("name", "asc")],
     mapTalent,
   )
+  const data = useMemo(() => result.data.filter((t) => t.deleted !== true), [result.data])
+  return { ...result, data }
 }

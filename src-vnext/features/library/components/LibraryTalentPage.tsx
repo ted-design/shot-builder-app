@@ -28,10 +28,11 @@ import { canManageTalent } from "@/shared/lib/rbac"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import {
   createTalent,
-  deleteTalent,
   deleteTalentImagePaths,
   removeTalentHeadshot,
   setTalentHeadshot,
+  softDeleteTalent,
+  undoDeleteTalent,
   uploadTalentCastingImages,
   uploadTalentPortfolioImages,
   updateTalent,
@@ -71,6 +72,7 @@ export default function LibraryTalentPage() {
   const canEdit = canCreate && !isMobile
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects])
   const [query, setQuery] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -490,22 +492,31 @@ export default function LibraryTalentPage() {
 
   const handleConfirmDeleteTalent = () => {
     if (!clientId || !selected) return
-    const allPaths: (string | null | undefined)[] = [
-      selected.headshotPath,
-      ...(selected.galleryImages ?? []).map((i) => i.path),
-      ...(selected.castingSessions ?? []).flatMap((s) =>
-        (s.images ?? []).map((i) => i.path),
-      ),
-    ]
+    const talentId = selected.id
+    const talentName = selected.name
     setBusy(true)
-    deleteTalent({ clientId, talentId: selected.id, imagePaths: allPaths })
+    softDeleteTalent({ clientId, talentId, userId: user?.uid ?? null })
       .then(() => {
-        toast.success("Talent deleted")
         setSelectedId(null)
         setDeleteOpen(false)
+        toast("Talent archived", {
+          description: talentName,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              if (!clientId) return
+              void undoDeleteTalent({ clientId, talentId, userId: user?.uid ?? null }).catch((err) => {
+                toast.error("Failed to undo", {
+                  description: err instanceof Error ? err.message : "Unknown error",
+                })
+              })
+            },
+          },
+          duration: 5000,
+        })
       })
       .catch((err) =>
-        toast.error("Failed to delete", {
+        toast.error("Failed to archive", {
           description: err instanceof Error ? err.message : "Unknown error",
         }),
       )
@@ -742,6 +753,8 @@ export default function LibraryTalentPage() {
         busy={busy}
         selected={selected}
         clientId={clientId}
+        talentId={selected?.id ?? ""}
+        projectIds={projectIds}
         portfolioImages={portfolioImages}
         castingSessions={castingSessions}
         projectLookup={projectLookup}

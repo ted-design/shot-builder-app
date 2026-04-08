@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { Pencil } from "lucide-react"
 import { Input } from "@/ui/input"
 import { cn } from "@/shared/lib/utils"
 
@@ -8,6 +9,8 @@ interface InlineEditProps {
   readonly placeholder?: string
   readonly className?: string
   readonly disabled?: boolean
+  /** When true, shows a pencil icon on hover to indicate the field is editable */
+  readonly showEditIcon?: boolean
 }
 
 export function InlineEdit({
@@ -16,6 +19,7 @@ export function InlineEdit({
   placeholder = "Click to edit",
   className,
   disabled = false,
+  showEditIcon = false,
 }: InlineEditProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -59,19 +63,32 @@ export function InlineEdit({
     )
   }
 
+  const showIcon = showEditIcon && !disabled
+
   return (
     <span
       className={cn(
-        "inline-block cursor-pointer rounded px-1 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)]",
+        "group/edit inline-flex items-center gap-1 cursor-pointer rounded px-1 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)]",
         disabled && "cursor-default hover:bg-transparent",
         !value && "text-[var(--color-text-subtle)]",
         className,
       )}
+      role={disabled ? undefined : "button"}
+      tabIndex={disabled ? undefined : 0}
       onClick={() => {
         if (!disabled) setEditing(true)
       }}
+      onKeyDown={(e) => {
+        if (!disabled && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault()
+          setEditing(true)
+        }
+      }}
     >
       {value || placeholder}
+      {showIcon ? (
+        <Pencil className="invisible h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)] group-hover/edit:visible" />
+      ) : null}
     </span>
   )
 }

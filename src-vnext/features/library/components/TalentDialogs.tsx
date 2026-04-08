@@ -1,5 +1,6 @@
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { TalentCastingPrintPortal } from "@/features/library/components/TalentCastingPrintPortal"
+import { DeleteTalentDialog } from "@/features/library/components/DeleteTalentDialog"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,8 @@ interface TalentDialogClusterProps {
   readonly busy: boolean
   readonly selected: TalentRecord | null
   readonly clientId: string | null
+  readonly talentId: string
+  readonly projectIds: readonly string[]
   readonly portfolioImages: readonly TalentImage[]
   readonly castingSessions: readonly CastingSession[]
   readonly projectLookup: ReadonlyMap<string, string>
@@ -58,6 +61,9 @@ interface TalentDialogClusterProps {
 export function TalentDialogCluster({
   busy,
   selected,
+  clientId,
+  talentId,
+  projectIds,
   portfolioImages,
   castingSessions,
   projectLookup,
@@ -193,14 +199,14 @@ export function TalentDialogCluster({
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
+      <DeleteTalentDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete talent?"
-        description="This permanently deletes this talent profile and all associated images. This cannot be undone."
-        confirmLabel={busy ? "Deleting..." : "Delete"}
-        destructive
-        confirmDisabled={busy}
+        talentName={selected?.name ?? ""}
+        clientId={clientId ?? ""}
+        talentId={talentId}
+        projectIds={projectIds}
+        busy={busy}
         onConfirm={onConfirmDeleteTalent}
       />
 

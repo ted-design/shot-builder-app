@@ -12,6 +12,11 @@ import type { Timestamp } from "firebase/firestore"
 export type ShareLinkType = "shots" | "casting" | "pull"
 export type ShareLinkStatus = "active" | "disabled" | "expired"
 
+export interface ShareLinkContentItem {
+  readonly label: string
+  readonly sublabel?: string
+}
+
 export interface ShareLink {
   readonly id: string
   readonly type: ShareLinkType
@@ -27,6 +32,8 @@ export interface ShareLink {
   readonly clientId: string
   /** For pulls: the pull doc ID. For shots/casting: same as id (the token). */
   readonly sourceDocId: string
+  readonly contentCount: number | null
+  readonly contentItems: readonly ShareLinkContentItem[] | null
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +61,8 @@ export function computeShareLinkStatus(
   return "active"
 }
 
+const MAX_CONTENT_ITEMS = 10
+
 // ---------------------------------------------------------------------------
 // Mappers
 // ---------------------------------------------------------------------------
@@ -72,6 +81,33 @@ export function mapShotShareDoc(
       ? data["title"]
       : "Shot Share") as string
 
+  const resolvedShots = Array.isArray(data["resolvedShots"])
+    ? (data["resolvedShots"] as unknown[])
+    : null
+  const shotIds = Array.isArray(data["shotIds"])
+    ? (data["shotIds"] as unknown[])
+    : null
+
+  const contentCount = resolvedShots !== null
+    ? resolvedShots.length
+    : shotIds !== null
+      ? shotIds.length
+      : null
+
+  const contentItems: ShareLinkContentItem[] | null = resolvedShots !== null
+    ? resolvedShots.slice(0, MAX_CONTENT_ITEMS).map((shot) => {
+        const s = shot as Record<string, unknown>
+        return {
+          label: typeof s["shotNumber"] === "string" && s["shotNumber"].length > 0
+            ? s["shotNumber"]
+            : "Shot",
+          sublabel: typeof s["description"] === "string" && s["description"].length > 0
+            ? s["description"]
+            : undefined,
+        }
+      })
+    : null
+
   return {
     id,
     type: "shots",
@@ -86,6 +122,8 @@ export function mapShotShareDoc(
     projectId,
     clientId,
     sourceDocId: id,
+    contentCount,
+    contentItems,
   }
 }
 
@@ -104,6 +142,26 @@ export function mapCastingShareDoc(
       ? data["title"]
       : "Casting Share") as string
 
+  const resolvedTalent = Array.isArray(data["resolvedTalent"])
+    ? (data["resolvedTalent"] as unknown[])
+    : null
+
+  const contentCount = resolvedTalent !== null ? resolvedTalent.length : null
+
+  const contentItems: ShareLinkContentItem[] | null = resolvedTalent !== null
+    ? resolvedTalent.slice(0, MAX_CONTENT_ITEMS).map((talent) => {
+        const t = talent as Record<string, unknown>
+        return {
+          label: typeof t["name"] === "string" && t["name"].length > 0
+            ? t["name"]
+            : "Talent",
+          sublabel: typeof t["agency"] === "string" && t["agency"].length > 0
+            ? t["agency"]
+            : undefined,
+        }
+      })
+    : null
+
   return {
     id,
     type: "casting",
@@ -118,6 +176,8 @@ export function mapCastingShareDoc(
     projectId,
     clientId,
     sourceDocId: id,
+    contentCount,
+    contentItems,
   }
 }
 
@@ -141,6 +201,28 @@ export function mapPullToShareLink(
         ? data["name"]
         : "Pull Share") as string
 
+  const items = Array.isArray(data["items"]) ? (data["items"] as unknown[]) : null
+
+  const contentCount = items !== null ? items.length : null
+
+  const contentItems: ShareLinkContentItem[] | null = items !== null
+    ? items.slice(0, MAX_CONTENT_ITEMS).map((item) => {
+        const it = item as Record<string, unknown>
+        const label =
+          (typeof it["familyName"] === "string" && it["familyName"].length > 0
+            ? it["familyName"]
+            : typeof it["styleNumber"] === "string" && it["styleNumber"].length > 0
+              ? it["styleNumber"]
+              : "Item") as string
+        return {
+          label,
+          sublabel: typeof it["colourName"] === "string" && it["colourName"].length > 0
+            ? it["colourName"]
+            : undefined,
+        }
+      })
+    : null
+
   return {
     id: shareToken,
     type: "pull",
@@ -155,5 +237,7 @@ export function mapPullToShareLink(
     projectId,
     clientId,
     sourceDocId: pullId,
+    contentCount,
+    contentItems,
   }
 }

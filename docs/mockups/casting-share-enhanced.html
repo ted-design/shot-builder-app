@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casting Share Review — Enhanced Mockup</title>
+  <style>
+    /* =========================================================
+       DESIGN TOKENS
+    ========================================================= */
+    :root {
+      --bg:           #1a1a1a;
+      --surface:      #222222;
+      --surface-sub:  #2a2a2a;
+      --border:       #333333;
+      --border-hover: #444444;
+      --text:         #e8e8e8;
+      --text-muted:   #a0a0a0;
+      --text-subtle:  #707070;
+      --accent:       #c5a572;
+      --accent-15:    rgba(197,165,114,0.15);
+      --accent-25:    rgba(197,165,114,0.25);
+
+      --vote-approve-bg:     #1a2e1a;
+      --vote-approve-text:   #4ade80;
+      --vote-approve-border: #2d4a2d;
+      --vote-maybe-bg:       #2e2a1a;
+      --vote-maybe-text:     #fbbf24;
+      --vote-maybe-border:   #4a3d2d;
+      --vote-pass-bg:        #2e1a1a;
+      --vote-pass-text:      #f87171;
+      --vote-pass-border:    #4a2d2d;
+
+      --radius-sm:  6px;
+      --radius-md:  10px;
+      --radius-lg:  14px;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    }
+
+    /* =========================================================
+       RESET & BASE
+    ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { cursor: pointer; font-family: inherit; }
+    textarea, input { font-family: inherit; }
+
+    /* =========================================================
+       BEFORE/AFTER TOGGLE BAR (fixed at very top)
+    ========================================================= */
+    .toggle-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: #111111;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 10px 16px;
+    }
+    .toggle-label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-right: 12px;
+      font-weight: 600;
+    }
+    .toggle-group {
+      display: flex;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .toggle-btn {
+      padding: 5px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      background: transparent;
+      color: var(--text-subtle);
+      border: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #111111;
+    }
+    .toggle-btn:not(.active):hover {
+      background: var(--surface-sub);
+      color: var(--text-muted);
+    }
+
+    /* =========================================================
+       PAGE WRAPPER (offset for toggle bar)
+    ========================================================= */
+    .page-wrap {
+      margin-top: 45px; /* height of toggle-bar */
+      padding-bottom: 70px; /* height of footer */
+    }
+
+    /* =========================================================
+       BEFORE/AFTER VIEWS
+    ========================================================= */
+    .view { display: none; }
+    .view.visible { display: block; }
+
+    /* =========================================================
+       STICKY HEADER
+    ========================================================= */
+    .page-header {
+      position: sticky;
+      top: 45px;
+      z-index: 200;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 12px 20px;
+    }
+    .casting-eyebrow {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-15);
+      border: 1px solid var(--accent-25);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .page-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Reviewer identity strip (sticky, inside header area) */
+    .identity-strip {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+    }
+    .identity-strip-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .identity-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-15);
+      border: 1px solid var(--accent-25);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .identity-info { display: flex; flex-direction: column; gap: 1px; }
+    .identity-name { font-size: 13px; color: var(--text); }
+    .identity-email { font-size: 11px; color: var(--text-muted); }
+    .change-btn {
+      font-size: 12px;
+      color: var(--accent);
+      background: none;
+      border: none;
+      padding: 2px 0;
+      text-decoration: none;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .change-btn:hover { opacity: 0.75; }
+
+    /* Instructions banner */
+    .instructions-banner {
+      background: var(--surface-sub);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+    }
+    .instructions-banner-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* =========================================================
+       TALENT GRID
+    ========================================================= */
+    .talent-grid-wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .talent-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 600px) {
+      .talent-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (min-width: 900px) {
+      .talent-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    /* =========================================================
+       TALENT CARD — SHARED BASE
+    ========================================================= */
+    .talent-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .talent-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+
+    /* Headshot */
+    .headshot-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      overflow: hidden;
+      background: var(--surface-sub);
+    }
+    .headshot-placeholder {
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: rgba(255,255,255,0.5);
+    }
+    /* BEFORE version: smaller headshot */
+    .headshot-wrap.before-size {
+      aspect-ratio: unset;
+      height: 140px;
+    }
+
+    /* =========================================================
+       PORTFOLIO THUMBNAIL STRIP (AFTER only)
+    ========================================================= */
+    .portfolio-strip {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px 0;
+      background: var(--surface);
+    }
+    .portfolio-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--surface-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .portfolio-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .portfolio-thumb-more {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .portfolio-thumb-more-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(1px);
+    }
+    .portfolio-thumb-more-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* =========================================================
+       CARD BODY
+    ========================================================= */
+    .card-body {
+      padding: 12px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Name + role row */
+    .name-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .talent-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .role-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-15);
+      border: 1px solid var(--accent-25);
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-top: 1px;
+    }
+    .talent-agency {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* =========================================================
+       MEASUREMENTS
+    ========================================================= */
+
+    /* BEFORE: cryptic abbreviations */
+    .measurements-before {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* AFTER: labeled, grouped */
+    .measurements-after {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .measurement-item {
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+    }
+    .measurement-label {
+      color: var(--text-subtle);
+      font-size: 11px;
+    }
+    .measurement-value {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .measurement-sep {
+      color: var(--border-hover);
+      margin: 0 2px;
+    }
+
+    /* =========================================================
+       VOTE BUTTONS
+    ========================================================= */
+    .vote-row {
+      display: flex;
+      gap: 6px;
+    }
+    .vote-btn {
+      flex: 1;
+      min-height: 38px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+      white-space: nowrap;
+    }
+    .vote-btn:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+    .vote-btn:active { transform: scale(0.97); }
+
+    .vote-btn.approve.selected {
+      background: var(--vote-approve-bg);
+      border-color: var(--vote-approve-border);
+      color: var(--vote-approve-text);
+    }
+    .vote-btn.maybe.selected {
+      background: var(--vote-maybe-bg);
+      border-color: var(--vote-maybe-border);
+      color: var(--vote-maybe-text);
+    }
+    .vote-btn.pass.selected {
+      background: var(--vote-pass-bg);
+      border-color: var(--vote-pass-border);
+      color: var(--vote-pass-text);
+    }
+
+    /* Withdraw ghost button */
+    .withdraw-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-subtle);
+      font-size: 11px;
+      gap: 4px;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .withdraw-btn:hover {
+      color: var(--text-muted);
+      border-color: var(--border-hover);
+    }
+    .vote-row-extended {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* =========================================================
+       COMMENT FIELD
+    ========================================================= */
+    .comment-area {
+      width: 100%;
+      resize: vertical;
+      min-height: 36px;
+      padding: 8px 10px;
+      background: var(--surface-sub);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
+      transition: border-color 0.15s;
+    }
+    .comment-area::placeholder { color: var(--text-subtle); }
+    .comment-area:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .comment-hint {
+      font-size: 11px;
+      color: var(--text-subtle);
+      margin-top: 3px;
+    }
+
+    /* =========================================================
+       VOTE TALLIES
+    ========================================================= */
+    .tally-section {
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tally-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .tally-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 9px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .tally-avatar.approve { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .tally-avatar.maybe   { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+    .tally-name {
+      font-size: 12px;
+      color: var(--text-muted);
+      flex: 1;
+    }
+    .tally-decision {
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tally-decision.approve { color: #4ade80; }
+    .tally-decision.maybe   { color: #fbbf24; }
+
+    /* =========================================================
+       VIEW PROFILE LINK (AFTER only)
+    ========================================================= */
+    .view-profile-link {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-subtle);
+      border: none;
+      background: none;
+      padding: 4px 0;
+      transition: color 0.12s;
+      cursor: pointer;
+      text-align: right;
+    }
+    .view-profile-link:hover { color: var(--accent); }
+    .view-profile-link svg { width: 11px; height: 11px; }
+
+    /* =========================================================
+       PROGRESS FOOTER
+    ========================================================= */
+    .progress-footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 500;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 20px 12px;
+    }
+    .progress-footer-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+    .progress-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .progress-label strong { color: var(--text); }
+    .progress-bar-wrap {
+      max-width: 600px;
+      margin: 0 auto;
+      height: 4px;
+      border-radius: 99px;
+      background: var(--surface-sub);
+      overflow: hidden;
+      display: flex;
+    }
+    .progress-seg {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .progress-seg.approve { background: #4ade80; }
+    .progress-seg.maybe   { background: #fbbf24; }
+    .progress-seg.pass    { background: #f87171; }
+
+    /* =========================================================
+       SIDE PANEL OVERLAY (expanded talent view)
+    ========================================================= */
+    .panel-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 800;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: stretch;
+      justify-content: flex-end;
+    }
+    .panel-overlay.open { display: flex; }
+    .side-panel {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.22s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .panel-header {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+    .panel-title { font-size: 15px; font-weight: 600; }
+    .panel-close {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .panel-close:hover { background: var(--surface-sub); color: var(--text); }
+    .panel-body { padding: 18px; flex: 1; }
+    .panel-headshot {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+      background: var(--surface-sub);
+      margin-bottom: 16px;
+    }
+    .panel-headshot-placeholder {
+      width: 100%;
+      aspect-ratio: 3/4;
+      border-radius: var(--radius-md);
+      background: var(--surface-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 16px;
+    }
+    .panel-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .panel-gallery-cell {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      background: var(--surface-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+    .panel-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 8px;
+    }
+    .panel-meas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      margin-bottom: 16px;
+    }
+    .panel-meas-item { display: flex; flex-direction: column; gap: 1px; }
+    .panel-meas-label { font-size: 10px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.06em; }
+    .panel-meas-value { font-size: 14px; color: var(--text); font-weight: 500; }
+    .panel-vote-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .panel-vote-row .vote-btn { flex: 1; }
+    .panel-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    /* =========================================================
+       BEFORE STATE SPECIFIC OVERRIDES
+    ========================================================= */
+    .before-card .talent-name { font-size: 13px; }
+    .before-card .role-badge  { display: none; }
+    .before-card .card-body   { gap: 7px; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     BEFORE / AFTER TOGGLE BAR
+============================================================ -->
+<div class="toggle-bar">
+  <span class="toggle-label">Compare</span>
+  <div class="toggle-group">
+    <button class="toggle-btn" id="btn-before" onclick="showView('before')">Before</button>
+    <button class="toggle-btn active" id="btn-after" onclick="showView('after')">After</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     BEFORE VIEW
+============================================================ -->
+<div class="view" id="view-before">
+  <div class="page-wrap">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-header-inner">
+        <div class="casting-eyebrow">Casting Review</div>
+        <h1 class="page-title">FW26 Campaign</h1>
+        <p class="page-subtitle">4 talent for review</p>
+      </div>
+      <!-- Identity strip -->
+      <div class="identity-strip">
+        <div class="identity-strip-inner">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="identity-avatar">JS</div>
+            <div class="identity-info">
+              <div class="identity-name">Reviewing as Jessica Smith</div>
+              <div class="identity-email">jessica@agency.com</div>
+            </div>
+          </div>
+          <button class="change-btn">Change</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Talent grid -->
+    <div class="talent-grid-wrap">
+      <div class="talent-grid">
+
+        <!-- Card 1 — Approved (before) -->
+        <div class="talent-card before-card">
+          <div class="headshot-wrap before-size">
+            <div class="headshot-placeholder" style="background:#3a4a3a;">AJ</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="talent-name">AJ McDonald</div>
+              <div class="talent-agency">Elite Model Management</div>
+            </div>
+            <div class="measurements-before">5'10.5" · W25 · D2 · S9</div>
+            <div class="vote-row">
+              <button class="vote-btn approve selected">&#128077; Approve</button>
+              <button class="vote-btn maybe">&#129300; Maybe</button>
+              <button class="vote-btn pass">&#128078; Pass</button>
+            </div>
+            <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+          </div>
+        </div>
+
+        <!-- Card 2 (before) -->
+        <div class="talent-card before-card">
+          <div class="headshot-wrap before-size">
+            <div class="headshot-placeholder" style="background:#3a3a4a;">SK</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="talent-name">Sofia Kowalczyk</div>
+              <div class="talent-agency">Premier Talent Group</div>
+            </div>
+            <div class="measurements-before">5'9" · W24 · D0 · S8.5</div>
+            <div class="vote-row">
+              <button class="vote-btn approve">&#128077; Approve</button>
+              <button class="vote-btn maybe">&#129300; Maybe</button>
+              <button class="vote-btn pass">&#128078; Pass</button>
+            </div>
+            <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+          </div>
+        </div>
+
+        <!-- Card 3 (before) -->
+        <div class="talent-card before-card">
+          <div class="headshot-wrap before-size">
+            <div class="headshot-placeholder" style="background:#4a3a3a;">MB</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="talent-name">Marcus Bell</div>
+              <div class="talent-agency">Next Models NYC</div>
+            </div>
+            <div class="measurements-before">6'1" · C40 · W31 · S11</div>
+            <div class="vote-row">
+              <button class="vote-btn approve">&#128077; Approve</button>
+              <button class="vote-btn maybe selected">&#129300; Maybe</button>
+              <button class="vote-btn pass">&#128078; Pass</button>
+            </div>
+            <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+          </div>
+        </div>
+
+        <!-- Card 4 (before) -->
+        <div class="talent-card before-card">
+          <div class="headshot-wrap before-size">
+            <div class="headshot-placeholder" style="background:#3a4a4a;">LC</div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="talent-name">Léa Chambord</div>
+              <div class="talent-agency">IMG Models Paris</div>
+            </div>
+            <div class="measurements-before">5'11" · W25 · D2 · S9</div>
+            <div class="vote-row">
+              <button class="vote-btn approve">&#128077; Approve</button>
+              <button class="vote-btn maybe">&#129300; Maybe</button>
+              <button class="vote-btn pass">&#128078; Pass</button>
+            </div>
+            <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+          </div>
+        </div>
+
+      </div><!-- /talent-grid -->
+    </div><!-- /talent-grid-wrap -->
+
+  </div><!-- /page-wrap -->
+
+  <!-- Progress footer -->
+  <div class="progress-footer">
+    <div class="progress-footer-inner">
+      <p class="progress-label">Reviewed <strong>2 of 4</strong></p>
+      <div class="progress-bar-wrap">
+        <div class="progress-seg approve" style="width:25%"></div>
+        <div class="progress-seg maybe"   style="width:25%"></div>
+        <div class="progress-seg pass"    style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /view-before -->
+
+
+<!-- ============================================================
+     AFTER VIEW
+============================================================ -->
+<div class="view visible" id="view-after">
+  <div class="page-wrap">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="page-header-inner">
+        <div class="casting-eyebrow">Casting Review</div>
+        <h1 class="page-title">FW26 Campaign — Casting Review</h1>
+        <p class="page-subtitle">4 talent for review</p>
+      </div>
+      <!-- Identity strip -->
+      <div class="identity-strip">
+        <div class="identity-strip-inner">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="identity-avatar">JS</div>
+            <div class="identity-info">
+              <div class="identity-name">Reviewing as: Jessica Smith</div>
+              <div class="identity-email">jessica@agency.com</div>
+            </div>
+          </div>
+          <button class="change-btn">Change</button>
+        </div>
+      </div>
+      <!-- Reviewer instructions -->
+      <div class="instructions-banner">
+        <div class="instructions-banner-inner">
+          Please review each candidate carefully. Approve means you're confident; Maybe means promising but needs a callback. Leave notes for anyone you feel strongly about.
+        </div>
+      </div>
+    </div>
+
+    <!-- Talent grid -->
+    <div class="talent-grid-wrap">
+      <div class="talent-grid">
+
+        <!-- ——— CARD 1: AJ McDonald — Approved ——— -->
+        <div class="talent-card" id="card-1">
+          <!-- Headshot (3:4) -->
+          <div class="headshot-wrap">
+            <div class="headshot-placeholder" style="background:#3a4a3a;">AJ</div>
+          </div>
+          <!-- Portfolio thumbnail strip -->
+          <div class="portfolio-strip">
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2e3e2e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#323a32;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2a342a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb-more" style="background:#2a302a;">
+              <div class="portfolio-thumb-more-bg"></div>
+              <div class="portfolio-thumb-more-label">+2</div>
+            </div>
+          </div>
+          <!-- Card body -->
+          <div class="card-body">
+            <div>
+              <div class="name-row">
+                <div class="talent-name">AJ McDonald</div>
+                <div class="role-badge">Lead</div>
+              </div>
+              <div class="talent-agency">Elite Model Management</div>
+            </div>
+            <!-- Labeled measurements -->
+            <div class="measurements-after">
+              <span class="measurement-item">
+                <span class="measurement-label">Height</span>
+                <span class="measurement-value">5'10.5"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Waist</span>
+                <span class="measurement-value">25"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Dress</span>
+                <span class="measurement-value">2</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Shoes</span>
+                <span class="measurement-value">9</span>
+              </span>
+            </div>
+            <!-- Vote row (approve selected + withdraw) -->
+            <div class="vote-row-extended">
+              <button class="vote-btn approve selected" onclick="toggleVote(this,'card-1','approve')">&#128077; Approve</button>
+              <button class="vote-btn maybe"            onclick="toggleVote(this,'card-1','maybe')">&#129300; Maybe</button>
+              <button class="vote-btn pass"             onclick="toggleVote(this,'card-1','pass')">&#128078; Pass</button>
+              <button class="withdraw-btn" id="withdraw-card-1" onclick="withdrawVote('card-1')">&#10005; Withdraw</button>
+            </div>
+            <!-- Comment -->
+            <div>
+              <textarea class="comment-area" rows="1" placeholder="Add a note…">Great range of expression, confident in front of camera.</textarea>
+              <p class="comment-hint" style="color:var(--vote-approve-text); font-size:11px; margin-top:3px;">&#10003; Note saved</p>
+            </div>
+            <!-- Vote tallies -->
+            <div class="tally-section">
+              <div class="tally-row">
+                <div class="tally-avatar approve">JS</div>
+                <span class="tally-name">Jessica</span>
+                <span class="tally-decision approve">Approved</span>
+              </div>
+              <div class="tally-row">
+                <div class="tally-avatar maybe">MK</div>
+                <span class="tally-name">Mark</span>
+                <span class="tally-decision maybe">Maybe</span>
+              </div>
+            </div>
+            <!-- View full profile -->
+            <button class="view-profile-link" onclick="openPanel('AJ McDonald','#3a4a3a','AJ',&quot;5'10.5&quot;,25,2,9)">
+              View full profile
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 6h8M6 2l4 4-4 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ——— CARD 2: Sofia Kowalczyk ——— -->
+        <div class="talent-card" id="card-2">
+          <div class="headshot-wrap">
+            <div class="headshot-placeholder" style="background:#3a3a4a;">SK</div>
+          </div>
+          <div class="portfolio-strip">
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2e2e3e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#32323c;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2a2a38;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb-more" style="background:#2a2a34;">
+              <div class="portfolio-thumb-more-bg"></div>
+              <div class="portfolio-thumb-more-label">+4</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="name-row">
+                <div class="talent-name">Sofia Kowalczyk</div>
+                <div class="role-badge">Supporting</div>
+              </div>
+              <div class="talent-agency">Premier Talent Group</div>
+            </div>
+            <div class="measurements-after">
+              <span class="measurement-item">
+                <span class="measurement-label">Height</span>
+                <span class="measurement-value">5'9"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Waist</span>
+                <span class="measurement-value">24"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Dress</span>
+                <span class="measurement-value">0</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Shoes</span>
+                <span class="measurement-value">8.5</span>
+              </span>
+            </div>
+            <div class="vote-row-extended">
+              <button class="vote-btn approve" onclick="toggleVote(this,'card-2','approve')">&#128077; Approve</button>
+              <button class="vote-btn maybe"   onclick="toggleVote(this,'card-2','maybe')">&#129300; Maybe</button>
+              <button class="vote-btn pass"    onclick="toggleVote(this,'card-2','pass')">&#128078; Pass</button>
+              <button class="withdraw-btn" id="withdraw-card-2" style="display:none;" onclick="withdrawVote('card-2')">&#10005; Withdraw</button>
+            </div>
+            <div>
+              <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+              <p class="comment-hint">Vote to save your note</p>
+            </div>
+            <button class="view-profile-link" onclick="openPanel('Sofia Kowalczyk','#3a3a4a','SK',&quot;5'9&quot;,24,0,8.5)">
+              View full profile
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 6h8M6 2l4 4-4 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ——— CARD 3: Marcus Bell ——— -->
+        <div class="talent-card" id="card-3">
+          <div class="headshot-wrap">
+            <div class="headshot-placeholder" style="background:#4a3a3a;">MB</div>
+          </div>
+          <div class="portfolio-strip">
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#3e2e2e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#3c3232;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#382a2a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb-more" style="background:#342a2a;">
+              <div class="portfolio-thumb-more-bg"></div>
+              <div class="portfolio-thumb-more-label">+1</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="name-row">
+                <div class="talent-name">Marcus Bell</div>
+                <div class="role-badge">Lead</div>
+              </div>
+              <div class="talent-agency">Next Models NYC</div>
+            </div>
+            <div class="measurements-after">
+              <span class="measurement-item">
+                <span class="measurement-label">Height</span>
+                <span class="measurement-value">6'1"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Chest</span>
+                <span class="measurement-value">40"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Waist</span>
+                <span class="measurement-value">31"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Shoes</span>
+                <span class="measurement-value">11</span>
+              </span>
+            </div>
+            <div class="vote-row-extended">
+              <button class="vote-btn approve" onclick="toggleVote(this,'card-3','approve')">&#128077; Approve</button>
+              <button class="vote-btn maybe"   onclick="toggleVote(this,'card-3','maybe')">&#129300; Maybe</button>
+              <button class="vote-btn pass"    onclick="toggleVote(this,'card-3','pass')">&#128078; Pass</button>
+              <button class="withdraw-btn" id="withdraw-card-3" style="display:none;" onclick="withdrawVote('card-3')">&#10005; Withdraw</button>
+            </div>
+            <div>
+              <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+              <p class="comment-hint">Vote to save your note</p>
+            </div>
+            <button class="view-profile-link" onclick="openPanel('Marcus Bell','#4a3a3a','MB',&quot;6'1&quot;,31,null,11)">
+              View full profile
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 6h8M6 2l4 4-4 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ——— CARD 4: Léa Chambord ——— -->
+        <div class="talent-card" id="card-4">
+          <div class="headshot-wrap">
+            <div class="headshot-placeholder" style="background:#3a4a4a;">LC</div>
+          </div>
+          <div class="portfolio-strip">
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2e3e3e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#323c3c;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb">
+              <div style="width:100%;height:100%;background:#2a3838;display:flex;align-items:center;justify-content:center;font-size:9px;color:#606060;">img</div>
+            </div>
+            <div class="portfolio-thumb-more" style="background:#2a3434;">
+              <div class="portfolio-thumb-more-bg"></div>
+              <div class="portfolio-thumb-more-label">+3</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div>
+              <div class="name-row">
+                <div class="talent-name">Léa Chambord</div>
+                <div class="role-badge">Featured</div>
+              </div>
+              <div class="talent-agency">IMG Models Paris</div>
+            </div>
+            <div class="measurements-after">
+              <span class="measurement-item">
+                <span class="measurement-label">Height</span>
+                <span class="measurement-value">5'11"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Waist</span>
+                <span class="measurement-value">25"</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Dress</span>
+                <span class="measurement-value">2</span>
+              </span>
+              <span class="measurement-sep">·</span>
+              <span class="measurement-item">
+                <span class="measurement-label">Shoes</span>
+                <span class="measurement-value">9</span>
+              </span>
+            </div>
+            <div class="vote-row-extended">
+              <button class="vote-btn approve" onclick="toggleVote(this,'card-4','approve')">&#128077; Approve</button>
+              <button class="vote-btn maybe"   onclick="toggleVote(this,'card-4','maybe')">&#129300; Maybe</button>
+              <button class="vote-btn pass"    onclick="toggleVote(this,'card-4','pass')">&#128078; Pass</button>
+              <button class="withdraw-btn" id="withdraw-card-4" style="display:none;" onclick="withdrawVote('card-4')">&#10005; Withdraw</button>
+            </div>
+            <div>
+              <textarea class="comment-area" rows="1" placeholder="Add a note…"></textarea>
+              <p class="comment-hint">Vote to save your note</p>
+            </div>
+            <button class="view-profile-link" onclick="openPanel('L\u00e9a Chambord','#3a4a4a','LC',&quot;5'11&quot;,25,2,9)">
+              View full profile
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 6h8M6 2l4 4-4 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /talent-grid -->
+    </div><!-- /talent-grid-wrap -->
+
+  </div><!-- /page-wrap -->
+
+  <!-- Progress footer (after) -->
+  <div class="progress-footer">
+    <div class="progress-footer-inner">
+      <p class="progress-label" id="progress-label-after">Reviewed <strong>1 of 4</strong></p>
+      <div class="progress-bar-wrap">
+        <div class="progress-seg approve" id="prog-approve" style="width:25%"></div>
+        <div class="progress-seg maybe"   id="prog-maybe"   style="width:0%"></div>
+        <div class="progress-seg pass"    id="prog-pass"    style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</div><!-- /view-after -->
+
+
+<!-- ============================================================
+     SIDE PANEL — FULL PROFILE
+============================================================ -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanelOnOverlay(event)">
+  <div class="side-panel">
+    <div class="panel-header">
+      <span class="panel-title" id="panel-name">AJ McDonald</span>
+      <button class="panel-close" onclick="closePanel()">&#10005;</button>
+    </div>
+    <div class="panel-body">
+      <!-- Headshot placeholder -->
+      <div class="panel-headshot-placeholder" id="panel-headshot-placeholder">AJ</div>
+
+      <!-- Gallery grid (6 images) -->
+      <div class="panel-section-label">Portfolio</div>
+      <div class="panel-gallery">
+        <div class="panel-gallery-cell">1</div>
+        <div class="panel-gallery-cell">2</div>
+        <div class="panel-gallery-cell">3</div>
+        <div class="panel-gallery-cell">4</div>
+        <div class="panel-gallery-cell">5</div>
+        <div class="panel-gallery-cell">6</div>
+      </div>
+
+      <hr class="panel-divider" />
+
+      <!-- Measurements grouped -->
+      <div class="panel-section-label">Measurements</div>
+      <div class="panel-meas-grid" id="panel-meas">
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Height</span>
+          <span class="panel-meas-value" id="pm-height">5'10.5"</span>
+        </div>
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Waist</span>
+          <span class="panel-meas-value" id="pm-waist">25"</span>
+        </div>
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Dress</span>
+          <span class="panel-meas-value" id="pm-dress">2</span>
+        </div>
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Shoes</span>
+          <span class="panel-meas-value" id="pm-shoes">9</span>
+        </div>
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Hip</span>
+          <span class="panel-meas-value">35"</span>
+        </div>
+        <div class="panel-meas-item">
+          <span class="panel-meas-label">Bust</span>
+          <span class="panel-meas-value">33"</span>
+        </div>
+      </div>
+
+      <hr class="panel-divider" />
+
+      <!-- Vote in panel -->
+      <div class="panel-section-label">Your Vote</div>
+      <div class="panel-vote-row">
+        <button class="vote-btn approve selected">&#128077; Approve</button>
+        <button class="vote-btn maybe">&#129300; Maybe</button>
+        <button class="vote-btn pass">&#128078; Pass</button>
+      </div>
+      <textarea class="comment-area" style="margin-top:10px;" rows="2" placeholder="Add a note…">Great range of expression, confident in front of camera.</textarea>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+  // ---- View toggle ----
+  function showView(which) {
+    document.getElementById('view-before').classList.toggle('visible', which === 'before');
+    document.getElementById('view-after').classList.toggle('visible',  which === 'after');
+    document.getElementById('btn-before').classList.toggle('active', which === 'before');
+    document.getElementById('btn-after').classList.toggle('active',  which === 'after');
+  }
+
+  // ---- Vote state (after view) ----
+  var voteMap = { 'card-1': 'approve', 'card-2': null, 'card-3': null, 'card-4': null };
+
+  function toggleVote(btn, cardId, decision) {
+    var card = document.getElementById(cardId);
+    var allBtns = card.querySelectorAll('.vote-btn');
+    var withdrawBtn = document.getElementById('withdraw-' + cardId);
+    var current = voteMap[cardId];
+    var newDecision = (current === decision) ? null : decision;
+
+    voteMap[cardId] = newDecision;
+
+    allBtns.forEach(function(b) {
+      b.classList.remove('selected');
+    });
+
+    if (newDecision) {
+      btn.classList.add('selected');
+      withdrawBtn.style.display = 'flex';
+    } else {
+      withdrawBtn.style.display = 'none';
+    }
+
+    updateProgress();
+  }
+
+  function withdrawVote(cardId) {
+    var card = document.getElementById(cardId);
+    var allBtns = card.querySelectorAll('.vote-btn');
+    var withdrawBtn = document.getElementById('withdraw-' + cardId);
+    voteMap[cardId] = null;
+    allBtns.forEach(function(b) { b.classList.remove('selected'); });
+    withdrawBtn.style.display = 'none';
+    updateProgress();
+  }
+
+  function updateProgress() {
+    var total = 4;
+    var approveCount = 0, maybeCount = 0, passCount = 0;
+    Object.values(voteMap).forEach(function(d) {
+      if (d === 'approve') approveCount++;
+      else if (d === 'maybe') maybeCount++;
+      else if (d === 'pass') passCount++;
+    });
+    var reviewed = approveCount + maybeCount + passCount;
+    document.getElementById('progress-label-after').innerHTML =
+      'Reviewed <strong>' + reviewed + ' of ' + total + '</strong>';
+    document.getElementById('prog-approve').style.width = (approveCount / total * 100) + '%';
+    document.getElementById('prog-maybe').style.width   = (maybeCount   / total * 100) + '%';
+    document.getElementById('prog-pass').style.width    = (passCount    / total * 100) + '%';
+  }
+
+  // ---- Side panel ----
+  function openPanel(name, bgColor, initials, height, waist, dress, shoes) {
+    document.getElementById('panel-name').textContent = name;
+    var ph = document.getElementById('panel-headshot-placeholder');
+    ph.style.background = bgColor;
+    ph.textContent = initials;
+    document.getElementById('pm-height').textContent = height + '"';
+    document.getElementById('pm-waist').textContent = (waist ? waist + '"' : '—');
+    document.getElementById('pm-dress').textContent = (dress !== null ? dress : '—');
+    document.getElementById('pm-shoes').textContent = (shoes ? shoes : '—');
+    document.getElementById('panel-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePanel() {
+    document.getElementById('panel-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function closePanelOnOverlay(e) {
+    if (e.target === document.getElementById('panel-overlay')) closePanel();
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePanel();
+  });
+</script>
+
+</body>
+</html>
