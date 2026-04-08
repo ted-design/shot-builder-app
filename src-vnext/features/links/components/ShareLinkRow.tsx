@@ -102,6 +102,8 @@ function formatEngagement(link: ShareLink): string {
   return "--"
 }
 
+export { TYPE_STYLES, STATUS_STYLES, formatRelativeDate, formatEngagement }
+
 export function ShareLinkRow({
   link,
   canEdit,
