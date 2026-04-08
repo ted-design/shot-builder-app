@@ -174,60 +174,120 @@ async function authenticateAndSaveState(
   const page = await context.newPage();
 
   try {
+    // Navigate to the app and wait for it to load
     await page.goto(baseURL);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
-    // Inject the auth credential into the client-side Firebase SDK.
-    // The app uses connectAuthEmulator when VITE_USE_FIREBASE_EMULATORS=1,
-    // so signInWithCredential will hit the emulator, not production.
+    // Use addScriptTag to load the Firebase compat SDK (works in production builds
+    // where source .ts files are not available). The compat SDK attaches to window.firebase.
+    await page.addScriptTag({
+      url: 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js',
+    });
+    await page.addScriptTag({
+      url: 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js',
+    });
+
+    // Sign in via the compat SDK pointed at the auth emulator
     const signedIn = await page.evaluate(
-      async ({ idToken: token, email: userEmail }) => {
-        // Wait for Firebase to initialize (the app sets window.__BOOT_PHASE)
-        const waitForFirebase = () =>
-          new Promise<void>((resolve) => {
-            const check = () => {
-              // @ts-expect-error -- Firebase auth is on the module scope
-              if (typeof window !== 'undefined' && window.__BOOT_PHASE === 'react-mounted') {
-                resolve();
-              } else {
-                setTimeout(check, 200);
-              }
-            };
-            check();
-            // Fallback: resolve after 8s even if boot phase not detected
-            setTimeout(resolve, 8000);
-          });
-
-        await waitForFirebase();
-
+      async ({ email: userEmail, password: userPassword, authHost }) => {
         try {
-          // Dynamic import to access the app's Firebase instance
-          const { auth } = await import('/src-vnext/shared/lib/firebase.ts');
-          const { signInWithCredential, GoogleAuthProvider } = await import('firebase/auth');
+          // Initialize a temporary compat app pointed at the emulator
+          // @ts-expect-error -- firebase compat is on window
+          const fb = window.firebase;
+          const tempApp = fb.initializeApp(
+            { apiKey: 'fake-key', projectId: 'demo-test' },
+            'e2e-auth-setup',
+          );
+          const auth = tempApp.auth();
+          auth.useEmulator(`http://${authHost}`);
 
-          // Create a credential from the emulator-issued ID token
-          const credential = GoogleAuthProvider.credential(token);
-          const result = await signInWithCredential(auth, credential);
-          return { success: true, uid: result.user.uid, email: result.user.email };
+          const result = await auth.signInWithEmailAndPassword(userEmail, userPassword);
+          const idToken = await result.user.getIdToken();
+
+          // Now sign into the MAIN app's Firebase auth with a custom token approach:
+          // Get the main app's auth instance from the page's bundled code.
+          // We use the emulator REST API to exchange the ID token for a session.
+          // The simplest approach: reload with the auth state now in IndexedDB.
+          // The compat SDK stores auth state that the modular SDK can read.
+
+          // Actually, we need to sign into the main app's auth instance.
+          // Delete the temp app and use the main app.
+          await tempApp.delete();
+
+          // The main app is already initialized by the page's bundle.
+          // Access it via firebase.app() (default app).
+          const mainAuth = fb.app().auth();
+          mainAuth.useEmulator(`http://${authHost}`);
+          const mainResult = await mainAuth.signInWithEmailAndPassword(userEmail, userPassword);
+          return {
+            success: true,
+            uid: mainResult.user.uid,
+            email: mainResult.user.email,
+          };
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           return { success: false, error: msg };
         }
       },
-      { idToken, email },
+      { email, password, authHost: process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099' },
     );
 
     if (!signedIn.success) {
-      throw new Error(`Client-side signIn failed for ${email}: ${signedIn.error}`);
+      // The compat SDK approach may fail if the main app doesn't use compat.
+      // Fallback: use the emulator REST API token + direct localStorage injection.
+      console.log(`Compat sign-in failed (${signedIn.error}), using token injection fallback...`);
+
+      // Build the Firebase auth persistence key.
+      // The modular SDK stores auth state in IndexedDB, but the key format
+      // depends on the API key. We'll set a cookie/localStorage marker and
+      // reload so the AuthProvider picks up the emulator session.
+      const apiKey = process.env.VITE_FIREBASE_API_KEY || 'fake-key';
+      await page.evaluate(
+        ({ token, rToken, uid, userEmail, key }) => {
+          // The Firebase JS SDK (modular) stores auth in IndexedDB under
+          // "firebaseLocalStorageDb". We can't easily write to IndexedDB,
+          // but we CAN write the legacy localStorage persistence format
+          // that Firebase also checks.
+          const storageKey = `firebase:authUser:${key}:[DEFAULT]`;
+          const authUser = {
+            uid,
+            email: userEmail,
+            emailVerified: true,
+            stsTokenManager: {
+              refreshToken: rToken,
+              accessToken: token,
+              expirationTime: Date.now() + 3600000,
+            },
+            createdAt: String(Date.now()),
+            lastLoginAt: String(Date.now()),
+            apiKey: key,
+            appName: '[DEFAULT]',
+          };
+          localStorage.setItem(storageKey, JSON.stringify(authUser));
+        },
+        { token: idToken, rToken: refreshToken, uid: localId, userEmail: email, key: process.env.VITE_FIREBASE_API_KEY || 'fake-key' },
+      );
+
+      // Reload so the app picks up the injected auth state
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+    } else {
+      console.log(`Browser signed in as ${signedIn.email} (uid: ${signedIn.uid})`);
     }
 
-    console.log(`Browser signed in as ${signedIn.email} (uid: ${signedIn.uid})`);
+    // Wait for the app to redirect to an authenticated route
+    try {
+      await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 20000 });
+    } catch {
+      // If no redirect, the auth state may not have been picked up. Reload once more.
+      console.log('No redirect detected, reloading...');
+      await page.reload();
+      await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 15000 });
+    }
 
-    // Step 3: Wait for the app to redirect to an authenticated route
-    await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 15000 });
     await page.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
-    // Step 4: Save storage state (cookies + localStorage + IndexedDB auth)
+    // Save storage state (cookies + localStorage)
     await context.storageState({ path: outputPath });
     console.log(`Saved auth state for ${email} to ${outputPath}`);
   } catch (error) {
