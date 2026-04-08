@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { Link2 } from "lucide-react"
 import { toast } from "sonner"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -19,7 +19,9 @@ import {
 } from "@/features/links/lib/shareLinkActions"
 import type { ShareLink, ShareLinkType } from "@/features/links/lib/shareLinkTypes"
 import { ShareLinkRow } from "./ShareLinkRow"
+import { ShareLinkExpandedDetail } from "./ShareLinkExpandedDetail"
 import { ShareLinkExpiryDialog } from "./ShareLinkExpiryDialog"
+import { ShareLinkStats } from "./ShareLinkStats"
 
 type TypeFilter = "all" | ShareLinkType
 
@@ -44,6 +46,7 @@ export default function SharedLinksPage() {
   const [expiryOpen, setExpiryOpen] = useState(false)
   const [deleteLink, setDeleteLink] = useState<ShareLink | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   // Filter links
   const filtered = useMemo(() => {
@@ -94,6 +97,10 @@ export default function SharedLinksPage() {
     }
   }
 
+  const handleOpen = (link: ShareLink) => {
+    window.open(window.location.origin + link.url, "_blank", "noopener,noreferrer")
+  }
+
   const handleToggle = async (link: ShareLink) => {
     try {
       await toggleShareLink(link)
@@ -138,6 +145,10 @@ export default function SharedLinksPage() {
     }
   }
 
+  const handleToggleExpand = (link: ShareLink) => {
+    setExpandedId((prev) => (prev === link.id ? null : link.id))
+  }
+
   return (
     <ErrorBoundary>
       <PageHeader
@@ -170,13 +181,9 @@ export default function SharedLinksPage() {
             ))}
           </div>
 
-          {/* Link count */}
-          <div className="mb-4 text-xs text-[var(--color-text-muted)]">
-            <span className="font-medium text-[var(--color-text-secondary)]">
-              {filtered.length}
-            </span>{" "}
-            shared link{filtered.length !== 1 ? "s" : ""}
-            {filtered.length !== links.length && ` (${links.length} total)`}
+          {/* Stats bar */}
+          <div className="mb-4">
+            <ShareLinkStats links={links} />
           </div>
 
           {filtered.length === 0 ? (
@@ -212,15 +219,22 @@ export default function SharedLinksPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]">
                   {filtered.map((link) => (
-                    <ShareLinkRow
-                      key={link.id}
-                      link={link}
-                      canEdit={canEdit}
-                      onCopy={handleCopy}
-                      onToggle={handleToggle}
-                      onSetExpiry={handleSetExpiry}
-                      onDelete={handleDeleteRequest}
-                    />
+                    <React.Fragment key={link.id}>
+                      <ShareLinkRow
+                        link={link}
+                        canEdit={canEdit}
+                        onCopy={handleCopy}
+                        onOpen={handleOpen}
+                        onToggle={handleToggle}
+                        onSetExpiry={handleSetExpiry}
+                        onDelete={handleDeleteRequest}
+                        isExpanded={expandedId === link.id}
+                        onToggleExpand={handleToggleExpand}
+                      />
+                      {expandedId === link.id && (
+                        <ShareLinkExpandedDetail link={link} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

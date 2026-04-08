@@ -20,6 +20,7 @@ export const CASTING_VOTE_LABELS: Readonly<
   approve: "Approve",
   disapprove: "Pass",
   maybe: "Maybe",
+  withdrawn: "Withdrawn",
 }
 
 export function getCastingStatusLabel(status: CastingBoardStatus): string {

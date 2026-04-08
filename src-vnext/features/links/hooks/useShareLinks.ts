@@ -136,7 +136,7 @@ export function useShareLinks(
   }, [enabled, clientId, projectId])
 
   // -----------------------------------------------------------------------
-  // Pulls subscription (project-scoped, shareEnabled == true)
+  // Pulls subscription (project-scoped, filtered client-side by shareToken presence)
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (!enabled || !projectId || !clientId) {
@@ -148,7 +148,7 @@ export function useShareLinks(
     setPullLoading(true)
     const path = pullsPath(projectId, clientId)
     const colRef = collection(db, path[0]!, ...path.slice(1))
-    const q = query(colRef, where("shareEnabled", "==", true))
+    const q = query(colRef)
 
     const unsub = onSnapshot(
       q,

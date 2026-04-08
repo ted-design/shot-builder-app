@@ -284,6 +284,7 @@ export async function submitCastingVote(args: {
       talentId,
       decision,
       comment: comment?.trim() || null,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },

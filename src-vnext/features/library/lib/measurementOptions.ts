@@ -58,6 +58,87 @@ export function getMeasurementOptionsForGender(
   return ALL_MEASUREMENT_OPTIONS
 }
 
+// ---------------------------------------------------------------------------
+// Category-based grouping for detail views
+// ---------------------------------------------------------------------------
+
+export interface MeasurementCategoryGroup {
+  readonly label: string
+  readonly keys: Readonly<Record<GenderKey, readonly string[]>>
+}
+
+export const MEASUREMENT_CATEGORY_GROUPS: readonly MeasurementCategoryGroup[] = [
+  {
+    label: "Stature",
+    keys: { men: ["height"], women: ["height"], other: ["height"] },
+  },
+  {
+    label: "Body",
+    keys: {
+      men: ["chest", "waist"],
+      women: ["bust", "waist", "hips"],
+      other: ["chest", "bust", "waist", "hips"],
+    },
+  },
+  {
+    label: "Clothing",
+    keys: {
+      men: ["suit", "collar", "sleeve", "inseam", "shoes"],
+      women: ["dress", "shoes"],
+      other: ["suit", "dress", "collar", "sleeve", "inseam", "shoes"],
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// Shared measurement formatter
+// ---------------------------------------------------------------------------
+
+export interface LabeledMeasurement {
+  readonly label: string
+  readonly value: string
+}
+
+/**
+ * Format measurements with human-readable labels.
+ *
+ * - `"compact"` → `"Height: 5'10.5\" · Waist: 25\""` (for cards, badges)
+ * - `"labeled"` → `[{ label: "Height", value: "5'10.5\"" }, ...]` (for detail views)
+ */
+export function formatLabeledMeasurements(
+  measurements: Record<string, string | number | null | undefined> | null | undefined,
+  gender: string | null | undefined,
+  mode: "compact",
+): string
+export function formatLabeledMeasurements(
+  measurements: Record<string, string | number | null | undefined> | null | undefined,
+  gender: string | null | undefined,
+  mode: "labeled",
+): readonly LabeledMeasurement[]
+export function formatLabeledMeasurements(
+  measurements: Record<string, string | number | null | undefined> | null | undefined,
+  gender: string | null | undefined,
+  mode: "compact" | "labeled",
+): string | readonly LabeledMeasurement[] {
+  const safe = measurements ?? {}
+  const orderedKeys = orderMeasurementKeys(safe, gender)
+
+  const pairs: LabeledMeasurement[] = []
+  for (const key of orderedKeys) {
+    const raw = safe[key]
+    if (raw === null || raw === undefined || raw === "") continue
+    const label = MEASUREMENT_LABEL_MAP[key] ?? key
+    const value = String(raw)
+    pairs.push({ label, value })
+  }
+
+  if (mode === "compact") {
+    return pairs.map((p) => `${p.label}: ${p.value}`).join(" · ")
+  }
+
+  return pairs
+}
+
 export function orderMeasurementKeys(
   measurements: Record<string, unknown> | null | undefined,
   gender: string | null | undefined,

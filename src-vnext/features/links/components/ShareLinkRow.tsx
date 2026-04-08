@@ -1,4 +1,4 @@
-import { Clock, Copy, Eye, EyeOff, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronRight, Clock, Copy, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import type { ShareLink } from "@/features/links/lib/shareLinkTypes"
@@ -7,9 +7,12 @@ interface ShareLinkRowProps {
   readonly link: ShareLink
   readonly canEdit: boolean
   readonly onCopy: (link: ShareLink) => void
+  readonly onOpen: (link: ShareLink) => void
   readonly onToggle: (link: ShareLink) => void
   readonly onSetExpiry: (link: ShareLink) => void
   readonly onDelete: (link: ShareLink) => void
+  readonly isExpanded: boolean
+  readonly onToggleExpand: (link: ShareLink) => void
 }
 
 const TYPE_STYLES: Record<ShareLink["type"], { label: string; className: string }> = {
@@ -70,9 +73,32 @@ function formatAbsoluteDate(date: Date): string {
 }
 
 function formatEngagement(link: ShareLink): string {
-  if (link.type === "casting" && link.engagement !== null) {
-    return `${link.engagement} vote${link.engagement === 1 ? "" : "s"}`
+  const { type, engagement, contentCount } = link
+
+  if (type === "casting") {
+    const voteStr =
+      engagement !== null
+        ? `${engagement} vote${engagement === 1 ? "" : "s"}`
+        : null
+    const talentStr =
+      contentCount !== null ? `${contentCount} talent` : null
+
+    if (voteStr !== null && talentStr !== null) {
+      return `${voteStr} · ${talentStr}`
+    }
+    if (voteStr !== null) return voteStr
+    if (talentStr !== null) return talentStr
+    return "--"
   }
+
+  if (type === "shots") {
+    return contentCount !== null ? `${contentCount} shot${contentCount === 1 ? "" : "s"}` : "--"
+  }
+
+  if (type === "pull") {
+    return contentCount !== null ? `${contentCount} item${contentCount === 1 ? "" : "s"}` : "--"
+  }
+
   return "--"
 }
 
@@ -80,9 +106,12 @@ export function ShareLinkRow({
   link,
   canEdit,
   onCopy,
+  onOpen,
   onToggle,
   onSetExpiry,
   onDelete,
+  isExpanded,
+  onToggleExpand,
 }: ShareLinkRowProps) {
   const { user } = useAuth()
   const isInactive = link.status === "disabled" || link.status === "expired"
@@ -90,16 +119,27 @@ export function ShareLinkRow({
   const statusStyle = STATUS_STYLES[link.status]
 
   const isCreator = user?.uid != null && link.createdBy === user.uid
+  const ChevronIcon = isExpanded ? ChevronDown : ChevronRight
 
   return (
     <tr className={isInactive ? "opacity-60" : undefined}>
-      {/* Type */}
+      {/* Expand toggle + Type */}
       <td className="px-4 py-3">
-        <span
-          className={`inline-block rounded px-2 py-0.5 text-2xs font-medium ${typeStyle.className}`}
-        >
-          {typeStyle.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onToggleExpand(link)}
+            aria-label={isExpanded ? "Collapse row" : "Expand row"}
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+          >
+            <ChevronIcon className="h-3.5 w-3.5" />
+          </button>
+          <span
+            className={`inline-block rounded px-2 py-0.5 text-2xs font-medium ${typeStyle.className}`}
+          >
+            {typeStyle.label}
+          </span>
+        </div>
       </td>
 
       {/* Title */}
@@ -141,6 +181,15 @@ export function ShareLinkRow({
       {/* Actions */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => onOpen(link)}
+            aria-label="Open in new tab"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

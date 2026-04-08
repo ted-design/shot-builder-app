@@ -237,6 +237,7 @@ export async function removeTalentFromProject(args: {
   })
 }
 
+/** @deprecated Use softDeleteTalent instead. Hard-deletes the doc and all Storage images with no undo. */
 export async function deleteTalent(args: {
   readonly clientId: string
   readonly talentId: string
@@ -251,4 +252,40 @@ export async function deleteTalent(args: {
 
   const path = talentPath(args.clientId)
   await deleteDoc(doc(db, path[0]!, ...path.slice(1), talentId))
+}
+
+export async function softDeleteTalent(args: {
+  readonly clientId: string
+  readonly talentId: string
+  readonly userId: string | null
+}): Promise<void> {
+  const talentId = args.talentId.trim()
+  if (!talentId) throw new Error("Missing talent id")
+
+  const path = talentPath(args.clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), talentId), {
+    deleted: true,
+    deletedAt: serverTimestamp(),
+    deletedBy: args.userId ?? null,
+    updatedAt: serverTimestamp(),
+    updatedBy: args.userId ?? null,
+  })
+}
+
+export async function undoDeleteTalent(args: {
+  readonly clientId: string
+  readonly talentId: string
+  readonly userId: string | null
+}): Promise<void> {
+  const talentId = args.talentId.trim()
+  if (!talentId) throw new Error("Missing talent id")
+
+  const path = talentPath(args.clientId)
+  await updateDoc(doc(db, path[0]!, ...path.slice(1), talentId), {
+    deleted: false,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: serverTimestamp(),
+    updatedBy: args.userId ?? null,
+  })
 }

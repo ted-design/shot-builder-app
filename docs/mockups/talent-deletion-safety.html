@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talent Deletion Safety — Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-page:       #1a1a1a;
+      --bg-dialog:     #222222;
+      --bg-subtle:     #2a2a2a;
+      --bg-hover:      #303030;
+      --text-primary:  #e8e8e8;
+      --text-muted:    #a0a0a0;
+      --text-subtle:   #707070;
+      --border:        #333333;
+      --error-text:    #e55050;
+      --error-bg:      #2e1a1a;
+      --error-border:  #4a2d2d;
+      --warning-text:  #fbbf24;
+      --warning-bg:    #2e2a1a;
+      --warning-border:#4a3a1a;
+      --blue:          #3b82f6;
+      --green:         #22c55e;
+      --gray-400:      #9ca3af;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top navigation tabs ──────────────────────────────────────── */
+    .tabs-bar {
+      display: flex;
+      gap: 2px;
+      padding: 16px 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: #111111;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-primary); background: var(--bg-subtle); }
+    .tab-btn.active {
+      color: var(--text-primary);
+      background: var(--bg-dialog);
+      border-color: var(--border);
+      border-bottom-color: var(--bg-dialog);
+      margin-bottom: -1px;
+    }
+
+    /* ── Scene wrapper ─────────────────────────────────────────────── */
+    .scene {
+      display: none;
+      flex: 1;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 24px;
+      min-height: calc(100vh - 49px);
+    }
+    .scene.active { display: flex; }
+
+    /* ── Background page (faint) ───────────────────────────────────── */
+    .bg-page-content {
+      position: fixed;
+      inset: 49px 0 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 32px;
+      opacity: 0.25;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .bg-row {
+      height: 44px;
+      background: var(--bg-subtle);
+      border-radius: 6px;
+    }
+    .bg-row.short { width: 40%; }
+    .bg-row.med   { width: 65%; }
+    .bg-row.tall  { height: 80px; }
+
+    /* ── Dialog ────────────────────────────────────────────────────── */
+    .dialog-overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+    }
+    .dialog {
+      background: var(--bg-dialog);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .dialog-header {
+      padding: 20px 24px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .dialog-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .dialog-icon.destructive { background: var(--error-bg); color: var(--error-text); }
+    .dialog-icon.warning     { background: var(--warning-bg); color: var(--warning-text); }
+    .dialog-icon.neutral     { background: var(--bg-subtle); color: var(--text-muted); }
+    .dialog-icon svg { width: 18px; height: 18px; }
+
+    .dialog-title-group { flex: 1; }
+    .dialog-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+    .dialog-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      letter-spacing: 0.01em;
+    }
+
+    .dialog-body {
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Loading state ─────────────────────────────────────────────── */
+    .loading-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--text-muted);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ── Warning / info banners ────────────────────────────────────── */
+    .banner {
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .banner.warning {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning-text);
+    }
+    .banner.info {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .banner svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+    .banner-text { flex: 1; }
+
+    /* ── Disclosure / collapsible sections ─────────────────────────── */
+    .disclosure {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .disclosure-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border: none;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: background 0.12s;
+      gap: 8px;
+    }
+    .disclosure-trigger:hover { background: var(--bg-hover); }
+    .disclosure-trigger-left { display: flex; align-items: center; gap: 8px; }
+    .disclosure-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px; height: 20px;
+      background: var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .disclosure-chevron {
+      color: var(--text-subtle);
+      transition: transform 0.2s;
+    }
+    .disclosure-chevron svg { width: 14px; height: 14px; display: block; }
+    .disclosure.open .disclosure-chevron { transform: rotate(180deg); }
+
+    .disclosure-content {
+      display: none;
+      background: var(--bg-page);
+      border-top: 1px solid var(--border);
+    }
+    .disclosure.open .disclosure-content { display: block; }
+
+    .dep-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dep-item:last-child { border-bottom: none; }
+    .dep-item-icon {
+      width: 28px; height: 28px;
+      background: var(--bg-subtle);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .dep-item-icon svg { width: 13px; height: 13px; color: var(--text-subtle); }
+    .dep-item-text { flex: 1; }
+    .dep-item-name {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .dep-item-meta {
+      font-size: 11px;
+      color: var(--text-subtle);
+      margin-top: 1px;
+    }
+    .dep-item-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 2px;
+      align-self: flex-start;
+    }
+
+    /* ── Archive info text ─────────────────────────────────────────── */
+    .info-text {
+      font-size: 12px;
+      color: var(--text-subtle);
+      line-height: 1.6;
+    }
+
+    /* ── Typed confirmation ────────────────────────────────────────── */
+    .confirm-field { display: flex; flex-direction: column; gap: 6px; }
+    .confirm-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .confirm-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-page);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      letter-spacing: 0.08em;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .confirm-input:focus { border-color: #555; }
+    .confirm-input.valid {
+      border-color: var(--error-text);
+      color: var(--error-text);
+    }
+
+    /* ── Dialog footer / actions ───────────────────────────────────── */
+    .dialog-footer {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 12px 24px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-subtle);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background 0.12s, opacity 0.12s, border-color 0.12s;
+      letter-spacing: 0.01em;
+    }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    .btn-destructive {
+      background: var(--error-text);
+      border-color: var(--error-text);
+      color: #fff;
+    }
+    .btn-destructive:hover:not(:disabled) {
+      background: #d44444;
+      border-color: #d44444;
+    }
+    .btn-destructive-outline {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error-text);
+    }
+    .btn-destructive-outline:hover:not(:disabled) {
+      background: #3a1f1f;
+    }
+    .btn svg { width: 14px; height: 14px; }
+
+    /* ── State-specific scenes ─────────────────────────────────────── */
+
+    /* ── Scene: Undo Toast ─────────────────────────────────────────── */
+    .scene-toast {
+      position: relative;
+      width: 100%;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 24px;
+    }
+    .toast-wrapper {
+      position: relative;
+      z-index: 20;
+      width: 340px;
+    }
+    .toast {
+      background: #2a2a2a;
+      border: 1px solid #3d3d3d;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .toast-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    .toast-icon {
+      width: 32px; height: 32px;
+      background: var(--error-bg);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--error-text);
+    }
+    .toast-icon svg { width: 15px; height: 15px; }
+    .toast-text { flex: 1; }
+    .toast-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .toast-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .toast-undo {
+      padding: 7px 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s;
+      letter-spacing: 0.01em;
+    }
+    .toast-undo:hover { background: rgba(255,255,255,0.14); }
+
+    .toast-progress-track {
+      height: 3px;
+      background: var(--border);
+    }
+    .toast-progress-bar {
+      height: 100%;
+      background: var(--error-text);
+      width: 60%; /* mid-countdown visual */
+      border-radius: 0 2px 2px 0;
+      animation: countdown 5s linear forwards;
+    }
+    @keyframes countdown { from { width: 100%; } to { width: 0%; } }
+
+    /* ── "Current" comparison dialog ───────────────────────────────── */
+    .current-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: #2a2a1a;
+      border: 1px solid #4a4a28;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #fbbf24;
+      margin-bottom: 16px;
+    }
+    .enhanced-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: #1a2a1a;
+      border: 1px solid #284228;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #4ade80;
+      margin-bottom: 16px;
+    }
+    .comparison-note {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-subtle);
+      line-height: 1.7;
+    }
+    .comparison-note strong { color: var(--text-muted); font-weight: 600; }
+
+    /* ── Scene label ─────────────────────────────────────────────────  */
+    .scene-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scene-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Divider within dialog body */
+    .body-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation tabs ────────────────────────────────────────────── -->
+<nav class="tabs-bar">
+  <button class="tab-btn active" onclick="showTab('loading')">State 1 — Loading</button>
+  <button class="tab-btn" onclick="showTab('deps')">State 2 — Dependencies Found</button>
+  <button class="tab-btn" onclick="showTab('deps-typed')">State 2b — Confirmed</button>
+  <button class="tab-btn" onclick="showTab('no-deps')">State 4 — Zero Deps</button>
+  <button class="tab-btn" onclick="showTab('toast')">State 3 — Undo Toast</button>
+  <button class="tab-btn" onclick="showTab('current')">Current (Before)</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     STATE 1 — LOADING DEPENDENCIES
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-loading" class="scene active" style="padding-top:64px">
+  <div class="dialog-overlay">
+    <div class="scene-label">State 1 — Loading Dependencies</div>
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon neutral">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
+          </svg>
+        </div>
+        <div class="dialog-title-group">
+          <div class="dialog-title">Delete AJ McDonald?</div>
+          <div class="dialog-subtitle">Talent profile &middot; Men</div>
+        </div>
+      </div>
+
+      <div class="dialog-body">
+        <div class="loading-row">
+          <div class="spinner"></div>
+          <span class="loading-text">Checking for references&hellip;</span>
+        </div>
+        <p class="info-text">Scanning shots, casting boards, and pull lists before proceeding.</p>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-destructive-outline" disabled>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/></svg>
+          Delete Talent
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     STATE 2 — DEPENDENCIES FOUND (input empty)
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-deps" class="scene" style="padding-top:40px">
+  <div class="dialog-overlay">
+    <div class="scene-label">State 2 — Dependencies Found (confirmation empty)</div>
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon destructive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 3L18 17H2L10 3z"/><path d="M10 8v4M10 14h.01"/>
+          </svg>
+        </div>
+        <div class="dialog-title-group">
+          <div class="dialog-title">Delete AJ McDonald?</div>
+          <div class="dialog-subtitle">Talent profile &middot; Men</div>
+        </div>
+      </div>
+
+      <div class="dialog-body">
+        <!-- Warning banner -->
+        <div class="banner warning">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 3L18 17H2L10 3z"/><path d="M10 8v4M10 14h.01"/>
+          </svg>
+          <span class="banner-text">This talent is referenced in <strong>3 shots</strong> and <strong>1 casting board</strong>.</span>
+        </div>
+
+        <!-- Affected Shots disclosure -->
+        <div class="disclosure open" id="disc-shots">
+          <button class="disclosure-trigger" onclick="toggleDisclosure('disc-shots')">
+            <span class="disclosure-trigger-left">
+              <span class="disclosure-count">3</span>
+              Affected Shots
+            </span>
+            <span class="disclosure-chevron">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 8l5 5 5-5"/>
+              </svg>
+            </span>
+          </button>
+          <div class="disclosure-content">
+            <div class="dep-item">
+              <div class="dep-item-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg>
+              </div>
+              <div class="dep-item-text">
+                <div class="dep-item-name">Shot #12 &mdash; FW26 Hero Look</div>
+                <div class="dep-item-meta">Fall Campaign</div>
+              </div>
+              <div class="dep-item-badge">In Progress</div>
+            </div>
+            <div class="dep-item">
+              <div class="dep-item-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg>
+              </div>
+              <div class="dep-item-text">
+                <div class="dep-item-name">Shot #45 &mdash; Lifestyle Outdoor</div>
+                <div class="dep-item-meta">Fall Campaign</div>
+              </div>
+              <div class="dep-item-badge">Draft</div>
+            </div>
+            <div class="dep-item">
+              <div class="dep-item-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg>
+              </div>
+              <div class="dep-item-text">
+                <div class="dep-item-name">Shot #78 &mdash; Studio Portrait</div>
+                <div class="dep-item-meta">Holiday Lookbook</div>
+              </div>
+              <div class="dep-item-badge">Shot</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Casting Boards disclosure -->
+        <div class="disclosure" id="disc-casting">
+          <button class="disclosure-trigger" onclick="toggleDisclosure('disc-casting')">
+            <span class="disclosure-trigger-left">
+              <span class="disclosure-count">1</span>
+              Casting Boards
+            </span>
+            <span class="disclosure-chevron">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 8l5 5 5-5"/>
+              </svg>
+            </span>
+          </button>
+          <div class="disclosure-content">
+            <div class="dep-item">
+              <div class="dep-item-icon">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="16" height="13" rx="2"/><path d="M7 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><circle cx="7" cy="11" r="1.5"/><circle cx="13" cy="11" r="1.5"/></svg>
+              </div>
+              <div class="dep-item-text">
+                <div class="dep-item-name">Fall Campaign &mdash; Casting Board</div>
+                <div class="dep-item-meta">Status: Hold</div>
+              </div>
+              <div class="dep-item-badge">Hold</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="body-divider"></div>
+
+        <!-- Archive info -->
+        <div class="banner info">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/>
+          </svg>
+          <span class="banner-text">References will show as <em>unknown talent</em> after deletion. The talent profile will be archived and can be restored by an administrator.</span>
+        </div>
+
+        <!-- Typed confirmation -->
+        <div class="confirm-field">
+          <label class="confirm-label">Type DELETE to confirm</label>
+          <input class="confirm-input" type="text" placeholder="DELETE" readonly value="" />
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-destructive-outline" disabled>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/></svg>
+          Delete Talent
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     STATE 2b — DEPENDENCIES FOUND (input = "DELETE", button active)
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-deps-typed" class="scene" style="padding-top:40px">
+  <div class="dialog-overlay">
+    <div class="scene-label">State 2b — "DELETE" typed, button unlocked</div>
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon destructive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 3L18 17H2L10 3z"/><path d="M10 8v4M10 14h.01"/>
+          </svg>
+        </div>
+        <div class="dialog-title-group">
+          <div class="dialog-title">Delete AJ McDonald?</div>
+          <div class="dialog-subtitle">Talent profile &middot; Men</div>
+        </div>
+      </div>
+
+      <div class="dialog-body">
+        <div class="banner warning">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 3L18 17H2L10 3z"/><path d="M10 8v4M10 14h.01"/>
+          </svg>
+          <span class="banner-text">This talent is referenced in <strong>3 shots</strong> and <strong>1 casting board</strong>.</span>
+        </div>
+
+        <div class="disclosure" id="disc-shots-b">
+          <button class="disclosure-trigger" onclick="toggleDisclosure('disc-shots-b')">
+            <span class="disclosure-trigger-left">
+              <span class="disclosure-count">3</span>
+              Affected Shots
+            </span>
+            <span class="disclosure-chevron">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+            </span>
+          </button>
+          <div class="disclosure-content">
+            <div class="dep-item">
+              <div class="dep-item-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg></div>
+              <div class="dep-item-text"><div class="dep-item-name">Shot #12 &mdash; FW26 Hero Look</div><div class="dep-item-meta">Fall Campaign</div></div>
+              <div class="dep-item-badge">In Progress</div>
+            </div>
+            <div class="dep-item">
+              <div class="dep-item-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg></div>
+              <div class="dep-item-text"><div class="dep-item-name">Shot #45 &mdash; Lifestyle Outdoor</div><div class="dep-item-meta">Fall Campaign</div></div>
+              <div class="dep-item-badge">Draft</div>
+            </div>
+            <div class="dep-item">
+              <div class="dep-item-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 8h14"/></svg></div>
+              <div class="dep-item-text"><div class="dep-item-name">Shot #78 &mdash; Studio Portrait</div><div class="dep-item-meta">Holiday Lookbook</div></div>
+              <div class="dep-item-badge">Shot</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="disclosure" id="disc-casting-b">
+          <button class="disclosure-trigger" onclick="toggleDisclosure('disc-casting-b')">
+            <span class="disclosure-trigger-left">
+              <span class="disclosure-count">1</span>
+              Casting Boards
+            </span>
+            <span class="disclosure-chevron">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l5 5 5-5"/></svg>
+            </span>
+          </button>
+          <div class="disclosure-content">
+            <div class="dep-item">
+              <div class="dep-item-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="16" height="13" rx="2"/><path d="M7 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><circle cx="7" cy="11" r="1.5"/><circle cx="13" cy="11" r="1.5"/></svg></div>
+              <div class="dep-item-text"><div class="dep-item-name">Fall Campaign &mdash; Casting Board</div><div class="dep-item-meta">Status: Hold</div></div>
+              <div class="dep-item-badge">Hold</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="body-divider"></div>
+
+        <div class="banner info">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 7h.01"/></svg>
+          <span class="banner-text">References will show as <em>unknown talent</em> after deletion. The talent profile will be archived and can be restored by an administrator.</span>
+        </div>
+
+        <div class="confirm-field">
+          <label class="confirm-label">Type DELETE to confirm</label>
+          <input class="confirm-input valid" type="text" readonly value="DELETE" />
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-destructive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/></svg>
+          Delete Talent
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     STATE 4 — ZERO DEPENDENCIES
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-no-deps" class="scene" style="padding-top:64px">
+  <div class="dialog-overlay">
+    <div class="scene-label">State 4 — Zero Dependencies</div>
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon destructive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/>
+          </svg>
+        </div>
+        <div class="dialog-title-group">
+          <div class="dialog-title">Delete AJ McDonald?</div>
+          <div class="dialog-subtitle">Talent profile &middot; Men</div>
+        </div>
+      </div>
+
+      <div class="dialog-body">
+        <div class="banner info">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/><circle cx="10" cy="10" r="8"/>
+          </svg>
+          <span class="banner-text">This talent has no active references. Deleting will archive the profile.</span>
+        </div>
+
+        <p class="info-text">The profile will be soft-deleted and can be restored by an administrator if needed. Headshots and measurements will be preserved in archive.</p>
+
+        <div class="confirm-field">
+          <label class="confirm-label">Type DELETE to confirm</label>
+          <input class="confirm-input" type="text" placeholder="DELETE" readonly value="" />
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-destructive-outline" disabled>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/></svg>
+          Delete Talent
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     STATE 3 — UNDO TOAST
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-toast" class="scene scene-toast">
+  <!-- Faint background content -->
+  <div class="bg-page-content">
+    <div class="bg-row short"></div>
+    <div class="bg-row med"></div>
+    <div class="bg-row tall"></div>
+    <div class="bg-row short"></div>
+    <div class="bg-row med"></div>
+    <div class="bg-row tall"></div>
+    <div class="bg-row short"></div>
+    <div class="bg-row med"></div>
+  </div>
+  <div class="toast-wrapper">
+    <div class="scene-label" style="position:absolute;top:-28px;left:0;right:0">State 3 — Undo Toast (bottom-right)</div>
+    <div class="toast">
+      <div class="toast-body">
+        <div class="toast-icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/>
+          </svg>
+        </div>
+        <div class="toast-text">
+          <div class="toast-title">AJ McDonald deleted</div>
+          <div class="toast-meta">Profile archived &middot; 4 references cleared</div>
+        </div>
+        <button class="toast-undo">Undo</button>
+      </div>
+      <div class="toast-progress-track">
+        <div class="toast-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     CURRENT (BEFORE) — Simple ConfirmDialog
+══════════════════════════════════════════════════════════════════════ -->
+<section id="scene-current" class="scene" style="padding-top:64px">
+  <div class="dialog-overlay" style="max-width:420px">
+    <div class="current-badge">
+      <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 3L18 17H2L10 3z"/><path d="M10 8v4M10 14h.01"/></svg>
+      Current Implementation
+    </div>
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon destructive">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h14M8 6V4h4v2M5 6l1 12h8l1-12"/>
+          </svg>
+        </div>
+        <div class="dialog-title-group">
+          <div class="dialog-title">Delete talent?</div>
+        </div>
+      </div>
+      <div class="dialog-body">
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6">
+          This permanently deletes this talent profile and all associated images. This cannot be undone.
+        </p>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-destructive">Delete</button>
+      </div>
+    </div>
+
+    <div class="comparison-note">
+      <strong>What's missing in the current flow:</strong><br>
+      No dependency check &mdash; user has no idea if shots reference this talent.<br>
+      No typed confirmation &mdash; one misclick permanently destroys the profile.<br>
+      No undo &mdash; "cannot be undone" is both true and alarming.<br>
+      The new flow is soft-delete + undo, making "cannot be undone" false and safe.
+    </div>
+  </div>
+</section>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('scene-' + id).classList.add('active');
+    const idx = ['loading','deps','deps-typed','no-deps','toast','current'].indexOf(id);
+    document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  }
+
+  function toggleDisclosure(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+</script>
+</body>
+</html>

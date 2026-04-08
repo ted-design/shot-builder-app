@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared Links — Link Management Enhanced Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-page: #1a1a1a;
+    --bg-surface: #222222;
+    --bg-subtle: #2a2a2a;
+    --bg-hover: #2f2f2f;
+    --border: #333333;
+    --border-subtle: #2c2c2c;
+    --text-primary: #e8e8e8;
+    --text-muted: #a0a0a0;
+    --text-subtle: #707070;
+
+    --status-active-bg: #1a2e1a;
+    --status-active-text: #4ade80;
+    --status-active-border: #2d4a2d;
+
+    --status-disabled-bg: #2a2a2a;
+    --status-disabled-text: #707070;
+    --status-disabled-border: #3a3a3a;
+
+    --status-expired-bg: #2e1a1a;
+    --status-expired-text: #f87171;
+    --status-expired-border: #4a2d2d;
+
+    --type-shots-bg: #1a1e2e;
+    --type-shots-text: #60a5fa;
+    --type-shots-border: #2d3a5a;
+
+    --type-casting-bg: #251a2e;
+    --type-casting-text: #a78bfa;
+    --type-casting-border: #3d2d5a;
+
+    --type-pull-bg: #2e2a1a;
+    --type-pull-text: #fbbf24;
+    --type-pull-border: #4a3d2d;
+
+    --dot-active: #4ade80;
+    --dot-disabled: #707070;
+    --dot-expired: #f87171;
+
+    --red-action: #ef4444;
+    --red-action-hover: #f87171;
+  }
+
+  body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── App Shell ──────────────────────────────────────────────────────── */
+  .app-shell {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #161616;
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    gap: 4px;
+  }
+
+  .sidebar-logo {
+    padding: 0 16px 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+
+  .sidebar-section {
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-top: 12px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .sidebar-item:hover { background: #1e1e1e; color: var(--text-primary); }
+  .sidebar-item.active { background: #222; color: var(--text-primary); }
+
+  .sidebar-item svg { opacity: 0.6; flex-shrink: 0; }
+  .sidebar-item.active svg { opacity: 1; }
+
+  /* ── Main Area ──────────────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-page);
+  }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 52px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+
+  .breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.12s;
+  }
+
+  .breadcrumb a:hover { color: var(--text-primary); }
+  .breadcrumb-sep { color: var(--text-subtle); font-size: 11px; }
+
+  /* ── Before/After Toggle ─────────────────────────────────────────────── */
+  .ba-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 28px 16px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-page);
+  }
+
+  .ba-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-top: 16px;
+  }
+
+  .ba-tabs {
+    display: flex;
+    background: var(--bg-subtle);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+    margin-top: 16px;
+  }
+
+  .ba-tab {
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-muted);
+    border: none;
+    background: transparent;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .ba-tab.active {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .ba-description {
+    font-size: 11px;
+    color: var(--text-subtle);
+    margin-top: 16px;
+    padding: 3px 10px;
+    background: #1f1f1f;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ── Page Content ────────────────────────────────────────────────────── */
+  .page-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    text-decoration: none;
+  }
+
+  .btn-primary:hover { background: #333; border-color: #444; }
+
+  /* ── Filter Tabs ─────────────────────────────────────────────────────── */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .filter-tab {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    letter-spacing: 0.01em;
+  }
+
+  .filter-tab:hover { background: var(--bg-subtle); color: var(--text-primary); }
+
+  .filter-tab.active {
+    background: var(--bg-subtle);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  /* ── Stats Bar ──────────────────────────────────────────────────────── */
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px 14px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .stat-dot.active { background: var(--dot-active); }
+  .stat-dot.disabled { background: var(--dot-disabled); }
+  .stat-dot.expired { background: var(--dot-expired); }
+
+  .stat-count {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .stats-sep {
+    color: var(--border);
+    font-size: 14px;
+  }
+
+  /* ── Table ───────────────────────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    background: #1e1e1e;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.1s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #252525; }
+  tbody tr.row-disabled { opacity: 0.5; }
+  tbody tr.row-disabled:hover { background: #232323; }
+
+  tbody td {
+    padding: 12px 14px;
+    vertical-align: middle;
+  }
+
+  /* ── Type Badge ──────────────────────────────────────────────────────── */
+  .type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 7px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .type-badge.shots {
+    background: var(--type-shots-bg);
+    color: var(--type-shots-text);
+    border-color: var(--type-shots-border);
+  }
+
+  .type-badge.casting {
+    background: var(--type-casting-bg);
+    color: var(--type-casting-text);
+    border-color: var(--type-casting-border);
+  }
+
+  .type-badge.pull {
+    background: var(--type-pull-bg);
+    color: var(--type-pull-text);
+    border-color: var(--type-pull-border);
+  }
+
+  /* ── Title Cell ──────────────────────────────────────────────────────── */
+  .title-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .title-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .title-url {
+    font-size: 11px;
+    color: var(--text-subtle);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    letter-spacing: -0.01em;
+  }
+
+  .chevron-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-subtle);
+    padding: 2px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.12s, background 0.12s;
+    flex-shrink: 0;
+  }
+
+  .chevron-btn:hover { color: var(--text-muted); background: var(--bg-subtle); }
+  .chevron-btn.open { color: var(--text-muted); transform: rotate(180deg); }
+
+  /* ── Status Badge ────────────────────────────────────────────────────── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .status-badge::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-badge.active {
+    background: var(--status-active-bg);
+    color: var(--status-active-text);
+    border-color: var(--status-active-border);
+  }
+
+  .status-badge.active::before { background: var(--status-active-text); }
+
+  .status-badge.disabled {
+    background: var(--status-disabled-bg);
+    color: var(--status-disabled-text);
+    border-color: var(--status-disabled-border);
+  }
+
+  .status-badge.disabled::before { background: var(--status-disabled-text); }
+
+  .status-badge.expired {
+    background: var(--status-expired-bg);
+    color: var(--status-expired-text);
+    border-color: var(--status-expired-border);
+  }
+
+  .status-badge.expired::before { background: var(--status-expired-text); }
+
+  /* ── Engagement Cell ─────────────────────────────────────────────────── */
+  .engagement {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .engagement span {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .engagement-sep {
+    color: var(--text-subtle);
+    margin: 0 3px;
+  }
+
+  /* ── Action Icons ────────────────────────────────────────────────────── */
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+  }
+
+  .icon-btn:hover { background: var(--bg-subtle); color: var(--text-muted); }
+  .icon-btn.danger:hover { background: #2e1a1a; color: var(--red-action-hover); }
+  .icon-btn.active-toggle { color: #4ade80; }
+  .icon-btn.active-toggle:hover { background: #1a2e1a; color: #6ee7a0; }
+
+  /* ── Expanded Row ────────────────────────────────────────────────────── */
+  .expanded-row td {
+    padding: 0;
+  }
+
+  .expanded-content {
+    background: #1e1e1e;
+    border-top: 1px solid var(--border-subtle);
+    padding: 16px 20px 16px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 32px;
+  }
+
+  .expanded-section-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    margin-bottom: 8px;
+  }
+
+  .talent-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .talent-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .talent-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-subtle);
+    flex-shrink: 0;
+  }
+
+  .talent-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .talent-agency {
+    font-size: 11px;
+    color: var(--text-subtle);
+  }
+
+  .visible-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .field-chip {
+    padding: 2px 8px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── Created Cell ────────────────────────────────────────────────────── */
+  .created-cell {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .created-by-you {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--text-subtle);
+    margin-top: 2px;
+  }
+
+  /* ── Before Mode Differences ─────────────────────────────────────────── */
+  .before-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #221e0f;
+    border: 1px solid #3a3218;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: #c4a84a;
+  }
+
+  .before-notice svg { flex-shrink: 0; opacity: 0.8; }
+
+  .after-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #121e12;
+    border: 1px solid #1e3a1e;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: #4ade80;
+  }
+
+  .after-notice svg { flex-shrink: 0; opacity: 0.8; }
+
+  /* ── Simple count (before) ───────────────────────────────────────────── */
+  .simple-count {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-bottom: 14px;
+    padding: 0 2px;
+  }
+
+  /* ── Dashed empty cell ───────────────────────────────────────────────── */
+  .empty-cell {
+    color: var(--text-subtle);
+    font-size: 12px;
+  }
+
+  /* ── Scrollbar ───────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #444; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">Production Hub</div>
+
+    <div class="sidebar-section">Projects</div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Fall Campaign 2026
+    </div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Holiday 2026
+    </div>
+
+    <div class="sidebar-section">Current Project</div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+      Shot List
+    </div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Casting
+    </div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+      Products
+    </div>
+    <div class="sidebar-item active">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      Shared Links
+    </div>
+    <div class="sidebar-item">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v13a2 2 0 002 2z"/></svg>
+      Export
+    </div>
+  </nav>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Top Bar + Breadcrumb -->
+    <div class="top-bar">
+      <div class="breadcrumb">
+        <a href="#">Projects</a>
+        <span class="breadcrumb-sep">›</span>
+        <a href="#">Fall Campaign 2026</a>
+        <span class="breadcrumb-sep">›</span>
+        <span style="color: var(--text-muted);">Shared Links</span>
+      </div>
+    </div>
+
+    <!-- Before / After Toggle -->
+    <div class="ba-toggle-wrap">
+      <span class="ba-label">View:</span>
+      <div class="ba-tabs" id="baTabs">
+        <button class="ba-tab" id="tabBefore" onclick="setMode('before')">Before</button>
+        <button class="ba-tab active" id="tabAfter" onclick="setMode('after')">After</button>
+      </div>
+      <span class="ba-description" id="baDesc">Stats bar · engagement data · expandable rows · disabled links visible</span>
+    </div>
+
+    <!-- Page Content -->
+    <div class="page-content" id="pageContent">
+      <!-- Rendered by JS -->
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── SVG Icon Helpers ────────────────────────────────────────────────────
+function iconExternal() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+}
+function iconCopy() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+}
+function iconEye() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+}
+function iconEyeOff() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+}
+function iconClock() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+}
+function iconTrash() {
+  return `<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+}
+function iconChevronDown() {
+  return `<svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+}
+
+// ── Data ────────────────────────────────────────────────────────────────
+const rows = [
+  {
+    id: 1,
+    type: 'shots',
+    typeLabel: 'Shots',
+    title: 'FW26 Hero Shots',
+    url: '/shots/shared/abc123',
+    created: '2d ago',
+    createdBy: true,
+    status: 'active',
+    statusLabel: 'Active',
+    engagementBefore: '—',
+    engagementAfter: '<span>12</span> shots',
+    disabled: false,
+    expandable: false,
+  },
+  {
+    id: 2,
+    type: 'casting',
+    typeLabel: 'Casting',
+    title: 'FW26 Casting \u2014 Models',
+    url: '/casting/shared/def456',
+    created: '5d ago',
+    createdBy: false,
+    status: 'active',
+    statusLabel: 'Active',
+    engagementBefore: '—',
+    engagementAfter: '<span>3</span> talent <span class="engagement-sep">·</span> <span>7</span> votes',
+    disabled: false,
+    expandable: true,
+  },
+  {
+    id: 3,
+    type: 'pull',
+    typeLabel: 'Pull',
+    title: 'Studio Pull \u2014 Week 1',
+    url: '/pulls/shared/ghi789',
+    created: '1w ago',
+    createdBy: true,
+    status: 'disabled',
+    statusLabel: 'Disabled',
+    engagementBefore: null, // hidden in before
+    engagementAfter: '<span>8</span> items',
+    disabled: true,
+    expandable: false,
+  },
+  {
+    id: 4,
+    type: 'shots',
+    typeLabel: 'Shots',
+    title: 'Lifestyle Selects',
+    url: '/shots/shared/jkl012',
+    created: 'Mar 15, 2026',
+    createdBy: false,
+    status: 'expired',
+    statusLabel: 'Expired',
+    engagementBefore: '—',
+    engagementAfter: '<span>24</span> shots',
+    disabled: false,
+    expandable: false,
+  },
+  {
+    id: 5,
+    type: 'casting',
+    typeLabel: 'Casting',
+    title: 'Holiday Casting',
+    url: '/casting/shared/mno345',
+    created: 'Mar 10, 2026',
+    createdBy: false,
+    status: 'active',
+    statusLabel: 'Active',
+    engagementBefore: '—',
+    engagementAfter: '<span>5</span> talent <span class="engagement-sep">·</span> <span>12</span> votes',
+    disabled: false,
+    expandable: false,
+  }
+];
+
+const castingTalent = [
+  { initials: 'AM', name: 'AJ McDonald', agency: 'Elite Model Management' },
+  { initials: 'SK', name: 'Sarah Kim', agency: 'Spot 6 Management' },
+  { initials: 'MB', name: 'Michael Brown', agency: 'WANT Management' },
+];
+
+// ── State ───────────────────────────────────────────────────────────────
+let mode = 'after';
+let expandedRow = 2; // Row ID 2 expanded by default in after mode
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tabBefore').classList.toggle('active', m === 'before');
+  document.getElementById('tabAfter').classList.toggle('active', m === 'after');
+  document.getElementById('baDesc').textContent = m === 'before'
+    ? 'Simple table · no stats · no engagement · disabled links missing'
+    : 'Stats bar · engagement data · expandable rows · disabled links visible';
+  render();
+}
+
+function toggleExpand(id) {
+  expandedRow = (expandedRow === id) ? null : id;
+  render();
+}
+
+// ── Render ──────────────────────────────────────────────────────────────
+function render() {
+  const container = document.getElementById('pageContent');
+
+  const visibleRows = mode === 'before'
+    ? rows.filter(r => r.status !== 'disabled')
+    : rows;
+
+  let html = `
+    <div class="page-header">
+      <h1 class="page-title">Shared Links</h1>
+      <button class="btn-primary">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Share Link
+      </button>
+    </div>
+
+    <div class="filter-row">
+      <button class="filter-tab active">All</button>
+      <button class="filter-tab">Shots</button>
+      <button class="filter-tab">Casting</button>
+      <button class="filter-tab">Pulls</button>
+    </div>
+  `;
+
+  if (mode === 'before') {
+    html += `
+      <div class="before-notice">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Current state: simple count, no engagement data, disabled pull link hidden from list
+      </div>
+      <div class="simple-count">4 shared links</div>
+    `;
+  } else {
+    html += `
+      <div class="after-notice">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><polyline points="20 6 9 17 4 12"/></svg>
+        Improved: at-a-glance status summary, engagement metrics, expandable casting details, all links visible
+      </div>
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-dot active"></span>
+          <span><span class="stat-count">3</span> active</span>
+        </div>
+        <span class="stats-sep">·</span>
+        <div class="stat-item">
+          <span class="stat-dot disabled"></span>
+          <span><span class="stat-count">1</span> disabled</span>
+        </div>
+        <span class="stats-sep">·</span>
+        <div class="stat-item">
+          <span class="stat-dot expired"></span>
+          <span><span class="stat-count">1</span> expired</span>
+        </div>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">Type</th>
+            <th>Title</th>
+            <th style="width:120px">Created</th>
+            <th style="width:90px">Status</th>
+            <th style="width:130px">Engagement</th>
+            <th style="width:130px; text-align:right; padding-right:18px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  visibleRows.forEach(row => {
+    const isExpanded = mode === 'after' && expandedRow === row.id;
+    const rowClass = row.disabled ? 'row-disabled' : '';
+
+    const toggleIconHtml = row.disabled
+      ? `<button class="icon-btn" title="Enable" onclick="void(0)">${iconEye()}</button>`
+      : `<button class="icon-btn active-toggle" title="Disable" onclick="void(0)">${iconEye()}</button>`;
+
+    let engagementHtml = '';
+    if (mode === 'before') {
+      engagementHtml = row.engagementBefore === null
+        ? `<span class="empty-cell">—</span>`
+        : `<span class="engagement">${row.engagementBefore}</span>`;
+    } else {
+      engagementHtml = `<span class="engagement">${row.engagementAfter}</span>`;
+    }
+
+    const expandBtn = (mode === 'after' && row.expandable)
+      ? `<button class="chevron-btn ${isExpanded ? 'open' : ''}" title="Expand details" onclick="toggleExpand(${row.id})">${iconChevronDown()}</button>`
+      : '';
+
+    const createdBlock = `
+      <div class="created-cell">
+        ${row.created}
+        ${row.createdBy ? '<div class="created-by-you">by you</div>' : ''}
+      </div>
+    `;
+
+    html += `
+      <tr class="${rowClass}">
+        <td>
+          <span class="type-badge ${row.type}">${row.typeLabel}</span>
+        </td>
+        <td>
+          <div class="title-cell">
+            <div class="title-name">
+              ${expandBtn}
+              ${row.title}
+            </div>
+            <div class="title-url">${row.url}</div>
+          </div>
+        </td>
+        <td>${createdBlock}</td>
+        <td>
+          <span class="status-badge ${row.status}">${row.statusLabel}</span>
+        </td>
+        <td>${engagementHtml}</td>
+        <td>
+          <div class="actions" style="justify-content:flex-end">
+            <button class="icon-btn" title="Open in new tab">${iconExternal()}</button>
+            <button class="icon-btn" title="Copy link">${iconCopy()}</button>
+            ${toggleIconHtml}
+            <button class="icon-btn" title="Set expiry">${iconClock()}</button>
+            <button class="icon-btn danger" title="Delete link">${iconTrash()}</button>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    // Expanded row for casting detail
+    if (isExpanded) {
+      html += `
+        <tr class="expanded-row">
+          <td colspan="6">
+            <div class="expanded-content">
+              <div>
+                <div class="expanded-section-label">Talent included (3)</div>
+                <div class="talent-grid">
+                  ${castingTalent.map(t => `
+                    <div class="talent-item">
+                      <div class="talent-avatar">${t.initials}</div>
+                      <div>
+                        <div class="talent-name">${t.name}</div>
+                        <div class="talent-agency">${t.agency}</div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              <div>
+                <div class="expanded-section-label">Visible fields</div>
+                <div class="visible-fields">
+                  <span class="field-chip">Agency</span>
+                  <span class="field-chip">Measurements</span>
+                  <span class="field-chip">Portfolio</span>
+                </div>
+                <div style="margin-top:14px">
+                  <div class="expanded-section-label">Reviewer instructions</div>
+                  <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:4px">"Please review and leave feedback on all three. Booking decision by Friday."</div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>

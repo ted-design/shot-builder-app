@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { orderBy, type Timestamp } from "firebase/firestore"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFirestoreCollection } from "@/shared/hooks/useFirestoreCollection"
@@ -113,6 +114,7 @@ function mapTalent(id: string, data: Record<string, unknown>): TalentRecord {
     measurements: (data["measurements"] as TalentRecord["measurements"]) ?? null,
     notes: data["notes"] as string | undefined,
     projectIds: Array.isArray(rawProjectIds) ? (rawProjectIds as string[]) : undefined,
+    deleted: asBoolean(data["deleted"]),
   }
 }
 
@@ -176,11 +178,13 @@ export function useProductSkuDoc(
 
 export function useTalent() {
   const { clientId } = useAuth()
-  return useFirestoreCollection<TalentRecord>(
+  const result = useFirestoreCollection<TalentRecord>(
     clientId ? talentPath(clientId) : null,
     [orderBy("name", "asc")],
     mapTalent,
   )
+  const data = useMemo(() => result.data.filter((t) => t.deleted !== true), [result.data])
+  return { ...result, data }
 }
 
 export function useLocations() {

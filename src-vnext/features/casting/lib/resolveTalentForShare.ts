@@ -16,8 +16,11 @@ import type {
   CastingShareVisibility,
   ResolvedCastingTalent,
 } from "@/shared/types"
+import type { ResolvedCastingSession } from "@/shared/types"
 
-const MAX_GALLERY_IMAGES = 6
+const MAX_GALLERY_IMAGES = 20
+const MAX_IMAGES_PER_SESSION = 30
+const MAX_TOTAL_CASTING_IMAGES = 60
 
 /** Build a Firestore doc ref from a path-helper array + extra segment. */
 function docRef(path: string[], ...extra: string[]) {
@@ -108,6 +111,52 @@ export async function resolveTalentForCastingShare(args: {
         galleryUrls = urls.filter((u): u is string => u !== null)
       }
 
+      // Casting session images (only if portfolio is visible)
+      let castingImageUrls: readonly string[] = []
+      let castingSessions: readonly ResolvedCastingSession[] = []
+      if (visibleFields.portfolio && data) {
+        const rawSessions = Array.isArray(data["castingSessions"])
+          ? (data["castingSessions"] as ReadonlyArray<{
+              title?: string | null
+              date?: string | null
+              images?: ReadonlyArray<{ path?: string }>
+            }>)
+          : []
+
+        const resolvedSessions: ResolvedCastingSession[] = []
+        const allUrls: string[] = []
+
+        for (const session of rawSessions) {
+          if (allUrls.length >= MAX_TOTAL_CASTING_IMAGES) break
+
+          const imgs = Array.isArray(session.images) ? session.images : []
+          const remaining = MAX_TOTAL_CASTING_IMAGES - allUrls.length
+          const paths = imgs
+            .map((img) => (typeof img.path === "string" && img.path.trim().length > 0 ? img.path : null))
+            .filter((p): p is string => p !== null)
+            .slice(0, Math.min(MAX_IMAGES_PER_SESSION, remaining))
+
+          if (paths.length === 0) continue
+
+          const resolved = await Promise.all(paths.map((p) => resolveStorageUrl(p)))
+          const urls = resolved.filter((u): u is string => u !== null)
+
+          if (urls.length > 0) {
+            resolvedSessions.push({
+              title: (typeof session.title === "string" && session.title.trim().length > 0)
+                ? session.title.trim()
+                : (typeof session.date === "string" ? `Casting ${session.date}` : "Casting"),
+              date: typeof session.date === "string" ? session.date : null,
+              imageUrls: urls,
+            })
+            allUrls.push(...urls)
+          }
+        }
+
+        castingImageUrls = allUrls
+        castingSessions = resolvedSessions
+      }
+
       return {
         talentId: entry.talentId,
         name,
@@ -116,6 +165,8 @@ export async function resolveTalentForCastingShare(args: {
         agency,
         measurements,
         galleryUrls,
+        castingImageUrls,
+        castingSessions,
         roleLabel: entry.roleLabel ?? null,
       }
     }),
