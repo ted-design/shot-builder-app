@@ -127,7 +127,7 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       },
       {
         type: "item",
-        item: { label: "Shared Links", to: `${prefix}/links`, iconName: "link-2", desktopOnly: true },
+        item: { label: "Shared Links", to: `${prefix}/links`, iconName: "link-2" },
       },
       { type: "divider" },
       { type: "item", item: { label: "Products", to: "/products", iconName: "package", surfaceBadge: "Reader" } },

@@ -197,9 +197,7 @@ export function AppRoutes() {
             path="projects/:id/links"
             element={
               <ProjectScopeProvider>
-                <RequireDesktop label="Shared Links">
-                  <SharedLinksPage />
-                </RequireDesktop>
+                <SharedLinksPage />
               </ProjectScopeProvider>
             }
           />

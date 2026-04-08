@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { canManageCasting } from "@/shared/lib/rbac"
+import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { Button } from "@/ui/button"
 import { useShareLinks } from "@/features/links/hooks/useShareLinks"
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/features/links/lib/shareLinkActions"
 import type { ShareLink, ShareLinkType } from "@/features/links/lib/shareLinkTypes"
 import { ShareLinkRow } from "./ShareLinkRow"
+import { ShareLinkCard } from "./ShareLinkCard"
 import { ShareLinkExpandedDetail } from "./ShareLinkExpandedDetail"
 import { ShareLinkExpiryDialog } from "./ShareLinkExpiryDialog"
 import { ShareLinkStats } from "./ShareLinkStats"
@@ -36,6 +38,7 @@ export default function SharedLinksPage() {
   const { projectId, projectName } = useProjectScope()
   const { clientId, role } = useAuth()
 
+  const isMobile = useIsMobile()
   const canEdit = canManageCasting(role)
 
   const { links, loading, error } = useShareLinks(projectId, clientId)
@@ -192,7 +195,24 @@ export default function SharedLinksPage() {
               title="No matching links"
               description="Try a different filter."
             />
+          ) : isMobile ? (
+            /* Mobile: card list */
+            <div className="flex flex-col gap-3">
+              {filtered.map((link) => (
+                <ShareLinkCard
+                  key={link.id}
+                  link={link}
+                  canEdit={canEdit}
+                  onCopy={handleCopy}
+                  onOpen={handleOpen}
+                  onToggle={handleToggle}
+                  onSetExpiry={handleSetExpiry}
+                  onDelete={handleDeleteRequest}
+                />
+              ))}
+            </div>
           ) : (
+            /* Desktop: table */
             <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
               <table className="w-full text-sm">
                 <thead>
