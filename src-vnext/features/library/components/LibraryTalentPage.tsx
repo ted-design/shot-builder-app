@@ -499,7 +499,7 @@ export default function LibraryTalentPage() {
       .then(() => {
         setSelectedId(null)
         setDeleteOpen(false)
-        toast("Talent archived", {
+        toast("Talent deleted", {
           description: talentName,
           action: {
             label: "Undo",

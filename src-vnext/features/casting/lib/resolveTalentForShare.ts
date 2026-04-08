@@ -20,6 +20,7 @@ import type { ResolvedCastingSession } from "@/shared/types"
 
 const MAX_GALLERY_IMAGES = 20
 const MAX_IMAGES_PER_SESSION = 30
+const MAX_TOTAL_CASTING_IMAGES = 60
 
 /** Build a Firestore doc ref from a path-helper array + extra segment. */
 function docRef(path: string[], ...extra: string[]) {
@@ -126,11 +127,14 @@ export async function resolveTalentForCastingShare(args: {
         const allUrls: string[] = []
 
         for (const session of rawSessions) {
+          if (allUrls.length >= MAX_TOTAL_CASTING_IMAGES) break
+
           const imgs = Array.isArray(session.images) ? session.images : []
+          const remaining = MAX_TOTAL_CASTING_IMAGES - allUrls.length
           const paths = imgs
             .map((img) => (typeof img.path === "string" && img.path.trim().length > 0 ? img.path : null))
             .filter((p): p is string => p !== null)
-            .slice(0, MAX_IMAGES_PER_SESSION)
+            .slice(0, Math.min(MAX_IMAGES_PER_SESSION, remaining))
 
           if (paths.length === 0) continue
 

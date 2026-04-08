@@ -206,6 +206,7 @@ export function TalentDialogCluster({
         clientId={clientId ?? ""}
         talentId={talentId}
         projectIds={projectIds}
+        projectLookup={projectLookup}
         busy={busy}
         onConfirm={onConfirmDeleteTalent}
       />

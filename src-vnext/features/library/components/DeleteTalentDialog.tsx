@@ -21,6 +21,7 @@ interface DeleteTalentDialogProps {
   readonly clientId: string
   readonly talentId: string
   readonly projectIds: readonly string[]
+  readonly projectLookup: ReadonlyMap<string, string>
   readonly busy: boolean
   readonly onConfirm: () => void
 }
@@ -32,6 +33,7 @@ export function DeleteTalentDialog({
   clientId,
   talentId,
   projectIds,
+  projectLookup,
   busy,
   onConfirm,
 }: DeleteTalentDialogProps) {
@@ -73,7 +75,7 @@ export function DeleteTalentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Archive talent?</DialogTitle>
+          <DialogTitle>Delete talent?</DialogTitle>
         </DialogHeader>
 
         {checking || deps === null ? (
@@ -135,7 +137,7 @@ export function DeleteTalentDialog({
                         {castingExpanded && (
                           <ul className="mt-1 ml-4 grid gap-0.5 text-xs opacity-80">
                             {deps.castingBoardProjects.map((p) => (
-                              <li key={p.id}>{p.title}</li>
+                              <li key={p.id}>{projectLookup.get(p.id) ?? p.id}</li>
                             ))}
                           </ul>
                         )}
@@ -181,10 +183,10 @@ export function DeleteTalentDialog({
             {busy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Archiving...
+                Deleting...
               </>
             ) : (
-              "Archive talent"
+              "Delete talent"
             )}
           </Button>
         </DialogFooter>
