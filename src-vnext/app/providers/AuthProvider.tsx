@@ -96,11 +96,35 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
                     // sessionStorage unavailable — skip welcome toast
                   }
                 }
+                // Brief delay to let custom claims propagate on the Auth server
+                // before refreshing the token. Without this, getIdToken(true) can
+                // return a token that was minted BEFORE setCustomUserClaims finished
+                // propagating, causing Firestore rules to deny access.
+                await new Promise((r) => setTimeout(r, 1500))
                 await firebaseUser.getIdToken(true)
+
+                // Verify claims actually arrived. If not, retry once more.
+                const refreshed = await firebaseUser.getIdTokenResult()
+                const refreshedClientId = refreshed.claims["clientId"]
+                if (!refreshedClientId) {
+                  console.warn("[AuthProvider] Claims missing after first refresh, retrying...")
+                  await new Promise((r) => setTimeout(r, 2000))
+                  await firebaseUser.getIdToken(true)
+                }
+
                 return
               }
-            } catch {
-              // Claim failed — fall through to pending access
+            } catch (claimErr) {
+              console.error("[AuthProvider] claimInvitation failed:", claimErr)
+              // Fall through to pending access with a more specific error
+              setState({
+                user: mapUser(firebaseUser),
+                claims: null,
+                loading: false,
+                error: "Invitation claim failed. Please try signing out and back in. If the issue persists, contact your administrator.",
+                claimingInvitation: false,
+              })
+              return
             }
           }
 
