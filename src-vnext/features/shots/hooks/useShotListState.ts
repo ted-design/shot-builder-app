@@ -83,6 +83,7 @@ export type ShotListState = {
   readonly setViewMode: (mode: ViewMode) => void
   readonly setGroupKey: (key: GroupKey) => void
   readonly toggleStatus: (status: ShotFirestoreStatus) => void
+  readonly clearStatusFilter: () => void
   readonly toggleMissing: (key: MissingKey) => void
   readonly toggleTag: (tagId: string) => void
   readonly setTalentFilter: (talentId: string) => void
@@ -359,6 +360,11 @@ export function useShotListState(params: {
     }
   }, [conditions, addCondition, removeCondition, updateCondition])
 
+  const clearStatusFilter = useCallback(() => {
+    const existing = conditions.find((c) => c.field === "status" && c.operator === "in")
+    if (existing) removeCondition(existing.id)
+  }, [conditions, removeCondition])
+
   const toggleMissing = useCallback((key: MissingKey) => {
     const existing = conditions.find((c) => c.field === "missing" && c.operator === "in")
     if (existing) {
@@ -551,7 +557,7 @@ export function useShotListState(params: {
     conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
-    toggleStatus, toggleMissing, toggleTag,
+    toggleStatus, clearStatusFilter, toggleMissing, toggleTag,
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,

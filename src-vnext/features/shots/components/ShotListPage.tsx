@@ -117,7 +117,7 @@ export default function ShotListPage() {
     conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
-    toggleStatus, toggleMissing, toggleTag,
+    toggleStatus, clearStatusFilter, toggleMissing, toggleTag,
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
@@ -418,6 +418,7 @@ export default function ShotListPage() {
             insights={insights}
             statusFilter={statusFilter}
             toggleStatus={toggleStatus}
+            clearStatusFilter={clearStatusFilter}
             canReorder={canReorder}
             hasActiveFilters={hasActiveFilters}
             onRenumberOpen={() => setRenumberOpen(true)}

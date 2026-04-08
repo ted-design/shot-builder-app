@@ -207,11 +207,10 @@ function TalentPickerContent({
     )
   }
 
-  const grouped: Record<CastingBoardStatus | "other", typeof visibleTalent> = {
+  const grouped: Record<string, typeof visibleTalent> = {
     booked: [],
     hold: [],
     shortlist: [],
-    passed: [],
     other: [],
   }
 
@@ -220,8 +219,7 @@ function TalentPickerContent({
     if (status === "booked") grouped.booked.push(t)
     else if (status === "hold") grouped.hold.push(t)
     else if (status === "shortlist") grouped.shortlist.push(t)
-    else if (status === "passed") grouped.passed.push(t)
-    else grouped.other.push(t)
+    else grouped.other.push(t) // "passed" and unstatused talent go to Other
   }
 
   return (

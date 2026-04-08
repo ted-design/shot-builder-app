@@ -55,6 +55,7 @@ type ShotListToolbarProps = {
   readonly canReorder: boolean
   readonly hasActiveFilters: boolean
   readonly onRenumberOpen: () => void
+  readonly clearStatusFilter: () => void
   // More filters (advanced conditions beyond status/missing)
   readonly extraFilterCount: number
   readonly onMoreFiltersOpen: () => void
@@ -93,6 +94,7 @@ export function ShotListToolbar({
   insights,
   statusFilter,
   toggleStatus,
+  clearStatusFilter,
   canReorder,
   hasActiveFilters,
   onRenumberOpen,
@@ -235,9 +237,7 @@ export function ShotListToolbar({
                 <button
                   type="button"
                   className="text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
-                  onClick={() => {
-                    for (const s of statusFilter) toggleStatus(s)
-                  }}
+                  onClick={clearStatusFilter}
                 >
                   Clear status filter
                 </button>
