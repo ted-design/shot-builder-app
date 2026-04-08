@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
@@ -18,6 +18,7 @@ import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersi
 import { TagEditor } from "@/features/shots/components/TagEditor"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
+import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -134,6 +135,12 @@ export default function ShotDetailPage() {
     )
   }
 
+  if (shot.deleted === true) {
+    navigate(`/projects/${shot.projectId}/shots`, { replace: true })
+    toast.info("This shot has been archived.")
+    return null
+  }
+
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
   const talentCount = (shot.talentIds ?? shot.talent ?? []).length
 
@@ -145,10 +152,22 @@ export default function ShotDetailPage() {
         entityId={shot.id}
       />
       <div className="flex flex-col gap-5">
+        {/* ── Breadcrumb ── */}
+        <div className="text-2xs text-[var(--color-text-subtle)]">
+          <Link to="/projects" className="hover:text-[var(--color-text-muted)]">Projects</Link>
+          <span className="mx-1">/</span>
+          <Link to={`/projects/${shot.projectId}`} className="hover:text-[var(--color-text-muted)]">{projectName || "Project"}</Link>
+          <span className="mx-1">/</span>
+          <Link to={`/projects/${shot.projectId}/shots${window.location.search}`} className="hover:text-[var(--color-text-muted)]">Shots</Link>
+          <span className="mx-1">/</span>
+          <span>#{shot.shotNumber || "—"}</span>
+        </div>
+
         {/* ── Header: back, title, shot number, status ── */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Shots
           </Button>
           <div className="flex flex-1 items-baseline gap-3">
             {canEdit ? (
@@ -211,7 +230,7 @@ export default function ShotDetailPage() {
 
         <Separator />
 
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
           <div className="flex flex-col gap-4">
             <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
               <SectionLabel>Description</SectionLabel>
@@ -278,6 +297,7 @@ export default function ShotDetailPage() {
                       }
                       disabled={!canEdit}
                       compact
+                      projectId={shot.projectId}
                     />
                   ) : (
                     <ReadOnlyMetaValue value={shot.locationName?.trim() || "Not set"} />
@@ -299,6 +319,10 @@ export default function ShotDetailPage() {
                 </MetaEditorCard>
               </div>
             </div>
+
+            {shot.looks && shot.looks.length > 0 && (
+              <ProductSummaryStrip looks={shot.looks} />
+            )}
 
             <div ref={notesRef} className="flex flex-col gap-4">
               <NotesSection
@@ -336,7 +360,7 @@ export default function ShotDetailPage() {
             <ShotVersionHistorySection shot={shot} />
           </div>
 
-          <div className="flex flex-col gap-4 xl:sticky xl:top-4">
+          <div className="flex flex-col gap-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
             <SectionLabel>Looks + Products</SectionLabel>
             <ShotLooksSection shot={shot} canEdit={canEdit} showReferencesSection={false} />
           </div>

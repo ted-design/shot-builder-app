@@ -19,6 +19,7 @@ interface LocationPickerProps {
   readonly onSave: (id: string, name: string) => void
   readonly disabled?: boolean
   readonly compact?: boolean
+  readonly projectId?: string
 }
 
 export function LocationPicker({
@@ -27,9 +28,19 @@ export function LocationPicker({
   onSave,
   disabled,
   compact = false,
+  projectId,
 }: LocationPickerProps) {
   const { data: locations } = useLocations()
   const [open, setOpen] = useState(false)
+
+  const projectLocations = projectId
+    ? locations.filter((loc) => loc.projectIds?.includes(projectId))
+    : []
+  const otherLocations = projectId
+    ? locations.filter((loc) => !loc.projectIds?.includes(projectId))
+    : locations
+
+  const showDivider = projectId != null && projectLocations.length > 0 && otherLocations.length > 0
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -60,26 +71,71 @@ export function LocationPicker({
           <CommandInput placeholder="Search locations..." />
           <CommandList>
             <CommandEmpty>No locations found.</CommandEmpty>
-            <CommandGroup>
-              {locations.map((loc) => (
-                <CommandItem
-                  key={loc.id}
-                  onSelect={() => {
-                    onSave(loc.id, loc.name)
-                    setOpen(false)
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Check
-                    className={cn(
-                      "h-4 w-4",
-                      selectedId === loc.id ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span>{loc.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {showDivider ? (
+              <>
+                <CommandGroup heading="This project">
+                  {projectLocations.map((loc) => (
+                    <CommandItem
+                      key={loc.id}
+                      onSelect={() => {
+                        onSave(loc.id, loc.name)
+                        setOpen(false)
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4",
+                          selectedId === loc.id ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span>{loc.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                <CommandGroup heading="All locations">
+                  {otherLocations.map((loc) => (
+                    <CommandItem
+                      key={loc.id}
+                      onSelect={() => {
+                        onSave(loc.id, loc.name)
+                        setOpen(false)
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4",
+                          selectedId === loc.id ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span>{loc.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            ) : (
+              <CommandGroup>
+                {locations.map((loc) => (
+                  <CommandItem
+                    key={loc.id}
+                    onSelect={() => {
+                      onSave(loc.id, loc.name)
+                      setOpen(false)
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4",
+                        selectedId === loc.id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <span>{loc.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

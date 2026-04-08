@@ -339,7 +339,7 @@ describe("computeShotReadiness", () => {
     expect(result.isSkuLevel).toBe(true)
   })
 
-  it("returns null launch date when SKU has no launchDate (no family fallback)", () => {
+  it("cascades to family earliestLaunchDate when SKU has no launchDate", () => {
     const shot = makeShot({
       looks: [
         makeLook({
@@ -357,11 +357,11 @@ describe("computeShotReadiness", () => {
       ["sku-1", makeSku({
         id: "sku-1",
         familyId: "fam-1",
-        // No launchDate
+        // No launchDate — should cascade to family.earliestLaunchDate
       })],
     ])
     const result = computeShotReadiness(shot, familyById, skuById)
-    expect(result.earliestLaunchDate).toBeNull()
+    expect(result.earliestLaunchDate?.toMillis()).toBe(1700000000000)
     expect(result.isSkuLevel).toBe(true)
   })
 
@@ -480,6 +480,184 @@ describe("computeShotReadiness", () => {
 })
 
 // ---------------------------------------------------------------------------
+// Launch date cascading: SKU date -> family earliestLaunchDate -> null
+// ---------------------------------------------------------------------------
+
+describe("computeShotReadiness — launch date cascade", () => {
+  const MAR_10 = 1741564800000 // 2025-03-10T00:00:00Z
+  const APR_05 = 1743811200000 // 2025-04-05T00:00:00Z
+  const APR_20 = 1745107200000 // 2025-04-20T00:00:00Z
+
+  it("uses SKU date when SKU has specific date and family has different date", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          products: [{ familyId: "fam-1", familyName: "Tee", skuId: "sku-1" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-1", makeFamily({
+        id: "fam-1",
+        earliestLaunchDate: makeTs(APR_05),
+      })],
+    ])
+    const skuById = new Map<string, ProductSku>([
+      ["sku-1", makeSku({
+        id: "sku-1",
+        familyId: "fam-1",
+        launchDate: makeTs(MAR_10),
+      })],
+    ])
+    const result = computeShotReadiness(shot, familyById, skuById)
+    // SKU date (Mar 10) wins over family date (Apr 5)
+    expect(result.earliestLaunchDate?.toMillis()).toBe(MAR_10)
+  })
+
+  it("cascades to family date when SKU has no date but family has one", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          products: [{ familyId: "fam-1", familyName: "Tee", skuId: "sku-1" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-1", makeFamily({
+        id: "fam-1",
+        earliestLaunchDate: makeTs(APR_05),
+      })],
+    ])
+    const skuById = new Map<string, ProductSku>([
+      ["sku-1", makeSku({
+        id: "sku-1",
+        familyId: "fam-1",
+        // No launchDate on SKU
+      })],
+    ])
+    const result = computeShotReadiness(shot, familyById, skuById)
+    // Should cascade to family.earliestLaunchDate (Apr 5)
+    expect(result.earliestLaunchDate?.toMillis()).toBe(APR_05)
+  })
+
+  it("returns null when neither SKU nor family has a date", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          products: [{ familyId: "fam-1", familyName: "Tee", skuId: "sku-1" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-1", makeFamily({
+        id: "fam-1",
+        // No earliestLaunchDate
+      })],
+    ])
+    const skuById = new Map<string, ProductSku>([
+      ["sku-1", makeSku({
+        id: "sku-1",
+        familyId: "fam-1",
+        // No launchDate
+      })],
+    ])
+    const result = computeShotReadiness(shot, familyById, skuById)
+    expect(result.earliestLaunchDate).toBeNull()
+  })
+
+  it("uses SKU date when SKU has date but family has none", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          products: [{ familyId: "fam-1", familyName: "Tee", skuId: "sku-1" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-1", makeFamily({
+        id: "fam-1",
+        // No earliestLaunchDate
+      })],
+    ])
+    const skuById = new Map<string, ProductSku>([
+      ["sku-1", makeSku({
+        id: "sku-1",
+        familyId: "fam-1",
+        launchDate: makeTs(MAR_10),
+      })],
+    ])
+    const result = computeShotReadiness(shot, familyById, skuById)
+    expect(result.earliestLaunchDate?.toMillis()).toBe(MAR_10)
+  })
+
+  it("picks earliest date across multi-product shot with mixed dates", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          id: "look-1",
+          order: 0,
+          heroProductId: "fam-a",
+          products: [{ familyId: "fam-a", familyName: "A", skuId: "sku-a" }],
+        }),
+        makeLook({
+          id: "look-2",
+          order: 1,
+          heroProductId: "fam-b",
+          products: [{ familyId: "fam-b", familyName: "B", skuId: "sku-b" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-a", makeFamily({
+        id: "fam-a",
+        styleName: "Product A",
+        earliestLaunchDate: makeTs(MAR_10),
+      })],
+      ["fam-b", makeFamily({
+        id: "fam-b",
+        styleName: "Product B",
+        earliestLaunchDate: makeTs(APR_20),
+      })],
+    ])
+    const skuById = new Map<string, ProductSku>([
+      // sku-a has no date — cascades to family Mar 10
+      ["sku-a", makeSku({ id: "sku-a", familyId: "fam-a" })],
+      // sku-b has specific date Apr 5 (earlier than family Apr 20)
+      ["sku-b", makeSku({
+        id: "sku-b",
+        familyId: "fam-b",
+        launchDate: makeTs(APR_05),
+      })],
+    ])
+    const result = computeShotReadiness(shot, familyById, skuById)
+    // Earliest: Mar 10 (from fam-a cascade) vs Apr 5 (from sku-b)
+    expect(result.earliestLaunchDate?.toMillis()).toBe(MAR_10)
+  })
+
+  it("uses family earliestLaunchDate when no SKU doc exists in map (null sku)", () => {
+    const shot = makeShot({
+      looks: [
+        makeLook({
+          products: [{ familyId: "fam-1", familyName: "Tee", skuId: "sku-missing" }],
+        }),
+      ],
+    })
+    const familyById = new Map<string, ProductFamily>([
+      ["fam-1", makeFamily({
+        id: "fam-1",
+        earliestLaunchDate: makeTs(APR_05),
+      })],
+    ])
+    // SKU map exists but sku-missing is not in it
+    const skuById = new Map<string, ProductSku>()
+    const result = computeShotReadiness(shot, familyById, skuById)
+    // Falls to else branch — family.earliestLaunchDate
+    expect(result.earliestLaunchDate?.toMillis()).toBe(APR_05)
+    expect(result.isSkuLevel).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // shotLaunchDateMs
 // ---------------------------------------------------------------------------
 
@@ -508,7 +686,7 @@ describe("shotLaunchDateMs", () => {
     expect(shotLaunchDateMs(shot, familyById, skuById)).toBe(1800000000000)
   })
 
-  it("returns MAX_SAFE_INTEGER when SKU has no launch date", () => {
+  it("cascades to family date when SKU has no launch date", () => {
     const shot = makeShot({
       looks: [
         makeLook({
@@ -525,8 +703,8 @@ describe("shotLaunchDateMs", () => {
     const skuById = new Map<string, ProductSku>([
       ["sku-1", makeSku({ id: "sku-1", familyId: "fam-1" })],
     ])
-    // SKU has no launchDate, should NOT fall back to family
-    expect(shotLaunchDateMs(shot, familyById, skuById)).toBe(Number.MAX_SAFE_INTEGER)
+    // SKU has no launchDate — should cascade to family.earliestLaunchDate
+    expect(shotLaunchDateMs(shot, familyById, skuById)).toBe(1700000000000)
   })
 
   it("uses family fallback when skuById is not provided", () => {
