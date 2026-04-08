@@ -116,7 +116,47 @@ async function createOrUpdateTestUser(
 }
 
 /**
- * Authenticate a user and save storage state
+ * Sign in via the Auth emulator REST API (bypasses login UI entirely).
+ *
+ * The login page only has Google OAuth — no email/password form.
+ * The emulator's signInWithPassword endpoint works because
+ * createOrUpdateTestUser creates users with email+password.
+ */
+async function signInViaEmulatorApi(
+  email: string,
+  password: string,
+): Promise<{ idToken: string; refreshToken: string; localId: string }> {
+  const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
+  const apiKey = process.env.VITE_FIREBASE_API_KEY || 'fake-api-key';
+
+  const res = await fetch(
+    `http://${authHost}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Auth emulator signIn failed (${res.status}): ${body}`);
+  }
+
+  const data = await res.json();
+  if (!data.idToken) {
+    throw new Error(`Auth emulator returned no idToken for ${email}`);
+  }
+
+  return { idToken: data.idToken, refreshToken: data.refreshToken, localId: data.localId };
+}
+
+/**
+ * Authenticate a user and save Playwright storage state.
+ *
+ * Strategy: sign in via emulator REST API to get tokens, then inject
+ * the auth state into the browser via Firebase's IndexedDB persistence
+ * by calling signInWithCredential on the client-side Firebase SDK.
  */
 async function authenticateAndSaveState(
   baseURL: string,
@@ -124,79 +164,76 @@ async function authenticateAndSaveState(
   password: string,
   outputPath: string
 ): Promise<void> {
+  // Step 1: Get tokens from the emulator REST API
+  const { idToken, refreshToken, localId } = await signInViaEmulatorApi(email, password);
+  console.log(`Got emulator token for ${email} (uid: ${localId})`);
+
+  // Step 2: Open a browser, navigate to the app, and inject the auth state
   const browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  // Listen for console errors
-  page.on('console', msg => {
-    if (msg.type() === 'error') {
-      console.error(`Browser console error: ${msg.text()}`);
-    }
-  });
-
-  // Listen for page errors
-  page.on('pageerror', error => {
-    console.error(`Page error: ${error.message}`);
-  });
-
   try {
-    // Navigate to app
     await page.goto(baseURL);
-
-    // Wait for login page to load
     await page.waitForLoadState('domcontentloaded');
 
-    // Check if already on authenticated page (shouldn't be, but just in case)
-    const currentUrl = page.url();
-    console.log(`Current URL after navigation: ${currentUrl}`);
+    // Inject the auth credential into the client-side Firebase SDK.
+    // The app uses connectAuthEmulator when VITE_USE_FIREBASE_EMULATORS=1,
+    // so signInWithCredential will hit the emulator, not production.
+    const signedIn = await page.evaluate(
+      async ({ idToken: token, email: userEmail }) => {
+        // Wait for Firebase to initialize (the app sets window.__BOOT_PHASE)
+        const waitForFirebase = () =>
+          new Promise<void>((resolve) => {
+            const check = () => {
+              // @ts-expect-error -- Firebase auth is on the module scope
+              if (typeof window !== 'undefined' && window.__BOOT_PHASE === 'react-mounted') {
+                resolve();
+              } else {
+                setTimeout(check, 200);
+              }
+            };
+            check();
+            // Fallback: resolve after 8s even if boot phase not detected
+            setTimeout(resolve, 8000);
+          });
 
-    if (currentUrl.includes('/shots') || currentUrl.includes('/dashboard') || currentUrl.includes('/projects')) {
-      console.log(`Already authenticated for ${email}`);
-      await context.storageState({ path: outputPath });
-      return;
+        await waitForFirebase();
+
+        try {
+          // Dynamic import to access the app's Firebase instance
+          const { auth } = await import('/src-vnext/shared/lib/firebase.ts');
+          const { signInWithCredential, GoogleAuthProvider } = await import('firebase/auth');
+
+          // Create a credential from the emulator-issued ID token
+          const credential = GoogleAuthProvider.credential(token);
+          const result = await signInWithCredential(auth, credential);
+          return { success: true, uid: result.user.uid, email: result.user.email };
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { success: false, error: msg };
+        }
+      },
+      { idToken, email },
+    );
+
+    if (!signedIn.success) {
+      throw new Error(`Client-side signIn failed for ${email}: ${signedIn.error}`);
     }
 
-    // Take screenshot for debugging
-    const screenshotPath = path.join(__dirname, 'playwright', `.auth-debug-${email.split('@')[0]}.png`);
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-    console.log(`Saved debug screenshot to ${screenshotPath}`);
+    console.log(`Browser signed in as ${signedIn.email} (uid: ${signedIn.uid})`);
 
-    // Log page title and visible text
-    const title = await page.title();
-    console.log(`Page title: ${title}`);
-
-    // Check if login form elements exist
-    const emailInputExists = await page.locator('input[type="email"], input[placeholder*="email" i]').count();
-    const passwordInputExists = await page.locator('input[type="password"], input[placeholder*="password" i]').count();
-    const submitButtonExists = await page.locator('button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In")').count();
-
-    console.log(`Email input found: ${emailInputExists} element(s)`);
-    console.log(`Password input found: ${passwordInputExists} element(s)`);
-    console.log(`Submit button found: ${submitButtonExists} element(s)`);
-
-    // Fill in login form with increased timeout
-    const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
-    await emailInput.waitFor({ state: 'visible', timeout: 30000 });
-    await emailInput.fill(email);
-
-    const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
-    await passwordInput.fill(password);
-
-    // Click sign in button
-    const signInButton = page.locator('button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]').first();
-    await signInButton.click();
-
-    // Wait for redirect to authenticated page
+    // Step 3: Wait for the app to redirect to an authenticated route
     await page.waitForURL(/\/(shots|dashboard|projects|planner)/, { timeout: 15000 });
-
-    // Wait for authenticated UI to appear
     await page.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
-    // Save authentication state
+    // Step 4: Save storage state (cookies + localStorage + IndexedDB auth)
     await context.storageState({ path: outputPath });
     console.log(`Saved auth state for ${email} to ${outputPath}`);
   } catch (error) {
+    // Save debug screenshot on failure
+    const screenshotPath = path.join(__dirname, 'playwright', `.auth-debug-${email.split('@')[0]}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
     console.error(`Failed to authenticate ${email}:`, error);
     throw error;
   } finally {
