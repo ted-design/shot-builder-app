@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 import { uploadShotReferenceImage, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -20,22 +21,6 @@ function formatUploadError(err: unknown): string {
   }
   if (typeof err === "string") return err
   return "Unknown error"
-}
-
-function sanitizeForFirestore(value: unknown): unknown {
-  if (value === undefined) return null
-  if (value === null) return null
-  if (Array.isArray(value)) return value.map(sanitizeForFirestore)
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(obj)) {
-      if (v === undefined) continue
-      out[k] = sanitizeForFirestore(v)
-    }
-    return out
-  }
-  return value
 }
 
 function getActiveLookIdForCover(

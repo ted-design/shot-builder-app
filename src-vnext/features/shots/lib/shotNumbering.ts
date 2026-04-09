@@ -51,14 +51,18 @@ const MAX_RENUMBER_SHOTS = 2000
 export async function renumberShots(
   shots: ReadonlyArray<Shot>,
   clientId: string,
+  startNumber: number = 1,
 ): Promise<number> {
+  if (startNumber < 1) {
+    throw new Error("startNumber must be >= 1")
+  }
   if (shots.length > MAX_RENUMBER_SHOTS) {
     throw new Error(`Cannot renumber more than ${MAX_RENUMBER_SHOTS} shots at once.`)
   }
   const updates: ReadonlyArray<{ shotId: string; newNumber: string; newSortOrder: number }> = shots.reduce<
     Array<{ shotId: string; newNumber: string; newSortOrder: number }>
   >((acc, shot, i) => {
-    const newNumber = formatShotNumber(i + 1)
+    const newNumber = formatShotNumber(i + startNumber)
     const newSortOrder = i
     if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) return acc
     return [...acc, { shotId: shot.id, newNumber, newSortOrder }]
@@ -90,6 +94,7 @@ export async function renumberShots(
  */
 export function previewRenumber(
   shots: ReadonlyArray<Shot>,
+  startNumber: number = 1,
 ): {
   readonly changes: ReadonlyArray<{
     readonly shotId: string
@@ -99,11 +104,12 @@ export function previewRenumber(
   }>
   readonly unchangedCount: number
 } {
+  const safeStart = Math.max(1, startNumber)
   let unchangedCount = 0
   const changes = shots.reduce<
     Array<{ shotId: string; title: string; currentNumber: string; newNumber: string }>
   >((acc, shot, i) => {
-    const newNumber = formatShotNumber(i + 1)
+    const newNumber = formatShotNumber(i + safeStart)
     if (shot.shotNumber === newNumber && shot.sortOrder === i) {
       unchangedCount++
       return acc
@@ -117,4 +123,21 @@ export function previewRenumber(
   }, [])
 
   return { changes, unchangedCount }
+}
+
+/**
+ * Suggests a start number for renumbering a filtered subset of shots.
+ * If all shots are visible (no filter), returns 1.
+ * Otherwise returns max hidden shot number + 1 so filtered shots
+ * continue after the hidden range.
+ */
+export function suggestStartNumber(
+  allShots: ReadonlyArray<Shot>,
+  filteredShots: ReadonlyArray<Shot>,
+): number {
+  if (filteredShots.length === allShots.length) return 1
+  const filteredIds = new Set(filteredShots.map((s) => s.id))
+  const hiddenShots = allShots.filter((s) => !filteredIds.has(s.id))
+  const maxHidden = computeMaxShotNumber(hiddenShots)
+  return maxHidden > 0 ? maxHidden + 1 : 1
 }

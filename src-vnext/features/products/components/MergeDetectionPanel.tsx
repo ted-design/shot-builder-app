@@ -101,6 +101,19 @@ function DuplicateGroupCard({
         </Button>
       </div>
 
+      {(group.hasGenderConflict || group.hasCategoryConflict) && (
+        <div className="flex items-start gap-2 rounded-md border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 px-3 py-2">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-error)]" />
+          <p className="text-2xs text-[var(--color-error)]">
+            {group.hasGenderConflict && group.hasCategoryConflict
+              ? "Gender and category differ across these products. Merging may be incorrect."
+              : group.hasGenderConflict
+                ? "Gender differs across these products (e.g., Men vs Women). Merging is usually incorrect."
+                : "Category differs across these products. Verify before merging."}
+          </p>
+        </div>
+      )}
+
       {group.differences.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {group.differences.map((diff) => (

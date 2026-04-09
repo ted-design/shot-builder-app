@@ -262,6 +262,69 @@ describe("detectDuplicates", () => {
     const result = detectDuplicates(families)
     expect(result).toHaveLength(0)
   })
+
+  it("flags hasGenderConflict when genders differ (Men vs Women)", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Compression Socks", styleNumber: "CS-100", gender: "Men" }),
+      makeFamily({ id: "f2", styleName: "Compression Socks", styleNumber: "CS100", gender: "Women" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasGenderConflict).toBe(true)
+    expect(result[0]!.hasCategoryConflict).toBe(false)
+  })
+
+  it("does not flag hasGenderConflict when genders match", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Merino Polo", styleNumber: "AB-123", gender: "Men" }),
+      makeFamily({ id: "f2", styleName: "Merino Polo", styleNumber: "AB123", gender: "Men" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasGenderConflict).toBe(false)
+  })
+
+  it("does not flag hasGenderConflict when gender is case-insensitive match", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Merino Polo", styleNumber: "AB-123", gender: "men" }),
+      makeFamily({ id: "f2", styleName: "Merino Polo", styleNumber: "AB123", gender: "Men" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasGenderConflict).toBe(false)
+  })
+
+  it("flags hasCategoryConflict when categories differ", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Long Sleeve", styleNumber: "LS-50", category: "Tops" }),
+      makeFamily({ id: "f2", styleName: "Long Sleeve", styleNumber: "LS50", category: "Outerwear" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasCategoryConflict).toBe(true)
+  })
+
+  it("flags both conflicts when gender AND category differ", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Socks", styleNumber: "SK-01", gender: "Men", category: "Accessories" }),
+      makeFamily({ id: "f2", styleName: "Socks", styleNumber: "SK01", gender: "Women", category: "Hosiery" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasGenderConflict).toBe(true)
+    expect(result[0]!.hasCategoryConflict).toBe(true)
+  })
+
+  it("does not flag conflicts when gender/category are null or empty", () => {
+    const families = [
+      makeFamily({ id: "f1", styleName: "Mystery Item", styleNumber: "XX-01" }),
+      makeFamily({ id: "f2", styleName: "Mystery Item", styleNumber: "XX01" }),
+    ]
+    const result = detectDuplicates(families)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.hasGenderConflict).toBe(false)
+    expect(result[0]!.hasCategoryConflict).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

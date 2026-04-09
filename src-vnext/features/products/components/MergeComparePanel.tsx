@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { Badge } from "@/ui/badge"
 import { Button } from "@/ui/button"
+import { Checkbox } from "@/ui/checkbox"
 import { Separator } from "@/ui/separator"
-import { ArrowRightLeft, Crown, Loader2 } from "lucide-react"
+import { AlertTriangle, ArrowRightLeft, Crown, Loader2 } from "lucide-react"
 import type { ProductFamily } from "@/shared/types"
 import { cn } from "@/shared/lib/utils"
 
@@ -92,6 +94,11 @@ export function MergeComparePanel({
   onPlanMerge,
 }: MergeComparePanelProps) {
   const fields = buildCompareFields(winner, loser)
+  const hasGenderConflict = Boolean(
+    winner.gender && loser.gender &&
+    winner.gender.toLowerCase() !== loser.gender.toLowerCase(),
+  )
+  const [genderConfirmed, setGenderConfirmed] = useState(false)
 
   return (
     <div className="flex flex-col gap-4">
@@ -132,12 +139,14 @@ export function MergeComparePanel({
           <tbody>
             {fields.map((f) => {
               const isDifferent = f.winnerValue !== f.loserValue
+              const isCriticalDiff = isDifferent && (f.label === "Gender" || f.label === "Category")
               return (
                 <tr
                   key={f.label}
                   className={cn(
                     "border-b border-[var(--color-border)] last:border-b-0",
-                    isDifferent && "bg-[var(--color-status-amber-bg)]",
+                    isCriticalDiff && "bg-[var(--color-error)]/10",
+                    isDifferent && !isCriticalDiff && "bg-[var(--color-status-amber-bg)]",
                   )}
                 >
                   <td className="px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)]">
@@ -148,9 +157,11 @@ export function MergeComparePanel({
                   </td>
                   <td className={cn(
                     "px-3 py-1.5 text-xs",
-                    isDifferent
-                      ? "text-[var(--color-status-amber-text)]"
-                      : "text-[var(--color-text-muted)]",
+                    isCriticalDiff
+                      ? "font-medium text-[var(--color-error)]"
+                      : isDifferent
+                        ? "text-[var(--color-status-amber-text)]"
+                        : "text-[var(--color-text-muted)]",
                   )}>
                     {f.loserValue}
                   </td>
@@ -163,9 +174,40 @@ export function MergeComparePanel({
 
       <Separator />
 
+      {/* Gender conflict warning */}
+      {hasGenderConflict && (
+        <div className="flex flex-col gap-3 rounded-md border border-[var(--color-error)]/30 bg-[var(--color-error)]/10 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-error)]" />
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium text-[var(--color-error)]">
+                Gender mismatch: {winner.gender} vs {loser.gender}
+              </p>
+              <p className="text-2xs text-[var(--color-error)]/80">
+                These products have different genders. Merging them is usually incorrect
+                (different sizing, categories, and customer segments). Only proceed if you
+                are certain these are the same product.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              checked={genderConfirmed}
+              onCheckedChange={(v) => setGenderConfirmed(v === true)}
+            />
+            <span className="text-xs text-[var(--color-text)]">
+              I confirm these products should be merged despite different genders
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Action */}
       <div className="flex justify-end">
-        <Button onClick={onPlanMerge} disabled={planLoading}>
+        <Button
+          onClick={onPlanMerge}
+          disabled={planLoading || (hasGenderConflict && !genderConfirmed)}
+        >
           {planLoading ? (
             <>
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

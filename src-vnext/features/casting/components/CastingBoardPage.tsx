@@ -30,8 +30,10 @@ import {
   SelectValue,
 } from "@/ui/select"
 import { CastingCard } from "@/features/casting/components/CastingCard"
+import { AdminTalentDetailSheet } from "@/features/casting/components/AdminTalentDetailSheet"
 import { AddCastingTalentDialog } from "@/features/casting/components/AddCastingTalentDialog"
 import { CastingShareDialog } from "@/features/casting/components/CastingShareDialog"
+import { useCastingVoteAggregates } from "@/features/casting/hooks/useCastingVoteAggregates"
 import type { CastingBoardStatus, TalentRecord } from "@/shared/types"
 
 type StatusFilter = "all" | CastingBoardStatus
@@ -55,6 +57,10 @@ export default function CastingBoardPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [addingSaving, setAddingSaving] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [detailTalentId, setDetailTalentId] = useState<string | null>(null)
+
+  // Load vote aggregates from all casting shares for this project
+  const { aggregates: voteAggregates } = useCastingVoteAggregates(projectId, clientId)
 
   // Build talent lookup map
   const talentById = useMemo(() => {
@@ -370,6 +376,8 @@ export default function CastingBoardPage() {
               talent={talentById.get(entry.talentId) ?? null}
               selected={selected.has(entry.id)}
               canEdit={canEdit}
+              voteAggregate={voteAggregates.get(entry.talentId)}
+              onClick={() => setDetailTalentId(entry.talentId)}
               onSelect={toggleSelect}
               onStatusChange={handleStatusChange}
               onBook={handleBook}
@@ -447,6 +455,15 @@ export default function CastingBoardPage() {
           selectedIds={selected.size > 0 ? selected : undefined}
         />
       )}
+
+      {/* Talent Detail Sheet */}
+      <AdminTalentDetailSheet
+        open={detailTalentId !== null}
+        onOpenChange={(open) => { if (!open) setDetailTalentId(null) }}
+        talent={detailTalentId ? (talentById.get(detailTalentId) ?? null) : null}
+        entry={detailTalentId ? (entries.find((e) => e.talentId === detailTalentId) ?? null) : null}
+        voteAggregate={detailTalentId ? (voteAggregates.get(detailTalentId) ?? null) : null}
+      />
     </ErrorBoundary>
   )
 }

@@ -157,13 +157,11 @@ export function ShotListToolbar({
               <SelectSeparator />
               <SelectItem
                 value="__renumber__"
-                disabled={hasActiveFilters}
                 className="text-[var(--color-text-muted)]"
-                title={hasActiveFilters ? "Clear filters to renumber all shots." : undefined}
               >
                 <span className="flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
-                  Renumber to match order
+                  {hasActiveFilters ? "Renumber visible shots" : "Renumber to match order"}
                 </span>
               </SelectItem>
             </>

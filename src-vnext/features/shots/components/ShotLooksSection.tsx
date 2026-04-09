@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 import { ProductAssignmentPicker } from "@/features/shots/components/ProductAssignmentPicker"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -46,22 +47,6 @@ function generateLookId(): string {
 
 function generateReferenceId(): string {
   return `ref_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-}
-
-function sanitizeForFirestore(value: unknown): unknown {
-  if (value === undefined) return null
-  if (value === null) return null
-  if (Array.isArray(value)) return value.map(sanitizeForFirestore)
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(obj)) {
-      if (v === undefined) continue
-      out[k] = sanitizeForFirestore(v)
-    }
-    return out
-  }
-  return value
 }
 
 function normalizeLooksForWrite(looks: ReadonlyArray<ShotLook>): ShotLook[] {

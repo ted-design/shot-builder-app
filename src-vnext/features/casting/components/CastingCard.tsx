@@ -18,11 +18,15 @@ import {
 import { formatLabeledMeasurements } from "@/features/library/lib/measurementOptions"
 import type { CastingBoardEntry, CastingBoardStatus, TalentRecord } from "@/shared/types"
 
+import type { VoteAggregate } from "@/features/casting/hooks/useCastingVoteAggregates"
+
 interface CastingCardProps {
   readonly entry: CastingBoardEntry
   readonly talent: TalentRecord | null
   readonly selected: boolean
   readonly canEdit: boolean
+  readonly voteAggregate?: VoteAggregate | null
+  readonly onClick?: () => void
   readonly onSelect: (id: string) => void
   readonly onStatusChange: (talentId: string, status: CastingBoardStatus) => void
   readonly onBook: (talentId: string) => void
@@ -46,6 +50,8 @@ export function CastingCard({
   talent,
   selected,
   canEdit,
+  voteAggregate,
+  onClick,
   onSelect,
   onStatusChange,
   onBook,
@@ -124,8 +130,13 @@ export function CastingCard({
         </div>
       )}
 
-      {/* Headshot */}
-      <div className="aspect-[3/4] w-full bg-[var(--color-surface-subtle)]">
+      {/* Headshot — clickable to open detail sheet */}
+      <button
+        type="button"
+        className="aspect-[3/4] w-full bg-[var(--color-surface-subtle)] cursor-pointer"
+        onClick={onClick}
+        aria-label={`View details for ${displayName}`}
+      >
         {headshotUrl ? (
           <img
             src={headshotUrl}
@@ -137,7 +148,7 @@ export function CastingCard({
             {initials(displayName)}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Body */}
       <div className="px-3 pb-3 pt-2.5">
@@ -171,10 +182,36 @@ export function CastingCard({
           </div>
         )}
 
-        {/* Vote tally placeholder */}
-        <div className="mt-1.5 text-xs text-[var(--color-text-subtle)]">
-          No votes yet
-        </div>
+        {/* Vote tally */}
+        {voteAggregate && (voteAggregate.approve + voteAggregate.maybe + voteAggregate.disapprove) > 0 ? (
+          <div className="mt-1.5 flex items-center gap-1.5 text-2xs">
+            {voteAggregate.approve > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[var(--color-status-green-text)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-status-green-text)]" />
+                {voteAggregate.approve}
+              </span>
+            )}
+            {voteAggregate.maybe > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[var(--color-status-amber-text)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-status-amber-text)]" />
+                {voteAggregate.maybe}
+              </span>
+            )}
+            {voteAggregate.disapprove > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[var(--color-error)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-error)]" />
+                {voteAggregate.disapprove}
+              </span>
+            )}
+            <span className="text-[var(--color-text-subtle)]">
+              {voteAggregate.votes.length} vote{voteAggregate.votes.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-1.5 text-2xs text-[var(--color-text-subtle)]">
+            No votes yet
+          </div>
+        )}
 
         {/* Book / Booked action */}
         {showBookButton && (
