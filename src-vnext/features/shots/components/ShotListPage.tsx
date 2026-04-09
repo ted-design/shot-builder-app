@@ -23,7 +23,7 @@ import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import { Camera, Plus, Info, Trash2 } from "lucide-react"
+import { Camera, Plus, Info } from "lucide-react"
 import type { Shot } from "@/shared/types"
 import { SORT_LABELS } from "@/features/shots/lib/shotListFilters"
 import { toast } from "sonner"
@@ -33,10 +33,10 @@ import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { BulkActionBar } from "@/features/shots/components/BulkActionBar"
 import { BulkDeleteShotsDialog } from "@/features/shots/components/BulkDeleteShotsDialog"
 import { RenumberShotsDialog } from "@/features/shots/components/RenumberShotsDialog"
 import { useHeroProductData } from "@/features/shots/hooks/useHeroProductData"
-import { Checkbox } from "@/ui/checkbox"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
@@ -329,75 +329,24 @@ export default function ShotListPage() {
 
       {/* Bulk action bar (desktop only) */}
       {selectionEnabled && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-          <div className="flex items-center gap-3">
-            <Checkbox
-              checked={displayShots.length > 0 && displayShots.every(s => selectedIds.has(s.id)) ? true : selectedIds.size > 0 ? "indeterminate" : false}
-              onCheckedChange={(v) => {
-                if (v) {
-                  setSelectedIds(new Set(displayShots.map(s => s.id)))
-                } else {
-                  setSelectedIds(new Set())
-                }
-              }}
-              aria-label={displayShots.length > 0 && displayShots.every(s => selectedIds.has(s.id)) ? "Deselect all shots" : "Select all visible shots"}
-            />
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {selectedIds.size} selected
-              {selectedIds.size < displayShots.length && (
-                <button
-                  type="button"
-                  className="ml-1.5 text-[var(--color-primary)] hover:underline"
-                  onClick={() => setSelectedIds(new Set(displayShots.map(s => s.id)))}
-                >
-                  Select all {displayShots.length}
-                </button>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {canShare && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={selectedIds.size === 0}
-                onClick={() => setShareOpen(true)}
-              >
-                Share link
-              </Button>
-            )}
-            {canExport && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
-              >
-                Export PDF
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
-              Clear
-            </Button>
-            <Button
-              size="sm"
-              disabled={selectedIds.size === 0}
-              onClick={() => setCreatePullOpen(true)}
-            >
-              Create pull sheet
-            </Button>
-            {canManageShots(role) && (
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={selectedIds.size === 0}
-                onClick={() => setBulkDeleteOpen(true)}
-              >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Delete
-              </Button>
-            )}
-          </div>
-        </div>
+        <BulkActionBar
+          displayShots={displayShots}
+          selectedIds={selectedIds}
+          onSelectAll={() => setSelectedIds(new Set(displayShots.map(s => s.id)))}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          clientId={clientId}
+          user={user}
+          role={role}
+          onShareOpen={() => setShareOpen(true)}
+          onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
+          onCreatePullOpen={() => setCreatePullOpen(true)}
+          onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
+          onClearSelection={clearSelection}
+          canShare={canShare}
+          canExport={canExport}
+          locations={locationRecords}
+          talent={talentRecords}
+        />
       )}
 
       {/* Toolbar: search + sort + inline filters + view */}
@@ -801,6 +750,8 @@ export default function ShotListPage() {
         clientId={clientId}
         sortKey={sortKey}
         sortDir={sortDir}
+        totalShotCount={shots.length}
+        allShots={shots}
       />
 
       {canShare && (

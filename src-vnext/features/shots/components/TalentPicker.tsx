@@ -15,7 +15,7 @@ import { useTalent } from "@/features/shots/hooks/usePickerData"
 import { useCastingBoard } from "@/features/casting/hooks/useCastingBoard"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { addTalentToProject } from "@/features/assets/lib/projectAssetsWrites"
-import { Users } from "lucide-react"
+import { ChevronDown, ChevronUp, Users } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import type { CastingBoardStatus } from "@/shared/types"
 
@@ -177,6 +177,9 @@ function TalentPickerContent({
   readonly clientId: string | null
 }) {
   const { entries } = useCastingBoard(projectId, clientId)
+  const [showHold, setShowHold] = useState(false)
+  const [showShortlist, setShowShortlist] = useState(false)
+  const [showOther, setShowOther] = useState(false)
 
   const castingMap = new Map<string, CastingBoardStatus>(
     entries.map((e) => [e.talentId, e.status]),
@@ -207,7 +210,8 @@ function TalentPickerContent({
     )
   }
 
-  const grouped: Record<string, typeof visibleTalent> = {
+  type TalentItem = { readonly id: string; readonly name: string }
+  const grouped: { booked: TalentItem[]; hold: TalentItem[]; shortlist: TalentItem[]; other: TalentItem[] } = {
     booked: [],
     hold: [],
     shortlist: [],
@@ -222,18 +226,29 @@ function TalentPickerContent({
     else grouped.other.push(t) // "passed" and unstatused talent go to Other
   }
 
+  const bookedIds = new Set(grouped.booked.map((t) => t.id))
+  const assignedNonBooked = visibleTalent.filter(
+    (t) => draft.includes(t.id) && !bookedIds.has(t.id),
+  )
+
+  const ChevronIcon = ({ expanded }: { readonly expanded: boolean }) =>
+    expanded ? (
+      <ChevronUp className="h-3 w-3 shrink-0" />
+    ) : (
+      <ChevronDown className="h-3 w-3 shrink-0" />
+    )
+
   return (
     <Command>
       <CommandInput placeholder="Search talent..." />
       <CommandList>
         <CommandEmpty>No talent found.</CommandEmpty>
-        {CASTING_STATUS_ORDER.map((status) => {
-          const group = grouped[status]
-          if (group.length === 0) return null
-          const heading = status === "booked" ? "Booked" : status === "hold" ? "Hold" : "Shortlist"
-          return (
-            <CommandGroup key={status} heading={heading}>
-              {group.map((t) => (
+
+        {assignedNonBooked.length > 0 && (
+          <CommandGroup heading="Currently assigned">
+            {assignedNonBooked.map((t) => {
+              const status = castingMap.get(t.id)
+              return (
                 <CommandItem
                   key={t.id}
                   onSelect={() => toggle(t.id)}
@@ -241,25 +256,126 @@ function TalentPickerContent({
                 >
                   <Checkbox checked={draft.includes(t.id)} />
                   <span className="flex-1">{t.name}</span>
-                  {castingStatusBadge(status)}
+                  {status ? castingStatusBadge(status) : null}
                 </CommandItem>
-              ))}
-            </CommandGroup>
-          )
-        })}
-        {grouped.other.length > 0 && (
-          <CommandGroup heading="Other talent">
-            {grouped.other.map((t) => (
-              <CommandItem
-                key={t.id}
-                onSelect={() => toggle(t.id)}
-                className="flex items-center gap-2"
-              >
-                <Checkbox checked={draft.includes(t.id)} />
-                <span>{t.name}</span>
-              </CommandItem>
-            ))}
+              )
+            })}
           </CommandGroup>
+        )}
+
+        <CommandGroup heading="Booked">
+          {grouped.booked.map((t) => (
+            <CommandItem
+              key={t.id}
+              onSelect={() => toggle(t.id)}
+              className="flex items-center gap-2"
+            >
+              <Checkbox checked={draft.includes(t.id)} />
+              <span className="flex-1">{t.name}</span>
+              {castingStatusBadge("booked")}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+
+        {grouped.hold.length > 0 && (
+          <>
+            <div className="px-2 py-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text-secondary)] transition-colors"
+                onClick={() => setShowHold((prev) => !prev)}
+              >
+                <ChevronIcon expanded={showHold} />
+                <span className="flex-1">
+                  {showHold ? "Hide hold" : `Show ${grouped.hold.length} on hold`}
+                </span>
+                <Badge className="h-4 rounded-sm px-1 text-2xs font-medium bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)] border-0">
+                  {grouped.hold.length}
+                </Badge>
+              </button>
+            </div>
+            {showHold && (
+              <CommandGroup heading="Hold">
+                {grouped.hold.map((t) => (
+                  <CommandItem
+                    key={t.id}
+                    onSelect={() => toggle(t.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox checked={draft.includes(t.id)} />
+                    <span className="flex-1">{t.name}</span>
+                    {castingStatusBadge("hold")}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </>
+        )}
+
+        {grouped.shortlist.length > 0 && (
+          <>
+            <div className="px-2 py-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text-secondary)] transition-colors"
+                onClick={() => setShowShortlist((prev) => !prev)}
+              >
+                <ChevronIcon expanded={showShortlist} />
+                <span className="flex-1">
+                  {showShortlist ? "Hide shortlist" : `Show ${grouped.shortlist.length} shortlisted`}
+                </span>
+                <Badge className="h-4 rounded-sm px-1 text-2xs font-medium bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)] border border-[var(--color-border)]">
+                  {grouped.shortlist.length}
+                </Badge>
+              </button>
+            </div>
+            {showShortlist && (
+              <CommandGroup heading="Shortlist">
+                {grouped.shortlist.map((t) => (
+                  <CommandItem
+                    key={t.id}
+                    onSelect={() => toggle(t.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox checked={draft.includes(t.id)} />
+                    <span className="flex-1">{t.name}</span>
+                    {castingStatusBadge("shortlist")}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </>
+        )}
+
+        {grouped.other.length > 0 && (
+          <>
+            <div className="px-2 py-1">
+              <button
+                type="button"
+                className="flex w-full items-center gap-1.5 px-2 py-1 text-left text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text-secondary)] transition-colors"
+                onClick={() => setShowOther((prev) => !prev)}
+              >
+                <ChevronIcon expanded={showOther} />
+                <span className="flex-1">
+                  {showOther ? "Hide other talent" : `Show ${grouped.other.length} more`}
+                </span>
+              </button>
+            </div>
+            {showOther && (
+              <CommandGroup heading="Other talent">
+                {grouped.other.map((t) => (
+                  <CommandItem
+                    key={t.id}
+                    onSelect={() => toggle(t.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox checked={draft.includes(t.id)} />
+                    <span>{t.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </>
         )}
       </CommandList>
     </Command>

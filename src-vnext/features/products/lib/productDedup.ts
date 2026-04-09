@@ -34,6 +34,10 @@ export interface DuplicateGroup {
   readonly families: ReadonlyArray<ProductFamily>
   /** Human-readable differences between the products. */
   readonly differences: ReadonlyArray<FieldDifference>
+  /** True when products in the group have different genders (e.g., Men vs Women). */
+  readonly hasGenderConflict: boolean
+  /** True when products in the group have different categories. */
+  readonly hasCategoryConflict: boolean
 }
 
 export interface MergeCheck {
@@ -239,10 +243,19 @@ export function detectDuplicates(
     if (groupFamilies.length < 2) continue
     if (!hasSimilarNames(groupFamilies)) continue
 
+    const genders = new Set(
+      groupFamilies.map((f) => (f.gender ?? "").toLowerCase()).filter(Boolean),
+    )
+    const categories = new Set(
+      groupFamilies.map((f) => (f.category ?? "").toLowerCase()).filter(Boolean),
+    )
+
     duplicates.push({
       key,
       families: groupFamilies,
       differences: computeFieldDifferences(groupFamilies),
+      hasGenderConflict: genders.size > 1,
+      hasCategoryConflict: categories.size > 1,
     })
   }
 

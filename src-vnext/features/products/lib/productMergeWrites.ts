@@ -11,6 +11,7 @@ import {
   writeBatch,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
+import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 import {
   productFamiliesPath,
   productFamilyCommentsPath,
@@ -156,12 +157,12 @@ async function transferSamples(args: {
         : scopeSkuId ?? null
 
       const newRef = doc(winnerSamplesCol)
-      batch.set(newRef, {
+      batch.set(newRef, sanitizeForFirestore({
         ...data,
         scopeSkuId: remappedSkuId,
         updatedAt: serverTimestamp(),
         updatedBy: mergedBy,
-      })
+      }) as Record<string, unknown>)
       transferred += 1
     }
     await batch.commit()
@@ -196,11 +197,11 @@ async function transferComments(args: {
     const batch = writeBatch(db)
     for (const commentDoc of chunk) {
       const newRef = doc(winnerCommentsCol)
-      batch.set(newRef, {
+      batch.set(newRef, sanitizeForFirestore({
         ...commentDoc.data(),
         updatedAt: serverTimestamp(),
         updatedBy: mergedBy,
-      })
+      }) as Record<string, unknown>)
       transferred += 1
     }
     await batch.commit()
@@ -235,11 +236,11 @@ async function transferDocuments(args: {
     const batch = writeBatch(db)
     for (const docSnap of chunk) {
       const newRef = doc(winnerDocsCol)
-      batch.set(newRef, {
+      batch.set(newRef, sanitizeForFirestore({
         ...docSnap.data(),
         updatedAt: serverTimestamp(),
         updatedBy: mergedBy,
-      })
+      }) as Record<string, unknown>)
       transferred += 1
     }
     await batch.commit()
@@ -324,11 +325,11 @@ async function updateShotReferences(args: {
       })
 
       if (changed) {
-        batch.update(shotSnap.ref, {
+        batch.update(shotSnap.ref, sanitizeForFirestore({
           products: newProducts,
           looks: newLooks,
           updatedAt: serverTimestamp(),
-        })
+        }) as Record<string, unknown>)
         updated += 1
       }
     }
