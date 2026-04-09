@@ -7,7 +7,7 @@ import { shotLaunchDateMs, shotRequirementsCount } from "@/features/shots/lib/sh
 // Types
 // ---------------------------------------------------------------------------
 
-export type SortKey = "custom" | "name" | "date" | "status" | "created" | "updated" | "launchDate" | "requirements"
+export type SortKey = "custom" | "name" | "shotNumber" | "date" | "status" | "created" | "updated" | "launchDate" | "requirements"
 export type SortDir = "asc" | "desc"
 export type ViewMode = "card" | "table"
 export type MissingKey = "products" | "talent" | "location" | "image"
@@ -56,6 +56,7 @@ export const DEFAULT_FIELDS: ShotsListFields = {
 export const SORT_LABELS: Record<SortKey, string> = {
   custom: "Custom Order",
   name: "Name",
+  shotNumber: "Shot #",
   date: "Date",
   status: "Status",
   created: "Created",
@@ -117,6 +118,8 @@ export function sortShots(
     switch (key) {
       case "name":
         return byString(a.title ?? "", b.title ?? "")
+      case "shotNumber":
+        return byString(a.shotNumber ?? "", b.shotNumber ?? "")
       case "date": {
         const aHas = !!a.date
         const bHas = !!b.date
