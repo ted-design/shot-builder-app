@@ -296,6 +296,8 @@ export default function ShotListPage() {
           onShotCreated={(shotId, title) => {
             toast.success("Shot created", { description: title })
           }}
+          projects={projects}
+          existingTitles={existingShotTitles}
         />
       </ErrorBoundary>
     )
@@ -829,7 +831,7 @@ export default function ShotListPage() {
         title={`Delete scene "${deleteSceneTarget?.name ?? ""}"?`}
         description="All shots in this scene will be ungrouped. This cannot be undone."
         confirmLabel="Delete Scene"
-        variant="destructive"
+        destructive
         onConfirm={() => {
           if (clientId && deleteSceneTarget) {
             void ungroupAllShotsFromLane({ shots, laneId: deleteSceneTarget.id, projectId, clientId })

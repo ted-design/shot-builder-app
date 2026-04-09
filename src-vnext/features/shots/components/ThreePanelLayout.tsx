@@ -15,7 +15,7 @@ import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCan
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { toast } from "sonner"
-import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, Project } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -56,6 +56,8 @@ interface ThreePanelLayoutProps {
   readonly onDeselect: () => void
   readonly onSelectShot: (shotId: string) => void
   readonly onShotCreated?: (shotId: string, title: string) => void
+  readonly projects: ReadonlyArray<Project>
+  readonly existingTitles: ReadonlySet<string>
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +72,8 @@ export function ThreePanelLayout({
   onDeselect,
   onSelectShot,
   onShotCreated,
+  projects,
+  existingTitles,
 }: ThreePanelLayoutProps) {
   const { data: shot, loading, error } = useShot(selectedShotId)
   const { role, clientId, user } = useAuth()
@@ -218,6 +222,8 @@ export function ThreePanelLayout({
         canDoOperational={canDoOperational}
         onClose={onDeselect}
         onShareClick={canShare ? () => setShareOpen(true) : undefined}
+        projects={projects}
+        existingTitles={existingTitles}
       />
     )
   }

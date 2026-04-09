@@ -15,7 +15,7 @@ import {
 import { textPreview } from "@/shared/lib/textPreview"
 import { useAuth } from "@/app/providers/AuthProvider"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
-import type { Shot } from "@/shared/types"
+import type { Shot, Project } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -28,6 +28,8 @@ interface ThreePanelCanvasPanelProps {
   readonly canDoOperational: boolean
   readonly onClose: () => void
   readonly onShareClick?: () => void
+  readonly projects: ReadonlyArray<Project>
+  readonly existingTitles: ReadonlySet<string>
 }
 
 // ---------------------------------------------------------------------------
@@ -41,6 +43,8 @@ export function ThreePanelCanvasPanel({
   canDoOperational,
   onClose,
   onShareClick,
+  projects,
+  existingTitles,
 }: ThreePanelCanvasPanelProps) {
   const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
@@ -76,6 +80,8 @@ export function ThreePanelCanvasPanel({
           {canDoOperational && (
             <ShotLifecycleActionsMenu
               shot={shot}
+              projects={projects}
+              existingTitles={existingTitles}
               disabled={!canDoOperational}
             />
           )}
