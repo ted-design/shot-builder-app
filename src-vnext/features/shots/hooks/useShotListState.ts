@@ -120,8 +120,10 @@ export function useShotListState(params: {
   readonly productNameById: ReadonlyMap<string, string>
   readonly familyById?: ReadonlyMap<string, ProductFamily>
   readonly skuById?: ReadonlyMap<string, ProductSku>
+  readonly laneNameById?: ReadonlyMap<string, string>
+  readonly laneOrder?: ReadonlyMap<string, number>
 }): ShotListState {
-  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById } = params
+  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder } = params
 
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -273,7 +275,7 @@ export function useShotListState(params: {
 
   const groupKey: GroupKey = isMobile
     ? "none"
-    : groupParam === "status" || groupParam === "date" || groupParam === "talent" || groupParam === "location"
+    : groupParam === "status" || groupParam === "date" || groupParam === "talent" || groupParam === "location" || groupParam === "scene"
       ? groupParam
       : "none"
 
@@ -470,8 +472,8 @@ export function useShotListState(params: {
   const insights = useMemo(() => computeInsights(displayShots), [displayShots])
 
   const shotGroups = useMemo(
-    () => groupShots(displayShots, groupKey, { talentNameById, locationNameById }),
-    [displayShots, groupKey, locationNameById, talentNameById],
+    () => groupShots(displayShots, groupKey, { talentNameById, locationNameById, laneNameById, laneOrder }),
+    [displayShots, groupKey, locationNameById, talentNameById, laneNameById, laneOrder],
   )
 
   const tagLabelById = useMemo(() => {

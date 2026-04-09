@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shot Scenes — Production Hub Mockup</title>
+  <script>
+    // Mirror the app's existing theme preference (sb:theme key from ThemeProvider)
+    (function() {
+      var stored = localStorage.getItem('sb:theme');
+      if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* =============================================
+     * CSS CUSTOM PROPERTIES — Design Tokens
+     * ============================================= */
+    :root {
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+      /* Surfaces */
+      --color-bg: #fafafa;
+      --color-surface: #ffffff;
+      --color-surface-subtle: #f4f4f5;
+      --color-surface-muted: #e4e4e7;
+
+      /* Sidebar */
+      --color-sidebar: #09090b;
+      --color-sidebar-hover: #27272a;
+      --color-sidebar-text: #a1a1aa;
+      --color-sidebar-text-active: #ffffff;
+      --color-sidebar-border: #27272a;
+
+      /* Text */
+      --color-text: #18181b;
+      --color-text-secondary: #52525b;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #a1a1aa;
+
+      /* Borders */
+      --color-border: #e4e4e7;
+      --color-border-strong: #d4d4d8;
+
+      /* Status */
+      --color-status-gray-bg: #f4f4f5;
+      --color-status-gray-text: #3f3f46;
+      --color-status-gray-border: #e4e4e7;
+      --color-status-blue-bg: #eff6ff;
+      --color-status-blue-text: #1d4ed8;
+      --color-status-blue-border: #bfdbfe;
+      --color-status-green-bg: #ecfdf5;
+      --color-status-green-text: #047857;
+      --color-status-green-border: #a7f3d0;
+      --color-status-amber-bg: #fffbeb;
+      --color-status-amber-text: #b45309;
+      --color-status-amber-border: #fde68a;
+
+      /* Accent */
+      --color-accent: #3b82f6;
+      --color-accent-subtle: rgba(59, 130, 246, 0.1);
+
+      /* Scene colors */
+      --scene-blue: #3b82f6;
+      --scene-purple: #a855f7;
+      --scene-emerald: #10b981;
+      --scene-amber: #f59e0b;
+      --scene-rose: #f43f5e;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.04);
+      --shadow-md: 0 2px 4px -1px rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 12px -2px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.05);
+
+      /* Radius */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+    }
+
+    /* =============================================
+     * DARK MODE OVERRIDES
+     * ============================================= */
+    .dark {
+      --color-bg: #09090b;
+      --color-surface: #18181b;
+      --color-surface-subtle: #1c1c1f;
+      --color-surface-muted: #27272a;
+
+      --color-text: #fafafa;
+      --color-text-secondary: #a1a1aa;
+      --color-text-muted: #71717a;
+      --color-text-subtle: #52525b;
+
+      --color-border: #27272a;
+      --color-border-strong: #3f3f46;
+
+      --color-status-gray-bg: rgba(113,113,122,0.15);
+      --color-status-gray-text: #a1a1aa;
+      --color-status-gray-border: rgba(113,113,122,0.25);
+      --color-status-blue-bg: rgba(59,130,246,0.15);
+      --color-status-blue-text: #93c5fd;
+      --color-status-blue-border: rgba(59,130,246,0.25);
+      --color-status-green-bg: rgba(34,197,94,0.15);
+      --color-status-green-text: #86efac;
+      --color-status-green-border: rgba(34,197,94,0.25);
+      --color-status-amber-bg: rgba(245,158,11,0.15);
+      --color-status-amber-text: #fcd34d;
+      --color-status-amber-border: rgba(245,158,11,0.25);
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+      --shadow-md: 0 2px 6px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    /* =============================================
+     * RESET & BASE
+     * ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--color-text);
+      background: var(--color-bg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* =============================================
+     * TYPOGRAPHY
+     * ============================================= */
+    .heading-page {
+      font-size: 1.25rem;
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      color: var(--color-text);
+      line-height: 1.2;
+    }
+    .heading-section {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+    .label-meta {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+    }
+    .body-text { font-size: 0.875rem; color: var(--color-text); }
+    .caption { font-size: 0.8125rem; color: var(--color-text-muted); }
+    .text-xs { font-size: 0.75rem; }
+    .text-xxs { font-size: 0.6875rem; }
+    .text-2xs { font-size: 0.625rem; }
+
+    /* =============================================
+     * SCROLLBAR
+     * ============================================= */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+
+    /* =============================================
+     * TOP BAR
+     * ============================================= */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-sidebar);
+      border-bottom: 1px solid var(--color-sidebar-border);
+      display: flex;
+      align-items: center;
+      height: 52px;
+    }
+    .topbar-brand {
+      padding: 0 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      border-right: 1px solid var(--color-sidebar-border);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topbar-brand .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #E31E24;
+    }
+    .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 12px;
+      flex: 1;
+    }
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-sidebar-text);
+      cursor: pointer;
+      white-space: nowrap;
+      border: none;
+      background: none;
+      transition: color 120ms, background 120ms;
+    }
+    .nav-tab:hover { color: #ffffff; background: var(--color-sidebar-hover); }
+    .nav-tab.active { color: #ffffff; background: rgba(255,255,255,0.1); }
+    .nav-tab .tab-count {
+      font-size: 0.625rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.6);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .nav-tab.active .tab-count {
+      background: rgba(255,255,255,0.2);
+      color: #ffffff;
+    }
+
+    /* =============================================
+     * TAB NAVIGATION (panels)
+     * ============================================= */
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      position: sticky;
+      top: 52px;
+      z-index: 50;
+    }
+    .panel-tab {
+      padding: 12px 20px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 150ms;
+      white-space: nowrap;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .panel-tab:hover { color: var(--color-text-secondary); }
+    .panel-tab.active {
+      color: var(--color-text);
+      border-bottom-color: var(--color-text);
+    }
+
+    /* =============================================
+     * PANEL CONTAINERS
+     * ============================================= */
+    .panel { display: none; padding: 32px; max-width: 1400px; margin: 0 auto; width: 100%; }
+    .panel.active { display: block; animation: fadeInRise 250ms ease-out forwards; }
+
+    @keyframes fadeInRise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header { margin-bottom: 24px; }
+    .panel-header h2 { margin-bottom: 6px; }
+    .panel-header p { font-size: 0.8125rem; color: var(--color-text-muted); line-height: 1.6; }
+
+    /* =============================================
+     * TOOLBAR
+     * ============================================= */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      background: transparent;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 120ms;
+      font-family: inherit;
+    }
+    .toolbar-btn:hover {
+      color: var(--color-text);
+      border-color: var(--color-text-secondary);
+      background: var(--color-surface-subtle);
+    }
+    .toolbar-btn.active {
+      color: var(--color-text);
+      border-color: var(--color-text-secondary);
+      background: var(--color-surface-muted);
+    }
+    .toolbar-btn.primary {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: #ffffff;
+    }
+    .toolbar-btn.primary:hover { opacity: 0.9; }
+    .toolbar-search {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      padding: 6px 10px 6px 30px;
+      font-size: 0.8125rem;
+      color: var(--color-text);
+      width: 220px;
+      font-family: inherit;
+      position: relative;
+    }
+    .toolbar-search::placeholder { color: var(--color-text-subtle); }
+    .toolbar-search:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+    .toolbar-spacer { flex: 1; }
+    .view-toggle {
+      display: inline-flex;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .view-toggle button {
+      padding: 5px 10px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: all 120ms;
+      font-family: inherit;
+    }
+    .view-toggle button.active {
+      background: var(--color-text);
+      color: var(--color-surface);
+    }
+    .dark .view-toggle button.active {
+      background: #f4f4f5;
+      color: #09090b;
+    }
+
+    /* =============================================
+     * STATUS BADGE
+     * ============================================= */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .badge-gray { background: var(--color-status-gray-bg); color: var(--color-status-gray-text); border: 1px solid var(--color-status-gray-border); }
+    .badge-blue { background: var(--color-status-blue-bg); color: var(--color-status-blue-text); border: 1px solid var(--color-status-blue-border); }
+    .badge-green { background: var(--color-status-green-bg); color: var(--color-status-green-text); border: 1px solid var(--color-status-green-border); }
+    .badge-amber { background: var(--color-status-amber-bg); color: var(--color-status-amber-text); border: 1px solid var(--color-status-amber-border); }
+
+    /* =============================================
+     * TAG BADGE
+     * ============================================= */
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.625rem;
+      font-weight: 500;
+      background: var(--color-surface-muted);
+      color: var(--color-text-secondary);
+      border-left: 2px solid;
+    }
+
+    /* =============================================
+     * SCENE HEADER
+     * ============================================= */
+    .scene-group {
+      margin-bottom: 16px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--color-surface);
+    }
+    .scene-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 120ms;
+      border-left: 3px solid;
+      user-select: none;
+    }
+    .scene-header:hover { background: var(--color-surface-subtle); }
+    .scene-chevron {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      transition: transform 200ms;
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+    }
+    .scene-chevron.collapsed { transform: rotate(-90deg); }
+    .scene-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+    .scene-count {
+      font-size: 0.625rem;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      background: var(--color-surface-muted);
+      color: var(--color-text-muted);
+    }
+    .scene-menu-btn {
+      margin-left: auto;
+      padding: 2px 6px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-subtle);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      line-height: 1;
+      transition: all 120ms;
+    }
+    .scene-menu-btn:hover {
+      color: var(--color-text);
+      background: var(--color-surface-muted);
+    }
+    .scene-body { padding: 0 14px 14px 17px; }
+    .scene-body.collapsed { display: none; }
+
+    /* =============================================
+     * SHOT CARD
+     * ============================================= */
+    .shot-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 120ms;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .shot-card:hover {
+      border-color: var(--color-border-strong);
+      box-shadow: var(--shadow-sm);
+    }
+    .shot-card + .shot-card { margin-top: 6px; }
+    .shot-card-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-muted);
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: var(--color-text-subtle);
+    }
+    .shot-card-content { flex: 1; min-width: 0; }
+    .shot-card-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .shot-number {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+    .shot-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shot-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .shot-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+    }
+    .shot-meta-icon {
+      font-size: 0.6875rem;
+      flex-shrink: 0;
+    }
+    .shot-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .shot-card-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--color-border-strong);
+      border-radius: 3px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 120ms;
+    }
+    .shot-card-checkbox.checked {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: #ffffff;
+      font-size: 0.625rem;
+    }
+
+    /* Product pills */
+    .product-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: var(--color-surface-subtle);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.6875rem;
+      color: var(--color-text-secondary);
+    }
+    .product-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Ungrouped section */
+    .ungrouped-section {
+      margin-bottom: 16px;
+    }
+    .ungrouped-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      margin-bottom: 8px;
+    }
+    .ungrouped-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+    .ungrouped-line {
+      flex: 1;
+      height: 1px;
+      background: var(--color-border);
+    }
+
+    /* =============================================
+     * TABLE
+     * ============================================= */
+    .shot-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .shot-table thead th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-subtle);
+      border-bottom: 1px solid var(--color-border);
+      white-space: nowrap;
+      background: var(--color-surface-subtle);
+    }
+    .shot-table tbody tr {
+      border-bottom: 1px solid var(--color-border);
+      transition: background 100ms;
+      cursor: pointer;
+    }
+    .shot-table tbody tr:hover { background: var(--color-surface-subtle); }
+    .shot-table tbody td {
+      padding: 8px 12px;
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      vertical-align: middle;
+    }
+    .scene-row {
+      cursor: pointer;
+      user-select: none;
+    }
+    .scene-row td {
+      padding: 10px 12px !important;
+      font-weight: 600;
+      color: var(--color-text) !important;
+      border-left: 3px solid;
+      background: var(--color-surface-subtle);
+    }
+    .scene-row:hover td { background: var(--color-surface-muted) !important; }
+    .shot-row-indented td:first-child { padding-left: 32px !important; }
+
+    /* =============================================
+     * THREE-PANEL LAYOUT
+     * ============================================= */
+    .three-panel {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      height: 520px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--color-surface);
+    }
+    .three-panel-left {
+      border-right: 1px solid var(--color-border);
+      overflow-y: auto;
+      background: var(--color-surface-subtle);
+    }
+    .three-panel-center {
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    .three-panel-right {
+      border-left: 1px solid var(--color-border);
+      overflow-y: auto;
+      padding: 16px;
+      background: var(--color-surface-subtle);
+    }
+
+    /* Left panel items */
+    .panel-list-scene-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text);
+      border-left: 3px solid;
+      cursor: pointer;
+    }
+    .panel-list-scene-header:hover { background: var(--color-surface-muted); }
+    .panel-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px 8px 23px;
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: background 120ms;
+      border-left: 3px solid transparent;
+    }
+    .panel-list-item:hover { background: var(--color-surface-muted); }
+    .panel-list-item.selected {
+      background: var(--color-accent-subtle);
+      color: var(--color-text);
+      border-left-color: var(--color-accent);
+    }
+    .dark .panel-list-item.selected { background: rgba(59,130,246,0.12); }
+    .panel-list-num {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      min-width: 22px;
+    }
+    .panel-list-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Center panel */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      margin-bottom: 16px;
+    }
+    .breadcrumb-scene {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 120ms;
+    }
+    .breadcrumb-scene:hover { opacity: 0.8; }
+    .canvas-image-placeholder {
+      width: 100%;
+      height: 200px;
+      background: var(--color-surface-muted);
+      border: 1px dashed var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-subtle);
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    /* Right panel - properties */
+    .prop-group { margin-bottom: 16px; }
+    .prop-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-text-muted);
+      margin-bottom: 6px;
+    }
+    .prop-select {
+      width: 100%;
+      padding: 7px 10px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      color: var(--color-text);
+      cursor: pointer;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    .prop-select:focus { outline: none; border-color: var(--color-accent); }
+    .prop-value {
+      font-size: 0.8125rem;
+      color: var(--color-text);
+      padding: 4px 0;
+    }
+    .prop-divider {
+      border: none;
+      border-top: 1px solid var(--color-border);
+      margin: 14px 0;
+    }
+
+    /* Scene assignment pill in properties */
+    .scene-assign-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 120ms;
+    }
+    .scene-assign-pill:hover { opacity: 0.85; }
+    .scene-assign-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* =============================================
+     * BULK ACTION BAR
+     * ============================================= */
+    .bulk-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 200;
+      white-space: nowrap;
+    }
+    .dark .bulk-bar {
+      background: #1c1c1f;
+      border-color: #3f3f46;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .bulk-bar-count {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .bulk-bar-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--color-border);
+    }
+    .bulk-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: 1px solid var(--color-border-strong);
+      background: transparent;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all 120ms;
+      font-family: inherit;
+    }
+    .bulk-btn:hover {
+      background: var(--color-surface-subtle);
+      color: var(--color-text);
+    }
+    .bulk-btn.primary {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: #ffffff;
+    }
+    .bulk-btn.primary:hover { opacity: 0.9; }
+    .bulk-btn.danger {
+      color: #ef4444;
+      border-color: rgba(239,68,68,0.3);
+    }
+    .bulk-btn.danger:hover { background: rgba(239,68,68,0.1); }
+
+    /* =============================================
+     * DIALOG / POPOVER
+     * ============================================= */
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dialog {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+      width: 400px;
+      max-width: 90vw;
+      overflow: hidden;
+    }
+    .dark .dialog {
+      background: #1c1c1f;
+      border-color: #3f3f46;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    }
+    .dialog-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .dialog-header h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .dialog-header p {
+      font-size: 0.8125rem;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+    .dialog-body { padding: 16px 20px; }
+    .dialog-footer {
+      padding: 12px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid var(--color-border);
+    }
+    .dialog-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      color: var(--color-text);
+      font-family: inherit;
+    }
+    .dark .dialog-input { background: #18181b; border-color: #3f3f46; }
+    .dialog-input:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+    .dialog-input::placeholder { color: var(--color-text-subtle); }
+
+    .dialog-btn {
+      padding: 7px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 120ms;
+      font-family: inherit;
+      border: 1px solid var(--color-border-strong);
+      background: transparent;
+      color: var(--color-text-secondary);
+    }
+    .dialog-btn:hover { background: var(--color-surface-subtle); }
+    .dialog-btn.primary {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      color: #ffffff;
+    }
+    .dialog-btn.primary:hover { opacity: 0.9; }
+
+    /* Radio list in dialog */
+    .dialog-radio-group { margin-top: 12px; }
+    .dialog-radio-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .dialog-radio-item:hover { background: var(--color-surface-subtle); }
+    .dialog-radio-item.selected { background: var(--color-accent-subtle); }
+    .dark .dialog-radio-item.selected { background: rgba(59,130,246,0.12); }
+    .radio-circle {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--color-border-strong);
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .radio-circle.checked {
+      border-color: var(--color-accent);
+    }
+    .radio-circle.checked::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--color-accent);
+      border-radius: 50%;
+    }
+    .radio-label {
+      font-size: 0.8125rem;
+      color: var(--color-text);
+    }
+    .radio-sublabel {
+      font-size: 0.6875rem;
+      color: var(--color-text-muted);
+    }
+
+    /* Tab toggle in dialog */
+    .dialog-tabs {
+      display: flex;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .dialog-tab {
+      flex: 1;
+      padding: 7px 12px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      font-family: inherit;
+      transition: all 120ms;
+    }
+    .dialog-tab.active {
+      background: var(--color-text);
+      color: var(--color-surface);
+    }
+    .dark .dialog-tab.active {
+      background: #f4f4f5;
+      color: #09090b;
+    }
+
+    /* =============================================
+     * CONTEXT MENU (dropdown)
+     * ============================================= */
+    .context-menu {
+      position: absolute;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      min-width: 180px;
+      overflow: hidden;
+      z-index: 100;
+    }
+    .dark .context-menu {
+      background: #1c1c1f;
+      border-color: #3f3f46;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .ctx-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      font-size: 0.8125rem;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: background 100ms;
+    }
+    .ctx-item:hover { background: var(--color-surface-subtle); }
+    .dark .ctx-item:hover { background: #27272a; }
+    .ctx-item.danger { color: #ef4444; }
+    .ctx-item.danger:hover { background: rgba(239,68,68,0.1); }
+    .ctx-divider { height: 1px; background: var(--color-border); margin: 4px 0; }
+
+    /* =============================================
+     * CALLOUT ANNOTATIONS
+     * ============================================= */
+    .callout {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      margin-top: 12px;
+      border-left: 3px solid;
+    }
+    .callout-ux {
+      border-left-color: var(--color-accent);
+      background: var(--color-status-blue-bg);
+      color: var(--color-status-blue-text);
+    }
+    .callout-impl {
+      border-left-color: #22c55e;
+      background: var(--color-status-green-bg);
+      color: var(--color-status-green-text);
+    }
+    .callout-icon { flex-shrink: 0; font-size: 0.875rem; }
+
+    /* =============================================
+     * SECTION ANNOTATION BADGE
+     * ============================================= */
+    .annotation-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: var(--color-accent-subtle);
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: var(--radius-sm);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--color-status-blue-text);
+    }
+
+    /* =============================================
+     * RESPONSIVE
+     * ============================================= */
+    @media (max-width: 900px) {
+      .three-panel { grid-template-columns: 1fr; height: auto; }
+      .three-panel-left, .three-panel-right { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ============================================
+       TOP BAR
+       ============================================ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="dot"></span>
+      Production Hub
+    </div>
+    <div class="topbar-nav">
+      <button class="nav-tab">Dashboard</button>
+      <button class="nav-tab active">Shots <span class="tab-count">6</span></button>
+      <button class="nav-tab">Products <span class="tab-count">24</span></button>
+      <button class="nav-tab">Talent</button>
+      <button class="nav-tab">Locations</button>
+      <button class="nav-tab">Export</button>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PANEL TABS
+       ============================================ -->
+  <div class="panel-tabs">
+    <button class="panel-tab active" onclick="switchPanel('card')">Panel 1: Card View</button>
+    <button class="panel-tab" onclick="switchPanel('table')">Panel 2: Table View</button>
+    <button class="panel-tab" onclick="switchPanel('three')">Panel 3: Three-Panel</button>
+    <button class="panel-tab" onclick="switchPanel('bulk')">Panel 4: Bulk Action</button>
+  </div>
+
+  <!-- ============================================
+       PANEL 1: CARD VIEW WITH SCENES
+       ============================================ -->
+  <div id="panel-card" class="panel active">
+    <div class="panel-header">
+      <h2 class="heading-page">Shots</h2>
+      <p>Shot list grouped by scene. Scenes provide spatial/thematic grouping for related shots that share a location, setup, or concept.</p>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input class="toolbar-search" placeholder="Search shots..." />
+      <button class="toolbar-btn">Status</button>
+      <button class="toolbar-btn">Tags</button>
+      <button class="toolbar-btn active">Sort: Scene</button>
+      <div class="toolbar-spacer"></div>
+      <div class="view-toggle">
+        <button class="active">Card</button>
+        <button>Table</button>
+      </div>
+    </div>
+
+    <!-- Scene 1: Beach Lifestyle (EXPANDED) -->
+    <div class="scene-group">
+      <div class="scene-header" style="border-left-color: var(--scene-blue);" onclick="toggleScene(this)">
+        <span class="scene-chevron">&#9660;</span>
+        <span class="scene-name">Beach Lifestyle</span>
+        <span class="scene-count">3 shots</span>
+        <span class="annotation-badge" style="margin-left: 8px;">Scene header</span>
+        <button class="scene-menu-btn" onclick="event.stopPropagation();">&#8943;</button>
+      </div>
+      <!-- Context menu (shown for demo) -->
+      <div style="position: relative;">
+        <div class="context-menu" style="position: absolute; top: -4px; right: 24px;">
+          <div class="ctx-item">&#9998; Rename</div>
+          <div class="ctx-item">&#43; Add Shot</div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-item">&#8631; Ungroup All</div>
+          <div class="ctx-item danger">&#128465; Delete Scene</div>
+        </div>
+      </div>
+      <div class="scene-body">
+        <!-- Shot 1 -->
+        <div class="shot-card">
+          <div class="shot-card-checkbox">&#xFEFF;</div>
+          <div class="shot-card-thumb">&#127749;</div>
+          <div class="shot-card-content">
+            <div class="shot-card-top">
+              <span class="shot-number">#001</span>
+              <span class="shot-title">Beach Wide Angle</span>
+              <span class="badge badge-blue">In Progress</span>
+            </div>
+            <div class="shot-meta">
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> V-Neck Tee (Black), Linen Short</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128100;</span> Marcus D.</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+            </div>
+            <div class="shot-tags">
+              <span class="tag-badge" style="border-left-color: var(--scene-blue);">Men</span>
+              <span class="tag-badge" style="border-left-color: #a855f7;">Photo</span>
+              <span class="tag-badge" style="border-left-color: #f59e0b;">Lifestyle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shot 2 -->
+        <div class="shot-card">
+          <div class="shot-card-checkbox">&#xFEFF;</div>
+          <div class="shot-card-thumb">&#127754;</div>
+          <div class="shot-card-content">
+            <div class="shot-card-top">
+              <span class="shot-number">#002</span>
+              <span class="shot-title">Beach Close-Up Detail</span>
+              <span class="badge badge-gray">Draft</span>
+            </div>
+            <div class="shot-meta">
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Merino Polo (Navy)</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128100;</span> Marcus D.</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+            </div>
+            <div class="shot-tags">
+              <span class="tag-badge" style="border-left-color: var(--scene-blue);">Men</span>
+              <span class="tag-badge" style="border-left-color: #a855f7;">Photo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shot 3 -->
+        <div class="shot-card">
+          <div class="shot-card-checkbox">&#xFEFF;</div>
+          <div class="shot-card-thumb">&#127958;</div>
+          <div class="shot-card-content">
+            <div class="shot-card-top">
+              <span class="shot-number">#003</span>
+              <span class="shot-title">Beach Walking Motion</span>
+              <span class="badge badge-amber">On Hold</span>
+            </div>
+            <div class="shot-meta">
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> French Terry Hoodie (Gray), Jogger</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128100;</span> Sarah L.</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+            </div>
+            <div class="shot-tags">
+              <span class="tag-badge" style="border-left-color: #f43f5e;">Women</span>
+              <span class="tag-badge" style="border-left-color: #10b981;">Video</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scene 2: Studio Portraits (COLLAPSED) -->
+    <div class="scene-group">
+      <div class="scene-header" style="border-left-color: var(--scene-purple);" onclick="toggleScene(this)">
+        <span class="scene-chevron collapsed">&#9660;</span>
+        <span class="scene-name">Studio Portraits</span>
+        <span class="scene-count">2 shots</span>
+        <button class="scene-menu-btn" onclick="event.stopPropagation();">&#8943;</button>
+      </div>
+      <div class="scene-body collapsed">
+        <!-- Shot 4 -->
+        <div class="shot-card">
+          <div class="shot-card-checkbox">&#xFEFF;</div>
+          <div class="shot-card-thumb">&#128247;</div>
+          <div class="shot-card-content">
+            <div class="shot-card-top">
+              <span class="shot-number">#004</span>
+              <span class="shot-title">Studio Front Flat Lay</span>
+              <span class="badge badge-green">Shot</span>
+            </div>
+            <div class="shot-meta">
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Oxford Shirt (White)</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Studio A</span>
+            </div>
+          </div>
+        </div>
+        <!-- Shot 5 -->
+        <div class="shot-card">
+          <div class="shot-card-checkbox">&#xFEFF;</div>
+          <div class="shot-card-thumb">&#128248;</div>
+          <div class="shot-card-content">
+            <div class="shot-card-top">
+              <span class="shot-number">#005</span>
+              <span class="shot-title">Studio 3/4 Turn</span>
+              <span class="badge badge-blue">In Progress</span>
+            </div>
+            <div class="shot-meta">
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Cashmere Crew (Charcoal)</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128100;</span> David K.</span>
+              <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Studio A</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ungrouped -->
+    <div class="ungrouped-section">
+      <div class="ungrouped-header">
+        <span class="ungrouped-label">Ungrouped</span>
+        <span class="scene-count" style="font-size: 0.625rem;">1 shot</span>
+        <span class="ungrouped-line"></span>
+      </div>
+      <div class="shot-card">
+        <div class="shot-card-checkbox">&#xFEFF;</div>
+        <div class="shot-card-thumb">&#128722;</div>
+        <div class="shot-card-content">
+          <div class="shot-card-top">
+            <span class="shot-number">#006</span>
+            <span class="shot-title">Product Only Flat Lay</span>
+            <span class="badge badge-gray">Draft</span>
+          </div>
+          <div class="shot-meta">
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Merino Socks (3-Pack)</span>
+          </div>
+          <div class="shot-tags">
+            <span class="tag-badge" style="border-left-color: #10b981;">E-Comm</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Callouts -->
+    <div class="callout callout-ux">
+      <span class="callout-icon">&#128161;</span>
+      <div>
+        <strong>UX:</strong> Scene headers act as collapsible group dividers. The left accent color distinguishes scenes visually. Collapsed scenes show only the header with shot count. The context menu (three dots) provides Rename, Add Shot, Ungroup All, and Delete Scene.
+      </div>
+    </div>
+    <div class="callout callout-impl" style="margin-top: 8px;">
+      <span class="callout-icon">&#9881;</span>
+      <div>
+        <strong>Implementation:</strong> Scenes are stored as a <code>scenes</code> subcollection or as a <code>sceneId</code> field on each shot document. The "Sort: Scene" mode groups shots by scene, with ungrouped shots at the bottom.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================
+       PANEL 2: TABLE VIEW WITH SCENES
+       ============================================ -->
+  <div id="panel-table" class="panel">
+    <div class="panel-header">
+      <h2 class="heading-page">Shots &#8212; Table View</h2>
+      <p>Scenes appear as full-width row separators in the table. Each scene row has the accent left border, collapse toggle, and context menu. Shot rows within a scene are visually contained.</p>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input class="toolbar-search" placeholder="Search shots..." />
+      <button class="toolbar-btn">Status</button>
+      <button class="toolbar-btn">Tags</button>
+      <button class="toolbar-btn active">Sort: Scene</button>
+      <div class="toolbar-spacer"></div>
+      <div class="view-toggle">
+        <button>Card</button>
+        <button class="active">Table</button>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+      <table class="shot-table">
+        <thead>
+          <tr>
+            <th style="width: 36px;"></th>
+            <th style="width: 60px;">#</th>
+            <th>Title</th>
+            <th style="width: 100px;">Status</th>
+            <th>Products</th>
+            <th>Talent</th>
+            <th>Location</th>
+            <th style="width: 44px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Scene: Beach Lifestyle (expanded) -->
+          <tr class="scene-row" onclick="toggleTableScene(this)">
+            <td colspan="8" style="border-left-color: var(--scene-blue);">
+              <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; color: var(--color-text-muted);">&#9660;</span>
+                <span>Beach Lifestyle</span>
+                <span class="scene-count" style="font-size: 0.5625rem;">3</span>
+              </span>
+              <span class="scene-menu-btn" style="float: right;" onclick="event.stopPropagation();">&#8943;</span>
+            </td>
+          </tr>
+          <tr class="shot-row-indented" data-scene="beach">
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#001</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Beach Wide Angle</td>
+            <td><span class="badge badge-blue">In Progress</span></td>
+            <td><span style="font-size: 0.75rem;">V-Neck Tee (Black), Linen Short</span></td>
+            <td><span style="font-size: 0.75rem;">Marcus D.</span></td>
+            <td><span style="font-size: 0.75rem;">Scarborough Bluffs</span></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+          <tr class="shot-row-indented" data-scene="beach">
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#002</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Beach Close-Up Detail</td>
+            <td><span class="badge badge-gray">Draft</span></td>
+            <td><span style="font-size: 0.75rem;">Merino Polo (Navy)</span></td>
+            <td><span style="font-size: 0.75rem;">Marcus D.</span></td>
+            <td><span style="font-size: 0.75rem;">Scarborough Bluffs</span></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+          <tr class="shot-row-indented" data-scene="beach">
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#003</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Beach Walking Motion</td>
+            <td><span class="badge badge-amber">On Hold</span></td>
+            <td><span style="font-size: 0.75rem;">French Terry Hoodie, Jogger</span></td>
+            <td><span style="font-size: 0.75rem;">Sarah L.</span></td>
+            <td><span style="font-size: 0.75rem;">Scarborough Bluffs</span></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+
+          <!-- Scene: Studio Portraits (collapsed) -->
+          <tr class="scene-row" onclick="toggleTableScene(this)">
+            <td colspan="8" style="border-left-color: var(--scene-purple);">
+              <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; color: var(--color-text-muted); display: inline-block; transform: rotate(-90deg);">&#9660;</span>
+                <span>Studio Portraits</span>
+                <span class="scene-count" style="font-size: 0.5625rem;">2</span>
+              </span>
+              <span class="scene-menu-btn" style="float: right;" onclick="event.stopPropagation();">&#8943;</span>
+            </td>
+          </tr>
+          <tr class="shot-row-indented" data-scene="studio" style="display: none;">
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#004</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Studio Front Flat Lay</td>
+            <td><span class="badge badge-green">Shot</span></td>
+            <td><span style="font-size: 0.75rem;">Oxford Shirt (White)</span></td>
+            <td></td>
+            <td><span style="font-size: 0.75rem;">Studio A</span></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+          <tr class="shot-row-indented" data-scene="studio" style="display: none;">
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#005</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Studio 3/4 Turn</td>
+            <td><span class="badge badge-blue">In Progress</span></td>
+            <td><span style="font-size: 0.75rem;">Cashmere Crew (Charcoal)</span></td>
+            <td><span style="font-size: 0.75rem;">David K.</span></td>
+            <td><span style="font-size: 0.75rem;">Studio A</span></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+
+          <!-- Ungrouped separator -->
+          <tr>
+            <td colspan="8" style="padding: 6px 12px !important; background: transparent;">
+              <span style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 500; color: var(--color-text-muted);">Ungrouped</span>
+                <span class="scene-count" style="font-size: 0.5625rem;">1</span>
+                <span style="flex: 1; height: 1px; background: var(--color-border);"></span>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td><div class="shot-card-checkbox" style="width: 14px; height: 14px;">&#xFEFF;</div></td>
+            <td><span class="shot-number">#006</span></td>
+            <td style="color: var(--color-text); font-weight: 500;">Product Only Flat Lay</td>
+            <td><span class="badge badge-gray">Draft</span></td>
+            <td><span style="font-size: 0.75rem;">Merino Socks (3-Pack)</span></td>
+            <td></td>
+            <td></td>
+            <td style="text-align: center; color: var(--color-text-subtle);">&#8943;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-ux" style="margin-top: 20px;">
+      <span class="callout-icon">&#128161;</span>
+      <div>
+        <strong>UX:</strong> Scene rows span the full table width, acting as visual separators. They match the card view accent colors. Collapse/expand is inline. Shot rows within a scene are indented slightly at the first column to reinforce containment.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================
+       PANEL 3: THREE-PANEL LAYOUT
+       ============================================ -->
+  <div id="panel-three" class="panel">
+    <div class="panel-header">
+      <h2 class="heading-page">Three-Panel Layout with Scene Context</h2>
+      <p>The left panel shows the shot list with scene headers. The center shows the selected shot with a "Part of" breadcrumb. The right panel includes a Scene assignment dropdown.</p>
+    </div>
+
+    <div class="three-panel">
+      <!-- LEFT: Shot List -->
+      <div class="three-panel-left">
+        <div style="padding: 12px; border-bottom: 1px solid var(--color-border);">
+          <input class="toolbar-search" style="width: 100%; max-width: none;" placeholder="Search shots..." />
+        </div>
+
+        <!-- Scene: Beach Lifestyle -->
+        <div class="panel-list-scene-header" style="border-left-color: var(--scene-blue);">
+          <span style="font-size: 0.6875rem; color: var(--color-text-muted);">&#9660;</span>
+          Beach Lifestyle
+          <span class="scene-count" style="font-size: 0.5625rem;">3</span>
+        </div>
+        <div class="panel-list-item selected">
+          <span class="panel-list-num">#001</span>
+          <span class="panel-list-title">Beach Wide Angle</span>
+          <span class="badge badge-blue" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">In Progress</span>
+        </div>
+        <div class="panel-list-item">
+          <span class="panel-list-num">#002</span>
+          <span class="panel-list-title">Beach Close-Up Detail</span>
+          <span class="badge badge-gray" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">Draft</span>
+        </div>
+        <div class="panel-list-item">
+          <span class="panel-list-num">#003</span>
+          <span class="panel-list-title">Beach Walking Motion</span>
+          <span class="badge badge-amber" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">On Hold</span>
+        </div>
+
+        <!-- Scene: Studio Portraits -->
+        <div class="panel-list-scene-header" style="border-left-color: var(--scene-purple);">
+          <span style="font-size: 0.6875rem; color: var(--color-text-muted);">&#9660;</span>
+          Studio Portraits
+          <span class="scene-count" style="font-size: 0.5625rem;">2</span>
+        </div>
+        <div class="panel-list-item">
+          <span class="panel-list-num">#004</span>
+          <span class="panel-list-title">Studio Front Flat Lay</span>
+          <span class="badge badge-green" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">Shot</span>
+        </div>
+        <div class="panel-list-item">
+          <span class="panel-list-num">#005</span>
+          <span class="panel-list-title">Studio 3/4 Turn</span>
+          <span class="badge badge-blue" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">In Progress</span>
+        </div>
+
+        <!-- Ungrouped -->
+        <div style="display: flex; align-items: center; gap: 6px; padding: 8px 12px;">
+          <span style="font-size: 0.75rem; font-weight: 500; color: var(--color-text-muted);">Ungrouped</span>
+          <span style="flex: 1; height: 1px; background: var(--color-border);"></span>
+        </div>
+        <div class="panel-list-item">
+          <span class="panel-list-num">#006</span>
+          <span class="panel-list-title">Product Only Flat Lay</span>
+          <span class="badge badge-gray" style="font-size: 0.5625rem; padding: 1px 5px; margin-left: auto;">Draft</span>
+        </div>
+      </div>
+
+      <!-- CENTER: Shot Canvas -->
+      <div class="three-panel-center">
+        <!-- Breadcrumb -->
+        <div class="breadcrumb">
+          <span>Shots</span>
+          <span style="color: var(--color-text-subtle);">&#8250;</span>
+          <span class="breadcrumb-scene" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.2); color: var(--color-status-blue-text);">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--scene-blue);"></span>
+            Beach Lifestyle
+          </span>
+          <span style="color: var(--color-text-subtle);">&#8250;</span>
+          <span style="color: var(--color-text);">#001</span>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px;">
+          <div>
+            <h3 style="font-size: 1.125rem; font-weight: 500; margin-bottom: 4px;">Beach Wide Angle</h3>
+            <span class="badge badge-blue">In Progress</span>
+          </div>
+        </div>
+
+        <!-- Image placeholder -->
+        <div class="canvas-image-placeholder">
+          &#128247; Hero reference image
+        </div>
+
+        <!-- Shot details -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <div class="prop-label">Products</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div class="product-pill"><span class="product-dot" style="background: #18181b;"></span> V-Neck Tee (Black)</div>
+              <div class="product-pill"><span class="product-dot" style="background: #d4c5a9;"></span> Linen Short (Sand)</div>
+            </div>
+          </div>
+          <div>
+            <div class="prop-label">Talent</div>
+            <div style="font-size: 0.8125rem; color: var(--color-text); display: flex; align-items: center; gap: 6px;">
+              <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-surface-muted); display: inline-flex; align-items: center; justify-content: center; font-size: 0.5625rem; font-weight: 600; color: var(--color-text-muted);">MD</span>
+              Marcus D.
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="prop-label">Description</div>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); line-height: 1.6;">
+            Wide establishing shot at the beach. Talent walking along the shoreline at golden hour. Capture full outfit from mid-distance. Natural, relaxed posture.
+          </p>
+        </div>
+      </div>
+
+      <!-- RIGHT: Properties Panel -->
+      <div class="three-panel-right">
+        <div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 16px; color: var(--color-text);">Properties</div>
+
+        <!-- Scene Assignment -->
+        <div class="prop-group">
+          <div class="prop-label">Scene</div>
+          <div class="scene-assign-pill" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: var(--color-status-blue-text);">
+            <span class="scene-assign-dot" style="background: var(--scene-blue);"></span>
+            Beach Lifestyle
+            <span style="margin-left: auto; font-size: 0.6875rem; opacity: 0.6;">&#9660;</span>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.6875rem; color: var(--color-text-muted);">Shot 1 of 3 in this scene</div>
+        </div>
+
+        <hr class="prop-divider" />
+
+        <!-- Status -->
+        <div class="prop-group">
+          <div class="prop-label">Status</div>
+          <select class="prop-select">
+            <option>Draft</option>
+            <option selected>In Progress</option>
+            <option>On Hold</option>
+            <option>Shot</option>
+          </select>
+        </div>
+
+        <!-- Location -->
+        <div class="prop-group">
+          <div class="prop-label">Location</div>
+          <select class="prop-select">
+            <option selected>Scarborough Bluffs</option>
+            <option>Studio A</option>
+            <option>Rooftop Terrace</option>
+          </select>
+        </div>
+
+        <hr class="prop-divider" />
+
+        <!-- Tags -->
+        <div class="prop-group">
+          <div class="prop-label">Tags</div>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            <span class="tag-badge" style="border-left-color: var(--scene-blue);">Men</span>
+            <span class="tag-badge" style="border-left-color: #a855f7;">Photo</span>
+            <span class="tag-badge" style="border-left-color: #f59e0b;">Lifestyle</span>
+          </div>
+        </div>
+
+        <hr class="prop-divider" />
+
+        <!-- Other shots in scene -->
+        <div class="prop-group">
+          <div class="prop-label">Other shots in scene</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.8125rem; color: var(--color-text-secondary);" onmouseover="this.style.background='var(--color-surface-muted)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size: 0.6875rem; font-weight: 600; color: var(--color-text-muted); min-width: 28px;">#002</span>
+              Beach Close-Up Detail
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.8125rem; color: var(--color-text-secondary);" onmouseover="this.style.background='var(--color-surface-muted)'" onmouseout="this.style.background='transparent'">
+              <span style="font-size: 0.6875rem; font-weight: 600; color: var(--color-text-muted); min-width: 28px;">#003</span>
+              Beach Walking Motion
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-ux" style="margin-top: 20px;">
+      <span class="callout-icon">&#128161;</span>
+      <div>
+        <strong>UX:</strong> The breadcrumb shows "Shots > Beach Lifestyle > #001" for spatial context. The properties panel includes a Scene dropdown to reassign the shot to a different scene or remove it. "Other shots in scene" provides quick navigation to sibling shots.
+      </div>
+    </div>
+    <div class="callout callout-impl" style="margin-top: 8px;">
+      <span class="callout-icon">&#9881;</span>
+      <div>
+        <strong>Implementation:</strong> Scene assignment uses a <code>sceneId</code> field on the shot document. The properties panel dropdown lists all scenes + "None (ungrouped)". Moving a shot between scenes is a single field update. The "Other shots in scene" list queries shots with the same <code>sceneId</code>.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================
+       PANEL 4: BULK ACTION — GROUP INTO SCENE
+       ============================================ -->
+  <div id="panel-bulk" class="panel">
+    <div class="panel-header">
+      <h2 class="heading-page">Bulk Action &#8212; Group into Scene</h2>
+      <p>When multiple shots are selected, the bulk action bar includes a "Group into Scene" button. This opens a dialog to create a new scene or add shots to an existing one.</p>
+    </div>
+
+    <!-- Shot cards with some selected -->
+    <div style="margin-bottom: 80px;">
+      <div class="toolbar">
+        <input class="toolbar-search" placeholder="Search shots..." />
+        <div class="toolbar-spacer"></div>
+        <div class="view-toggle">
+          <button class="active">Card</button>
+          <button>Table</button>
+        </div>
+      </div>
+
+      <!-- Selected shots -->
+      <div class="shot-card" style="border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent);">
+        <div class="shot-card-checkbox checked">&#10003;</div>
+        <div class="shot-card-thumb">&#127749;</div>
+        <div class="shot-card-content">
+          <div class="shot-card-top">
+            <span class="shot-number">#001</span>
+            <span class="shot-title">Beach Wide Angle</span>
+            <span class="badge badge-blue">In Progress</span>
+          </div>
+          <div class="shot-meta">
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> V-Neck Tee (Black), Linen Short</span>
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="shot-card" style="border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent);">
+        <div class="shot-card-checkbox checked">&#10003;</div>
+        <div class="shot-card-thumb">&#127754;</div>
+        <div class="shot-card-content">
+          <div class="shot-card-top">
+            <span class="shot-number">#002</span>
+            <span class="shot-title">Beach Close-Up Detail</span>
+            <span class="badge badge-gray">Draft</span>
+          </div>
+          <div class="shot-meta">
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Merino Polo (Navy)</span>
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="shot-card" style="border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent);">
+        <div class="shot-card-checkbox checked">&#10003;</div>
+        <div class="shot-card-thumb">&#127958;</div>
+        <div class="shot-card-content">
+          <div class="shot-card-top">
+            <span class="shot-number">#003</span>
+            <span class="shot-title">Beach Walking Motion</span>
+            <span class="badge badge-amber">On Hold</span>
+          </div>
+          <div class="shot-meta">
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> French Terry Hoodie, Jogger</span>
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Scarborough Bluffs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unselected shot -->
+      <div class="shot-card" style="opacity: 0.5;">
+        <div class="shot-card-checkbox">&#xFEFF;</div>
+        <div class="shot-card-thumb">&#128247;</div>
+        <div class="shot-card-content">
+          <div class="shot-card-top">
+            <span class="shot-number">#004</span>
+            <span class="shot-title">Studio Front Flat Lay</span>
+            <span class="badge badge-green">Shot</span>
+          </div>
+          <div class="shot-meta">
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128230;</span> Oxford Shirt (White)</span>
+            <span class="shot-meta-item"><span class="shot-meta-icon">&#128205;</span> Studio A</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Action Bar (fixed bottom) -->
+    <div class="bulk-bar">
+      <div class="shot-card-checkbox checked" style="width: 14px; height: 14px; font-size: 0.5rem;">&#10003;</div>
+      <span class="bulk-bar-count">3 shots selected</span>
+      <div class="bulk-bar-divider"></div>
+      <button class="bulk-btn">Status</button>
+      <button class="bulk-btn">Tags</button>
+      <button class="bulk-btn">Location</button>
+      <button class="bulk-btn primary" onclick="document.getElementById('scene-dialog-overlay').style.display='flex'">&#9881; Group into Scene</button>
+      <div class="bulk-bar-divider"></div>
+      <button class="bulk-btn">Share</button>
+      <button class="bulk-btn">Export</button>
+      <button class="bulk-btn danger">Delete</button>
+      <div class="bulk-bar-divider"></div>
+      <button class="bulk-btn" style="padding: 6px 8px; color: var(--color-text-subtle);">&#10005;</button>
+    </div>
+
+    <!-- Dialog: Group into Scene -->
+    <div id="scene-dialog-overlay" class="dialog-overlay" style="display: flex;">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h3>Group into Scene</h3>
+          <p>Add 3 selected shots to a new or existing scene.</p>
+        </div>
+        <div class="dialog-body">
+          <!-- Tab toggle: New / Existing -->
+          <div class="dialog-tabs">
+            <button class="dialog-tab active" onclick="switchDialogTab('new')">Create New</button>
+            <button class="dialog-tab" onclick="switchDialogTab('existing')">Add to Existing</button>
+          </div>
+
+          <!-- New scene form -->
+          <div id="dialog-new" style="display: block;">
+            <label style="display: block; margin-bottom: 6px;">
+              <span class="prop-label">Scene Name</span>
+            </label>
+            <input class="dialog-input" placeholder="e.g. Beach Lifestyle, Studio Session 2..." value="Beach Lifestyle" />
+            <div style="margin-top: 12px;">
+              <span class="prop-label">Color</span>
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--scene-blue); cursor: pointer; border: 2px solid var(--color-text);"></span>
+                <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--scene-purple); cursor: pointer; border: 2px solid transparent;"></span>
+                <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--scene-emerald); cursor: pointer; border: 2px solid transparent;"></span>
+                <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--scene-amber); cursor: pointer; border: 2px solid transparent;"></span>
+                <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--scene-rose); cursor: pointer; border: 2px solid transparent;"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing scene list -->
+          <div id="dialog-existing" style="display: none;">
+            <span class="prop-label">Select a Scene</span>
+            <div class="dialog-radio-group">
+              <div class="dialog-radio-item selected">
+                <div class="radio-circle checked"></div>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--scene-purple); flex-shrink: 0;"></span>
+                <div>
+                  <div class="radio-label">Studio Portraits</div>
+                  <div class="radio-sublabel">2 shots</div>
+                </div>
+              </div>
+              <div class="dialog-radio-item">
+                <div class="radio-circle"></div>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--scene-emerald); flex-shrink: 0;"></span>
+                <div>
+                  <div class="radio-label">Rooftop Evening</div>
+                  <div class="radio-sublabel">4 shots</div>
+                </div>
+              </div>
+              <div class="dialog-radio-item">
+                <div class="radio-circle"></div>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--scene-amber); flex-shrink: 0;"></span>
+                <div>
+                  <div class="radio-label">Warehouse Industrial</div>
+                  <div class="radio-sublabel">1 shot</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="dialog-btn" onclick="document.getElementById('scene-dialog-overlay').style.display='none'">Cancel</button>
+          <button class="dialog-btn primary">Create Scene</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-ux" style="margin-top: 20px;">
+      <span class="callout-icon">&#128161;</span>
+      <div>
+        <strong>UX:</strong> "Group into Scene" is added to the existing BulkActionBar. The dialog has two tabs: "Create New" (name + color picker) and "Add to Existing" (radio list of existing scenes with shot counts). The dialog button label changes based on the tab: "Create Scene" vs "Add to Scene".
+      </div>
+    </div>
+    <div class="callout callout-impl" style="margin-top: 8px;">
+      <span class="callout-icon">&#9881;</span>
+      <div>
+        <strong>Implementation:</strong> Creating a scene writes a new doc to the <code>scenes</code> subcollection (name, color, sortOrder). Grouping uses <code>writeBatch</code> to update <code>sceneId</code> on all selected shot docs atomically. "Ungroup All" clears <code>sceneId</code> on all shots in the scene. "Delete Scene" removes the scene doc and clears <code>sceneId</code> on member shots.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================================
+       JAVASCRIPT
+       ============================================ -->
+  <script>
+    // Panel tab switching
+    function switchPanel(id) {
+      document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+      document.querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('panel-' + id).classList.add('active');
+      // Find the clicked tab
+      var tabs = document.querySelectorAll('.panel-tab');
+      var map = { card: 0, table: 1, three: 2, bulk: 3 };
+      if (map[id] !== undefined) tabs[map[id]].classList.add('active');
+    }
+
+    // Scene collapse/expand (card view)
+    function toggleScene(header) {
+      var chevron = header.querySelector('.scene-chevron');
+      var body = header.nextElementSibling;
+      // skip context menu container if present
+      while (body && !body.classList.contains('scene-body')) {
+        body = body.nextElementSibling;
+      }
+      if (!body) return;
+      chevron.classList.toggle('collapsed');
+      body.classList.toggle('collapsed');
+    }
+
+    // Scene collapse/expand (table view)
+    function toggleTableScene(row) {
+      var chevronSpan = row.querySelector('span[style*="font-size: 0.75rem"]');
+      var scene = null;
+      // Determine scene from row
+      var next = row.nextElementSibling;
+      while (next && next.dataset && next.dataset.scene) {
+        scene = next.dataset.scene;
+        if (next.style.display === 'none') {
+          next.style.display = '';
+        } else {
+          next.style.display = 'none';
+        }
+        next = next.nextElementSibling;
+      }
+      // Toggle chevron rotation
+      if (chevronSpan) {
+        var current = chevronSpan.style.transform;
+        chevronSpan.style.transform = current ? '' : 'rotate(-90deg)';
+      }
+    }
+
+    // Dialog tab switching
+    function switchDialogTab(tab) {
+      var tabs = document.querySelectorAll('.dialog-tab');
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      if (tab === 'new') {
+        tabs[0].classList.add('active');
+        document.getElementById('dialog-new').style.display = 'block';
+        document.getElementById('dialog-existing').style.display = 'none';
+        document.querySelector('.dialog-footer .dialog-btn.primary').textContent = 'Create Scene';
+      } else {
+        tabs[1].classList.add('active');
+        document.getElementById('dialog-new').style.display = 'none';
+        document.getElementById('dialog-existing').style.display = 'block';
+        document.querySelector('.dialog-footer .dialog-btn.primary').textContent = 'Add to Scene';
+      }
+    }
+
+    // Close dialog on overlay click
+    document.getElementById('scene-dialog-overlay').addEventListener('click', function(e) {
+      if (e.target === this) this.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

@@ -1,82 +1,77 @@
-# HANDOFF — Sprint S27: Course Correction (2026-04-09)
+# HANDOFF — Sprint S28: Shot Scenes + Three-Panel Parity (2026-04-09)
 
 ## State
-Sprint S27 IN PROGRESS. 7 of 8 workstreams implemented. Build clean. Lint zero. 162 test files / 1892 tests passing. Code review running.
+Sprint S28 IN PROGRESS. Build clean. Lint zero. 164 test files / 1905 tests pass. Awaiting final code review.
 
 ## What Was Built
 
-### WS1: Crew Permissions Fix (CRITICAL)
-- Added `'crew'` to ~13 `hasProjectRole()` READ rule arrays in `firestore.rules`
-- Crew users with project membership can now list projects, read schedules, departments, pulls, activities, etc.
-- Write rules unchanged — crew remains read-only on administrative resources
-- **Requires deploy:** `firebase deploy --only firestore:rules`
+### WS1: Three-Panel Bug Fixes (CRITICAL)
+- **TalentPicker projectId**: Added `projectId={shot.projectId}` to `ThreePanelPropertiesPanel.tsx` — talent dropdown was showing ALL org-wide talent instead of project-scoped
+- **LocationPicker projectId**: Same fix for location picker
+- **ProductSummaryStrip**: Added import + conditional render to `ThreePanelCanvasPanel.tsx` — product thumbnails were completely missing from center panel
 
-### WS2a: Product Merge Undefined Error Fix
-- Created `src-vnext/shared/lib/firestoreSanitize.ts` — recursive `undefined` stripping utility
-- Applied `sanitizeForFirestore()` to 4 `batch.set()`/`batch.update()` calls in `productMergeWrites.ts`
-- Refactored duplicate sanitize functions in `ShotLooksSection.tsx` and `ActiveLookCoverReferencesPanel.tsx` to use shared import
-- 14 unit tests for sanitize utility
+### WS2: Three-Panel Parity Fixes (from architect audit)
+- **Deleted shot guard** (CRITICAL): Added `useRef`-gated `useEffect` in `ThreePanelLayout.tsx` — deselects + toasts when shot is soft-deleted while selected
+- **ShotVersionHistorySection** (HIGH): Added to `ThreePanelPropertiesPanel.tsx` below comments
+- **ShotLifecycleActionsMenu** (HIGH): Added to `ThreePanelCanvasPanel.tsx` header bar (duplicate/move/archive)
+- **ShotsShareDialog** (HIGH): Added share button + dialog to `ThreePanelLayout.tsx` + `ThreePanelCanvasPanel.tsx`
 
-### WS2b: Cross-Gender Merge Detection
-- Added `hasGenderConflict` and `hasCategoryConflict` flags to `DuplicateGroup` type in `productDedup.ts`
-- Red warning banner in `MergeDetectionPanel` when gender/category differs
-- Mandatory confirmation checkbox in `MergeComparePanel` when gender differs ("I confirm these products should be merged despite different genders")
-- Gender/Category rows in comparison table highlighted red instead of amber
-- 7 new tests (39 total dedup tests)
+### WS3: Shot Scenes Infrastructure
+- **Lane type**: `shared/types/index.ts` — `{ id, name, projectId, clientId, sortOrder, color?, timestamps, createdBy }`
+- **Path helper**: `shared/lib/paths.ts` — `laneDocPath`
+- **useLanes hook**: `features/shots/hooks/useLanes.ts` — Firestore subscription + laneNameById map
+- **CRUD actions**: `features/shots/lib/laneActions.ts` — createLane (name validation), updateLane (LanePatch type), deleteLane, assignShotsToLane (MAX_BULK_OPS=500, projectId), ungroupAllShotsFromLane
+- **GroupKey extension**: Added `"scene"` to GroupKey type, scene case in `groupShots()` with lane order + alphabetical fallback
+- **State wiring**: `useShotListState` accepts laneNameById + laneOrder, passes to groupShots
 
-### WS3: Talent Picker — Only Booked Visible
-- Restructured `TalentPickerContent` in `TalentPicker.tsx`
-- "Currently assigned" section at top for non-booked selected talent
-- "Booked" group always expanded
-- Hold, Shortlist, Other groups collapsed behind individual toggles with count badges
-- Toggles use design token colors (amber for hold, gray for shortlist)
+### WS4: Shot Scenes UI
+- **SceneHeader component**: Collapsible header with accent color bar, name, count badge, context menu (Rename, Ungroup All, Delete Scene). Ungrouped variant with muted styling.
+- **ScenePicker dropdown**: Assign/move/remove shots from scenes. Shows color dots. "None (ungrouped)" option.
+- **GroupIntoSceneDialog**: Two-tab dialog (Create New + Add to Existing) with name input, 6-color picker, existing scene radio list with counts.
+- **Toolbar integration**: "Scenes" toggle button (with Layers icon) in ShotListToolbar, visible when lanes exist
+- **Card view integration**: SceneHeader renders as collapsible group dividers. Shots contained within bordered scene containers. Collapse state tracked in ShotListPage.
+- **BulkActionBar**: "Group into Scene" primary button added before Delete
 
-### WS4: Renumber Shots With Filters + Custom Start
-- Added `startNumber` parameter to `renumberShots()` and `previewRenumber()` in `shotNumbering.ts`
-- Added `suggestStartNumber()` helper for auto-suggesting start numbers
-- Updated `RenumberShotsDialog` with start number input and filtered-subset warning banner
-- Removed `disabled={hasActiveFilters}` from toolbar — renumber always available
-- Dynamic label: "Renumber visible shots" when filters active
-- 38 shot numbering tests (19 in each test file)
+### WS5: Tests
+- 9 scene grouping tests: groups by laneId, ungrouped last, sorts by laneOrder, handles empty, unknown lanes, alphabetical fallback, preserves shot order
+- SCENE_COLORS validation: 6 colors, unique keys, valid hex
+- 1905 total tests (up from 1892)
 
-### WS5: Batch Operations on Shots
-- Created `bulkShotUpdates.ts` with 5 batch write functions: status, tags (apply/remove), location, talent (add/merge)
-- Extracted `BulkActionBar.tsx` from ShotListPage — includes inline Status Select, Tags Popover, Location Popover, Talent Popover
-- ShotListPage reduced from 820 → 771 lines
-- All batch ops: writeBatch chunked at 250, max 500 cap, toast feedback
+## Review Cycle
+- Initial code review (Wave 1 fixes): APPROVED — zero CRITICAL/HIGH findings
+- Senior code review (infrastructure): H1 deleted guard re-fire fixed (useRef gate), H2 projectId validation added, M1 LanePatch narrowed, M2 MAX_BULK_OPS added, m1-m5 all addressed
+- Final senior code review: IN PROGRESS (background)
 
-### WS6: Internal Casting Page Enrichment
-- Created `useCastingVoteAggregates` hook — subscribes to all castingShares + votes for project, aggregates per-talent
-- Created `AdminTalentDetailSheet` — headshot, measurements, portfolio, vote tally bar, reviewer feedback list
-- Enhanced `CastingCard` — real vote tally replaces "No votes yet", clickable headshot opens detail sheet
-- Wired into `CastingBoardPage` — vote aggregates loaded, detail sheet rendered
+## Firestore Rules
+- No changes needed — lanes collection covered by existing wildcard catch-all at line 731
+- Read: admin + producer + all project roles. Write: admin + producer + warehouse.
 
-## What's Next
-- Deploy Firestore rules to production
-- Visual verification of all 7 workstreams in Chrome
-- Code review findings — address any CRITICAL/HIGH issues
-- Commit and PR
+## Key Files Created
+- `src-vnext/features/shots/hooks/useLanes.ts` — Firestore subscription hook
+- `src-vnext/features/shots/lib/laneActions.ts` — CRUD + batch operations
+- `src-vnext/features/shots/components/SceneHeader.tsx` — collapsible scene header
+- `src-vnext/features/shots/components/ScenePicker.tsx` — scene assignment dropdown
+- `src-vnext/features/shots/components/GroupIntoSceneDialog.tsx` — bulk scene dialog
+- `src-vnext/features/shots/lib/__tests__/sceneGrouping.test.ts` — 9 grouping tests
+- `src-vnext/features/shots/lib/__tests__/laneActions.test.ts` — validation tests
+- `mockups/s28-shot-scenes.html` — 4-panel interactive mockup (approved)
 
 ## Key Files Modified
-- `firestore.rules` — crew permissions
-- `src-vnext/shared/lib/firestoreSanitize.ts` — NEW
-- `src-vnext/features/products/lib/productMergeWrites.ts` — sanitize applied
-- `src-vnext/features/products/lib/productDedup.ts` — conflict flags
-- `src-vnext/features/products/components/MergeDetectionPanel.tsx` — warning banner
-- `src-vnext/features/products/components/MergeComparePanel.tsx` — confirm checkbox
-- `src-vnext/features/shots/components/TalentPicker.tsx` — booked-only default
-- `src-vnext/features/shots/lib/shotNumbering.ts` — startNumber param
-- `src-vnext/features/shots/components/RenumberShotsDialog.tsx` — start input + warning
-- `src-vnext/features/shots/components/ShotListToolbar.tsx` — renumber always enabled
-- `src-vnext/features/shots/components/ShotListPage.tsx` — BulkActionBar extraction
-- `src-vnext/features/shots/lib/bulkShotUpdates.ts` — NEW
-- `src-vnext/features/shots/components/BulkActionBar.tsx` — NEW
-- `src-vnext/features/casting/hooks/useCastingVoteAggregates.ts` — NEW
-- `src-vnext/features/casting/components/AdminTalentDetailSheet.tsx` — NEW
-- `src-vnext/features/casting/components/CastingCard.tsx` — vote tally
-- `src-vnext/features/casting/components/CastingBoardPage.tsx` — wiring
+- `src-vnext/shared/types/index.ts` — Lane interface added
+- `src-vnext/shared/lib/paths.ts` — laneDocPath helper
+- `src-vnext/features/shots/lib/shotListFilters.ts` — "scene" GroupKey + groupShots case
+- `src-vnext/features/shots/hooks/useShotListState.ts` — lane data wiring
+- `src-vnext/features/shots/components/ThreePanelLayout.tsx` — deleted guard, share dialog
+- `src-vnext/features/shots/components/ThreePanelCanvasPanel.tsx` — ProductSummaryStrip, lifecycle menu, share button
+- `src-vnext/features/shots/components/ThreePanelPropertiesPanel.tsx` — projectId props, version history
+- `src-vnext/features/shots/components/ShotListPage.tsx` — useLanes, scene grouping, collapse state, dialog
+- `src-vnext/features/shots/components/ShotListToolbar.tsx` — Scenes toggle button
+- `src-vnext/features/shots/components/BulkActionBar.tsx` — "Group into Scene" button
 
-## Verification
-- Build: clean (`npm run build`)
-- Lint: zero warnings (`npm run lint`)
-- Tests: 162 files / 1892 passing (`npm test`)
+## What's Next
+- Final code review results (background agent)
+- ScenePicker in ThreePanelPropertiesPanel (assign scene from properties panel)
+- Scene breadcrumb in ThreePanelCanvasPanel ("Part of: Scene Name")
+- Table view scene grouping (currently card view only)
+- Visual verification via dev server
+- PR creation

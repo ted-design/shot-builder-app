@@ -1,10 +1,12 @@
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Share2 } from "lucide-react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/ActiveLookCoverReferencesPanel"
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
+import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
 import { CompactActiveEditors } from "@/features/shots/components/ActiveEditorsBar"
+import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import {
   SectionLabel,
   DescriptionEditor,
@@ -25,6 +27,7 @@ interface ThreePanelCanvasPanelProps {
   readonly canEdit: boolean
   readonly canDoOperational: boolean
   readonly onClose: () => void
+  readonly onShareClick?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -37,6 +40,7 @@ export function ThreePanelCanvasPanel({
   canEdit,
   canDoOperational,
   onClose,
+  onShareClick,
 }: ThreePanelCanvasPanelProps) {
   const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
@@ -53,11 +57,29 @@ export function ThreePanelCanvasPanel({
           <ChevronLeft className="h-3.5 w-3.5" />
           <span>Shots</span>
         </button>
-        <CompactActiveEditors
-          clientId={clientId}
-          entityType="shots"
-          entityId={shot.id}
-        />
+        <div className="flex items-center gap-1">
+          <CompactActiveEditors
+            clientId={clientId}
+            entityType="shots"
+            entityId={shot.id}
+          />
+          {onShareClick && (
+            <button
+              type="button"
+              onClick={onShareClick}
+              className="inline-flex items-center rounded-md p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+              title="Share"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {canDoOperational && (
+            <ShotLifecycleActionsMenu
+              shot={shot}
+              disabled={!canDoOperational}
+            />
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 p-4">
@@ -103,6 +125,10 @@ export function ThreePanelCanvasPanel({
             <ActiveLookCoverReferencesPanel shot={shot} canEdit={canEdit} />
           </div>
         </div>
+
+        {shot.looks && shot.looks.length > 0 && (
+          <ProductSummaryStrip looks={shot.looks} />
+        )}
 
         {/* Description */}
         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">

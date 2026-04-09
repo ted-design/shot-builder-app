@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { SortKey, ViewMode } from "@/features/shots/lib/shotListFilters"
+import type { SortKey, ViewMode, GroupKey } from "@/features/shots/lib/shotListFilters"
 import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import type { computeInsights } from "@/features/shots/lib/shotListFilters"
@@ -27,6 +27,7 @@ import {
   Table2,
   CircleDot,
   Hash,
+  Layers,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -59,6 +60,10 @@ type ShotListToolbarProps = {
   // More filters (advanced conditions beyond status/missing)
   readonly extraFilterCount: number
   readonly onMoreFiltersOpen: () => void
+  // Scene grouping
+  readonly groupKey?: GroupKey
+  readonly onGroupKeyChange?: (key: GroupKey) => void
+  readonly hasScenes?: boolean
   // Showing count
   readonly displayCount: number
   readonly totalCount: number
@@ -100,6 +105,9 @@ export function ShotListToolbar({
   onRenumberOpen,
   extraFilterCount,
   onMoreFiltersOpen,
+  groupKey,
+  onGroupKeyChange,
+  hasScenes,
   displayCount,
   totalCount,
 }: ShotListToolbarProps) {
@@ -261,6 +269,18 @@ export function ShotListToolbar({
       {extraFilterCount === 0 && (
         <Button variant="ghost" size="sm" className="text-[var(--color-text-subtle)] text-xs h-9" onClick={onMoreFiltersOpen}>
           More filters
+        </Button>
+      )}
+
+      {/* Scene grouping toggle */}
+      {hasScenes && onGroupKeyChange && (
+        <Button
+          variant="outline"
+          className={`gap-1.5 ${groupKey === "scene" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]" : ""}`}
+          onClick={() => onGroupKeyChange(groupKey === "scene" ? "none" : "scene")}
+        >
+          <Layers className="h-3.5 w-3.5" />
+          Scenes
         </Button>
       )}
 

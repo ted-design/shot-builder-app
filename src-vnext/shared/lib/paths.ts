@@ -71,12 +71,18 @@ export const pullPath = (
   clientId: string,
 ): string[] => [...pullsPath(projectId, clientId), pullId]
 
-// --- Lanes (project-scoped) ---
+// --- Lanes / Scenes (project-scoped) ---
 
 export const lanesPath = (
   projectId: string,
   clientId: string,
 ): string[] => [...projectPath(projectId, clientId), "lanes"]
+
+export const laneDocPath = (
+  laneId: string,
+  projectId: string,
+  clientId: string,
+): string[] => [...lanesPath(projectId, clientId), laneId]
 
 // --- Product Families & SKUs ---
 

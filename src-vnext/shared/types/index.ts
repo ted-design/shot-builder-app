@@ -110,6 +110,22 @@ export interface ShotReferenceLink {
   readonly type: ShotReferenceLinkType
 }
 
+// --- Lanes / Scenes (project-scoped grouping) ---
+
+export interface Lane {
+  readonly id: string
+  readonly name: string
+  readonly projectId: string
+  readonly clientId: string
+  readonly sortOrder: number
+  readonly color?: string
+  readonly createdAt: Timestamp
+  readonly updatedAt: Timestamp
+  readonly createdBy: string
+}
+
+// --- Shots ---
+
 export interface Shot {
   readonly id: string
   readonly title: string

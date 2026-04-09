@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { MapPin, Tag, Trash2, User } from "lucide-react"
+import { Layers, MapPin, Tag, Trash2, User } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
@@ -44,6 +44,7 @@ interface BulkActionBarProps {
   readonly onCreatePullOpen: () => void
   readonly onBulkDeleteOpen: () => void
   readonly onClearSelection: () => void
+  readonly onGroupSceneOpen?: () => void
   // Flags
   readonly canShare: boolean
   readonly canExport: boolean
@@ -65,6 +66,7 @@ export function BulkActionBar({
   onCreatePullOpen,
   onBulkDeleteOpen,
   onClearSelection,
+  onGroupSceneOpen,
   canShare,
   canExport,
   locations,
@@ -285,6 +287,17 @@ export function BulkActionBar({
         >
           Create pull sheet
         </Button>
+        {onGroupSceneOpen && canManageShots(role) && (
+          <Button
+            variant="default"
+            size="sm"
+            disabled={selectedIds.size === 0}
+            onClick={onGroupSceneOpen}
+          >
+            <Layers className="mr-1.5 h-3.5 w-3.5" />
+            Group into Scene
+          </Button>
+        )}
         {canManageShots(role) && (
           <Button
             variant="destructive"
