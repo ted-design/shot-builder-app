@@ -1,28 +1,47 @@
-# CHECKPOINT — Sprint S27: Course Correction (2026-04-09)
+# CHECKPOINT — Sprint S28: Shot Scenes + Three-Panel Parity (2026-04-09)
 
-## Build clean. Lint zero. 162 test files / 1892 tests pass.
+## Build clean. Lint zero. 164 test files / 1905 tests pass.
 
-## Sprint S27 — Implementation Progress
-- [x] WS1: Crew permissions in Firestore rules (13 read rules fixed)
-- [x] WS2a: firestoreSanitize utility + merge undefined error fix
-- [x] WS2b: Cross-gender/category conflict detection in merge wizard
-- [x] WS3: Talent picker — only Booked visible by default
-- [x] WS4: Renumber shots with filters + custom start number
-- [x] WS5: Batch operations — status, tags, location, talent
-- [x] WS6: Internal casting page enrichment (votes, profiles, detail sheet)
-- [ ] Visual verification + documentation updates
+## Sprint S28 — Progress
 
-## New Files Created
-- `src-vnext/shared/lib/firestoreSanitize.ts` (28 lines)
-- `src-vnext/shared/lib/__tests__/firestoreSanitize.test.ts` (100 lines)
-- `src-vnext/features/shots/lib/bulkShotUpdates.ts` (170 lines)
-- `src-vnext/features/shots/components/BulkActionBar.tsx` (258 lines)
-- `src-vnext/features/casting/hooks/useCastingVoteAggregates.ts` (293 lines)
-- `src-vnext/features/casting/components/AdminTalentDetailSheet.tsx` (275 lines)
-- `src-vnext/features/shots/lib/__tests__/shotNumbering.test.ts` (agent-created, 19 tests)
+### Three-Panel Parity Fixes
+- [x] TalentPicker projectId in ThreePanelPropertiesPanel
+- [x] LocationPicker projectId in ThreePanelPropertiesPanel
+- [x] ProductSummaryStrip in ThreePanelCanvasPanel
+- [x] Deleted shot guard in ThreePanelLayout (useRef gate)
+- [x] ShotVersionHistorySection in ThreePanelPropertiesPanel
+- [x] ShotLifecycleActionsMenu in ThreePanelCanvasPanel
+- [x] ShotsShareDialog in ThreePanelLayout + share icon in canvas
 
-## What's Next
-- Code review findings — address CRITICAL/HIGH
-- Deploy Firestore rules
-- Visual verification in Chrome
-- Commit + PR
+### Shot Scenes Infrastructure
+- [x] Lane type definition (shared/types/index.ts)
+- [x] laneDocPath helper (shared/lib/paths.ts)
+- [x] useLanes hook (Firestore subscription + laneNameById)
+- [x] laneActions CRUD (createLane, updateLane, deleteLane, assignShotsToLane, ungroupAllShotsFromLane)
+- [x] "scene" GroupKey + groupShots logic
+- [x] useShotListState wiring (laneNameById, laneOrder)
+
+### Shot Scenes UI
+- [x] SceneHeader component (card variant with collapse, context menu)
+- [x] ScenePicker dropdown component
+- [x] GroupIntoSceneDialog (Create New / Add to Existing tabs)
+- [x] ShotListToolbar "Scenes" toggle button
+- [x] Card view scene grouping with collapsible SceneHeaders
+- [x] BulkActionBar "Group into Scene" button
+- [x] ShotListPage wiring (useLanes, collapse state, dialog)
+
+### Tests
+- [x] 9 scene grouping tests (sceneGrouping.test.ts)
+- [x] SCENE_COLORS validation tests (laneActions.test.ts)
+
+### Code Reviews
+- [x] Initial code review: APPROVED
+- [x] Senior code review (infrastructure): all HIGH/MAJOR fixed
+- [ ] Final code review: IN PROGRESS
+
+### Remaining
+- [ ] ScenePicker wired into ThreePanelPropertiesPanel
+- [ ] Scene breadcrumb in ThreePanelCanvasPanel
+- [ ] Table view scene row separators
+- [ ] Visual verification via dev server
+- [ ] PR creation

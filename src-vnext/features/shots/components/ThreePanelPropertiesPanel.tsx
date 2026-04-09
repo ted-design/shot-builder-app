@@ -5,6 +5,7 @@ import { LocationPicker } from "@/features/shots/components/LocationPicker"
 import { TagEditor } from "@/features/shots/components/TagEditor"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
+import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
 import {
   SectionLabel,
   MetaEditorCard,
@@ -101,6 +102,7 @@ export function ThreePanelPropertiesPanel({
             <LocationPicker
               selectedId={shot.locationId}
               selectedName={shot.locationName}
+              projectId={shot.projectId}
               onSave={(locationId, locationName) =>
                 save({ locationId, locationName })
               }
@@ -117,6 +119,7 @@ export function ThreePanelPropertiesPanel({
           {canEdit ? (
             <TalentPicker
               selectedIds={shot.talentIds ?? shot.talent}
+              projectId={shot.projectId}
               onSave={(ids) => save({ talent: ids, talentIds: ids })}
               disabled={!canEdit}
               compact
@@ -148,6 +151,8 @@ export function ThreePanelPropertiesPanel({
 
         {/* Comments */}
         <ShotCommentsSection shotId={shot.id} canComment={canDoOperational} />
+
+        <ShotVersionHistorySection shot={shot} />
       </div>
     </div>
   )

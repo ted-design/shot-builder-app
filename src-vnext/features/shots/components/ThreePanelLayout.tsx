@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShot } from "@/features/shots/hooks/useShot"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
@@ -12,6 +13,7 @@ import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ThreePanelListPanel } from "@/features/shots/components/ThreePanelListPanel"
 import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCanvasPanel"
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
+import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { toast } from "sonner"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 
@@ -71,10 +73,13 @@ export function ThreePanelLayout({
 }: ThreePanelLayoutProps) {
   const { data: shot, loading, error } = useShot(selectedShotId)
   const { role, clientId, user } = useAuth()
+  const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
 
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
+  const canShare = role === "admin" || role === "producer"
+  const [shareOpen, setShareOpen] = useState(false)
 
   // -- Save function (same pattern as ShotDetailPage) --
   const save = useCallback(
@@ -148,6 +153,18 @@ export function ThreePanelLayout({
     [selectedShotId, onDeselect, onSelectShot],
   )
 
+  // -- Deleted shot guard: deselect if shot is soft-deleted while selected --
+  const wasDeletedRef = useRef(false)
+  useEffect(() => {
+    if (shot?.deleted === true && !wasDeletedRef.current) {
+      wasDeletedRef.current = true
+      toast.info("This shot has been deleted")
+      onDeselect()
+    } else if (!shot?.deleted) {
+      wasDeletedRef.current = false
+    }
+  }, [shot?.deleted, onDeselect])
+
   // -- Keyboard shortcuts --
   useKeyboardShortcuts([
     { key: "Escape", handler: onDeselect },
@@ -200,6 +217,7 @@ export function ThreePanelLayout({
         canEdit={canEdit}
         canDoOperational={canDoOperational}
         onClose={onDeselect}
+        onShareClick={canShare ? () => setShareOpen(true) : undefined}
       />
     )
   }
@@ -261,6 +279,18 @@ export function ThreePanelLayout({
           )}
         </Panel>
       </PanelGroup>
+
+      {canShare && shot && (
+        <ShotsShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          clientId={clientId}
+          projectId={shot.projectId}
+          projectName={projectName || "Project"}
+          user={user}
+          selectedShotIds={[shot.id]}
+        />
+      )}
     </div>
     </ErrorBoundary>
   )

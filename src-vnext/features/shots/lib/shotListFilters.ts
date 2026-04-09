@@ -11,7 +11,7 @@ export type SortKey = "custom" | "name" | "date" | "status" | "created" | "updat
 export type SortDir = "asc" | "desc"
 export type ViewMode = "card" | "table"
 export type MissingKey = "products" | "talent" | "location" | "image"
-export type GroupKey = "none" | "status" | "date" | "talent" | "location"
+export type GroupKey = "none" | "status" | "date" | "talent" | "location" | "scene"
 
 export type ShotsListFields = {
   readonly heroThumb: boolean
@@ -345,6 +345,8 @@ export function groupShots(
   lookups: {
     readonly talentNameById: ReadonlyMap<string, string>
     readonly locationNameById: ReadonlyMap<string, string>
+    readonly laneNameById?: ReadonlyMap<string, string>
+    readonly laneOrder?: ReadonlyMap<string, number>
   },
 ): ReadonlyArray<ShotGroup> | null {
   if (groupKey === "none") return null
@@ -458,6 +460,42 @@ export function groupShots(
       const ar = rank(a.key)
       const br = rank(b.key)
       if (ar !== br) return ar - br
+      return collator.compare(a.label, b.label)
+    })
+
+    return groups
+  }
+
+  if (groupKey === "scene") {
+    const NONE = "__ungrouped"
+    const laneNames = lookups.laneNameById ?? new Map<string, string>()
+    const laneOrders = lookups.laneOrder ?? new Map<string, number>()
+    const byKey = new Map<string, { readonly label: string; readonly shots: Shot[] }>()
+
+    for (const shot of shots) {
+      const key = shot.laneId ?? NONE
+      const label =
+        key === NONE
+          ? "Ungrouped"
+          : laneNames.get(key) ?? "Unnamed Scene"
+
+      const existing = byKey.get(key)
+      if (existing) existing.shots.push(shot)
+      else byKey.set(key, { label, shots: [shot] })
+    }
+
+    const groups = Array.from(byKey.entries()).map(([key, value]) => ({
+      key,
+      label: value.label,
+      shots: value.shots as ReadonlyArray<Shot>,
+    }))
+
+    groups.sort((a, b) => {
+      if (a.key === NONE) return 1
+      if (b.key === NONE) return -1
+      const aOrder = laneOrders.get(a.key) ?? 0
+      const bOrder = laneOrders.get(b.key) ?? 0
+      if (aOrder !== bOrder) return aOrder - bOrder
       return collator.compare(a.label, b.label)
     })
 

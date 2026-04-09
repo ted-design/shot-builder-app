@@ -37,6 +37,10 @@ import { BulkActionBar } from "@/features/shots/components/BulkActionBar"
 import { BulkDeleteShotsDialog } from "@/features/shots/components/BulkDeleteShotsDialog"
 import { RenumberShotsDialog } from "@/features/shots/components/RenumberShotsDialog"
 import { useHeroProductData } from "@/features/shots/hooks/useHeroProductData"
+import { useLanes } from "@/features/shots/hooks/useLanes"
+import { SceneHeader } from "@/features/shots/components/SceneHeader"
+import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
+import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane, updateLane } from "@/features/shots/lib/laneActions"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
@@ -92,6 +96,18 @@ export default function ShotListPage() {
   const [repairing, setRepairing] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [renumberOpen, setRenumberOpen] = useState(false)
+  const [groupSceneOpen, setGroupSceneOpen] = useState(false)
+  const [deleteSceneTarget, setDeleteSceneTarget] = useState<{ id: string; name: string } | null>(null)
+  const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
+
+  const toggleSceneCollapse = useCallback((key: string) => {
+    setCollapsedScenes((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [])
 
   // -- Role-based flags --
   const showCreate = canManageShots(role)
@@ -108,6 +124,8 @@ export default function ShotListPage() {
   const productNameById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p.styleName])), [productFamilies])
   const familyById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p])), [productFamilies])
   const { skuById, samplesByFamily } = useHeroProductData(shots, clientId)
+  const { data: lanes, laneNameById } = useLanes()
+  const laneOrder = useMemo(() => new Map(lanes.map((l) => [l.id, l.sortOrder])), [lanes])
 
   // -- All filter / sort / view state --
   const {
@@ -125,7 +143,7 @@ export default function ShotListPage() {
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
-    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById,
+    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder,
   })
 
   // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
@@ -338,6 +356,7 @@ export default function ShotListPage() {
           user={user}
           role={role}
           onShareOpen={() => setShareOpen(true)}
+          onGroupSceneOpen={() => setGroupSceneOpen(true)}
           onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
@@ -373,6 +392,9 @@ export default function ShotListPage() {
             onRenumberOpen={() => setRenumberOpen(true)}
             extraFilterCount={extraFilterCount}
             onMoreFiltersOpen={() => setFiltersOpen(true)}
+            groupKey={groupKey}
+            onGroupKeyChange={setGroupKey}
+            hasScenes={lanes.length > 0}
             displayCount={displayShots.length}
             totalCount={shots.length}
           />
@@ -587,38 +609,73 @@ export default function ShotListPage() {
         </>
       ) : (
         hasActiveGrouping && shotGroups ? (
-          <div className="space-y-8">
-            {shotGroups.map((group) => (
-              <div key={group.key} className="space-y-3">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-2">
-                  <div className="min-w-0 text-sm font-medium text-[var(--color-text)]">
-                    <span className="truncate">{group.label}</span>
-                  </div>
-                  <span className="text-xs text-[var(--color-text-subtle)]">
-                    {group.shots.length}
-                  </span>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.shots.map((shot) => (
-                    <ShotCard
-                      key={shot.id}
-                      shot={shot}
-                      selectable={selectionEnabled}
-                      selected={selectionEnabled ? selectedIds.has(shot.id) : false}
-                      onSelectedChange={() => toggleSelected(shot.id)}
-                      onOpenShot={handleShotClick}
-                      visibleFields={fields}
-                      actionControl={renderLifecycleAction(shot)}
-                      talentNameById={talentNameById}
-                      locationNameById={locationNameById}
-                      familyById={familyById}
-                      skuById={skuById}
-                      samplesByFamily={samplesByFamily}
+          <div className="space-y-4">
+            {shotGroups.map((group) => {
+              const isScene = groupKey === "scene"
+              const isCollapsed = collapsedScenes.has(group.key)
+              const isUngrouped = group.key === "__ungrouped"
+              const lane = isScene ? lanes.find((l) => l.id === group.key) : null
+
+              return (
+                <div key={group.key} className={isScene ? "rounded-md border border-[var(--color-border)] overflow-hidden" : "space-y-3"}>
+                  {isScene ? (
+                    <SceneHeader
+                      name={group.label}
+                      shotCount={group.shots.length}
+                      color={lane?.color}
+                      collapsed={isCollapsed}
+                      onToggleCollapse={() => toggleSceneCollapse(group.key)}
+                      onRename={() => {
+                        const newName = window.prompt("Rename scene:", group.label)
+                        if (newName && newName.trim() && clientId) {
+                          void updateLane({ laneId: group.key, projectId, clientId, patch: { name: newName.trim() } })
+                        }
+                      }}
+                      onUngroupAll={() => {
+                        if (clientId) {
+                          void ungroupAllShotsFromLane({ shots, laneId: group.key, projectId, clientId })
+                            .then((n) => toast.success(`${n} shots ungrouped`))
+                        }
+                      }}
+                      onDelete={() => {
+                        setDeleteSceneTarget({ id: group.key, name: group.label })
+                      }}
+                      isUngrouped={isUngrouped}
                     />
-                  ))}
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-2">
+                      <div className="min-w-0 text-sm font-medium text-[var(--color-text)]">
+                        <span className="truncate">{group.label}</span>
+                      </div>
+                      <span className="text-xs text-[var(--color-text-subtle)]">
+                        {group.shots.length}
+                      </span>
+                    </div>
+                  )}
+                  {!(isScene && isCollapsed) && (
+                    <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${isScene ? "p-3" : ""}`}>
+                      {group.shots.map((shot) => (
+                        <ShotCard
+                          key={shot.id}
+                          shot={shot}
+                          selectable={selectionEnabled}
+                          selected={selectionEnabled ? selectedIds.has(shot.id) : false}
+                          onSelectedChange={() => toggleSelected(shot.id)}
+                          onOpenShot={handleShotClick}
+                          visibleFields={fields}
+                          actionControl={renderLifecycleAction(shot)}
+                          talentNameById={talentNameById}
+                          locationNameById={locationNameById}
+                          familyById={familyById}
+                          skuById={skuById}
+                          samplesByFamily={samplesByFamily}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           /* Desktop: draggable when custom sort, plain grid otherwise */
@@ -765,6 +822,51 @@ export default function ShotListPage() {
           selectedShotIds={selectedShots.map((s) => s.id)}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteSceneTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteSceneTarget(null) }}
+        title={`Delete scene "${deleteSceneTarget?.name ?? ""}"?`}
+        description="All shots in this scene will be ungrouped. This cannot be undone."
+        confirmLabel="Delete Scene"
+        variant="destructive"
+        onConfirm={() => {
+          if (clientId && deleteSceneTarget) {
+            void ungroupAllShotsFromLane({ shots, laneId: deleteSceneTarget.id, projectId, clientId })
+              .then(() => deleteLane({ laneId: deleteSceneTarget.id, projectId, clientId }))
+              .then(() => toast.success(`Scene "${deleteSceneTarget.name}" deleted`))
+            setDeleteSceneTarget(null)
+          }
+        }}
+      />
+
+      <GroupIntoSceneDialog
+        open={groupSceneOpen}
+        onOpenChange={setGroupSceneOpen}
+        selectedShotIds={Array.from(selectedIds)}
+        existingLanes={lanes.map((l) => ({
+          id: l.id,
+          name: l.name,
+          color: l.color,
+          shotCount: displayShots.filter((s) => s.laneId === l.id).length,
+        }))}
+        onCreateAndAssign={async (name, color) => {
+          if (!clientId) return
+          const laneId = await createLane({ name, projectId, clientId, sortOrder: lanes.length, color, user })
+          await assignShotsToLane({ shotIds: Array.from(selectedIds), laneId, projectId, clientId })
+          toast.success(`Scene "${name}" created with ${selectedIds.size} shots`)
+          clearSelection()
+          setGroupKey("scene")
+        }}
+        onAssignToExisting={async (laneId) => {
+          if (!clientId) return
+          await assignShotsToLane({ shotIds: Array.from(selectedIds), laneId, projectId, clientId })
+          const laneName = laneNameById.get(laneId) ?? "scene"
+          toast.success(`${selectedIds.size} shots added to "${laneName}"`)
+          clearSelection()
+          setGroupKey("scene")
+        }}
+      />
 
     </ErrorBoundary>
   )
