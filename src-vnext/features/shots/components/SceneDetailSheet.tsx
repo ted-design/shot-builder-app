@@ -184,13 +184,15 @@ export function SceneDetailSheet({
     }
   }, [notes, lane, savePatch])
 
-  if (!lane) return null
-
-  const resolvedColor = getSceneColor(lane.color)
+  // Keep the Sheet mounted even when lane is null so that a deletion-while-open
+  // scenario still plays Radix's close animation. When lane is null we render
+  // an empty shell inside SheetContent instead of returning null at the component
+  // boundary.
+  const resolvedColor = lane ? getSceneColor(lane.color) : getSceneColor(null)
   const displayShotCount = shotCount ?? 0
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open && lane !== null} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[380px] sm:max-w-[380px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
@@ -205,6 +207,14 @@ export function SceneDetailSheet({
           </SheetDescription>
         </SheetHeader>
 
+        {!lane ? (
+          // Lane was deleted while the sheet was open — show a brief empty state
+          // until Radix finishes the close animation (parent clears editSceneId
+          // via onOpenChange).
+          <div className="flex items-center justify-center py-10 text-sm text-[var(--color-text-muted)]">
+            Scene no longer available
+          </div>
+        ) : (
         <div className="flex flex-col gap-5 mt-4">
           {/* Scene Name */}
           <div>
@@ -330,6 +340,7 @@ export function SceneDetailSheet({
             <span>{displayShotCount === 1 ? "shot" : "shots"} in this scene</span>
           </div>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   )

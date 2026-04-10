@@ -358,6 +358,9 @@ export function buildSceneRenumberUpdates(
   return updates
 }
 
+/** Maximum shots per scene — bounded by indexToLetterSuffix capacity (A..ZZ = 702). */
+export const MAX_SHOTS_PER_SCENE = 702
+
 export async function renumberShotsWithScenes(
   sceneGroups: ReadonlyArray<{
     readonly sceneNumber: number
@@ -370,6 +373,15 @@ export async function renumberShotsWithScenes(
   const totalShots = sceneGroups.reduce((sum, g) => sum + g.shots.length, 0) + ungroupedShots.length
   if (totalShots > MAX_RENUMBER_SHOTS) {
     throw new Error(`Cannot renumber more than ${MAX_RENUMBER_SHOTS} shots at once.`)
+  }
+  // Guard per-scene capacity: indexToLetterSuffix clamps at "ZZ" (index 701), so a
+  // scene with 703+ shots would produce duplicate "ZZ" numbers. Surface a clear
+  // error before the write instead of silently corrupting data.
+  const overflowScene = sceneGroups.find((g) => g.shots.length > MAX_SHOTS_PER_SCENE)
+  if (overflowScene) {
+    throw new Error(
+      `Scene ${overflowScene.sceneNumber} has ${overflowScene.shots.length} shots, which exceeds the maximum of ${MAX_SHOTS_PER_SCENE} shots per scene (A..ZZ).`,
+    )
   }
 
   const updates = buildSceneRenumberUpdates(sceneGroups, ungroupedShots, maxSceneNumberOverride)

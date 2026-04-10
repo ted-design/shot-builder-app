@@ -74,8 +74,14 @@ export function RenumberShotsDialog({
   }, [open, allShots, shots, hasScenes, groupKey])
 
   // Build scene groups for preview/execution
-  const { sceneGroups, ungroupedShots } = useMemo(() => {
-    if (!lanes || lanes.length === 0) return { sceneGroups: [], ungroupedShots: [] as readonly Shot[] }
+  const { sceneGroups, ungroupedShots, maxSceneNumberAcrossProject } = useMemo(() => {
+    if (!lanes || lanes.length === 0) {
+      return {
+        sceneGroups: [],
+        ungroupedShots: [] as readonly Shot[],
+        maxSceneNumberAcrossProject: 0,
+      }
+    }
 
     const groups = lanes
       .filter((l) => l.sceneNumber != null)
@@ -92,14 +98,23 @@ export function RenumberShotsDialog({
     const laneIds = new Set(lanes.map((l) => l.id))
     const ungrouped = shots.filter((s) => !s.laneId || !laneIds.has(s.laneId))
 
-    return { sceneGroups: groups, ungroupedShots: ungrouped }
+    // Compute max across ALL lanes (not just visible). This guards against
+    // cross-filter collisions: if a filter hides scene 5 entirely, the visible
+    // scenes' max would drop and ungrouped numbering would collide with the
+    // still-stored "5A", "5B" shot numbers from the hidden scene.
+    const maxSceneNumberAcrossProject = lanes.reduce(
+      (max, l) => (l.sceneNumber != null && l.sceneNumber > max ? l.sceneNumber : max),
+      0,
+    )
+
+    return { sceneGroups: groups, ungroupedShots: ungrouped, maxSceneNumberAcrossProject }
   }, [lanes, shots])
 
   // Preview: sequential or by-scene
   const { changes, unchangedCount } = useMemo(() => {
     if (!open) return { changes: [] as readonly { shotId: string; title: string; currentNumber: string; newNumber: string; sceneName: string; sceneId: string }[], unchangedCount: 0 }
     if (mode === "byScene" && sceneGroups.length > 0) {
-      return previewRenumberWithScenes(sceneGroups, ungroupedShots)
+      return previewRenumberWithScenes(sceneGroups, ungroupedShots, maxSceneNumberAcrossProject)
     }
     // Sequential mode — wrap changes to include empty sceneName/sceneId for type consistency
     const seq = previewRenumber(shots, startNumber)
@@ -107,7 +122,7 @@ export function RenumberShotsDialog({
       changes: seq.changes.map((c) => ({ ...c, sceneName: "", sceneId: "" })),
       unchangedCount: seq.unchangedCount,
     }
-  }, [open, mode, shots, startNumber, sceneGroups, ungroupedShots])
+  }, [open, mode, shots, startNumber, sceneGroups, ungroupedShots, maxSceneNumberAcrossProject])
 
   const handleRenumber = async () => {
     if (!clientId || changes.length === 0) return
@@ -115,7 +130,12 @@ export function RenumberShotsDialog({
     try {
       let count: number
       if (mode === "byScene" && sceneGroups.length > 0) {
-        count = await renumberShotsWithScenes(sceneGroups, ungroupedShots, clientId)
+        count = await renumberShotsWithScenes(
+          sceneGroups,
+          ungroupedShots,
+          clientId,
+          maxSceneNumberAcrossProject,
+        )
       } else {
         count = await renumberShots(shots, clientId, startNumber)
       }
