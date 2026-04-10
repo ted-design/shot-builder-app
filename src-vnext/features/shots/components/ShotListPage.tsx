@@ -616,6 +616,7 @@ export default function ShotListPage() {
               if (clientId) {
                 void ungroupAllShotsFromLane({ shots, laneId: key, projectId, clientId })
                   .then((n) => toast.success(`${n} shots ungrouped`))
+                  .catch(() => toast.error("Failed to ungroup scene"))
               }
             }}
           />
@@ -644,6 +645,7 @@ export default function ShotListPage() {
                         if (clientId) {
                           void ungroupAllShotsFromLane({ shots, laneId: group.key, projectId, clientId })
                             .then((n) => toast.success(`${n} shots ungrouped`))
+                            .catch(() => toast.error("Failed to ungroup scene"))
                         }
                       }}
                       onDelete={() => {
