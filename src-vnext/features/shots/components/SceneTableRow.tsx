@@ -16,11 +16,13 @@ interface SceneTableRowProps {
   readonly direction?: string
   readonly collapsed: boolean
   readonly onToggleCollapse: () => void
-  readonly onEdit: () => void
-  readonly onUngroupAll: () => void
-  readonly onDelete: () => void
+  readonly onEdit?: () => void
+  readonly onUngroupAll?: () => void
+  readonly onDelete?: () => void
   readonly isUngrouped: boolean
   readonly colSpan: number
+  /** When false, hides the kebab menu entirely (crew-level read access). */
+  readonly canManageLanes?: boolean
 }
 
 export function SceneTableRow({
@@ -36,6 +38,7 @@ export function SceneTableRow({
   onDelete,
   isUngrouped,
   colSpan,
+  canManageLanes = true,
 }: SceneTableRowProps) {
   const ChevronIcon = collapsed ? ChevronRight : ChevronDown
   const resolvedColor = getSceneColor(isUngrouped ? null : color)
@@ -88,7 +91,7 @@ export function SceneTableRow({
             {shotCount}
           </span>
 
-          {!isUngrouped && (
+          {!isUngrouped && canManageLanes && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -100,19 +103,25 @@ export function SceneTableRow({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>
-                  Edit Scene
-                </DropdownMenuItem>
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    Edit Scene
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onUngroupAll}>
-                  Ungroup All
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-[var(--color-error)]"
-                  onClick={onDelete}
-                >
-                  Delete Scene
-                </DropdownMenuItem>
+                {onUngroupAll && (
+                  <DropdownMenuItem onClick={onUngroupAll}>
+                    Ungroup All
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    className="text-[var(--color-error)]"
+                    onClick={onDelete}
+                  >
+                    Delete Scene
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

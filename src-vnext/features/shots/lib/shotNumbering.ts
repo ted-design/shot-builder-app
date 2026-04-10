@@ -358,7 +358,13 @@ export function buildSceneRenumberUpdates(
   return updates
 }
 
-/** Maximum shots per scene — bounded by indexToLetterSuffix capacity (A..ZZ = 702). */
+/**
+ * Maximum shots per scene — bounded by indexToLetterSuffix's letter capacity.
+ * The base-26 encoding A..Z plus AA..ZZ gives 26 + 26*26 = 702 distinct values
+ * (indices 0..701, where 0 → "A" and 701 → "ZZ"). A scene with more than 702
+ * shots would force renumberShotsWithScenes to emit duplicate "ZZ" suffixes,
+ * which we surface as an explicit error rather than silently corrupting.
+ */
 export const MAX_SHOTS_PER_SCENE = 702
 
 export async function renumberShotsWithScenes(

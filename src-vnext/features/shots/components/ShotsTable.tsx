@@ -97,6 +97,8 @@ type ShotsTableProps = {
   readonly onEditScene?: (key: string) => void
   readonly onDeleteScene?: (key: string, name: string) => void
   readonly onUngroupScene?: (key: string) => void
+  /** When false, scene header kebab menus are hidden (crew-level read access). */
+  readonly canManageLanes?: boolean
   readonly laneById?: ReadonlyMap<string, Lane>
   readonly lanes?: ReadonlyArray<Lane>
   readonly onAssignScene?: (shotId: string, laneId: string | null) => void
@@ -297,9 +299,10 @@ type GroupRowsProps = {
   readonly onOpenShot: (shotId: string) => void
   readonly stopPropagation: (e: React.MouseEvent) => void
   readonly onToggleCollapse: () => void
-  readonly onEdit: () => void
-  readonly onUngroupAll: () => void
-  readonly onDelete: () => void
+  readonly canManageLanes: boolean
+  readonly onEdit?: () => void
+  readonly onUngroupAll?: () => void
+  readonly onDelete?: () => void
   readonly lanes?: ReadonlyArray<Lane>
   readonly onAssignScene?: (shotId: string, laneId: string | null) => void
 }
@@ -318,6 +321,7 @@ function GroupRows({
   onOpenShot,
   stopPropagation,
   onToggleCollapse,
+  canManageLanes,
   onEdit,
   onUngroupAll,
   onDelete,
@@ -334,6 +338,7 @@ function GroupRows({
         direction={group.direction}
         collapsed={isCollapsed}
         onToggleCollapse={onToggleCollapse}
+        canManageLanes={canManageLanes}
         onEdit={onEdit}
         onUngroupAll={onUngroupAll}
         onDelete={onDelete}
@@ -399,6 +404,7 @@ export function ShotsTable({
   onEditScene,
   onDeleteScene,
   onUngroupScene,
+  canManageLanes = true,
   laneById,
   lanes,
   onAssignScene,
@@ -604,9 +610,10 @@ export function ShotsTable({
                       onOpenShot={onOpenShot}
                       stopPropagation={stopPropagation}
                       onToggleCollapse={() => onToggleSceneCollapse?.(group.key)}
-                      onEdit={() => onEditScene?.(group.key)}
-                      onUngroupAll={() => onUngroupScene?.(group.key)}
-                      onDelete={() => onDeleteScene?.(group.key, group.label)}
+                      canManageLanes={canManageLanes}
+                      onEdit={onEditScene ? () => onEditScene(group.key) : undefined}
+                      onUngroupAll={onUngroupScene ? () => onUngroupScene(group.key) : undefined}
+                      onDelete={onDeleteScene ? () => onDeleteScene(group.key, group.label) : undefined}
                       lanes={lanes}
                       onAssignScene={onAssignScene}
                     />

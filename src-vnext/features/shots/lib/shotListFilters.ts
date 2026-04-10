@@ -506,8 +506,9 @@ export function groupShots(
         color: lane?.color,
         sceneNumber: lane?.sceneNumber,
         // Presentation-layer renderers (SceneHeader, SceneTableRow, SceneContextBanner)
-        // own their own truncation. Pass the raw direction through.
-        direction: lane?.direction || undefined,
+        // own their own truncation. Pass the raw direction through; trim whitespace-only
+        // strings to undefined so renderers see a clean "absent" signal.
+        direction: lane?.direction?.trim() || undefined,
       }
     })
 

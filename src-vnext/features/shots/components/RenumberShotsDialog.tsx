@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/ui/dialog"
 import {
+  MAX_SHOTS_PER_SCENE,
   parseSceneShotNumber,
   previewRenumber,
   previewRenumberWithScenes,
@@ -62,6 +63,19 @@ export function RenumberShotsDialog({
     () => shots.filter((s) => s.shotNumber && parseSceneShotNumber(s.shotNumber).suffix != null).length,
     [shots],
   )
+
+  // Detect scenes that exceed the A..ZZ letter capacity — these would fail in
+  // renumberShotsWithScenes' overflow guard. Surface a preview warning so users
+  // see the problem before clicking Renumber.
+  const overflowScenes = useMemo(() => {
+    if (!lanes) return [] as ReadonlyArray<{ name: string; count: number }>
+    return lanes
+      .map((lane) => ({
+        name: lane.name,
+        count: shots.filter((s) => s.laneId === lane.id).length,
+      }))
+      .filter((g) => g.count > MAX_SHOTS_PER_SCENE)
+  }, [lanes, shots])
 
   // Auto-compute suggested start number and set mode when dialog opens
   const prevOpen = useRef(false)
@@ -208,6 +222,15 @@ export function RenumberShotsDialog({
           {mode === "sequential" && sceneNumberedCount > 0 && (
             <div className="rounded-md border-l-2 border-l-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] px-3 py-2 text-xs text-[var(--color-status-amber-text)]">
               {sceneNumberedCount} shot{sceneNumberedCount === 1 ? " has" : "s have"} scene letter suffixes (e.g., 1A, 2B). Sequential mode will replace them with flat numbers.
+            </div>
+          )}
+
+          {mode === "byScene" && overflowScenes.length > 0 && (
+            <div className="rounded-md border-l-2 border-l-[var(--color-status-red-border)] bg-[var(--color-status-red-bg)] px-3 py-2 text-xs text-[var(--color-status-red-text)]">
+              {overflowScenes.length === 1
+                ? `Scene "${overflowScenes[0]!.name}" has ${overflowScenes[0]!.count} shots, exceeding the per-scene limit of ${MAX_SHOTS_PER_SCENE} (A..ZZ).`
+                : `${overflowScenes.length} scenes exceed the per-scene limit of ${MAX_SHOTS_PER_SCENE} shots (A..ZZ).`}
+              {" "}Renumbering will fail until you split or shrink these scenes.
             </div>
           )}
 

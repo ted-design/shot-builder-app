@@ -102,6 +102,13 @@ export default function ShotListPage() {
   const [editSceneId, setEditSceneId] = useState<string | null>(null)
   const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
 
+  // Scene shot count for the open SceneDetailSheet — memoized so we don't re-filter
+  // the shots array on every render while the sheet is open.
+  const editSceneShotCount = useMemo(
+    () => (editSceneId ? shots.filter((s) => s.laneId === editSceneId).length : 0),
+    [editSceneId, shots],
+  )
+
   const toggleSceneCollapse = useCallback((key: string) => {
     setCollapsedScenes((prev) => {
       const next = new Set(prev)
@@ -119,6 +126,10 @@ export default function ShotListPage() {
   const canShare = role === "admin" || role === "producer"
   const canExport = !isMobile
   const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
+  // Scene/lane writes (edit, delete, ungroup) are gated to admin/producer/warehouse
+  // to match the Firestore rule on /lanes. Crew users see the scene grouping UI
+  // read-only — no kebab menu, no edit sheet access from the table header.
+  const canManageLanes = role === "admin" || role === "producer" || role === "warehouse"
 
   // -- Lookup maps (computed from picker data, passed to list state hook) --
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
@@ -600,25 +611,30 @@ export default function ShotListPage() {
               if (!clientId) return
               void assignShotsToLane({ shotIds: [shotId], laneId, projectId, clientId })
                 .then(() => {
-                  const laneName = laneId ? (laneNameById.get(laneId) ?? "scene") : "None"
-                  toast.success(`Shot assigned to ${laneName}`)
+                  if (laneId) {
+                    const laneName = laneNameById.get(laneId) ?? "scene"
+                    toast.success(`Shot moved to ${laneName}`)
+                  } else {
+                    toast.success("Shot removed from scene")
+                  }
                 })
                 .catch(() => toast.error("Failed to assign scene"))
             }}
             groups={hasActiveGrouping ? shotGroups : null}
             collapsedScenes={collapsedScenes}
             onToggleSceneCollapse={toggleSceneCollapse}
-            onEditScene={(key) => setEditSceneId(key)}
-            onDeleteScene={(key, name) => {
+            canManageLanes={canManageLanes}
+            onEditScene={canManageLanes ? (key) => setEditSceneId(key) : undefined}
+            onDeleteScene={canManageLanes ? (key, name) => {
               setDeleteSceneTarget({ id: key, name })
-            }}
-            onUngroupScene={(key) => {
+            } : undefined}
+            onUngroupScene={canManageLanes ? (key) => {
               if (clientId) {
                 void ungroupAllShotsFromLane({ shots, laneId: key, projectId, clientId })
                   .then((n) => toast.success(`${n} shots ungrouped`))
                   .catch(() => toast.error("Failed to ungroup scene"))
               }
-            }}
+            } : undefined}
           />
       ) : (
         hasActiveGrouping && shotGroups ? (
@@ -640,17 +656,18 @@ export default function ShotListPage() {
                       direction={lane?.direction}
                       collapsed={isCollapsed}
                       onToggleCollapse={() => toggleSceneCollapse(group.key)}
-                      onEdit={() => setEditSceneId(group.key)}
-                      onUngroupAll={() => {
+                      canManageLanes={canManageLanes}
+                      onEdit={canManageLanes ? () => setEditSceneId(group.key) : undefined}
+                      onUngroupAll={canManageLanes ? () => {
                         if (clientId) {
                           void ungroupAllShotsFromLane({ shots, laneId: group.key, projectId, clientId })
                             .then((n) => toast.success(`${n} shots ungrouped`))
                             .catch(() => toast.error("Failed to ungroup scene"))
                         }
-                      }}
-                      onDelete={() => {
+                      } : undefined}
+                      onDelete={canManageLanes ? () => {
                         setDeleteSceneTarget({ id: group.key, name: group.label })
-                      }}
+                      } : undefined}
                       isUngrouped={isUngrouped}
                     />
                   ) : (
@@ -887,10 +904,7 @@ export default function ShotListPage() {
         lane={editSceneId ? laneById.get(editSceneId) ?? null : null}
         projectId={projectId}
         clientId={clientId}
-        // Use the unfiltered `shots` array so the count reflects the true scene
-        // population — displayShots is post-filter and would under-report when
-        // the user has active status/talent/product filters.
-        shotCount={editSceneId ? shots.filter((s) => s.laneId === editSceneId).length : 0}
+        shotCount={editSceneShotCount}
       />
 
     </ErrorBoundary>

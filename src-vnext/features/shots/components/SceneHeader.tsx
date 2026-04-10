@@ -24,9 +24,11 @@ interface SceneHeaderProps {
   /** @deprecated Use onEdit instead */
   readonly onRename?: () => void
   readonly onEdit?: () => void
-  readonly onUngroupAll: () => void
-  readonly onDelete: () => void
+  readonly onUngroupAll?: () => void
+  readonly onDelete?: () => void
   readonly isUngrouped?: boolean
+  /** When false, hides the kebab menu entirely (crew-level read access). */
+  readonly canManageLanes?: boolean
 }
 
 export function SceneHeader({
@@ -42,6 +44,7 @@ export function SceneHeader({
   onUngroupAll,
   onDelete,
   isUngrouped,
+  canManageLanes = true,
 }: SceneHeaderProps) {
   const ChevronIcon = collapsed ? ChevronRight : ChevronDown
   const trimmedDirection = direction ? direction.slice(0, 60) : null
@@ -89,7 +92,7 @@ export function SceneHeader({
         {shotCount}
       </span>
 
-      {!isUngrouped && (
+      {!isUngrouped && canManageLanes && (
         <DropdownMenu>
           <DropdownMenuTrigger
             onClick={(e) => e.stopPropagation()}
@@ -106,15 +109,19 @@ export function SceneHeader({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onUngroupAll}>
-              Ungroup All
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-[var(--color-error)]"
-              onClick={onDelete}
-            >
-              Delete Scene
-            </DropdownMenuItem>
+            {onUngroupAll && (
+              <DropdownMenuItem onClick={onUngroupAll}>
+                Ungroup All
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem
+                className="text-[var(--color-error)]"
+                onClick={onDelete}
+              >
+                Delete Scene
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
