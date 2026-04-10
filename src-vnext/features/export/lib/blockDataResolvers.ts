@@ -90,11 +90,8 @@ export function sortShots(
 
   return [...shots].sort((a, b) => {
     switch (sortBy) {
-      case "shotNumber": {
-        const numA = Number(a.shotNumber ?? 0)
-        const numB = Number(b.shotNumber ?? 0)
-        return (numA - numB) * dir
-      }
+      case "shotNumber":
+        return (a.shotNumber ?? "").localeCompare(b.shotNumber ?? "", undefined, { numeric: true, sensitivity: "base" }) * dir
       case "title":
         return a.title.localeCompare(b.title) * dir
       case "status":

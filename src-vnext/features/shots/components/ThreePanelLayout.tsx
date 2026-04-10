@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShot } from "@/features/shots/hooks/useShot"
+import { useLanes } from "@/features/shots/hooks/useLanes"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -76,6 +77,7 @@ export function ThreePanelLayout({
   existingTitles,
 }: ThreePanelLayoutProps) {
   const { data: shot, loading, error } = useShot(selectedShotId)
+  const { laneById } = useLanes()
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
@@ -224,6 +226,8 @@ export function ThreePanelLayout({
         onShareClick={canShare ? () => setShareOpen(true) : undefined}
         projects={projects}
         existingTitles={existingTitles}
+        laneById={laneById}
+        allShots={allShots}
       />
     )
   }
@@ -275,6 +279,9 @@ export function ThreePanelLayout({
               save={save}
               canEdit={canEdit}
               canDoOperational={canDoOperational}
+              laneById={laneById}
+              allShots={allShots}
+              clientId={clientId}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-4">

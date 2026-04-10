@@ -21,6 +21,7 @@ export const SHOT_TABLE_COLUMNS: readonly TableColumnConfig[] = [
   { key: "reqs", label: "Reqs", defaultLabel: "Reqs", visible: false, width: 120, order: 11 },
   { key: "samples", label: "Samples", defaultLabel: "Samples", visible: false, width: 100, order: 12 },
   { key: "updated", label: "Updated", defaultLabel: "Updated", visible: true, width: 110, order: 13 },
+  { key: "scene", label: "Scene", defaultLabel: "Scene", visible: false, width: 140, order: 14 },
 ]
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ const COLUMN_TO_FIELD: Record<string, keyof ShotsListFields | null> = {
   reqs: "reqs",
   samples: "samples",
   updated: "updated",
+  scene: "scene",
 }
 
 // ---------------------------------------------------------------------------

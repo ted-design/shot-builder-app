@@ -25,6 +25,7 @@ import { useTableColumns } from "@/shared/hooks/useTableColumns"
 import { ResizableHeader } from "@/shared/components/ResizableHeader"
 import { ColumnSettingsPopover } from "@/shared/components/ColumnSettingsPopover"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
+import { SceneTableRow } from "@/features/shots/components/SceneTableRow"
 import { SHOT_TABLE_COLUMNS } from "@/features/shots/lib/shotTableColumns"
 import {
   computeShotRowContext,
@@ -34,8 +35,10 @@ import {
   cellTitle,
   isInteractiveCell,
 } from "@/features/shots/lib/shotColumnRenderers"
+import { SceneAssignPopover } from "@/features/shots/components/SceneAssignPopover"
 import type { TableColumnConfig } from "@/shared/types/table"
-import type { Shot, ProductFamily, ProductSku, ProductSample } from "@/shared/types"
+import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
+import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
 
 // ---------------------------------------------------------------------------
 // Migration from old localStorage key format
@@ -84,6 +87,15 @@ type ShotsTableProps = {
   readonly samplesByFamily?: ReadonlyMap<string, ReadonlyArray<ProductSample>>
   readonly reorderEnabled?: boolean
   readonly onReorder?: (reordered: ReadonlyArray<Shot>, affectedRange: { from: number; to: number }) => void
+  readonly groups?: ReadonlyArray<ShotGroup> | null
+  readonly collapsedScenes?: ReadonlySet<string>
+  readonly onToggleSceneCollapse?: (key: string) => void
+  readonly onEditScene?: (key: string) => void
+  readonly onDeleteScene?: (key: string, name: string) => void
+  readonly onUngroupScene?: (key: string) => void
+  readonly laneById?: ReadonlyMap<string, Lane>
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly onAssignScene?: (shotId: string, laneId: string | null) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +114,8 @@ type RowCellsProps = {
   readonly ctx: ReturnType<typeof computeShotRowContext>
   readonly stopPropagation: (e: React.MouseEvent) => void
   readonly reorderDragHandle?: ReactNode
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly onAssignScene?: (shotId: string, laneId: string | null) => void
 }
 
 function RowCells({
@@ -115,6 +129,8 @@ function RowCells({
   ctx,
   stopPropagation,
   reorderDragHandle,
+  lanes,
+  onAssignScene,
 }: RowCellsProps) {
   return (
     <>
@@ -145,6 +161,27 @@ function RowCells({
           ) : (
             renderShotCell(shot, col.key, ctx)
           )
+
+        if (col.key === "scene" && lanes && onAssignScene) {
+          return (
+            <td
+              key={col.key}
+              className={cellClassName(col.key)}
+              title={cellTitle(col.key, ctx)}
+              onClick={stopPropagation}
+            >
+              <SceneAssignPopover
+                shot={shot}
+                lanes={lanes}
+                onAssign={onAssignScene}
+              >
+                <button type="button" className="w-full text-left">
+                  {content}
+                </button>
+              </SceneAssignPopover>
+            </td>
+          )
+        }
 
         return (
           <td
@@ -240,6 +277,102 @@ function DndWrapper({
 }
 
 // ---------------------------------------------------------------------------
+// Group rows (scene header + shot rows)
+// ---------------------------------------------------------------------------
+
+type GroupRowsProps = {
+  readonly group: ShotGroup
+  readonly isCollapsed: boolean
+  readonly isUngrouped: boolean
+  readonly colSpan: number
+  readonly contextById: ReadonlyMap<string, ReturnType<typeof computeShotRowContext>>
+  readonly visibleColumns: readonly TableColumnConfig[]
+  readonly selectionEnabled: boolean
+  readonly selection?: ShotsTableProps["selection"]
+  readonly showLifecycleActions: boolean
+  readonly renderLifecycleAction?: (shot: Shot) => ReactNode
+  readonly onOpenShot: (shotId: string) => void
+  readonly stopPropagation: (e: React.MouseEvent) => void
+  readonly onToggleCollapse: () => void
+  readonly onEdit: () => void
+  readonly onUngroupAll: () => void
+  readonly onDelete: () => void
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly onAssignScene?: (shotId: string, laneId: string | null) => void
+}
+
+function GroupRows({
+  group,
+  isCollapsed,
+  isUngrouped,
+  colSpan,
+  contextById,
+  visibleColumns,
+  selectionEnabled,
+  selection,
+  showLifecycleActions,
+  renderLifecycleAction,
+  onOpenShot,
+  stopPropagation,
+  onToggleCollapse,
+  onEdit,
+  onUngroupAll,
+  onDelete,
+  lanes,
+  onAssignScene,
+}: GroupRowsProps) {
+  return (
+    <>
+      <SceneTableRow
+        label={group.label}
+        sceneNumber={group.sceneNumber}
+        shotCount={group.shots.length}
+        color={group.color}
+        direction={group.direction}
+        collapsed={isCollapsed}
+        onToggleCollapse={onToggleCollapse}
+        onEdit={onEdit}
+        onUngroupAll={onUngroupAll}
+        onDelete={onDelete}
+        isUngrouped={isUngrouped}
+        colSpan={colSpan}
+      />
+      {!isCollapsed &&
+        group.shots.map((shot) => {
+          const ctx = contextById.get(shot.id)
+          if (!ctx) return null
+          const isSelected = selectionEnabled ? selection!.selectedIds.has(shot.id) : false
+          const onToggle = selectionEnabled ? () => selection!.onToggle(shot.id) : undefined
+
+          return (
+            <tr
+              key={shot.id}
+              className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
+              onClick={() => onOpenShot(shot.id)}
+              role="row"
+            >
+              <RowCells
+                shot={shot}
+                visibleColumns={visibleColumns}
+                selectionEnabled={selectionEnabled}
+                isSelected={isSelected}
+                onToggle={onToggle}
+                showLifecycleActions={showLifecycleActions}
+                renderLifecycleAction={renderLifecycleAction}
+                onOpenShot={onOpenShot}
+                ctx={ctx}
+                stopPropagation={stopPropagation}
+                lanes={lanes}
+                onAssignScene={onAssignScene}
+              />
+            </tr>
+          )
+        })}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -258,6 +391,15 @@ export function ShotsTable({
   samplesByFamily,
   reorderEnabled = false,
   onReorder,
+  groups,
+  collapsedScenes,
+  onToggleSceneCollapse,
+  onEditScene,
+  onDeleteScene,
+  onUngroupScene,
+  laneById,
+  lanes,
+  onAssignScene,
 }: ShotsTableProps) {
   const selectionEnabled = selection?.enabled === true
 
@@ -312,10 +454,30 @@ export function ShotsTable({
   const rowContexts = useMemo(
     () =>
       shots.map((shot) =>
-        computeShotRowContext(shot, familyById, skuById, samplesByFamily, talentNameById, locationNameById),
+        computeShotRowContext(shot, familyById, skuById, samplesByFamily, talentNameById, locationNameById, laneById),
       ),
-    [shots, familyById, skuById, samplesByFamily, talentNameById, locationNameById],
+    [shots, familyById, skuById, samplesByFamily, talentNameById, locationNameById, laneById],
   )
+
+  // -- Context lookup by shot id (for grouped rendering) --
+  const contextById = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeShotRowContext>>()
+    for (let i = 0; i < shots.length; i++) {
+      map.set(shots[i]!.id, rowContexts[i]!)
+    }
+    return map
+  }, [shots, rowContexts])
+
+  // -- Compute colSpan for scene header rows --
+  const sceneColSpan = useMemo(() => {
+    let count = visibleColumns.length + 1 // visible columns + status column
+    if (reorderEnabled) count += 1
+    if (selectionEnabled) count += 1
+    if (showLifecycleActions) count += 1
+    return count
+  }, [visibleColumns.length, reorderEnabled, selectionEnabled, showLifecycleActions])
+
+  const hasGroups = groups != null && groups.length > 0
 
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
 
@@ -409,44 +571,77 @@ export function ShotsTable({
             </thead>
 
             <tbody>
-              {shots.map((shot, index) => {
-                const ctx = rowContexts[index]!
-                const isSelected = selectionEnabled ? selection!.selectedIds.has(shot.id) : false
-                const onToggle = selectionEnabled ? () => selection!.onToggle(shot.id) : undefined
+              {hasGroups ? (
+                groups!.map((group) => {
+                  const isCollapsed = collapsedScenes?.has(group.key) ?? false
+                  const isUngrouped = group.key === "__ungrouped"
 
-                const commonCellProps = {
-                  shot,
-                  visibleColumns,
-                  selectionEnabled,
-                  isSelected,
-                  onToggle,
-                  showLifecycleActions,
-                  renderLifecycleAction,
-                  onOpenShot,
-                  ctx,
-                  stopPropagation,
-                }
-
-                if (reorderEnabled) {
                   return (
-                    <SortableRow
-                      key={shot.id}
-                      {...commonCellProps}
+                    <GroupRows
+                      key={group.key}
+                      group={group}
+                      isCollapsed={isCollapsed}
+                      isUngrouped={isUngrouped}
+                      colSpan={sceneColSpan}
+                      contextById={contextById}
+                      visibleColumns={visibleColumns}
+                      selectionEnabled={selectionEnabled}
+                      selection={selection}
+                      showLifecycleActions={showLifecycleActions}
+                      renderLifecycleAction={renderLifecycleAction}
+                      onOpenShot={onOpenShot}
+                      stopPropagation={stopPropagation}
+                      onToggleCollapse={() => onToggleSceneCollapse?.(group.key)}
+                      onEdit={() => onEditScene?.(group.key)}
+                      onUngroupAll={() => onUngroupScene?.(group.key)}
+                      onDelete={() => onDeleteScene?.(group.key, group.label)}
+                      lanes={lanes}
+                      onAssignScene={onAssignScene}
                     />
                   )
-                }
+                })
+              ) : (
+                shots.map((shot, index) => {
+                  const ctx = rowContexts[index]!
+                  const isSelected = selectionEnabled ? selection!.selectedIds.has(shot.id) : false
+                  const onToggle = selectionEnabled ? () => selection!.onToggle(shot.id) : undefined
 
-                return (
-                  <tr
-                    key={shot.id}
-                    className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
-                    onClick={() => onOpenShot(shot.id)}
-                    role="row"
-                  >
-                    <RowCells {...commonCellProps} />
-                  </tr>
-                )
-              })}
+                  const commonCellProps = {
+                    shot,
+                    visibleColumns,
+                    selectionEnabled,
+                    isSelected,
+                    onToggle,
+                    showLifecycleActions,
+                    renderLifecycleAction,
+                    onOpenShot,
+                    ctx,
+                    stopPropagation,
+                    lanes,
+                    onAssignScene,
+                  }
+
+                  if (reorderEnabled) {
+                    return (
+                      <SortableRow
+                        key={shot.id}
+                        {...commonCellProps}
+                      />
+                    )
+                  }
+
+                  return (
+                    <tr
+                      key={shot.id}
+                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
+                      onClick={() => onOpenShot(shot.id)}
+                      role="row"
+                    >
+                      <RowCells {...commonCellProps} />
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>

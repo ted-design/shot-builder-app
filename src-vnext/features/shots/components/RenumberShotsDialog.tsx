@@ -9,12 +9,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/dialog"
-import { previewRenumber, renumberShots, suggestStartNumber } from "@/features/shots/lib/shotNumbering"
-import { SORT_LABELS, type SortKey } from "@/features/shots/lib/shotListFilters"
+import {
+  parseSceneShotNumber,
+  previewRenumber,
+  previewRenumberWithScenes,
+  renumberShots,
+  renumberShotsWithScenes,
+  suggestStartNumber,
+} from "@/features/shots/lib/shotNumbering"
+import { SORT_LABELS, type SortKey, type GroupKey } from "@/features/shots/lib/shotListFilters"
+import { getSceneColor } from "@/features/shots/components/SceneHeader"
 import { toast } from "sonner"
-import type { Shot } from "@/shared/types"
+import type { Shot, Lane } from "@/shared/types"
 
 const PREVIEW_LIMIT = 10
+
+type RenumberMode = "sequential" | "byScene"
 
 interface RenumberShotsDialogProps {
   readonly open: boolean
@@ -25,6 +35,8 @@ interface RenumberShotsDialogProps {
   readonly sortDir: "asc" | "desc"
   readonly totalShotCount: number
   readonly allShots: ReadonlyArray<Shot>
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly groupKey?: GroupKey
 }
 
 export function RenumberShotsDialog({
@@ -36,32 +48,76 @@ export function RenumberShotsDialog({
   sortDir,
   totalShotCount,
   allShots,
+  lanes,
+  groupKey,
 }: RenumberShotsDialogProps) {
   const [busy, setBusy] = useState(false)
   const [startNumber, setStartNumber] = useState(1)
+  const [mode, setMode] = useState<RenumberMode>("sequential")
 
-  // Auto-compute suggested start number only when dialog opens (not on re-renders)
+  const hasScenes = (lanes?.length ?? 0) > 0
+
+  // Detect shots currently using scene letter suffixes — sequential renumber would destroy these
+  const sceneNumberedCount = useMemo(
+    () => shots.filter((s) => s.shotNumber && parseSceneShotNumber(s.shotNumber).suffix != null).length,
+    [shots],
+  )
+
+  // Auto-compute suggested start number and set mode when dialog opens
   const prevOpen = useRef(false)
   useEffect(() => {
     if (open && !prevOpen.current) {
       setStartNumber(suggestStartNumber(allShots, shots))
+      setMode(hasScenes && groupKey === "scene" ? "byScene" : "sequential")
     }
     prevOpen.current = open
-  }, [open, allShots, shots])
+  }, [open, allShots, shots, hasScenes, groupKey])
 
-  const { changes, unchangedCount } = useMemo(
-    () => (open ? previewRenumber(shots, startNumber) : { changes: [], unchangedCount: 0 }),
-    [open, shots, startNumber],
-  )
+  // Build scene groups for preview/execution
+  const { sceneGroups, ungroupedShots } = useMemo(() => {
+    if (!lanes || lanes.length === 0) return { sceneGroups: [], ungroupedShots: [] as readonly Shot[] }
 
-  const preview = changes.slice(0, PREVIEW_LIMIT)
-  const remaining = changes.length - preview.length
+    const groups = lanes
+      .filter((l) => l.sceneNumber != null)
+      .sort((a, b) => (a.sceneNumber ?? 0) - (b.sceneNumber ?? 0))
+      .map((lane) => ({
+        sceneNumber: lane.sceneNumber!,
+        sceneName: lane.name,
+        color: lane.color,
+        shots: shots.filter((s) => s.laneId === lane.id),
+      }))
+      .filter((g) => g.shots.length > 0)
+
+    const laneIds = new Set(lanes.map((l) => l.id))
+    const ungrouped = shots.filter((s) => !s.laneId || !laneIds.has(s.laneId))
+
+    return { sceneGroups: groups, ungroupedShots: ungrouped }
+  }, [lanes, shots])
+
+  // Preview: sequential or by-scene
+  const { changes, unchangedCount } = useMemo(() => {
+    if (!open) return { changes: [] as readonly { shotId: string; title: string; currentNumber: string; newNumber: string; sceneName: string }[], unchangedCount: 0 }
+    if (mode === "byScene" && sceneGroups.length > 0) {
+      return previewRenumberWithScenes(sceneGroups, ungroupedShots)
+    }
+    // Sequential mode — wrap changes to include empty sceneName for type consistency
+    const seq = previewRenumber(shots, startNumber)
+    return {
+      changes: seq.changes.map((c) => ({ ...c, sceneName: "" })),
+      unchangedCount: seq.unchangedCount,
+    }
+  }, [open, mode, shots, startNumber, sceneGroups, ungroupedShots])
 
   const handleRenumber = async () => {
     if (!clientId || changes.length === 0) return
     setBusy(true)
     try {
-      const count = await renumberShots(shots, clientId, startNumber)
+      let count: number
+      if (mode === "byScene" && sceneGroups.length > 0) {
+        count = await renumberShotsWithScenes(sceneGroups, ungroupedShots, clientId)
+      } else {
+        count = await renumberShots(shots, clientId, startNumber)
+      }
       toast.success(`Renumbered ${count} shot${count === 1 ? "" : "s"}`)
       onOpenChange(false)
     } catch (err) {
@@ -81,7 +137,9 @@ export function RenumberShotsDialog({
         <DialogHeader>
           <DialogTitle>Renumber Shots</DialogTitle>
           <DialogDescription>
-            Reassign sequential shot numbers based on the current display order.
+            {mode === "byScene"
+              ? "Assign scene-based shot numbers (1A, 1B\u2026) using scene order."
+              : "Reassign sequential shot numbers based on the current display order."}
           </DialogDescription>
         </DialogHeader>
 
@@ -90,34 +148,72 @@ export function RenumberShotsDialog({
             Sorted by: {sortLabel}
           </div>
 
+          {hasScenes && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[var(--color-text)]">Mode</span>
+              <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden">
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    mode === "sequential"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-text)]"
+                      : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  }`}
+                  onClick={() => setMode("sequential")}
+                >
+                  Sequential
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors border-l border-[var(--color-border)] ${
+                    mode === "byScene"
+                      ? "bg-[var(--color-primary)] text-[var(--color-primary-text)]"
+                      : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  }`}
+                  onClick={() => setMode("byScene")}
+                >
+                  By Scene
+                </button>
+              </div>
+            </div>
+          )}
+
           {shots.length < totalShotCount && (
             <div className="rounded-md border-l-2 border-l-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] px-3 py-2 text-xs text-[var(--color-status-amber-text)]">
               Renumbering {shots.length} of {totalShotCount} shots. Hidden shots will keep their current numbers.
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <label htmlFor="renumber-start" className="text-sm text-[var(--color-text)]">
-              Start from:
-            </label>
-            <Input
-              id="renumber-start"
-              type="number"
-              min={1}
-              value={startNumber}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10)
-                if (!Number.isNaN(val) && val >= 1) {
-                  setStartNumber(val)
-                }
-              }}
-              className="w-20 tabular-nums"
-            />
-          </div>
+          {mode === "sequential" && sceneNumberedCount > 0 && (
+            <div className="rounded-md border-l-2 border-l-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] px-3 py-2 text-xs text-[var(--color-status-amber-text)]">
+              {sceneNumberedCount} shot{sceneNumberedCount === 1 ? " has" : "s have"} scene letter suffixes (e.g., 1A, 2B). Sequential mode will replace them with flat numbers.
+            </div>
+          )}
+
+          {mode === "sequential" && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="renumber-start" className="text-sm text-[var(--color-text)]">
+                Start from:
+              </label>
+              <Input
+                id="renumber-start"
+                type="number"
+                min={1}
+                value={startNumber}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  if (!Number.isNaN(val) && val >= 1) {
+                    setStartNumber(val)
+                  }
+                }}
+                className="w-20 tabular-nums"
+              />
+            </div>
+          )}
 
           {changes.length === 0 ? (
             <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
-              All shot numbers are already sequential. Nothing to change.
+              All shot numbers are already {mode === "byScene" ? "scene-aligned" : "sequential"}. Nothing to change.
             </div>
           ) : (
             <>
@@ -131,20 +227,29 @@ export function RenumberShotsDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.map((c) => (
-                      <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
-                        <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
-                        <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
-                        <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
-                      </tr>
-                    ))}
+                    {mode === "byScene" ? (
+                      <ScenePreviewRows
+                        changes={changes}
+                        sceneGroups={sceneGroups}
+                        ungroupedShots={ungroupedShots}
+                        previewLimit={PREVIEW_LIMIT}
+                      />
+                    ) : (
+                      changes.slice(0, PREVIEW_LIMIT).map((c) => (
+                        <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
+                          <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
+                          <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
+                          <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {remaining > 0 && (
+              {mode === "sequential" && changes.length > PREVIEW_LIMIT && (
                 <div className="text-xs text-[var(--color-text-muted)]">
-                  {"\u2026"} and {remaining} more
+                  {"\u2026"} and {changes.length - PREVIEW_LIMIT} more
                 </div>
               )}
 
@@ -171,4 +276,112 @@ export function RenumberShotsDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Scene preview rows — grouped by scene with headers
+// ---------------------------------------------------------------------------
+
+interface ScenePreviewRowsProps {
+  readonly changes: ReadonlyArray<{
+    readonly shotId: string
+    readonly currentNumber: string
+    readonly newNumber: string
+    readonly sceneName: string
+  }>
+  readonly sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly sceneName: string
+    readonly color?: string
+  }>
+  readonly ungroupedShots: ReadonlyArray<Shot>
+  readonly previewLimit: number
+}
+
+function ScenePreviewRows({ changes, sceneGroups, ungroupedShots, previewLimit }: ScenePreviewRowsProps) {
+  // Group changes by sceneName for rendering with headers
+  let rendered = 0
+  const rows: JSX.Element[] = []
+
+  for (const group of sceneGroups) {
+    if (rendered >= previewLimit) break
+
+    const groupChanges = changes.filter((c) => c.sceneName === group.sceneName)
+    if (groupChanges.length === 0) continue
+
+    rows.push(
+      <tr key={`header-${group.sceneNumber}`} className="bg-[var(--color-surface-subtle)]">
+        <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text)]">
+          <span
+            className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+            style={{ backgroundColor: getSceneColor(group.color) }}
+          />
+          {"Scene "}
+          {group.sceneNumber}
+          {" \u2014 "}
+          {group.sceneName}
+        </td>
+      </tr>,
+    )
+
+    const visible = groupChanges.slice(0, previewLimit - rendered)
+    for (const c of visible) {
+      rows.push(
+        <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
+          <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
+          <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
+          <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
+        </tr>,
+      )
+      rendered++
+    }
+
+    if (groupChanges.length > visible.length) {
+      rows.push(
+        <tr key={`more-${group.sceneNumber}`}>
+          <td colSpan={3} className="px-3 py-1 text-2xs text-[var(--color-text-muted)]">
+            {"\u2026"} and {groupChanges.length - visible.length} more in this scene
+          </td>
+        </tr>,
+      )
+    }
+  }
+
+  // Ungrouped shots
+  if (rendered < previewLimit && ungroupedShots.length > 0) {
+    const ungroupedChanges = changes.filter((c) => c.sceneName === "")
+    if (ungroupedChanges.length > 0) {
+      rows.push(
+        <tr key="header-ungrouped" className="bg-[var(--color-surface-subtle)]">
+          <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+            Ungrouped
+          </td>
+        </tr>,
+      )
+
+      const visible = ungroupedChanges.slice(0, previewLimit - rendered)
+      for (const c of visible) {
+        rows.push(
+          <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
+            <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
+            <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
+            <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
+          </tr>,
+        )
+        rendered++
+      }
+
+      if (ungroupedChanges.length > visible.length) {
+        rows.push(
+          <tr key="more-ungrouped">
+            <td colSpan={3} className="px-3 py-1 text-2xs text-[var(--color-text-muted)]">
+              {"\u2026"} and {ungroupedChanges.length - visible.length} more ungrouped
+            </td>
+          </tr>,
+        )
+      }
+    }
+  }
+
+  return <>{rows}</>
 }

@@ -141,3 +141,228 @@ export function suggestStartNumber(
   const maxHidden = computeMaxShotNumber(hiddenShots)
   return maxHidden > 0 ? maxHidden + 1 : 1
 }
+
+// ========================================================================
+// Scene-aware numbering
+// ========================================================================
+
+/**
+ * Converts a zero-based index to a letter suffix: 0→A, 1→B, ... 25→Z, 26→AA, 27→AB, ... 701→ZZ.
+ * Negative indices are clamped to 0 (returns "A").
+ * Maximum supported index is 701 (ZZ = 26 + 26*26 - 1).
+ */
+export function indexToLetterSuffix(index: number): string {
+  const clamped = Math.max(0, Math.min(index, 701))
+  if (clamped < 26) {
+    return String.fromCharCode(65 + clamped)
+  }
+  const first = Math.floor((clamped - 26) / 26)
+  const second = (clamped - 26) % 26
+  return String.fromCharCode(65 + first) + String.fromCharCode(65 + second)
+}
+
+/**
+ * Formats a scene shot number: sceneNumber + letterSuffix.
+ * e.g. (1, 0) → "1A", (10, 26) → "10AA"
+ */
+export function formatSceneShotNumber(sceneNumber: number, indexInScene: number): string {
+  return `${sceneNumber}${indexToLetterSuffix(indexInScene)}`
+}
+
+/**
+ * Parses a shot number into its base number and optional letter suffix.
+ * Scene numbers: "51A" → { base: 51, suffix: "A" }
+ * Flat numbers: "03" → { base: 3, suffix: null }
+ * Legacy: "SH-005" → { base: 5, suffix: null }
+ * Empty: "" → { base: 0, suffix: null }
+ */
+export function parseSceneShotNumber(shotNumber: string): { base: number; suffix: string | null } {
+  if (!shotNumber) return { base: 0, suffix: null }
+
+  // Try scene format: digits followed by letters
+  const sceneMatch = shotNumber.match(/^(\d+)([A-Za-z]+)$/)
+  if (sceneMatch) {
+    return {
+      base: parseInt(sceneMatch[1]!, 10),
+      suffix: sceneMatch[2]!.toUpperCase(),
+    }
+  }
+
+  // Fall back to flat/legacy: extract trailing digits
+  const flatMatch = shotNumber.match(/(\d+)$/)
+  if (flatMatch) {
+    return { base: parseInt(flatMatch[1]!, 10), suffix: null }
+  }
+
+  return { base: 0, suffix: null }
+}
+
+/**
+ * Returns the highest base number found among all shots.
+ * Works with both scene numbers (51A → base 51) and flat numbers (03 → base 3).
+ */
+export function computeMaxBaseNumber(shots: ReadonlyArray<Shot>): number {
+  let max = 0
+  for (const shot of shots) {
+    const num = shot.shotNumber
+    if (!num) continue
+    const parsed = parseSceneShotNumber(num)
+    if (parsed.base > max) max = parsed.base
+  }
+  return max
+}
+
+/**
+ * Preview what scene-aware renumbering would change.
+ * Scene shots get letter suffixes (1A, 1B, ...), ungrouped get flat sequential numbers
+ * starting after the highest scene number.
+ */
+type SceneChange = {
+  readonly shotId: string
+  readonly title: string
+  readonly currentNumber: string
+  readonly newNumber: string
+  readonly sceneName: string
+}
+
+type SceneUpdate = {
+  readonly shotId: string
+  readonly newNumber: string
+  readonly newSortOrder: number
+}
+
+/**
+ * Pure helper: project scene groups and ungrouped shots onto the list of numbering
+ * targets (shot + expected newNumber + global sort order). Shared by preview and write.
+ * The `maxSceneNumber` param allows callers to continue ungrouped numbering beyond the
+ * scenes that happen to have visible shots (avoids cross-filter number collisions).
+ */
+function projectSceneTargets(
+  sceneGroups: ReadonlyArray<{ readonly sceneNumber: number; readonly shots: ReadonlyArray<Shot>; readonly sceneName?: string }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): ReadonlyArray<{ readonly shot: Shot; readonly newNumber: string; readonly newSortOrder: number; readonly sceneName: string }> {
+  const scenePart = sceneGroups.reduce<ReadonlyArray<{ shot: Shot; newNumber: string; newSortOrder: number; sceneName: string }>>(
+    (acc, group) => [
+      ...acc,
+      ...group.shots.map((shot, i) => ({
+        shot,
+        newNumber: formatSceneShotNumber(group.sceneNumber, i),
+        newSortOrder: acc.length + i,
+        sceneName: group.sceneName ?? "",
+      })),
+    ],
+    [],
+  )
+
+  const computedMaxScene = sceneGroups.reduce((m, g) => (g.sceneNumber > m ? g.sceneNumber : m), 0)
+  const maxSceneNumber = Math.max(computedMaxScene, maxSceneNumberOverride ?? 0)
+  const ungroupedStart = maxSceneNumber + 1
+
+  const ungroupedPart = ungroupedShots.map((shot, i) => ({
+    shot,
+    newNumber: formatShotNumber(i + ungroupedStart),
+    newSortOrder: scenePart.length + i,
+    sceneName: "",
+  }))
+
+  return [...scenePart, ...ungroupedPart]
+}
+
+export function previewRenumberWithScenes(
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly sceneName: string
+    readonly shots: ReadonlyArray<Shot>
+  }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): {
+  readonly changes: ReadonlyArray<SceneChange>
+  readonly unchangedCount: number
+} {
+  const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+
+  const result = targets.reduce<{ changes: ReadonlyArray<SceneChange>; unchangedCount: number }>(
+    (acc, { shot, newNumber, newSortOrder, sceneName }) => {
+      if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) {
+        return { ...acc, unchangedCount: acc.unchangedCount + 1 }
+      }
+      return {
+        ...acc,
+        changes: [
+          ...acc.changes,
+          {
+            shotId: shot.id,
+            title: shot.title || "Untitled",
+            currentNumber: shot.shotNumber ?? "\u2014",
+            newNumber,
+            sceneName,
+          },
+        ],
+      }
+    },
+    { changes: [], unchangedCount: 0 },
+  )
+
+  return result
+}
+
+/**
+ * Renumber shots with scene-aware numbering and write to Firestore.
+ * Scene shots get letter suffixes, ungrouped get flat sequential numbers.
+ * Returns the count of shots actually updated.
+ */
+/**
+ * Builds the Firestore update list for scene-aware renumbering. Pure function —
+ * exported for unit testing without Firestore mocks.
+ */
+export function buildSceneRenumberUpdates(
+  sceneGroups: ReadonlyArray<{ readonly sceneNumber: number; readonly shots: ReadonlyArray<Shot> }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): ReadonlyArray<SceneUpdate> {
+  const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  return targets.reduce<ReadonlyArray<SceneUpdate>>(
+    (acc, { shot, newNumber, newSortOrder }) =>
+      shot.shotNumber === newNumber && shot.sortOrder === newSortOrder
+        ? acc
+        : [...acc, { shotId: shot.id, newNumber, newSortOrder }],
+    [],
+  )
+}
+
+export async function renumberShotsWithScenes(
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly shots: ReadonlyArray<Shot>
+  }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  clientId: string,
+  maxSceneNumberOverride?: number,
+): Promise<number> {
+  const totalShots = sceneGroups.reduce((sum, g) => sum + g.shots.length, 0) + ungroupedShots.length
+  if (totalShots > MAX_RENUMBER_SHOTS) {
+    throw new Error(`Cannot renumber more than ${MAX_RENUMBER_SHOTS} shots at once.`)
+  }
+
+  const updates = buildSceneRenumberUpdates(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  if (updates.length === 0) return 0
+
+  for (let start = 0; start < updates.length; start += BATCH_CHUNK_SIZE) {
+    const chunk = updates.slice(start, start + BATCH_CHUNK_SIZE)
+    const batch = writeBatch(db)
+    for (const { shotId, newNumber, newSortOrder } of chunk) {
+      const path = shotPath(shotId, clientId)
+      const ref = doc(db, path[0]!, ...path.slice(1))
+      batch.update(ref, {
+        shotNumber: newNumber,
+        sortOrder: newSortOrder,
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+  }
+
+  return updates.length
+}

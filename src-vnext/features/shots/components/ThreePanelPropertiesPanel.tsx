@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
@@ -6,6 +7,8 @@ import { TagEditor } from "@/features/shots/components/TagEditor"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
+import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import {
   SectionLabel,
   MetaEditorCard,
@@ -14,7 +17,7 @@ import {
 } from "@/features/shots/components/ShotDetailShared"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { toast } from "sonner"
-import type { Shot } from "@/shared/types"
+import type { Shot, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -25,6 +28,9 @@ interface ThreePanelPropertiesPanelProps {
   readonly save: (fields: Record<string, unknown>) => Promise<boolean>
   readonly canEdit: boolean
   readonly canDoOperational: boolean
+  readonly laneById?: ReadonlyMap<string, Lane>
+  readonly allShots?: ReadonlyArray<Shot>
+  readonly clientId?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -36,8 +42,13 @@ export function ThreePanelPropertiesPanel({
   save,
   canEdit,
   canDoOperational,
+  laneById,
+  allShots,
+  clientId,
 }: ThreePanelPropertiesPanelProps) {
   const talentCount = (shot.talentIds ?? shot.talent ?? []).length
+  const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
+  const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -58,6 +69,13 @@ export function ThreePanelPropertiesPanel({
             disabled={!canDoOperational}
           />
         </div>
+
+        {/* Scene context banner */}
+        <SceneContextBanner
+          laneId={shot.laneId}
+          laneById={resolvedLaneById}
+          onViewScene={() => setSceneSheetOpen(true)}
+        />
 
         {/* Shot number */}
         <MetaEditorCard label="Shot #">
@@ -154,6 +172,15 @@ export function ThreePanelPropertiesPanel({
 
         <ShotVersionHistorySection shot={shot} />
       </div>
+
+      <SceneDetailSheet
+        open={sceneSheetOpen}
+        onOpenChange={setSceneSheetOpen}
+        lane={shot.laneId ? resolvedLaneById.get(shot.laneId) ?? null : null}
+        projectId={shot.projectId}
+        clientId={clientId ?? null}
+        shotCount={shot.laneId && allShots ? allShots.filter((s) => s.laneId === shot.laneId).length : 0}
+      />
     </div>
   )
 }

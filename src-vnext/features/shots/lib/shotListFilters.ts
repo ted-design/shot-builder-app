@@ -1,4 +1,4 @@
-import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane } from "@/shared/types"
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { shotLaunchDateMs, shotRequirementsCount } from "@/features/shots/lib/shotProductReadiness"
@@ -29,6 +29,7 @@ export type ShotsListFields = {
   readonly reqs: boolean
   readonly samples: boolean
   readonly updated: boolean
+  readonly scene: boolean
 }
 
 export const DEFAULT_FIELDS: ShotsListFields = {
@@ -47,6 +48,7 @@ export const DEFAULT_FIELDS: ShotsListFields = {
   reqs: false,
   samples: false,
   updated: false,
+  scene: false,
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +342,9 @@ export type ShotGroup = {
   readonly key: string
   readonly label: string
   readonly shots: ReadonlyArray<Shot>
+  readonly color?: string
+  readonly sceneNumber?: number
+  readonly direction?: string
 }
 
 export function groupShots(
@@ -350,6 +355,7 @@ export function groupShots(
     readonly locationNameById: ReadonlyMap<string, string>
     readonly laneNameById?: ReadonlyMap<string, string>
     readonly laneOrder?: ReadonlyMap<string, number>
+    readonly laneById?: ReadonlyMap<string, Lane>
   },
 ): ReadonlyArray<ShotGroup> | null {
   if (groupKey === "none") return null
@@ -473,25 +479,35 @@ export function groupShots(
     const NONE = "__ungrouped"
     const laneNames = lookups.laneNameById ?? new Map<string, string>()
     const laneOrders = lookups.laneOrder ?? new Map<string, number>()
+    const lanes = lookups.laneById
     const byKey = new Map<string, { readonly label: string; readonly shots: Shot[] }>()
 
     for (const shot of shots) {
-      const key = shot.laneId ?? NONE
-      const label =
-        key === NONE
-          ? "Ungrouped"
-          : laneNames.get(key) ?? "Unnamed Scene"
+      // Treat orphaned laneId (references a deleted lane) as ungrouped so users
+      // can see and reassign these shots instead of landing in a phantom group.
+      // Guard: only check orphan status when lanes have actually loaded (size > 0),
+      // otherwise shots would flicker to ungrouped on initial snapshot race.
+      const isOrphan =
+        lanes != null && lanes.size > 0 && shot.laneId != null && !lanes.has(shot.laneId)
+      const key = shot.laneId == null || isOrphan ? NONE : shot.laneId
+      const label = key === NONE ? "Ungrouped" : laneNames.get(key) ?? "Unnamed Scene"
 
       const existing = byKey.get(key)
       if (existing) existing.shots.push(shot)
       else byKey.set(key, { label, shots: [shot] })
     }
 
-    const groups = Array.from(byKey.entries()).map(([key, value]) => ({
-      key,
-      label: value.label,
-      shots: value.shots as ReadonlyArray<Shot>,
-    }))
+    const groups = Array.from(byKey.entries()).map(([key, value]) => {
+      const lane = lanes?.get(key)
+      return {
+        key,
+        label: value.label,
+        shots: value.shots as ReadonlyArray<Shot>,
+        color: lane?.color,
+        sceneNumber: lane?.sceneNumber,
+        direction: lane?.direction?.slice(0, 100) || undefined,
+      }
+    })
 
     groups.sort((a, b) => {
       if (a.key === NONE) return 1

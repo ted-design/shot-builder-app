@@ -139,14 +139,14 @@ describe("ShotGridBlockView", () => {
     expect(screen.queryByText("Description")).not.toBeInTheDocument()
   })
 
-  it("renders all 5 shot rows with padded shot numbers", () => {
+  it("renders all 5 shot rows with shot numbers", () => {
     render(<ShotGridBlockView block={buildBlock()} />)
 
-    expect(screen.getByText("001")).toBeInTheDocument()
-    expect(screen.getByText("002")).toBeInTheDocument()
-    expect(screen.getByText("003")).toBeInTheDocument()
-    expect(screen.getByText("004")).toBeInTheDocument()
-    expect(screen.getByText("005")).toBeInTheDocument()
+    expect(screen.getByText("1")).toBeInTheDocument()
+    expect(screen.getByText("2")).toBeInTheDocument()
+    expect(screen.getByText("3")).toBeInTheDocument()
+    expect(screen.getByText("4")).toBeInTheDocument()
+    expect(screen.getByText("5")).toBeInTheDocument()
   })
 
   it("renders status badges with correct labels", () => {

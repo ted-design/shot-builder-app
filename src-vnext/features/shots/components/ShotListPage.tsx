@@ -39,8 +39,9 @@ import { RenumberShotsDialog } from "@/features/shots/components/RenumberShotsDi
 import { useHeroProductData } from "@/features/shots/hooks/useHeroProductData"
 import { useLanes } from "@/features/shots/hooks/useLanes"
 import { SceneHeader } from "@/features/shots/components/SceneHeader"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
-import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane, updateLane } from "@/features/shots/lib/laneActions"
+import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
@@ -98,6 +99,7 @@ export default function ShotListPage() {
   const [renumberOpen, setRenumberOpen] = useState(false)
   const [groupSceneOpen, setGroupSceneOpen] = useState(false)
   const [deleteSceneTarget, setDeleteSceneTarget] = useState<{ id: string; name: string } | null>(null)
+  const [editSceneId, setEditSceneId] = useState<string | null>(null)
   const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
 
   const toggleSceneCollapse = useCallback((key: string) => {
@@ -124,7 +126,7 @@ export default function ShotListPage() {
   const productNameById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p.styleName])), [productFamilies])
   const familyById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p])), [productFamilies])
   const { skuById, samplesByFamily } = useHeroProductData(shots, clientId)
-  const { data: lanes, laneNameById } = useLanes()
+  const { data: lanes, laneNameById, laneById } = useLanes()
   const laneOrder = useMemo(() => new Map(lanes.map((l) => [l.id, l.sortOrder])), [lanes])
 
   // -- All filter / sort / view state --
@@ -143,7 +145,7 @@ export default function ShotListPage() {
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
-    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder,
+    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById,
   })
 
   // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
@@ -568,21 +570,6 @@ export default function ShotListPage() {
           ))}
         </div>
       ) : viewMode === "table" ? (
-        <>
-          {hasActiveGrouping && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
-              <Info className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Grouping is available in Card view.{" "}
-                <button
-                  className="underline hover:text-[var(--color-text)]"
-                  onClick={() => setViewMode("card")}
-                >
-                  Switch to cards
-                </button>
-              </span>
-            </div>
-          )}
           <ShotsTable
             clientId={clientId}
             projectId={projectId}
@@ -607,8 +594,31 @@ export default function ShotListPage() {
                 .catch(() => toast.error("Failed to save shot order."))
                 .finally(() => setMobileOptimistic(null))
             }}
+            laneById={laneById}
+            lanes={lanes}
+            onAssignScene={(shotId, laneId) => {
+              if (!clientId) return
+              void assignShotsToLane({ shotIds: [shotId], laneId, projectId, clientId })
+                .then(() => {
+                  const laneName = laneId ? (laneNameById.get(laneId) ?? "scene") : "None"
+                  toast.success(`Shot assigned to ${laneName}`)
+                })
+                .catch(() => toast.error("Failed to assign scene"))
+            }}
+            groups={hasActiveGrouping ? shotGroups : null}
+            collapsedScenes={collapsedScenes}
+            onToggleSceneCollapse={toggleSceneCollapse}
+            onEditScene={(key) => setEditSceneId(key)}
+            onDeleteScene={(key, name) => {
+              setDeleteSceneTarget({ id: key, name })
+            }}
+            onUngroupScene={(key) => {
+              if (clientId) {
+                void ungroupAllShotsFromLane({ shots, laneId: key, projectId, clientId })
+                  .then((n) => toast.success(`${n} shots ungrouped`))
+              }
+            }}
           />
-        </>
       ) : (
         hasActiveGrouping && shotGroups ? (
           <div className="space-y-4">
@@ -625,14 +635,11 @@ export default function ShotListPage() {
                       name={group.label}
                       shotCount={group.shots.length}
                       color={lane?.color}
+                      sceneNumber={lane?.sceneNumber}
+                      direction={lane?.direction}
                       collapsed={isCollapsed}
                       onToggleCollapse={() => toggleSceneCollapse(group.key)}
-                      onRename={() => {
-                        const newName = window.prompt("Rename scene:", group.label)
-                        if (newName && newName.trim() && clientId) {
-                          void updateLane({ laneId: group.key, projectId, clientId, patch: { name: newName.trim() } })
-                        }
-                      }}
+                      onEdit={() => setEditSceneId(group.key)}
                       onUngroupAll={() => {
                         if (clientId) {
                           void ungroupAllShotsFromLane({ shots, laneId: group.key, projectId, clientId })
@@ -811,6 +818,8 @@ export default function ShotListPage() {
         sortDir={sortDir}
         totalShotCount={shots.length}
         allShots={shots}
+        lanes={lanes}
+        groupKey={groupKey}
       />
 
       {canShare && (
@@ -854,7 +863,7 @@ export default function ShotListPage() {
         }))}
         onCreateAndAssign={async (name, color) => {
           if (!clientId) return
-          const laneId = await createLane({ name, projectId, clientId, sortOrder: lanes.length, color, user })
+          const laneId = await createLane({ name, projectId, clientId, sortOrder: lanes.length, color, user, existingLanes: lanes })
           await assignShotsToLane({ shotIds: Array.from(selectedIds), laneId, projectId, clientId })
           toast.success(`Scene "${name}" created with ${selectedIds.size} shots`)
           clearSelection()
@@ -868,6 +877,15 @@ export default function ShotListPage() {
           clearSelection()
           setGroupKey("scene")
         }}
+      />
+
+      <SceneDetailSheet
+        open={editSceneId !== null}
+        onOpenChange={(open) => { if (!open) setEditSceneId(null) }}
+        lane={editSceneId ? laneById.get(editSceneId) ?? null : null}
+        projectId={projectId}
+        clientId={clientId}
+        shotCount={editSceneId ? displayShots.filter((s) => s.laneId === editSceneId).length : 0}
       />
 
     </ErrorBoundary>

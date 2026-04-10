@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { ChevronLeft, Share2 } from "lucide-react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
@@ -5,6 +6,8 @@ import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/Acti
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
 import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
+import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { CompactActiveEditors } from "@/features/shots/components/ActiveEditorsBar"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import {
@@ -15,7 +18,7 @@ import {
 import { textPreview } from "@/shared/lib/textPreview"
 import { useAuth } from "@/app/providers/AuthProvider"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
-import type { Shot, Project } from "@/shared/types"
+import type { Shot, Project, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -30,6 +33,8 @@ interface ThreePanelCanvasPanelProps {
   readonly onShareClick?: () => void
   readonly projects: ReadonlyArray<Project>
   readonly existingTitles: ReadonlySet<string>
+  readonly laneById?: ReadonlyMap<string, Lane>
+  readonly allShots?: ReadonlyArray<Shot>
 }
 
 // ---------------------------------------------------------------------------
@@ -45,9 +50,13 @@ export function ThreePanelCanvasPanel({
   onShareClick,
   projects,
   existingTitles,
+  laneById,
+  allShots,
 }: ThreePanelCanvasPanelProps) {
   const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
+  const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
+  const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -89,6 +98,13 @@ export function ThreePanelCanvasPanel({
       </div>
 
       <div className="flex flex-col gap-4 p-4">
+        {/* Scene context banner */}
+        <SceneContextBanner
+          laneId={shot.laneId}
+          laneById={resolvedLaneById}
+          onViewScene={() => setSceneSheetOpen(true)}
+        />
+
         {/* Header: title + shot number */}
         <div className="flex items-baseline gap-3">
           {canEdit ? (
@@ -184,6 +200,15 @@ export function ThreePanelCanvasPanel({
           }}
         />
       </div>
+
+      <SceneDetailSheet
+        open={sceneSheetOpen}
+        onOpenChange={setSceneSheetOpen}
+        lane={shot.laneId ? resolvedLaneById.get(shot.laneId) ?? null : null}
+        projectId={shot.projectId}
+        clientId={clientId}
+        shotCount={shot.laneId && allShots ? allShots.filter((s) => s.laneId === shot.laneId).length : 0}
+      />
     </div>
   )
 }

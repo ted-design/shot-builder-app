@@ -7,10 +7,10 @@ import {
 import { DEFAULT_FIELDS, type ShotsListFields } from "./shotListFilters"
 
 describe("SHOT_TABLE_COLUMNS", () => {
-  it("defines 14 columns with unique keys", () => {
-    expect(SHOT_TABLE_COLUMNS).toHaveLength(14)
+  it("defines 15 columns with unique keys", () => {
+    expect(SHOT_TABLE_COLUMNS).toHaveLength(15)
     const keys = SHOT_TABLE_COLUMNS.map((c) => c.key)
-    expect(new Set(keys).size).toBe(14)
+    expect(new Set(keys).size).toBe(15)
   })
 
   it("marks 'shot' and 'shotNumber' columns as pinned", () => {
