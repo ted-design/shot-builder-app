@@ -300,6 +300,11 @@ function projectSceneTargets(
  * starting after the highest scene number. Caller can optionally pass `sceneId` on
  * each group — it flows through to `SceneChange.sceneId` so preview UI can group by
  * stable id instead of the display name (which may collide between scenes).
+ *
+ * Returns `overflowScenes` listing any scenes that exceed MAX_SHOTS_PER_SCENE so
+ * callers can surface a warning before executing. The preview still produces
+ * (clamped-at-ZZ) change entries for overflowing scenes — callers are expected
+ * to gate the execute action on `overflowScenes.length === 0`.
  */
 export function previewRenumberWithScenes(
   sceneGroups: ReadonlyArray<{
@@ -313,8 +318,12 @@ export function previewRenumberWithScenes(
 ): {
   readonly changes: ReadonlyArray<SceneChange>
   readonly unchangedCount: number
+  readonly overflowScenes: ReadonlyArray<{ sceneNumber: number; sceneName: string; count: number }>
 } {
   const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  const overflowScenes = sceneGroups
+    .filter((g) => g.shots.length > MAX_SHOTS_PER_SCENE)
+    .map((g) => ({ sceneNumber: g.sceneNumber, sceneName: g.sceneName, count: g.shots.length }))
 
   // Local scratch builder: push into a const array that never escapes this function.
   // Avoids O(n²) spread-in-reduce for the up-to-2000-shot cap. Return type is
@@ -336,7 +345,7 @@ export function previewRenumberWithScenes(
     })
   }
 
-  return { changes, unchangedCount }
+  return { changes, unchangedCount, overflowScenes }
 }
 
 /**

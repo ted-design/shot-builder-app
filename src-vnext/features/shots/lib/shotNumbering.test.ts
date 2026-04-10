@@ -513,6 +513,31 @@ describe("previewRenumberWithScenes", () => {
     const result = previewRenumberWithScenes([], ungrouped)
     expect(result.changes[0]?.sceneId).toBe("")
   })
+
+  it("reports empty overflowScenes when all scenes are within capacity", () => {
+    const result = previewRenumberWithScenes(
+      [{ sceneNumber: 1, sceneName: "Small", shots: [makeShot({ id: "s1" })] }],
+      [],
+    )
+    expect(result.overflowScenes).toHaveLength(0)
+  })
+
+  it("flags scenes that exceed MAX_SHOTS_PER_SCENE in overflowScenes", () => {
+    // Create 703 shots in a single scene (exceeds A..ZZ = 702)
+    const manyShots = Array.from({ length: 703 }, (_, i) =>
+      makeShot({ id: `s${i}`, sortOrder: i }),
+    )
+    const result = previewRenumberWithScenes(
+      [{ sceneNumber: 1, sceneName: "Mega Scene", shots: manyShots }],
+      [],
+    )
+    expect(result.overflowScenes).toHaveLength(1)
+    expect(result.overflowScenes[0]).toEqual({
+      sceneNumber: 1,
+      sceneName: "Mega Scene",
+      count: 703,
+    })
+  })
 })
 
 describe("buildSceneRenumberUpdates", () => {
