@@ -5,6 +5,7 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useShot } from "@/features/shots/hooks/useShot"
 import { useShots } from "@/features/shots/hooks/useShots"
+import { useLanes } from "@/features/shots/hooks/useLanes"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { ShotStatusTapRow } from "@/features/shots/components/ShotStatusTapRow"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
@@ -19,6 +20,8 @@ import { TagEditor } from "@/features/shots/components/TagEditor"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
 import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
+import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -58,7 +61,9 @@ export default function ShotDetailPage() {
   const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
+  const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
   const canExport = !isMobile
+  const { data: lanes, laneById } = useLanes()
 
   // -- FAB integration: ?status_picker=1 and ?focus=notes --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -162,6 +167,13 @@ export default function ShotDetailPage() {
           <span className="mx-1">/</span>
           <span>#{shot.shotNumber || "—"}</span>
         </div>
+
+        {/* ── Scene context banner ── */}
+        <SceneContextBanner
+          laneId={shot.laneId}
+          laneById={laneById}
+          onViewScene={() => setSceneSheetOpen(true)}
+        />
 
         {/* ── Header: back, title, shot number, status ── */}
         <div className="flex items-center gap-3">
@@ -377,6 +389,15 @@ export default function ShotDetailPage() {
             selectedShotIds={[shot.id]}
           />
         )}
+
+        <SceneDetailSheet
+          open={sceneSheetOpen}
+          onOpenChange={setSceneSheetOpen}
+          lane={shot.laneId ? laneById.get(shot.laneId) ?? null : null}
+          projectId={shot.projectId}
+          clientId={clientId}
+          shotCount={shot.laneId ? projectShots.filter((s) => s.laneId === shot.laneId).length : 0}
+        />
 
       </div>
     </ErrorBoundary>

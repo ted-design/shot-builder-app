@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane } from "@/shared/types"
 import {
   type SortKey,
   type SortDir,
@@ -122,8 +122,9 @@ export function useShotListState(params: {
   readonly skuById?: ReadonlyMap<string, ProductSku>
   readonly laneNameById?: ReadonlyMap<string, string>
   readonly laneOrder?: ReadonlyMap<string, number>
+  readonly laneById?: ReadonlyMap<string, Lane>
 }): ShotListState {
-  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder } = params
+  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById } = params
 
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -472,8 +473,8 @@ export function useShotListState(params: {
   const insights = useMemo(() => computeInsights(displayShots), [displayShots])
 
   const shotGroups = useMemo(
-    () => groupShots(displayShots, groupKey, { talentNameById, locationNameById, laneNameById, laneOrder }),
-    [displayShots, groupKey, locationNameById, talentNameById, laneNameById, laneOrder],
+    () => groupShots(displayShots, groupKey, { talentNameById, locationNameById, laneNameById, laneOrder, laneById }),
+    [displayShots, groupKey, locationNameById, talentNameById, laneNameById, laneOrder, laneById],
   )
 
   const tagLabelById = useMemo(() => {

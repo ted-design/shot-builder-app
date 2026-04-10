@@ -35,7 +35,7 @@ export function ShotDetailBlockPdf({ block, data, imageMap }: ShotDetailBlockPdf
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 11, color: "#111827" }}>
-            #{String(shot.shotNumber ?? "0").padStart(3, "0")} {shot.title}
+            #{shot.shotNumber || "\u2014"} {shot.title}
           </Text>
           <Text style={{ ...styles.badge, backgroundColor: sc.bg, color: sc.text }}>
             {statusLabel}

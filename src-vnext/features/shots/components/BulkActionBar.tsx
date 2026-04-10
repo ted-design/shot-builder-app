@@ -295,7 +295,7 @@ export function BulkActionBar({
             onClick={onGroupSceneOpen}
           >
             <Layers className="mr-1.5 h-3.5 w-3.5" />
-            Group into Scene
+            Set Scene
           </Button>
         )}
         {canManageShots(role) && (

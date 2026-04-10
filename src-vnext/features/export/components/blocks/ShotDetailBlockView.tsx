@@ -65,7 +65,7 @@ export function ShotDetailBlockView({ block }: ShotDetailBlockViewProps) {
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[var(--color-text)]">
-            #{String(shot.shotNumber ?? "0").padStart(3, "0")} {shot.title}
+            #{shot.shotNumber || "\u2014"} {shot.title}
           </span>
           <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses}`}>
             {statusLabel}

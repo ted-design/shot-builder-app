@@ -30,7 +30,7 @@ function getCellValue(
 ): React.ReactNode {
   switch (columnKey) {
     case "shotNumber":
-      return String(shot.shotNumber ?? "0").padStart(3, "0")
+      return shot.shotNumber || "\u2014"
     case "thumbnail":
       return <div className="h-8 w-12 rounded bg-[var(--color-surface-muted)]" />
     case "title":

@@ -14,14 +14,19 @@ import { ThreePanelListPanel } from "@/features/shots/components/ThreePanelListP
 import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCanvasPanel"
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { toast } from "sonner"
-import type { Shot, ShotFirestoreStatus, Project } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, Project, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = "sb:three-panel:sizes"
+
+// Stable empty fallbacks — prevents re-render when lane props are undefined.
+const EMPTY_LANES: ReadonlyArray<Lane> = []
+const EMPTY_LANE_BY_ID: ReadonlyMap<string, Lane> = new Map()
 
 const STATUS_CYCLE: ReadonlyArray<ShotFirestoreStatus> = [
   "todo",
@@ -58,6 +63,13 @@ interface ThreePanelLayoutProps {
   readonly onShotCreated?: (shotId: string, title: string) => void
   readonly projects: ReadonlyArray<Project>
   readonly existingTitles: ReadonlySet<string>
+  /**
+   * Lane data from the parent ShotListPage's useLanes subscription. Passed
+   * through instead of re-subscribing here to avoid a duplicate onSnapshot
+   * listener when three-panel mode is active.
+   */
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly laneById?: ReadonlyMap<string, Lane>
 }
 
 // ---------------------------------------------------------------------------
@@ -74,8 +86,15 @@ export function ThreePanelLayout({
   onShotCreated,
   projects,
   existingTitles,
+  lanes: lanesProp,
+  laneById: laneByIdProp,
 }: ThreePanelLayoutProps) {
   const { data: shot, loading, error } = useShot(selectedShotId)
+  // Default to empty lane data when the parent hasn't wired the props yet.
+  // Using empty fallbacks keeps the layout functional for any caller that
+  // hasn't migrated; the scene banner simply won't render.
+  const lanes = lanesProp ?? (EMPTY_LANES as ReadonlyArray<Lane>)
+  const laneById = laneByIdProp ?? EMPTY_LANE_BY_ID
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
@@ -84,6 +103,16 @@ export function ThreePanelLayout({
   const canDoOperational = canManageShots(role)
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
+
+  // -- Scene sheet state (lifted from canvas + properties panels to avoid duplicates) --
+  const [sceneSheetLaneId, setSceneSheetLaneId] = useState<string | null>(null)
+  const handleOpenSceneSheet = useCallback((laneId: string) => {
+    setSceneSheetLaneId(laneId)
+  }, [])
+  const sceneSheetLane = sceneSheetLaneId ? laneById.get(sceneSheetLaneId) ?? null : null
+  const sceneSheetShotCount = sceneSheetLaneId
+    ? allShots.filter((s) => s.laneId === sceneSheetLaneId).length
+    : 0
 
   // -- Save function (same pattern as ShotDetailPage) --
   const save = useCallback(
@@ -224,6 +253,8 @@ export function ThreePanelLayout({
         onShareClick={canShare ? () => setShareOpen(true) : undefined}
         projects={projects}
         existingTitles={existingTitles}
+        laneById={laneById}
+        onOpenSceneSheet={handleOpenSceneSheet}
       />
     )
   }
@@ -275,6 +306,8 @@ export function ThreePanelLayout({
               save={save}
               canEdit={canEdit}
               canDoOperational={canDoOperational}
+              laneById={laneById}
+              onOpenSceneSheet={handleOpenSceneSheet}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-4">
@@ -297,6 +330,17 @@ export function ThreePanelLayout({
           selectedShotIds={[shot.id]}
         />
       )}
+
+      {/* Single SceneDetailSheet lifted from canvas + properties panels (M3 fix). */}
+      <SceneDetailSheet
+        open={sceneSheetLaneId !== null}
+        onOpenChange={(open) => { if (!open) setSceneSheetLaneId(null) }}
+        lane={sceneSheetLane}
+        projectId={shot?.projectId ?? ""}
+        clientId={clientId}
+        shotCount={sceneSheetShotCount}
+        siblingLanes={lanes}
+      />
     </div>
     </ErrorBoundary>
   )

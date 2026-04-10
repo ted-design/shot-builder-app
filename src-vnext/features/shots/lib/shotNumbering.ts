@@ -141,3 +141,281 @@ export function suggestStartNumber(
   const maxHidden = computeMaxShotNumber(hiddenShots)
   return maxHidden > 0 ? maxHidden + 1 : 1
 }
+
+// ========================================================================
+// Scene-aware numbering
+// ========================================================================
+
+/**
+ * Converts a zero-based index to a letter suffix: 0→A, 1→B, ... 25→Z, 26→AA, 27→AB, ... 701→ZZ.
+ * Negative indices are clamped to 0 (returns "A").
+ * Maximum supported index is 701 (ZZ = 26 + 26*26 - 1). Indices >= 702 are
+ * intentionally clamped to "ZZ" — if a single scene has more than 702 shots the
+ * project has bigger problems than duplicate letter suffixes, but the clamp
+ * prevents invalid characters (e.g., `[A`) from being emitted. Callers that need
+ * to detect overflow should validate shot counts before numbering.
+ */
+export function indexToLetterSuffix(index: number): string {
+  const clamped = Math.max(0, Math.min(index, 701))
+  if (clamped < 26) {
+    return String.fromCharCode(65 + clamped)
+  }
+  const first = Math.floor((clamped - 26) / 26)
+  const second = (clamped - 26) % 26
+  return String.fromCharCode(65 + first) + String.fromCharCode(65 + second)
+}
+
+/**
+ * Formats a scene shot number: sceneNumber + letterSuffix.
+ * e.g. (1, 0) → "1A", (10, 26) → "10AA"
+ */
+export function formatSceneShotNumber(sceneNumber: number, indexInScene: number): string {
+  return `${sceneNumber}${indexToLetterSuffix(indexInScene)}`
+}
+
+/**
+ * Parses a shot number into its base number and optional letter suffix.
+ * Scene numbers: "51A" → { base: 51, suffix: "A" }
+ * Flat numbers: "03" → { base: 3, suffix: null }
+ * Legacy: "SH-005" → { base: 5, suffix: null }
+ * Empty: "" → { base: 0, suffix: null }
+ */
+export function parseSceneShotNumber(shotNumber: string): { base: number; suffix: string | null } {
+  if (!shotNumber) return { base: 0, suffix: null }
+
+  // Try scene format: digits followed by letters
+  const sceneMatch = shotNumber.match(/^(\d+)([A-Za-z]+)$/)
+  if (sceneMatch) {
+    return {
+      base: parseInt(sceneMatch[1]!, 10),
+      suffix: sceneMatch[2]!.toUpperCase(),
+    }
+  }
+
+  // Fall back to flat/legacy: extract trailing digits
+  const flatMatch = shotNumber.match(/(\d+)$/)
+  if (flatMatch) {
+    return { base: parseInt(flatMatch[1]!, 10), suffix: null }
+  }
+
+  return { base: 0, suffix: null }
+}
+
+/**
+ * Returns the highest base number found among all shots.
+ * Works with both scene numbers (51A → base 51) and flat numbers (03 → base 3).
+ */
+export function computeMaxBaseNumber(shots: ReadonlyArray<Shot>): number {
+  let max = 0
+  for (const shot of shots) {
+    const num = shot.shotNumber
+    if (!num) continue
+    const parsed = parseSceneShotNumber(num)
+    if (parsed.base > max) max = parsed.base
+  }
+  return max
+}
+
+type SceneChange = {
+  readonly shotId: string
+  readonly title: string
+  readonly currentNumber: string
+  readonly newNumber: string
+  readonly sceneName: string
+  /** Stable lane id — used by preview UI to group by scene without name collisions. Empty string for ungrouped. */
+  readonly sceneId: string
+}
+
+type SceneUpdate = {
+  readonly shotId: string
+  readonly newNumber: string
+  readonly newSortOrder: number
+}
+
+type SceneTarget = {
+  readonly shot: Shot
+  readonly newNumber: string
+  readonly newSortOrder: number
+  readonly sceneName: string
+  readonly sceneId: string
+}
+
+/**
+ * Pure helper: project scene groups and ungrouped shots onto the list of numbering
+ * targets (shot + expected newNumber + global sort order). Shared by preview and write.
+ * The `maxSceneNumberOverride` param allows callers to continue ungrouped numbering
+ * beyond the scenes that happen to have visible shots (avoids cross-filter number
+ * collisions).
+ */
+function projectSceneTargets(
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly shots: ReadonlyArray<Shot>
+    readonly sceneName?: string
+    readonly sceneId?: string
+  }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): ReadonlyArray<SceneTarget> {
+  // Compute running sort-order offsets in one pass, then flatMap to build scene targets.
+  // Avoids O(n²) spread-in-reduce while staying immutable at the outer level.
+  const offsets: number[] = []
+  let runningOffset = 0
+  for (const group of sceneGroups) {
+    offsets.push(runningOffset)
+    runningOffset += group.shots.length
+  }
+  const scenePart: ReadonlyArray<SceneTarget> = sceneGroups.flatMap((group, gIdx) =>
+    group.shots.map((shot, i) => ({
+      shot,
+      newNumber: formatSceneShotNumber(group.sceneNumber, i),
+      newSortOrder: offsets[gIdx]! + i,
+      sceneName: group.sceneName ?? "",
+      sceneId: group.sceneId ?? "",
+    })),
+  )
+
+  const computedMaxScene = sceneGroups.reduce((m, g) => (g.sceneNumber > m ? g.sceneNumber : m), 0)
+  const maxSceneNumber = Math.max(computedMaxScene, maxSceneNumberOverride ?? 0)
+  const ungroupedStart = maxSceneNumber + 1
+  const ungroupedOffset = runningOffset
+
+  // Ungrouped shots in scene-aware mode use raw unpadded numbers to match the
+  // unpadded scene numbers used in scene shots (e.g., "1A", "2B", then "6", "7").
+  // Using formatShotNumber here would produce "06" next to "1A" — visually jarring.
+  const ungroupedPart: ReadonlyArray<SceneTarget> = ungroupedShots.map((shot, i) => ({
+    shot,
+    newNumber: String(i + ungroupedStart),
+    newSortOrder: ungroupedOffset + i,
+    sceneName: "",
+    sceneId: "",
+  }))
+
+  return [...scenePart, ...ungroupedPart]
+}
+
+/**
+ * Preview what scene-aware renumbering would change.
+ * Scene shots get letter suffixes (1A, 1B, ...), ungrouped get flat sequential numbers
+ * starting after the highest scene number. Caller can optionally pass `sceneId` on
+ * each group — it flows through to `SceneChange.sceneId` so preview UI can group by
+ * stable id instead of the display name (which may collide between scenes).
+ *
+ * Returns `overflowScenes` listing any scenes that exceed MAX_SHOTS_PER_SCENE so
+ * callers can surface a warning before executing. The preview still produces
+ * (clamped-at-ZZ) change entries for overflowing scenes — callers are expected
+ * to gate the execute action on `overflowScenes.length === 0`.
+ */
+export function previewRenumberWithScenes(
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly sceneName: string
+    readonly shots: ReadonlyArray<Shot>
+    readonly sceneId?: string
+  }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): {
+  readonly changes: ReadonlyArray<SceneChange>
+  readonly unchangedCount: number
+  readonly overflowScenes: ReadonlyArray<{ sceneNumber: number; sceneName: string; count: number }>
+} {
+  const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  const overflowScenes = sceneGroups
+    .filter((g) => g.shots.length > MAX_SHOTS_PER_SCENE)
+    .map((g) => ({ sceneNumber: g.sceneNumber, sceneName: g.sceneName, count: g.shots.length }))
+
+  // Local scratch builder: push into a const array that never escapes this function.
+  // Avoids O(n²) spread-in-reduce for the up-to-2000-shot cap. Return type is
+  // ReadonlyArray so callers can't mutate.
+  const changes: SceneChange[] = []
+  let unchangedCount = 0
+  for (const { shot, newNumber, newSortOrder, sceneName, sceneId } of targets) {
+    if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) {
+      unchangedCount++
+      continue
+    }
+    changes.push({
+      shotId: shot.id,
+      title: shot.title || "Untitled",
+      currentNumber: shot.shotNumber ?? "\u2014",
+      newNumber,
+      sceneName,
+      sceneId,
+    })
+  }
+
+  return { changes, unchangedCount, overflowScenes }
+}
+
+/**
+ * Builds the Firestore update list for scene-aware renumbering. Pure function —
+ * exported for unit testing without Firestore mocks.
+ */
+export function buildSceneRenumberUpdates(
+  sceneGroups: ReadonlyArray<{ readonly sceneNumber: number; readonly shots: ReadonlyArray<Shot> }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  maxSceneNumberOverride?: number,
+): ReadonlyArray<SceneUpdate> {
+  const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  // Local scratch builder (see previewRenumberWithScenes note).
+  const updates: SceneUpdate[] = []
+  for (const { shot, newNumber, newSortOrder } of targets) {
+    if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) continue
+    updates.push({ shotId: shot.id, newNumber, newSortOrder })
+  }
+  return updates
+}
+
+/**
+ * Maximum shots per scene — bounded by indexToLetterSuffix's letter capacity.
+ * The base-26 encoding A..Z plus AA..ZZ gives 26 + 26*26 = 702 distinct values
+ * (indices 0..701, where 0 → "A" and 701 → "ZZ"). A scene with more than 702
+ * shots would force renumberShotsWithScenes to emit duplicate "ZZ" suffixes,
+ * which we surface as an explicit error rather than silently corrupting.
+ */
+export const MAX_SHOTS_PER_SCENE = 702
+
+export async function renumberShotsWithScenes(
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly shots: ReadonlyArray<Shot>
+  }>,
+  ungroupedShots: ReadonlyArray<Shot>,
+  clientId: string,
+  maxSceneNumberOverride?: number,
+): Promise<number> {
+  const totalShots = sceneGroups.reduce((sum, g) => sum + g.shots.length, 0) + ungroupedShots.length
+  if (totalShots > MAX_RENUMBER_SHOTS) {
+    throw new Error(`Cannot renumber more than ${MAX_RENUMBER_SHOTS} shots at once.`)
+  }
+  // Guard per-scene capacity: indexToLetterSuffix clamps at "ZZ" (index 701), so a
+  // scene with 703+ shots would produce duplicate "ZZ" numbers. Surface a clear
+  // error before the write instead of silently corrupting data.
+  const overflowScene = sceneGroups.find((g) => g.shots.length > MAX_SHOTS_PER_SCENE)
+  if (overflowScene) {
+    throw new Error(
+      `Scene ${overflowScene.sceneNumber} has ${overflowScene.shots.length} shots, which exceeds the maximum of ${MAX_SHOTS_PER_SCENE} shots per scene (A..ZZ).`,
+    )
+  }
+
+  const updates = buildSceneRenumberUpdates(sceneGroups, ungroupedShots, maxSceneNumberOverride)
+  if (updates.length === 0) return 0
+
+  for (let start = 0; start < updates.length; start += BATCH_CHUNK_SIZE) {
+    const chunk = updates.slice(start, start + BATCH_CHUNK_SIZE)
+    const batch = writeBatch(db)
+    for (const { shotId, newNumber, newSortOrder } of chunk) {
+      const path = shotPath(shotId, clientId)
+      const ref = doc(db, path[0]!, ...path.slice(1))
+      batch.update(ref, {
+        shotNumber: newNumber,
+        sortOrder: newSortOrder,
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+  }
+
+  return updates.length
+}

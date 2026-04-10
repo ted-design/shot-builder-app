@@ -119,6 +119,9 @@ export interface Lane {
   readonly clientId: string
   readonly sortOrder: number
   readonly color?: string
+  readonly sceneNumber?: number
+  readonly direction?: string
+  readonly notes?: string
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
   readonly createdBy: string

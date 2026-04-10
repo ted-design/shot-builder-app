@@ -6,6 +6,7 @@ import { TagEditor } from "@/features/shots/components/TagEditor"
 import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
+import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
 import {
   SectionLabel,
   MetaEditorCard,
@@ -14,7 +15,7 @@ import {
 } from "@/features/shots/components/ShotDetailShared"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { toast } from "sonner"
-import type { Shot } from "@/shared/types"
+import type { Shot, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -25,6 +26,9 @@ interface ThreePanelPropertiesPanelProps {
   readonly save: (fields: Record<string, unknown>) => Promise<boolean>
   readonly canEdit: boolean
   readonly canDoOperational: boolean
+  readonly laneById?: ReadonlyMap<string, Lane>
+  /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
+  readonly onOpenSceneSheet?: (laneId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -36,8 +40,11 @@ export function ThreePanelPropertiesPanel({
   save,
   canEdit,
   canDoOperational,
+  laneById,
+  onOpenSceneSheet,
 }: ThreePanelPropertiesPanelProps) {
   const talentCount = (shot.talentIds ?? shot.talent ?? []).length
+  const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -58,6 +65,16 @@ export function ThreePanelPropertiesPanel({
             disabled={!canDoOperational}
           />
         </div>
+
+        {/* Scene context banner — capture laneId so the closure avoids a non-null assertion */}
+        <SceneContextBanner
+          laneId={shot.laneId}
+          laneById={resolvedLaneById}
+          onViewScene={(() => {
+            const laneId = shot.laneId
+            return laneId ? () => onOpenSceneSheet?.(laneId) : undefined
+          })()}
+        />
 
         {/* Shot number */}
         <MetaEditorCard label="Shot #">
@@ -154,6 +171,7 @@ export function ThreePanelPropertiesPanel({
 
         <ShotVersionHistorySection shot={shot} />
       </div>
+
     </div>
   )
 }

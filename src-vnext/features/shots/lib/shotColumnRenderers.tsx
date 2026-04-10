@@ -12,8 +12,9 @@ import {
 } from "@/features/shots/lib/shotListSummaries"
 import { computeShotReadiness, formatLaunchDateShort, launchUrgencyClass } from "@/features/shots/lib/shotProductReadiness"
 import { formatUpdatedAt } from "@/features/shots/lib/shotListFilters"
+import { getSceneColor } from "@/features/shots/lib/sceneColors"
 import { ASSET_TYPE_SHORT_LABELS } from "@/features/products/lib/assetRequirements"
-import type { Shot, ShotReferenceLinkType, ProductFamily, ProductSku, ProductSample } from "@/shared/types"
+import type { Shot, ShotReferenceLinkType, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotReadiness } from "@/features/shots/lib/shotProductReadiness"
 import type React from "react"
 
@@ -38,6 +39,8 @@ export interface ShotRowContext {
   readonly title: string
   readonly hasTalent: boolean
   readonly talentTitle: string
+  readonly sceneName: string | null
+  readonly sceneColor: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +54,7 @@ export function computeShotRowContext(
   samplesByFamily: ReadonlyMap<string, ReadonlyArray<ProductSample>> | undefined,
   talentNameById: ReadonlyMap<string, string> | null | undefined,
   locationNameById: ReadonlyMap<string, string> | null | undefined,
+  laneById?: ReadonlyMap<string, Lane> | null,
 ): ShotRowContext {
   const title = shot.title || "Untitled Shot"
   const readiness = familyById ? computeShotReadiness(shot, familyById, skuById, samplesByFamily) : null
@@ -73,6 +77,10 @@ export function computeShotRowContext(
     shot.locationName ??
     (shot.locationId ? locationNameById?.get(shot.locationId) ?? undefined : undefined)
 
+  const lane = shot.laneId ? laneById?.get(shot.laneId) ?? null : null
+  const sceneName = lane?.name ?? null
+  const sceneColor = lane?.color ?? null
+
   return {
     readiness,
     talentNames,
@@ -84,6 +92,8 @@ export function computeShotRowContext(
     title,
     hasTalent,
     talentTitle,
+    sceneName,
+    sceneColor,
   }
 }
 
@@ -344,6 +354,19 @@ export function renderShotCell(
     case "updated":
       return <>{formatUpdatedAt(shot)}</>
 
+    case "scene":
+      return ctx.sceneName ? (
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2 w-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: getSceneColor(ctx.sceneColor) }}
+          />
+          <span className="text-xs truncate">{ctx.sceneName}</span>
+        </div>
+      ) : (
+        <span className="text-[var(--color-text-subtle)]">{"\u2014"}</span>
+      )
+
     default:
       return null
   }
@@ -365,6 +388,8 @@ export function cellClassName(columnKey: string): string {
       return "px-3 py-2 text-[var(--color-text-secondary)]"
     case "tags":
       return "px-3 py-2"
+    case "scene":
+      return "px-3 py-2 cursor-pointer"
     case "launch":
       return "px-3 py-2 text-[var(--color-text-secondary)]"
     case "reqs":
@@ -383,7 +408,7 @@ export function cellClassName(columnKey: string): string {
 // ---------------------------------------------------------------------------
 
 export function isInteractiveCell(columnKey: string): boolean {
-  return columnKey === "tags" || columnKey === "links" || columnKey === "notes"
+  return columnKey === "tags" || columnKey === "links" || columnKey === "notes" || columnKey === "scene"
 }
 
 // ---------------------------------------------------------------------------

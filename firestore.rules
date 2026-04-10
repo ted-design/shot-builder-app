@@ -726,6 +726,40 @@ service cloud.firestore {
           (isAdmin() || isProducer());
       }
 
+      // Lanes (Scenes) — explicit rule with size validation on direction/notes
+      // and positive-integer validation on sceneNumber. Must come BEFORE the
+      // wildcard catch-all so it takes precedence.
+      match /lanes/{laneId} {
+        allow read: if clientMatches(clientId) &&
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
+        allow create, update: if clientMatches(clientId) &&
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse'])) &&
+          (
+            !('direction' in request.resource.data) ||
+            request.resource.data.direction == null ||
+            (request.resource.data.direction is string && request.resource.data.direction.size() <= 500)
+          ) &&
+          (
+            !('notes' in request.resource.data) ||
+            request.resource.data.notes == null ||
+            (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000)
+          ) &&
+          (
+            !('sceneNumber' in request.resource.data) ||
+            request.resource.data.sceneNumber == null ||
+            (
+              request.resource.data.sceneNumber is int &&
+              request.resource.data.sceneNumber >= 1 &&
+              request.resource.data.sceneNumber <= 9999
+            )
+          );
+        allow delete: if clientMatches(clientId) &&
+          (isAdmin() || producerCanAccessProject(clientId, projectId) ||
+           hasProjectRole(projectId, ['producer', 'warehouse']));
+      }
+
       // Wildcard catch-all for any other project sub-collections
       // Includes 'crew' for consistency with explicit sub-resource rules above.
       match /{collectionId}/{docId} {

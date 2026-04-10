@@ -5,6 +5,7 @@ import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/Acti
 import { NotesSection } from "@/features/shots/components/NotesSection"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
 import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
+import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
 import { CompactActiveEditors } from "@/features/shots/components/ActiveEditorsBar"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import {
@@ -13,9 +14,8 @@ import {
   SaveIndicator,
 } from "@/features/shots/components/ShotDetailShared"
 import { textPreview } from "@/shared/lib/textPreview"
-import { useAuth } from "@/app/providers/AuthProvider"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
-import type { Shot, Project } from "@/shared/types"
+import type { Shot, Project, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -30,6 +30,9 @@ interface ThreePanelCanvasPanelProps {
   readonly onShareClick?: () => void
   readonly projects: ReadonlyArray<Project>
   readonly existingTitles: ReadonlySet<string>
+  readonly laneById?: ReadonlyMap<string, Lane>
+  /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
+  readonly onOpenSceneSheet?: (laneId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -45,9 +48,11 @@ export function ThreePanelCanvasPanel({
   onShareClick,
   projects,
   existingTitles,
+  laneById,
+  onOpenSceneSheet,
 }: ThreePanelCanvasPanelProps) {
-  const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
+  const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -89,6 +94,18 @@ export function ThreePanelCanvasPanel({
       </div>
 
       <div className="flex flex-col gap-4 p-4">
+        {/* Scene context banner */}
+        <SceneContextBanner
+          laneId={shot.laneId}
+          laneById={resolvedLaneById}
+          onViewScene={(() => {
+            // Capture the lane id once so TypeScript doesn't require a non-null
+            // assertion inside the closure.
+            const laneId = shot.laneId
+            return laneId ? () => onOpenSceneSheet?.(laneId) : undefined
+          })()}
+        />
+
         {/* Header: title + shot number */}
         <div className="flex items-baseline gap-3">
           {canEdit ? (
@@ -184,6 +201,7 @@ export function ThreePanelCanvasPanel({
           }}
         />
       </div>
+
     </div>
   )
 }

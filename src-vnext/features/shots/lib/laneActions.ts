@@ -9,16 +9,19 @@ import {
   getFirestore,
 } from "firebase/firestore"
 import { lanesPath, laneDocPath, shotsPath } from "@/shared/lib/paths"
-import type { Shot } from "@/shared/types"
+import type { Lane, Shot } from "@/shared/types"
 import type { User } from "firebase/auth"
 
 const BATCH_CHUNK_SIZE = 250
 const MAX_BULK_OPS = 500
 
-type LanePatch = {
+export type LanePatch = {
   readonly name?: string
   readonly sortOrder?: number
   readonly color?: string | null
+  readonly direction?: string | null
+  readonly notes?: string | null
+  readonly sceneNumber?: number | null
 }
 
 export async function createLane(params: {
@@ -27,11 +30,18 @@ export async function createLane(params: {
   readonly clientId: string
   readonly sortOrder: number
   readonly color?: string
+  readonly sceneNumber?: number
+  readonly existingLanes?: ReadonlyArray<Lane>
   readonly user: User | null
 }): Promise<string> {
-  const { name, projectId, clientId, sortOrder, color, user } = params
+  const { name, projectId, clientId, sortOrder, color, user, existingLanes } = params
   const trimmedName = name.trim()
   if (!trimmedName) throw new Error("Lane name cannot be empty")
+
+  const resolvedSceneNumber =
+    params.sceneNumber ??
+    Math.max(0, ...(existingLanes ?? []).map((l) => l.sceneNumber ?? 0)) + 1
+
   const db = getFirestore()
   const ref = doc(collection(db, ...lanesPath(projectId, clientId)))
   await setDoc(ref, {
@@ -40,6 +50,9 @@ export async function createLane(params: {
     clientId,
     sortOrder,
     color: color ?? null,
+    sceneNumber: resolvedSceneNumber,
+    direction: null,
+    notes: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     createdBy: user?.uid ?? "",

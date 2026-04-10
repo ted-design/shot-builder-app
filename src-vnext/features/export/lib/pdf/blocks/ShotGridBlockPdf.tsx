@@ -23,7 +23,7 @@ interface ShotGridBlockPdfProps {
 
 function cellText(shot: Shot, key: string, data: ExportData): string {
   switch (key) {
-    case "shotNumber": return shot.shotNumber ? String(shot.shotNumber).padStart(3, "0") : "\u2014"
+    case "shotNumber": return shot.shotNumber || "\u2014"
     case "title": return shot.title
     case "products": return resolveProductNamesString(shot)
     case "talent": return resolveTalentNames(shot, data.talent)
