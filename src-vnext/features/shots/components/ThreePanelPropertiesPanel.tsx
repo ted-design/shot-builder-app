@@ -66,11 +66,14 @@ export function ThreePanelPropertiesPanel({
           />
         </div>
 
-        {/* Scene context banner */}
+        {/* Scene context banner — capture laneId so the closure avoids a non-null assertion */}
         <SceneContextBanner
           laneId={shot.laneId}
           laneById={resolvedLaneById}
-          onViewScene={shot.laneId ? () => onOpenSceneSheet?.(shot.laneId!) : undefined}
+          onViewScene={(() => {
+            const laneId = shot.laneId
+            return laneId ? () => onOpenSceneSheet?.(laneId) : undefined
+          })()}
         />
 
         {/* Shot number */}

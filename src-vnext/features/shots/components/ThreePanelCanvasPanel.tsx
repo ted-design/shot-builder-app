@@ -98,7 +98,12 @@ export function ThreePanelCanvasPanel({
         <SceneContextBanner
           laneId={shot.laneId}
           laneById={resolvedLaneById}
-          onViewScene={shot.laneId ? () => onOpenSceneSheet?.(shot.laneId!) : undefined}
+          onViewScene={(() => {
+            // Capture the lane id once so TypeScript doesn't require a non-null
+            // assertion inside the closure.
+            const laneId = shot.laneId
+            return laneId ? () => onOpenSceneSheet?.(laneId) : undefined
+          })()}
         />
 
         {/* Header: title + shot number */}

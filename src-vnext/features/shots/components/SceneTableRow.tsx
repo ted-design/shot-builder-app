@@ -45,7 +45,7 @@ export function SceneTableRow({
     <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
       <td colSpan={colSpan} className="p-0">
         <div
-          className="flex w-full items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-subtle)]"
+          className="flex w-full items-center gap-2 px-3 py-2 transition-colors hover:bg-[var(--color-surface-muted)]"
           style={{ borderLeft: `3px solid ${resolvedColor}` }}
         >
           {/* Collapse toggle — a dedicated button that doesn't wrap other interactive elements */}

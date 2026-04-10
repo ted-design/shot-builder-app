@@ -40,6 +40,10 @@ import type { TableColumnConfig } from "@/shared/types/table"
 import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
 
+// Threshold above which DnD reorder is automatically disabled — @dnd-kit's
+// sortable overhead becomes noticeable past ~500 items. Exported for tests.
+export const REORDER_SHOT_LIMIT = 500
+
 // ---------------------------------------------------------------------------
 // Migration from old localStorage key format
 // ---------------------------------------------------------------------------
@@ -402,9 +406,8 @@ export function ShotsTable({
   const selectionEnabled = selection?.enabled === true
 
   // Auto-disable DnD reorder for large projects — @dnd-kit's sortable overhead
-  // becomes noticeable past ~500 sortable items. Users can still reorder via
-  // the custom sort + renumber flow.
-  const REORDER_SHOT_LIMIT = 500
+  // becomes noticeable past this threshold. Users can still reorder via the
+  // custom sort + renumber flow.
   const reorderEnabled = reorderEnabledProp && shots.length <= REORDER_SHOT_LIMIT
 
   const allSelected =

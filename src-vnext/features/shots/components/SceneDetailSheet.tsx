@@ -108,10 +108,11 @@ export function SceneDetailSheet({
   const handleSceneNumberBlur = useCallback(() => {
     if (!lane) return
     const trimmed = sceneNumber.trim()
+    // Scene number cannot be cleared — every lane has one (auto-incremented at
+    // creation, backfilled at read time for legacy lanes). If the user empties
+    // the field, revert to the stored value.
     if (!trimmed) {
-      if (lane.sceneNumber !== undefined) {
-        savePatch({ sceneNumber: null })
-      }
+      setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       return
     }
     const parsed = Number(trimmed)
@@ -151,6 +152,14 @@ export function SceneDetailSheet({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       // maxLength on the textarea enforces the limit at the browser boundary.
       setDirection(e.target.value)
+    },
+    [],
+  )
+
+  const handleNotesChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      // maxLength on the textarea enforces the limit at the browser boundary.
+      setNotes(e.target.value)
     },
     [],
   )
@@ -195,10 +204,14 @@ export function SceneDetailSheet({
         <div className="flex flex-col gap-5 mt-4">
           {/* Scene Name */}
           <div>
-            <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
+            <label
+              htmlFor="scene-detail-name"
+              className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block"
+            >
               Scene Name
             </label>
             <Input
+              id="scene-detail-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={handleNameBlur}
@@ -210,10 +223,14 @@ export function SceneDetailSheet({
 
           {/* Scene Number */}
           <div>
-            <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
+            <label
+              htmlFor="scene-detail-number"
+              className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block"
+            >
               Scene Number
             </label>
             <Input
+              id="scene-detail-number"
               type="number"
               value={sceneNumber}
               onChange={(e) => setSceneNumber(e.target.value)}
@@ -225,11 +242,11 @@ export function SceneDetailSheet({
             />
           </div>
 
-          {/* Color Picker */}
-          <div>
-            <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
+          {/* Color Picker — fieldset/legend for an accessible group label */}
+          <fieldset>
+            <legend className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
               Color
-            </label>
+            </legend>
             <div className="flex gap-2" data-testid="scene-color-picker">
               {SCENE_COLORS.map((c) => (
                 <button
@@ -243,16 +260,20 @@ export function SceneDetailSheet({
                   }`}
                   style={{ background: c.hex }}
                   aria-label={`Color ${c.key}`}
+                  aria-pressed={lane.color === c.key}
                   data-testid={`scene-color-${c.key}`}
                 />
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Creative Direction */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <label
+                htmlFor="scene-detail-direction"
+                className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
                 Creative Direction
               </label>
               <span className="text-3xs text-[var(--color-text-subtle)]">
@@ -260,6 +281,7 @@ export function SceneDetailSheet({
               </span>
             </div>
             <Textarea
+              id="scene-detail-direction"
               value={direction}
               onChange={handleDirectionChange}
               onBlur={handleDirectionBlur}
@@ -274,7 +296,10 @@ export function SceneDetailSheet({
           {/* Production Notes */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <label
+                htmlFor="scene-detail-notes"
+                className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+              >
                 Production Notes
               </label>
               <span className="text-3xs text-[var(--color-text-subtle)]">
@@ -282,8 +307,9 @@ export function SceneDetailSheet({
               </span>
             </div>
             <Textarea
+              id="scene-detail-notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={handleNotesChange}
               onBlur={handleNotesBlur}
               rows={5}
               maxLength={MAX_NOTES_CHARS}
