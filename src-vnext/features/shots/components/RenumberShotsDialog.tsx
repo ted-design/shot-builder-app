@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, type ReactElement } from "react"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import {
@@ -81,6 +81,7 @@ export function RenumberShotsDialog({
       .filter((l) => l.sceneNumber != null)
       .sort((a, b) => (a.sceneNumber ?? 0) - (b.sceneNumber ?? 0))
       .map((lane) => ({
+        sceneId: lane.id,
         sceneNumber: lane.sceneNumber!,
         sceneName: lane.name,
         color: lane.color,
@@ -96,14 +97,14 @@ export function RenumberShotsDialog({
 
   // Preview: sequential or by-scene
   const { changes, unchangedCount } = useMemo(() => {
-    if (!open) return { changes: [] as readonly { shotId: string; title: string; currentNumber: string; newNumber: string; sceneName: string }[], unchangedCount: 0 }
+    if (!open) return { changes: [] as readonly { shotId: string; title: string; currentNumber: string; newNumber: string; sceneName: string; sceneId: string }[], unchangedCount: 0 }
     if (mode === "byScene" && sceneGroups.length > 0) {
       return previewRenumberWithScenes(sceneGroups, ungroupedShots)
     }
-    // Sequential mode — wrap changes to include empty sceneName for type consistency
+    // Sequential mode — wrap changes to include empty sceneName/sceneId for type consistency
     const seq = previewRenumber(shots, startNumber)
     return {
-      changes: seq.changes.map((c) => ({ ...c, sceneName: "" })),
+      changes: seq.changes.map((c) => ({ ...c, sceneName: "", sceneId: "" })),
       unchangedCount: seq.unchangedCount,
     }
   }, [open, mode, shots, startNumber, sceneGroups, ungroupedShots])
@@ -288,8 +289,10 @@ interface ScenePreviewRowsProps {
     readonly currentNumber: string
     readonly newNumber: string
     readonly sceneName: string
+    readonly sceneId: string
   }>
   readonly sceneGroups: ReadonlyArray<{
+    readonly sceneId: string
     readonly sceneNumber: number
     readonly sceneName: string
     readonly color?: string
@@ -298,90 +301,101 @@ interface ScenePreviewRowsProps {
   readonly previewLimit: number
 }
 
-function ScenePreviewRows({ changes, sceneGroups, ungroupedShots, previewLimit }: ScenePreviewRowsProps) {
-  // Group changes by sceneName for rendering with headers
-  let rendered = 0
-  const rows: JSX.Element[] = []
+type PreviewRow = ReactElement
 
-  for (const group of sceneGroups) {
-    if (rendered >= previewLimit) break
+function buildScenePreviewRowsState(
+  changes: ScenePreviewRowsProps["changes"],
+  sceneGroups: ScenePreviewRowsProps["sceneGroups"],
+  ungroupedShots: ReadonlyArray<Shot>,
+  previewLimit: number,
+): ReadonlyArray<PreviewRow> {
+  // Phase 1: scene groups. Track running count via reduce, building rows immutably.
+  const scenePhase = sceneGroups.reduce<{ rows: ReadonlyArray<PreviewRow>; rendered: number }>(
+    (acc, group) => {
+      if (acc.rendered >= previewLimit) return acc
+      // Filter by stable sceneId to avoid name-collision bugs.
+      const groupChanges = changes.filter((c) => c.sceneId === group.sceneId)
+      if (groupChanges.length === 0) return acc
 
-    const groupChanges = changes.filter((c) => c.sceneName === group.sceneName)
-    if (groupChanges.length === 0) continue
-
-    rows.push(
-      <tr key={`header-${group.sceneNumber}`} className="bg-[var(--color-surface-subtle)]">
-        <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text)]">
-          <span
-            className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
-            style={{ backgroundColor: getSceneColor(group.color) }}
-          />
-          {"Scene "}
-          {group.sceneNumber}
-          {" \u2014 "}
-          {group.sceneName}
-        </td>
-      </tr>,
-    )
-
-    const visible = groupChanges.slice(0, previewLimit - rendered)
-    for (const c of visible) {
-      rows.push(
+      const visible = groupChanges.slice(0, previewLimit - acc.rendered)
+      const header: PreviewRow = (
+        <tr key={`header-${group.sceneId}`} className="bg-[var(--color-surface-subtle)]">
+          <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text)]">
+            <span
+              className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+              style={{ backgroundColor: getSceneColor(group.color) }}
+            />
+            {"Scene "}
+            {group.sceneNumber}
+            {" \u2014 "}
+            {group.sceneName}
+          </td>
+        </tr>
+      )
+      const changeRows: ReadonlyArray<PreviewRow> = visible.map((c) => (
         <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
           <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
           <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
           <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
-        </tr>,
-      )
-      rendered++
-    }
+        </tr>
+      ))
+      const moreRow: ReadonlyArray<PreviewRow> =
+        groupChanges.length > visible.length
+          ? [
+              <tr key={`more-${group.sceneId}`}>
+                <td colSpan={3} className="px-3 py-1 text-2xs text-[var(--color-text-muted)]">
+                  {"\u2026"} and {groupChanges.length - visible.length} more in this scene
+                </td>
+              </tr>,
+            ]
+          : []
 
-    if (groupChanges.length > visible.length) {
-      rows.push(
-        <tr key={`more-${group.sceneNumber}`}>
-          <td colSpan={3} className="px-3 py-1 text-2xs text-[var(--color-text-muted)]">
-            {"\u2026"} and {groupChanges.length - visible.length} more in this scene
-          </td>
-        </tr>,
-      )
-    }
-  }
-
-  // Ungrouped shots
-  if (rendered < previewLimit && ungroupedShots.length > 0) {
-    const ungroupedChanges = changes.filter((c) => c.sceneName === "")
-    if (ungroupedChanges.length > 0) {
-      rows.push(
-        <tr key="header-ungrouped" className="bg-[var(--color-surface-subtle)]">
-          <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)]">
-            Ungrouped
-          </td>
-        </tr>,
-      )
-
-      const visible = ungroupedChanges.slice(0, previewLimit - rendered)
-      for (const c of visible) {
-        rows.push(
-          <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
-            <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
-            <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
-            <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
-          </tr>,
-        )
-        rendered++
+      return {
+        rendered: acc.rendered + visible.length,
+        rows: [...acc.rows, header, ...changeRows, ...moreRow],
       }
+    },
+    { rows: [], rendered: 0 },
+  )
 
-      if (ungroupedChanges.length > visible.length) {
-        rows.push(
+  // Phase 2: ungrouped shots
+  if (scenePhase.rendered >= previewLimit || ungroupedShots.length === 0) {
+    return scenePhase.rows
+  }
+  const ungroupedChanges = changes.filter((c) => c.sceneId === "")
+  if (ungroupedChanges.length === 0) {
+    return scenePhase.rows
+  }
+  const visible = ungroupedChanges.slice(0, previewLimit - scenePhase.rendered)
+  const ungroupedHeader: PreviewRow = (
+    <tr key="header-ungrouped" className="bg-[var(--color-surface-subtle)]">
+      <td colSpan={3} className="px-3 py-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+        Ungrouped
+      </td>
+    </tr>
+  )
+  const ungroupedChangeRows: ReadonlyArray<PreviewRow> = visible.map((c) => (
+    <tr key={c.shotId} className="border-b border-[var(--color-border)] last:border-0">
+      <td className="px-3 py-1.5 text-[var(--color-text-muted)]">{c.currentNumber}</td>
+      <td className="px-3 py-1.5 text-center text-[var(--color-text-subtle)]">{"\u2192"}</td>
+      <td className="px-3 py-1.5 font-medium text-[var(--color-status-blue-text)]">{c.newNumber}</td>
+    </tr>
+  ))
+  const ungroupedMoreRow: ReadonlyArray<PreviewRow> =
+    ungroupedChanges.length > visible.length
+      ? [
           <tr key="more-ungrouped">
             <td colSpan={3} className="px-3 py-1 text-2xs text-[var(--color-text-muted)]">
               {"\u2026"} and {ungroupedChanges.length - visible.length} more ungrouped
             </td>
           </tr>,
-        )
-      }
-    }
-  }
+        ]
+      : []
 
+  return [...scenePhase.rows, ungroupedHeader, ...ungroupedChangeRows, ...ungroupedMoreRow]
+}
+
+function ScenePreviewRows({ changes, sceneGroups, ungroupedShots, previewLimit }: ScenePreviewRowsProps) {
+  const rows = buildScenePreviewRowsState(changes, sceneGroups, ungroupedShots, previewLimit)
   return <>{rows}</>
 }

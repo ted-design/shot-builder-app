@@ -469,11 +469,16 @@ export function ShotsTable({
   }, [shots, rowContexts])
 
   // -- Compute colSpan for scene header rows --
+  // Scene header <tr> must span every column the data rows render. This mirrors the
+  // <colgroup>/<thead> structure below:
+  //   [optional drag handle] + [optional selection] + visibleColumns + [optional lifecycle] + status
+  // The trailing `+ 1` accounts for the pinned status column which is NOT part of
+  // `visibleColumns` (it's always rendered at the end of every row).
   const sceneColSpan = useMemo(() => {
-    let count = visibleColumns.length + 1 // visible columns + status column
-    if (reorderEnabled) count += 1
-    if (selectionEnabled) count += 1
-    if (showLifecycleActions) count += 1
+    let count = visibleColumns.length + 1 // visibleColumns + pinned status column
+    if (reorderEnabled) count += 1 // drag handle column
+    if (selectionEnabled) count += 1 // selection checkbox column
+    if (showLifecycleActions) count += 1 // lifecycle actions column
     return count
   }, [visibleColumns.length, reorderEnabled, selectionEnabled, showLifecycleActions])
 

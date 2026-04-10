@@ -475,6 +475,44 @@ describe("previewRenumberWithScenes", () => {
     expect(result.changes.find((c) => c.shotId === "s2a")?.newNumber).toBe("2A")
     expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("06")
   })
+
+  it("propagates sceneId through to changes for stable grouping in preview UI", () => {
+    // Regression: two scenes with the same name should not collide in preview grouping.
+    // The preview UI filters by sceneId, not sceneName, so different lane ids must be preserved.
+    const sceneA = [makeShot({ id: "a1", sortOrder: 0 })]
+    const sceneB = [makeShot({ id: "b1", sortOrder: 1 })]
+    const result = previewRenumberWithScenes(
+      [
+        { sceneId: "lane-A", sceneNumber: 1, sceneName: "Duplicate Name", shots: sceneA },
+        { sceneId: "lane-B", sceneNumber: 2, sceneName: "Duplicate Name", shots: sceneB },
+      ],
+      [],
+    )
+    // Both changes must have their respective laneId preserved
+    const aChange = result.changes.find((c) => c.shotId === "a1")
+    const bChange = result.changes.find((c) => c.shotId === "b1")
+    expect(aChange?.sceneId).toBe("lane-A")
+    expect(bChange?.sceneId).toBe("lane-B")
+    // sceneName is still populated (for display) but may collide — that's fine, sceneId disambiguates
+    expect(aChange?.sceneName).toBe("Duplicate Name")
+    expect(bChange?.sceneName).toBe("Duplicate Name")
+  })
+
+  it("defaults sceneId to empty string when caller omits it", () => {
+    // Backward compat: callers that don't pass sceneId should still work.
+    const shots = [makeShot({ id: "s1", sortOrder: 0 })]
+    const result = previewRenumberWithScenes(
+      [{ sceneNumber: 1, sceneName: "No ID", shots }],
+      [],
+    )
+    expect(result.changes[0]?.sceneId).toBe("")
+  })
+
+  it("tags ungrouped changes with empty sceneId", () => {
+    const ungrouped = [makeShot({ id: "u1", sortOrder: 0 })]
+    const result = previewRenumberWithScenes([], ungrouped)
+    expect(result.changes[0]?.sceneId).toBe("")
+  })
 })
 
 describe("buildSceneRenumberUpdates", () => {

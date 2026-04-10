@@ -212,17 +212,14 @@ export function computeMaxBaseNumber(shots: ReadonlyArray<Shot>): number {
   return max
 }
 
-/**
- * Preview what scene-aware renumbering would change.
- * Scene shots get letter suffixes (1A, 1B, ...), ungrouped get flat sequential numbers
- * starting after the highest scene number.
- */
 type SceneChange = {
   readonly shotId: string
   readonly title: string
   readonly currentNumber: string
   readonly newNumber: string
   readonly sceneName: string
+  /** Stable lane id — used by preview UI to group by scene without name collisions. Empty string for ungrouped. */
+  readonly sceneId: string
 }
 
 type SceneUpdate = {
@@ -231,49 +228,78 @@ type SceneUpdate = {
   readonly newSortOrder: number
 }
 
+type SceneTarget = {
+  readonly shot: Shot
+  readonly newNumber: string
+  readonly newSortOrder: number
+  readonly sceneName: string
+  readonly sceneId: string
+}
+
 /**
  * Pure helper: project scene groups and ungrouped shots onto the list of numbering
  * targets (shot + expected newNumber + global sort order). Shared by preview and write.
- * The `maxSceneNumber` param allows callers to continue ungrouped numbering beyond the
- * scenes that happen to have visible shots (avoids cross-filter number collisions).
+ * The `maxSceneNumberOverride` param allows callers to continue ungrouped numbering
+ * beyond the scenes that happen to have visible shots (avoids cross-filter number
+ * collisions).
  */
 function projectSceneTargets(
-  sceneGroups: ReadonlyArray<{ readonly sceneNumber: number; readonly shots: ReadonlyArray<Shot>; readonly sceneName?: string }>,
+  sceneGroups: ReadonlyArray<{
+    readonly sceneNumber: number
+    readonly shots: ReadonlyArray<Shot>
+    readonly sceneName?: string
+    readonly sceneId?: string
+  }>,
   ungroupedShots: ReadonlyArray<Shot>,
   maxSceneNumberOverride?: number,
-): ReadonlyArray<{ readonly shot: Shot; readonly newNumber: string; readonly newSortOrder: number; readonly sceneName: string }> {
-  const scenePart = sceneGroups.reduce<ReadonlyArray<{ shot: Shot; newNumber: string; newSortOrder: number; sceneName: string }>>(
-    (acc, group) => [
-      ...acc,
-      ...group.shots.map((shot, i) => ({
-        shot,
-        newNumber: formatSceneShotNumber(group.sceneNumber, i),
-        newSortOrder: acc.length + i,
-        sceneName: group.sceneName ?? "",
-      })),
-    ],
-    [],
+): ReadonlyArray<SceneTarget> {
+  // Compute running sort-order offsets in one pass, then flatMap to build scene targets.
+  // Avoids O(n²) spread-in-reduce while staying immutable at the outer level.
+  const offsets: number[] = []
+  let runningOffset = 0
+  for (const group of sceneGroups) {
+    offsets.push(runningOffset)
+    runningOffset += group.shots.length
+  }
+  const scenePart: ReadonlyArray<SceneTarget> = sceneGroups.flatMap((group, gIdx) =>
+    group.shots.map((shot, i) => ({
+      shot,
+      newNumber: formatSceneShotNumber(group.sceneNumber, i),
+      newSortOrder: offsets[gIdx]! + i,
+      sceneName: group.sceneName ?? "",
+      sceneId: group.sceneId ?? "",
+    })),
   )
 
   const computedMaxScene = sceneGroups.reduce((m, g) => (g.sceneNumber > m ? g.sceneNumber : m), 0)
   const maxSceneNumber = Math.max(computedMaxScene, maxSceneNumberOverride ?? 0)
   const ungroupedStart = maxSceneNumber + 1
+  const ungroupedOffset = runningOffset
 
-  const ungroupedPart = ungroupedShots.map((shot, i) => ({
+  const ungroupedPart: ReadonlyArray<SceneTarget> = ungroupedShots.map((shot, i) => ({
     shot,
     newNumber: formatShotNumber(i + ungroupedStart),
-    newSortOrder: scenePart.length + i,
+    newSortOrder: ungroupedOffset + i,
     sceneName: "",
+    sceneId: "",
   }))
 
   return [...scenePart, ...ungroupedPart]
 }
 
+/**
+ * Preview what scene-aware renumbering would change.
+ * Scene shots get letter suffixes (1A, 1B, ...), ungrouped get flat sequential numbers
+ * starting after the highest scene number. Caller can optionally pass `sceneId` on
+ * each group — it flows through to `SceneChange.sceneId` so preview UI can group by
+ * stable id instead of the display name (which may collide between scenes).
+ */
 export function previewRenumberWithScenes(
   sceneGroups: ReadonlyArray<{
     readonly sceneNumber: number
     readonly sceneName: string
     readonly shots: ReadonlyArray<Shot>
+    readonly sceneId?: string
   }>,
   ungroupedShots: ReadonlyArray<Shot>,
   maxSceneNumberOverride?: number,
@@ -284,7 +310,7 @@ export function previewRenumberWithScenes(
   const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
 
   const result = targets.reduce<{ changes: ReadonlyArray<SceneChange>; unchangedCount: number }>(
-    (acc, { shot, newNumber, newSortOrder, sceneName }) => {
+    (acc, { shot, newNumber, newSortOrder, sceneName, sceneId }) => {
       if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) {
         return { ...acc, unchangedCount: acc.unchangedCount + 1 }
       }
@@ -298,6 +324,7 @@ export function previewRenumberWithScenes(
             currentNumber: shot.shotNumber ?? "\u2014",
             newNumber,
             sceneName,
+            sceneId,
           },
         ],
       }
@@ -308,11 +335,6 @@ export function previewRenumberWithScenes(
   return result
 }
 
-/**
- * Renumber shots with scene-aware numbering and write to Firestore.
- * Scene shots get letter suffixes, ungrouped get flat sequential numbers.
- * Returns the count of shots actually updated.
- */
 /**
  * Builds the Firestore update list for scene-aware renumbering. Pure function —
  * exported for unit testing without Firestore mocks.
