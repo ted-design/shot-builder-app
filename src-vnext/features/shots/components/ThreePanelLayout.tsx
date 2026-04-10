@@ -15,6 +15,7 @@ import { ThreePanelListPanel } from "@/features/shots/components/ThreePanelListP
 import { ThreePanelCanvasPanel } from "@/features/shots/components/ThreePanelCanvasPanel"
 import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePanelPropertiesPanel"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { toast } from "sonner"
 import type { Shot, ShotFirestoreStatus, Project } from "@/shared/types"
 
@@ -86,6 +87,16 @@ export function ThreePanelLayout({
   const canDoOperational = canManageShots(role)
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
+
+  // -- Scene sheet state (lifted from canvas + properties panels to avoid duplicates) --
+  const [sceneSheetLaneId, setSceneSheetLaneId] = useState<string | null>(null)
+  const handleOpenSceneSheet = useCallback((laneId: string) => {
+    setSceneSheetLaneId(laneId)
+  }, [])
+  const sceneSheetLane = sceneSheetLaneId ? laneById.get(sceneSheetLaneId) ?? null : null
+  const sceneSheetShotCount = sceneSheetLaneId
+    ? allShots.filter((s) => s.laneId === sceneSheetLaneId).length
+    : 0
 
   // -- Save function (same pattern as ShotDetailPage) --
   const save = useCallback(
@@ -227,7 +238,7 @@ export function ThreePanelLayout({
         projects={projects}
         existingTitles={existingTitles}
         laneById={laneById}
-        allShots={allShots}
+        onOpenSceneSheet={handleOpenSceneSheet}
       />
     )
   }
@@ -280,8 +291,7 @@ export function ThreePanelLayout({
               canEdit={canEdit}
               canDoOperational={canDoOperational}
               laneById={laneById}
-              allShots={allShots}
-              clientId={clientId}
+              onOpenSceneSheet={handleOpenSceneSheet}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-4">
@@ -304,6 +314,16 @@ export function ThreePanelLayout({
           selectedShotIds={[shot.id]}
         />
       )}
+
+      {/* Single SceneDetailSheet lifted from canvas + properties panels (M3 fix). */}
+      <SceneDetailSheet
+        open={sceneSheetLaneId !== null}
+        onOpenChange={(open) => { if (!open) setSceneSheetLaneId(null) }}
+        lane={sceneSheetLane}
+        projectId={shot?.projectId ?? ""}
+        clientId={clientId}
+        shotCount={sceneSheetShotCount}
+      />
     </div>
     </ErrorBoundary>
   )

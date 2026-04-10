@@ -509,9 +509,18 @@ export function groupShots(
       }
     })
 
+    // Sort order for scene groups:
+    //   1. Ungrouped always last
+    //   2. Stable sceneNumber (the identifier used for shot numbering — 51A, 51B…)
+    //   3. Fall back to laneOrder for legacy lanes that haven't been assigned a
+    //      sceneNumber yet (should be rare post-backfill)
+    //   4. Finally, alphabetical on label for ties
     groups.sort((a, b) => {
       if (a.key === NONE) return 1
       if (b.key === NONE) return -1
+      const aScene = a.sceneNumber ?? Number.POSITIVE_INFINITY
+      const bScene = b.sceneNumber ?? Number.POSITIVE_INFINITY
+      if (aScene !== bScene) return aScene - bScene
       const aOrder = laneOrders.get(a.key) ?? 0
       const bOrder = laneOrders.get(b.key) ?? 0
       if (aOrder !== bOrder) return aOrder - bOrder

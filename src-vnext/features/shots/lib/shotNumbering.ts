@@ -309,30 +309,27 @@ export function previewRenumberWithScenes(
 } {
   const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
 
-  const result = targets.reduce<{ changes: ReadonlyArray<SceneChange>; unchangedCount: number }>(
-    (acc, { shot, newNumber, newSortOrder, sceneName, sceneId }) => {
-      if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) {
-        return { ...acc, unchangedCount: acc.unchangedCount + 1 }
-      }
-      return {
-        ...acc,
-        changes: [
-          ...acc.changes,
-          {
-            shotId: shot.id,
-            title: shot.title || "Untitled",
-            currentNumber: shot.shotNumber ?? "\u2014",
-            newNumber,
-            sceneName,
-            sceneId,
-          },
-        ],
-      }
-    },
-    { changes: [], unchangedCount: 0 },
-  )
+  // Local scratch builder: push into a const array that never escapes this function.
+  // Avoids O(n²) spread-in-reduce for the up-to-2000-shot cap. Return type is
+  // ReadonlyArray so callers can't mutate.
+  const changes: SceneChange[] = []
+  let unchangedCount = 0
+  for (const { shot, newNumber, newSortOrder, sceneName, sceneId } of targets) {
+    if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) {
+      unchangedCount++
+      continue
+    }
+    changes.push({
+      shotId: shot.id,
+      title: shot.title || "Untitled",
+      currentNumber: shot.shotNumber ?? "\u2014",
+      newNumber,
+      sceneName,
+      sceneId,
+    })
+  }
 
-  return result
+  return { changes, unchangedCount }
 }
 
 /**
@@ -345,13 +342,13 @@ export function buildSceneRenumberUpdates(
   maxSceneNumberOverride?: number,
 ): ReadonlyArray<SceneUpdate> {
   const targets = projectSceneTargets(sceneGroups, ungroupedShots, maxSceneNumberOverride)
-  return targets.reduce<ReadonlyArray<SceneUpdate>>(
-    (acc, { shot, newNumber, newSortOrder }) =>
-      shot.shotNumber === newNumber && shot.sortOrder === newSortOrder
-        ? acc
-        : [...acc, { shotId: shot.id, newNumber, newSortOrder }],
-    [],
-  )
+  // Local scratch builder (see previewRenumberWithScenes note).
+  const updates: SceneUpdate[] = []
+  for (const { shot, newNumber, newSortOrder } of targets) {
+    if (shot.shotNumber === newNumber && shot.sortOrder === newSortOrder) continue
+    updates.push({ shotId: shot.id, newNumber, newSortOrder })
+  }
+  return updates
 }
 
 export async function renumberShotsWithScenes(

@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { ChevronLeft, Share2 } from "lucide-react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
@@ -7,7 +6,6 @@ import { NotesSection } from "@/features/shots/components/NotesSection"
 import { ShotReferenceLinksSection } from "@/features/shots/components/ShotReferenceLinksSection"
 import { ProductSummaryStrip } from "@/features/shots/components/ProductSummaryStrip"
 import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
-import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { CompactActiveEditors } from "@/features/shots/components/ActiveEditorsBar"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import {
@@ -16,7 +14,6 @@ import {
   SaveIndicator,
 } from "@/features/shots/components/ShotDetailShared"
 import { textPreview } from "@/shared/lib/textPreview"
-import { useAuth } from "@/app/providers/AuthProvider"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
 import type { Shot, Project, Lane } from "@/shared/types"
 
@@ -34,7 +31,8 @@ interface ThreePanelCanvasPanelProps {
   readonly projects: ReadonlyArray<Project>
   readonly existingTitles: ReadonlySet<string>
   readonly laneById?: ReadonlyMap<string, Lane>
-  readonly allShots?: ReadonlyArray<Shot>
+  /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
+  readonly onOpenSceneSheet?: (laneId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -51,11 +49,9 @@ export function ThreePanelCanvasPanel({
   projects,
   existingTitles,
   laneById,
-  allShots,
+  onOpenSceneSheet,
 }: ThreePanelCanvasPanelProps) {
-  const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
-  const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
   const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
@@ -102,7 +98,7 @@ export function ThreePanelCanvasPanel({
         <SceneContextBanner
           laneId={shot.laneId}
           laneById={resolvedLaneById}
-          onViewScene={() => setSceneSheetOpen(true)}
+          onViewScene={shot.laneId ? () => onOpenSceneSheet?.(shot.laneId!) : undefined}
         />
 
         {/* Header: title + shot number */}
@@ -201,14 +197,6 @@ export function ThreePanelCanvasPanel({
         />
       </div>
 
-      <SceneDetailSheet
-        open={sceneSheetOpen}
-        onOpenChange={setSceneSheetOpen}
-        lane={shot.laneId ? resolvedLaneById.get(shot.laneId) ?? null : null}
-        projectId={shot.projectId}
-        clientId={clientId}
-        shotCount={shot.laneId && allShots ? allShots.filter((s) => s.laneId === shot.laneId).length : 0}
-      />
     </div>
   )
 }

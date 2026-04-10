@@ -389,7 +389,7 @@ export function ShotsTable({
   familyById,
   skuById,
   samplesByFamily,
-  reorderEnabled = false,
+  reorderEnabled: reorderEnabledProp = false,
   onReorder,
   groups,
   collapsedScenes,
@@ -402,6 +402,12 @@ export function ShotsTable({
   onAssignScene,
 }: ShotsTableProps) {
   const selectionEnabled = selection?.enabled === true
+
+  // Auto-disable DnD reorder for large projects — @dnd-kit's sortable overhead
+  // becomes noticeable past ~500 sortable items. Users can still reorder via
+  // the custom sort + renumber flow.
+  const REORDER_SHOT_LIMIT = 500
+  const reorderEnabled = reorderEnabledProp && shots.length <= REORDER_SHOT_LIMIT
 
   const allSelected =
     selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))

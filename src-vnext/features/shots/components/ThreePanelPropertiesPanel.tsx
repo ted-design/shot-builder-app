@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
@@ -8,7 +7,6 @@ import { ShotLooksSection } from "@/features/shots/components/ShotLooksSection"
 import { ShotCommentsSection } from "@/features/shots/components/ShotCommentsSection"
 import { ShotVersionHistorySection } from "@/features/shots/components/ShotVersionHistorySection"
 import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
-import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import {
   SectionLabel,
   MetaEditorCard,
@@ -29,8 +27,8 @@ interface ThreePanelPropertiesPanelProps {
   readonly canEdit: boolean
   readonly canDoOperational: boolean
   readonly laneById?: ReadonlyMap<string, Lane>
-  readonly allShots?: ReadonlyArray<Shot>
-  readonly clientId?: string | null
+  /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
+  readonly onOpenSceneSheet?: (laneId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -43,11 +41,9 @@ export function ThreePanelPropertiesPanel({
   canEdit,
   canDoOperational,
   laneById,
-  allShots,
-  clientId,
+  onOpenSceneSheet,
 }: ThreePanelPropertiesPanelProps) {
   const talentCount = (shot.talentIds ?? shot.talent ?? []).length
-  const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
   const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
   return (
@@ -74,7 +70,7 @@ export function ThreePanelPropertiesPanel({
         <SceneContextBanner
           laneId={shot.laneId}
           laneById={resolvedLaneById}
-          onViewScene={() => setSceneSheetOpen(true)}
+          onViewScene={shot.laneId ? () => onOpenSceneSheet?.(shot.laneId!) : undefined}
         />
 
         {/* Shot number */}
@@ -173,14 +169,6 @@ export function ThreePanelPropertiesPanel({
         <ShotVersionHistorySection shot={shot} />
       </div>
 
-      <SceneDetailSheet
-        open={sceneSheetOpen}
-        onOpenChange={setSceneSheetOpen}
-        lane={shot.laneId ? resolvedLaneById.get(shot.laneId) ?? null : null}
-        projectId={shot.projectId}
-        clientId={clientId ?? null}
-        shotCount={shot.laneId && allShots ? allShots.filter((s) => s.laneId === shot.laneId).length : 0}
-      />
     </div>
   )
 }

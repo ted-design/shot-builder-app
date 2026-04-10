@@ -114,14 +114,17 @@ export function SceneDetailSheet({
       }
       return
     }
-    const parsed = parseInt(trimmed, 10)
-    if (!Number.isFinite(parsed) || parsed < 0 || String(parsed) !== trimmed) {
-      toast.error("Scene number must be a non-negative integer")
+    const parsed = Number(trimmed)
+    // Accept any non-negative integer; "01" is fine (parseInt normalizes to 1 on display).
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      toast.error("Scene number must be a whole number (0 or greater)")
       setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       return
     }
     if (parsed !== lane.sceneNumber) {
       savePatch({ sceneNumber: parsed })
+      // Reflect the normalized value back into the input (e.g., "01" → "1")
+      setSceneNumber(String(parsed))
     }
   }, [sceneNumber, lane, savePatch])
 
