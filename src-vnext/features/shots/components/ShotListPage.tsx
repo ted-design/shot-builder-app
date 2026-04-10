@@ -887,7 +887,10 @@ export default function ShotListPage() {
         lane={editSceneId ? laneById.get(editSceneId) ?? null : null}
         projectId={projectId}
         clientId={clientId}
-        shotCount={editSceneId ? displayShots.filter((s) => s.laneId === editSceneId).length : 0}
+        // Use the unfiltered `shots` array so the count reflects the true scene
+        // population — displayShots is post-filter and would under-report when
+        // the user has active status/talent/product filters.
+        shotCount={editSceneId ? shots.filter((s) => s.laneId === editSceneId).length : 0}
       />
 
     </ErrorBoundary>

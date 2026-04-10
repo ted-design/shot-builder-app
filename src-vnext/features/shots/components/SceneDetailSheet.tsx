@@ -80,9 +80,12 @@ export function SceneDetailSheet({
           clientId,
           patch,
         })
-        toast.success("Scene updated")
+        // Use a stable toast id keyed to this sheet instance so tabbing through
+        // multiple fields in rapid succession replaces the previous toast instead
+        // of stacking (avoids the "toast storm" on multi-field edit).
+        toast.success("Scene updated", { id: `scene-update:${lane.id}` })
       } catch {
-        toast.error("Failed to update scene")
+        toast.error("Failed to update scene", { id: `scene-update:${lane.id}` })
       }
     },
     [lane, projectId, clientId],

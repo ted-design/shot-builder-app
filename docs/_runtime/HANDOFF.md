@@ -139,10 +139,7 @@ Sprint S29 closes three gaps in the S28 scene system:
 2. **Deploy Firestore rules** — `firebase deploy --only firestore:rules` (adds lane size validation)
 3. **Commit + PR** — Suggested title: `feat: S29 scene enhancement — table grouping, notes, letter-suffix numbering`. Include test/lint/build status in PR description.
 4. **Follow-up items (not blocking merge):**
-   - M1: Scene group sort by `sceneNumber` instead of `sortOrder` (strategic — may want to discuss with user)
-   - M3: Lift `SceneDetailSheet` state from two panels to `ThreePanelLayout` to avoid duplicate sheet instances
-   - M7: Disable DnD reorder when shot count > 500 (perf)
-   - L9: Consider moving blanks-last in export sort (`?? "\uffff"`)
+   - (All M-level follow-ups from initial review have been resolved per CLAUDE.md rule 6b.)
 
 ## Verification Status
 

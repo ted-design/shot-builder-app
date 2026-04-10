@@ -222,7 +222,7 @@ describe("SceneDetailSheet", () => {
     fireEvent.click(screen.getByTestId("scene-color-pink"))
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Scene updated")
+      expect(toast.success).toHaveBeenCalledWith("Scene updated", { id: `scene-update:${baseLane.id}` })
     })
   })
 
@@ -244,7 +244,7 @@ describe("SceneDetailSheet", () => {
     fireEvent.click(screen.getByTestId("scene-color-pink"))
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Failed to update scene")
+      expect(toast.error).toHaveBeenCalledWith("Failed to update scene", { id: `scene-update:${baseLane.id}` })
     })
   })
 

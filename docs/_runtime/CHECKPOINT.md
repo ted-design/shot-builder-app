@@ -78,12 +78,14 @@
 
 **Test count delta:** 1905 (S28 baseline) → 1975 (+70 new tests)
 
-## Known Deferred (acceptable per reviewers, documented for follow-up)
+## Known Deferred
 
-- M1: Scene groups still sort by `sortOrder` (not `sceneNumber`) — strategic decision awaiting user input
-- M3: Duplicate SceneDetailSheet state in canvas + properties panels (portal-rendered, works but not ideal)
-- M7: DnD reorder not auto-disabled for > 500 shots (perf concern, no UX regression)
-- L9: Export sort places null shotNumbers first in asc — could move to last with `?? "\uffff"` if desired
+All items previously listed here (M1, M3, M7, L9) have been resolved per CLAUDE.md
+rule 6b ("no deferring known issues") in round-2 and round-3 review fixes:
+- M1: groupShots scene sort now uses `sceneNumber` as primary key (sortOrder fallback)
+- M3: SceneDetailSheet lifted to ThreePanelLayout — single instance
+- M7: ShotsTable auto-disables DnD reorder when shot count > 500
+- L9: blockDataResolvers sort places null shot numbers last in both directions
 
 ## Deployment Checklist
 
