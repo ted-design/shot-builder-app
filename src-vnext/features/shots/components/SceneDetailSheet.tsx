@@ -32,6 +32,7 @@ interface SceneDetailSheetProps {
 
 const MAX_DIRECTION_CHARS = 500
 const MAX_NOTES_CHARS = 5000
+const MAX_SCENE_NUMBER = 9999
 
 // ---------------------------------------------------------------------------
 // Component
@@ -116,11 +117,11 @@ export function SceneDetailSheet({
       return
     }
     const parsed = Number(trimmed)
-    // Scene numbers must be positive integers (>= 1). Scene 0 would produce shot
-    // numbers like "0A", "0B" which sort before Scene 1 and look odd. Auto-increment
-    // also starts at 1, so 0 is never produced by the system — reject manual override.
-    if (!Number.isInteger(parsed) || parsed < 1) {
-      toast.error("Scene number must be a whole number (1 or greater)")
+    // Scene numbers must be positive integers (1..9999). Scene 0 would produce shot
+    // numbers like "0A", "0B" which sort before Scene 1. An upper bound prevents
+    // absurd values like "99999A" that would overflow table columns and PDFs.
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_SCENE_NUMBER) {
+      toast.error(`Scene number must be a whole number between 1 and ${MAX_SCENE_NUMBER}`)
       setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       return
     }
@@ -238,6 +239,7 @@ export function SceneDetailSheet({
               onKeyDown={handleSceneNumberKeyDown}
               placeholder="e.g., 1"
               min={1}
+              max={MAX_SCENE_NUMBER}
               data-testid="scene-number-input"
             />
           </div>

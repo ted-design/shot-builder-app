@@ -74,7 +74,10 @@ export function SceneTableRow({
                 {label}
               </span>
               {trimmedDirection && (
-                <span className="text-2xs text-[var(--color-text-subtle)] truncate">
+                <span
+                  className="text-2xs text-[var(--color-text-subtle)] truncate"
+                  title={direction && direction.length > 60 ? direction : undefined}
+                >
                   {trimmedDirection}{direction && direction.length > 60 ? "\u2026" : ""}
                 </span>
               )}

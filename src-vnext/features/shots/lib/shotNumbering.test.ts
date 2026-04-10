@@ -381,9 +381,9 @@ describe("previewRenumberWithScenes", () => {
     // Scene 2: 2A, 2B
     expect(result.changes.find((c) => c.shotId === "s2a")?.newNumber).toBe("2A")
     expect(result.changes.find((c) => c.shotId === "s2b")?.newNumber).toBe("2B")
-    // Ungrouped: sequential from max scene number + 1 = 3, 4
-    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("03")
-    expect(result.changes.find((c) => c.shotId === "u2")?.newNumber).toBe("04")
+    // Ungrouped: raw unpadded sequential from max scene number + 1 = 3, 4
+    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("3")
+    expect(result.changes.find((c) => c.shotId === "u2")?.newNumber).toBe("4")
   })
 
   it("includes sceneName in change entries", () => {
@@ -457,9 +457,9 @@ describe("previewRenumberWithScenes", () => {
       [{ sceneNumber: 5, sceneName: "Late Scene", shots: scene5Shots }],
       ungrouped,
     )
-    // Scene 5: 5A. Ungrouped starts at 6.
+    // Scene 5: 5A. Ungrouped starts at 6 (raw, unpadded to match scene mode style).
     expect(result.changes.find((c) => c.shotId === "s5a")?.newNumber).toBe("5A")
-    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("06")
+    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("6")
   })
 
   it("respects maxSceneNumberOverride for cross-filter safety", () => {
@@ -473,7 +473,7 @@ describe("previewRenumberWithScenes", () => {
       5, // override — user has scene 5 hidden by filter
     )
     expect(result.changes.find((c) => c.shotId === "s2a")?.newNumber).toBe("2A")
-    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("06")
+    expect(result.changes.find((c) => c.shotId === "u1")?.newNumber).toBe("6")
   })
 
   it("propagates sceneId through to changes for stable grouping in preview UI", () => {
@@ -554,11 +554,10 @@ describe("buildSceneRenumberUpdates", () => {
       [{ sceneNumber: 1, shots: sceneShots }],
       ungrouped,
     )
-    // s1/s2 already correct → no update. u1 needs "02" with sortOrder 2 (matches — no update)
-    // but shotNumber is missing so it IS an update
+    // s1/s2 already correct → no update. u1 gets raw unpadded "2" (scene-mode style).
     const ungroupedUpdate = updates.find((u) => u.shotId === "u1")
     expect(ungroupedUpdate?.newSortOrder).toBe(2)
-    expect(ungroupedUpdate?.newNumber).toBe("02")
+    expect(ungroupedUpdate?.newNumber).toBe("2")
   })
 
   it("skips already-correct shots but updates incorrect ones", () => {
@@ -581,5 +580,27 @@ describe("buildSceneRenumberUpdates", () => {
     const ungrouped = [makeShot({ id: "u1", sortOrder: 0 })]
     const updates = buildSceneRenumberUpdates([], ungrouped, 10)
     expect(updates[0]?.newNumber).toBe("11")
+  })
+
+  it("produces raw unpadded numbers for ungrouped shots in scene-aware mode", () => {
+    // Single-digit ungrouped numbers should NOT be zero-padded when they appear
+    // alongside scene letter suffixes like "1A", "2B". This matches the scene-mode
+    // visual style and avoids "1A, 2B, 06, 07" jarring mixes.
+    const sceneShots = [makeShot({ id: "s1", sortOrder: 0 })]
+    const ungrouped = [
+      makeShot({ id: "u1", sortOrder: 1 }),
+      makeShot({ id: "u2", sortOrder: 2 }),
+      makeShot({ id: "u3", sortOrder: 3 }),
+    ]
+    const updates = buildSceneRenumberUpdates(
+      [{ sceneNumber: 1, shots: sceneShots }],
+      ungrouped,
+    )
+    const u1 = updates.find((u) => u.shotId === "u1")
+    const u2 = updates.find((u) => u.shotId === "u2")
+    const u3 = updates.find((u) => u.shotId === "u3")
+    expect(u1?.newNumber).toBe("2")
+    expect(u2?.newNumber).toBe("3")
+    expect(u3?.newNumber).toBe("4")
   })
 })

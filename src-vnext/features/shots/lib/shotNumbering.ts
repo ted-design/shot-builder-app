@@ -149,7 +149,11 @@ export function suggestStartNumber(
 /**
  * Converts a zero-based index to a letter suffix: 0→A, 1→B, ... 25→Z, 26→AA, 27→AB, ... 701→ZZ.
  * Negative indices are clamped to 0 (returns "A").
- * Maximum supported index is 701 (ZZ = 26 + 26*26 - 1).
+ * Maximum supported index is 701 (ZZ = 26 + 26*26 - 1). Indices >= 702 are
+ * intentionally clamped to "ZZ" — if a single scene has more than 702 shots the
+ * project has bigger problems than duplicate letter suffixes, but the clamp
+ * prevents invalid characters (e.g., `[A`) from being emitted. Callers that need
+ * to detect overflow should validate shot counts before numbering.
  */
 export function indexToLetterSuffix(index: number): string {
   const clamped = Math.max(0, Math.min(index, 701))
@@ -276,9 +280,12 @@ function projectSceneTargets(
   const ungroupedStart = maxSceneNumber + 1
   const ungroupedOffset = runningOffset
 
+  // Ungrouped shots in scene-aware mode use raw unpadded numbers to match the
+  // unpadded scene numbers used in scene shots (e.g., "1A", "2B", then "6", "7").
+  // Using formatShotNumber here would produce "06" next to "1A" — visually jarring.
   const ungroupedPart: ReadonlyArray<SceneTarget> = ungroupedShots.map((shot, i) => ({
     shot,
-    newNumber: formatShotNumber(i + ungroupedStart),
+    newNumber: String(i + ungroupedStart),
     newSortOrder: ungroupedOffset + i,
     sceneName: "",
     sceneId: "",

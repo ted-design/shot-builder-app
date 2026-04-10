@@ -749,7 +749,11 @@ service cloud.firestore {
           (
             !('sceneNumber' in request.resource.data) ||
             request.resource.data.sceneNumber == null ||
-            (request.resource.data.sceneNumber is int && request.resource.data.sceneNumber >= 1)
+            (
+              request.resource.data.sceneNumber is int &&
+              request.resource.data.sceneNumber >= 1 &&
+              request.resource.data.sceneNumber <= 9999
+            )
           );
         allow delete: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||

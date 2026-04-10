@@ -76,7 +76,10 @@ export function SceneHeader({
           {name}
         </span>
         {trimmedDirection && !isUngrouped && (
-          <span className="text-2xs text-[var(--color-text-muted)] truncate">
+          <span
+            className="text-2xs text-[var(--color-text-muted)] truncate"
+            title={direction && direction.length > 60 ? direction : undefined}
+          >
             {trimmedDirection}{direction && direction.length > 60 ? "\u2026" : ""}
           </span>
         )}
