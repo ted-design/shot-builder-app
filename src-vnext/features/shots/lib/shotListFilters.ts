@@ -505,7 +505,9 @@ export function groupShots(
         shots: value.shots as ReadonlyArray<Shot>,
         color: lane?.color,
         sceneNumber: lane?.sceneNumber,
-        direction: lane?.direction?.slice(0, 100) || undefined,
+        // Presentation-layer renderers (SceneHeader, SceneTableRow, SceneContextBanner)
+        // own their own truncation. Pass the raw direction through.
+        direction: lane?.direction || undefined,
       }
     })
 

@@ -18,7 +18,7 @@ import {
   suggestStartNumber,
 } from "@/features/shots/lib/shotNumbering"
 import { SORT_LABELS, type SortKey, type GroupKey } from "@/features/shots/lib/shotListFilters"
-import { getSceneColor } from "@/features/shots/components/SceneHeader"
+import { getSceneColor } from "@/features/shots/lib/sceneColors"
 import { toast } from "sonner"
 import type { Shot, Lane } from "@/shared/types"
 

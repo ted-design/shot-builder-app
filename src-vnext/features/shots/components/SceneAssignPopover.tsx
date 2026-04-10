@@ -5,7 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/popover"
-import { getSceneColor } from "@/features/shots/components/SceneHeader"
+import { getSceneColor } from "@/features/shots/lib/sceneColors"
 import type { Lane } from "@/shared/types"
 
 interface SceneAssignPopoverProps {

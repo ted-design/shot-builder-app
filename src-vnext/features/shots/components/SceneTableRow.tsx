@@ -6,7 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
-import { getSceneColor } from "@/features/shots/components/SceneHeader"
+import { getSceneColor } from "@/features/shots/lib/sceneColors"
 
 interface SceneTableRowProps {
   readonly label: string
@@ -42,10 +42,7 @@ export function SceneTableRow({
   const trimmedDirection = direction ? direction.slice(0, 60) : null
 
   return (
-    <tr
-      className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
-      role="row"
-    >
+    <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
       <td colSpan={colSpan} className="p-0">
         <div
           className="flex w-full items-center gap-2 px-3 py-2 hover:bg-[var(--color-surface-subtle)]"

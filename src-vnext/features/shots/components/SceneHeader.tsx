@@ -6,23 +6,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
+import { SCENE_COLORS, getSceneColor, type SceneColorKey } from "@/features/shots/lib/sceneColors"
 
-export const SCENE_COLORS = [
-  { key: "teal", hex: "#14b8a6" },
-  { key: "purple", hex: "#a78bfa" },
-  { key: "green", hex: "#22c55e" },
-  { key: "orange", hex: "#fb923c" },
-  { key: "pink", hex: "#fb7185" },
-  { key: "blue", hex: "#3b82f6" },
-] as const
-
-export type SceneColorKey = (typeof SCENE_COLORS)[number]["key"]
-
-export function getSceneColor(color?: string | null): string {
-  if (!color) return "var(--color-text-subtle)"
-  const found = SCENE_COLORS.find((c) => c.key === color)
-  return found?.hex ?? color
-}
+// Re-exports for backward compatibility — new code should import directly from
+// `@/features/shots/lib/sceneColors`.
+export { SCENE_COLORS, getSceneColor }
+export type { SceneColorKey }
 
 interface SceneHeaderProps {
   readonly name: string

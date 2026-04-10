@@ -242,7 +242,6 @@ function SortableRow(props: SortableRowProps) {
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5${isDragging ? " opacity-30" : ""}`}
       onClick={() => props.onOpenShot(props.shot.id)}
-      role="row"
     >
       <RowCells {...props} reorderDragHandle={dragHandle} />
     </tr>
@@ -349,7 +348,6 @@ function GroupRows({
               key={shot.id}
               className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
               onClick={() => onOpenShot(shot.id)}
-              role="row"
             >
               <RowCells
                 shot={shot}
@@ -646,7 +644,6 @@ export function ShotsTable({
                       key={shot.id}
                       className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
                       onClick={() => onOpenShot(shot.id)}
-                      role="row"
                     >
                       <RowCells {...commonCellProps} />
                     </tr>

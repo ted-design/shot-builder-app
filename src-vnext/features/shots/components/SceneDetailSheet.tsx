@@ -8,7 +8,7 @@ import {
 } from "@/ui/sheet"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
-import { SCENE_COLORS, getSceneColor } from "@/features/shots/components/SceneHeader"
+import { SCENE_COLORS, getSceneColor } from "@/features/shots/lib/sceneColors"
 import { updateLane, type LanePatch } from "@/features/shots/lib/laneActions"
 import { toast } from "sonner"
 import type { Lane } from "@/shared/types"
@@ -115,9 +115,11 @@ export function SceneDetailSheet({
       return
     }
     const parsed = Number(trimmed)
-    // Accept any non-negative integer; "01" is fine (parseInt normalizes to 1 on display).
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      toast.error("Scene number must be a whole number (0 or greater)")
+    // Scene numbers must be positive integers (>= 1). Scene 0 would produce shot
+    // numbers like "0A", "0B" which sort before Scene 1 and look odd. Auto-increment
+    // also starts at 1, so 0 is never produced by the system — reject manual override.
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      toast.error("Scene number must be a whole number (1 or greater)")
       setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       return
     }
@@ -147,7 +149,8 @@ export function SceneDetailSheet({
 
   const handleDirectionChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setDirection(e.target.value.slice(0, MAX_DIRECTION_CHARS))
+      // maxLength on the textarea enforces the limit at the browser boundary.
+      setDirection(e.target.value)
     },
     [],
   )
@@ -217,7 +220,7 @@ export function SceneDetailSheet({
               onBlur={handleSceneNumberBlur}
               onKeyDown={handleSceneNumberKeyDown}
               placeholder="e.g., 1"
-              min={0}
+              min={1}
               data-testid="scene-number-input"
             />
           </div>
@@ -280,7 +283,7 @@ export function SceneDetailSheet({
             </div>
             <Textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value.slice(0, MAX_NOTES_CHARS))}
+              onChange={(e) => setNotes(e.target.value)}
               onBlur={handleNotesBlur}
               rows={5}
               maxLength={MAX_NOTES_CHARS}

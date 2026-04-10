@@ -12,7 +12,7 @@ import {
 } from "@/features/shots/lib/shotListSummaries"
 import { computeShotReadiness, formatLaunchDateShort, launchUrgencyClass } from "@/features/shots/lib/shotProductReadiness"
 import { formatUpdatedAt } from "@/features/shots/lib/shotListFilters"
-import { getSceneColor } from "@/features/shots/components/SceneHeader"
+import { getSceneColor } from "@/features/shots/lib/sceneColors"
 import { ASSET_TYPE_SHORT_LABELS } from "@/features/products/lib/assetRequirements"
 import type { Shot, ShotReferenceLinkType, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotReadiness } from "@/features/shots/lib/shotProductReadiness"
