@@ -24,6 +24,11 @@ interface SceneDetailSheetProps {
   readonly projectId: string
   readonly clientId: string | null
   readonly shotCount?: number
+  /**
+   * All other lanes in the project — used to validate that the user doesn't
+   * enter a duplicate sceneNumber. Excludes the currently-edited lane.
+   */
+  readonly siblingLanes?: ReadonlyArray<Lane>
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +50,7 @@ export function SceneDetailSheet({
   projectId,
   clientId,
   shotCount,
+  siblingLanes,
 }: SceneDetailSheetProps) {
   // Local state for form fields
   const [name, setName] = useState("")
@@ -128,12 +134,24 @@ export function SceneDetailSheet({
       setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       return
     }
+    // Duplicate check: two scenes with the same sceneNumber would produce
+    // colliding shot numbers (e.g., both scenes numbering their first shot "3A").
+    const duplicate = siblingLanes?.find(
+      (l) => l.id !== lane.id && l.sceneNumber === parsed,
+    )
+    if (duplicate) {
+      toast.error(
+        `Scene number ${parsed} is already used by "${duplicate.name}". Pick a different number.`,
+      )
+      setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
+      return
+    }
     if (parsed !== lane.sceneNumber) {
       savePatch({ sceneNumber: parsed })
       // Reflect the normalized value back into the input (e.g., "01" → "1")
       setSceneNumber(String(parsed))
     }
-  }, [sceneNumber, lane, savePatch])
+  }, [sceneNumber, lane, savePatch, siblingLanes])
 
   const handleSceneNumberKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

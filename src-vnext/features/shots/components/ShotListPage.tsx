@@ -311,6 +311,8 @@ export default function ShotListPage() {
           }}
           projects={projects}
           existingTitles={existingShotTitles}
+          lanes={lanes}
+          laneById={laneById}
         />
       </ErrorBoundary>
     )
@@ -905,6 +907,7 @@ export default function ShotListPage() {
         projectId={projectId}
         clientId={clientId}
         shotCount={editSceneShotCount}
+        siblingLanes={lanes}
       />
 
     </ErrorBoundary>

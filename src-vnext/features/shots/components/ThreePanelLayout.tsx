@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { useShot } from "@/features/shots/hooks/useShot"
-import { useLanes } from "@/features/shots/hooks/useLanes"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -17,13 +16,17 @@ import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePane
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { toast } from "sonner"
-import type { Shot, ShotFirestoreStatus, Project } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, Project, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = "sb:three-panel:sizes"
+
+// Stable empty fallbacks — prevents re-render when lane props are undefined.
+const EMPTY_LANES: ReadonlyArray<Lane> = []
+const EMPTY_LANE_BY_ID: ReadonlyMap<string, Lane> = new Map()
 
 const STATUS_CYCLE: ReadonlyArray<ShotFirestoreStatus> = [
   "todo",
@@ -60,6 +63,13 @@ interface ThreePanelLayoutProps {
   readonly onShotCreated?: (shotId: string, title: string) => void
   readonly projects: ReadonlyArray<Project>
   readonly existingTitles: ReadonlySet<string>
+  /**
+   * Lane data from the parent ShotListPage's useLanes subscription. Passed
+   * through instead of re-subscribing here to avoid a duplicate onSnapshot
+   * listener when three-panel mode is active.
+   */
+  readonly lanes?: ReadonlyArray<Lane>
+  readonly laneById?: ReadonlyMap<string, Lane>
 }
 
 // ---------------------------------------------------------------------------
@@ -76,9 +86,15 @@ export function ThreePanelLayout({
   onShotCreated,
   projects,
   existingTitles,
+  lanes: lanesProp,
+  laneById: laneByIdProp,
 }: ThreePanelLayoutProps) {
   const { data: shot, loading, error } = useShot(selectedShotId)
-  const { laneById } = useLanes()
+  // Default to empty lane data when the parent hasn't wired the props yet.
+  // Using empty fallbacks keeps the layout functional for any caller that
+  // hasn't migrated; the scene banner simply won't render.
+  const lanes = lanesProp ?? (EMPTY_LANES as ReadonlyArray<Lane>)
+  const laneById = laneByIdProp ?? EMPTY_LANE_BY_ID
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
@@ -323,6 +339,7 @@ export function ThreePanelLayout({
         projectId={shot?.projectId ?? ""}
         clientId={clientId}
         shotCount={sceneSheetShotCount}
+        siblingLanes={lanes}
       />
     </div>
     </ErrorBoundary>

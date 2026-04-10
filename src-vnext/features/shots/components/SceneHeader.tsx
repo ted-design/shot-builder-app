@@ -21,8 +21,6 @@ interface SceneHeaderProps {
   readonly direction?: string
   readonly collapsed: boolean
   readonly onToggleCollapse: () => void
-  /** @deprecated Use onEdit instead */
-  readonly onRename?: () => void
   readonly onEdit?: () => void
   readonly onUngroupAll?: () => void
   readonly onDelete?: () => void
@@ -39,7 +37,6 @@ export function SceneHeader({
   direction,
   collapsed,
   onToggleCollapse,
-  onRename,
   onEdit,
   onUngroupAll,
   onDelete,
@@ -48,7 +45,6 @@ export function SceneHeader({
 }: SceneHeaderProps) {
   const ChevronIcon = collapsed ? ChevronRight : ChevronDown
   const trimmedDirection = direction ? direction.slice(0, 60) : null
-  const handleEditOrRename = onEdit ?? onRename
 
   return (
     <button
@@ -103,8 +99,8 @@ export function SceneHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {handleEditOrRename && (
-              <DropdownMenuItem onClick={handleEditOrRename}>
+            {onEdit && (
+              <DropdownMenuItem onClick={onEdit}>
                 Edit Scene
               </DropdownMenuItem>
             )}
