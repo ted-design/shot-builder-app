@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
+import { Navigate, Route, Routes } from "react-router-dom"
 import { NotFoundPage } from "@/shared/components/NotFoundPage"
 import { RequireAuth } from "@/app/routes/guards/RequireAuth"
 import { RequireRole } from "@/app/routes/guards/RequireRole"
@@ -128,14 +128,6 @@ export function AppRoutes() {
           <Route index element={<Navigate to="/projects" replace />} />
           <Route path="projects" element={<ProjectDashboard />} />
           <Route
-            path="projects/:id"
-            element={
-              <ProjectScopeProvider>
-                <Navigate to="shots" replace />
-              </ProjectScopeProvider>
-            }
-          />
-          <Route
             path="projects/:id/shots"
             element={
               <ProjectScopeProvider>
@@ -202,14 +194,6 @@ export function AppRoutes() {
             }
           />
           <Route
-            path="projects/:id/schedules"
-            element={
-              <ProjectScopeProvider>
-                <SchedulesRedirect />
-              </ProjectScopeProvider>
-            }
-          />
-          <Route
             path="projects/:id/callsheet"
             element={
               <ProjectScopeProvider>
@@ -241,12 +225,10 @@ export function AppRoutes() {
               </RequireRole>
             }
           />
-          <Route path="inbox" element={<Navigate to="/requests" replace />} />
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/new" element={<ProductEditorPage />} />
           <Route path="products/:fid/edit" element={<ProductEditorPage />} />
           <Route path="products/:fid" element={<ProductDetailPage />} />
-          <Route path="library" element={<Navigate to="/library/talent" replace />} />
           <Route path="library/talent" element={<LibraryTalentPage />} />
           <Route path="library/locations" element={<LibraryLocationsPage />} />
           <Route path="library/locations/:locationId" element={<LocationDetailPage />} />
@@ -277,11 +259,4 @@ export function AppRoutes() {
       </Routes>
     </Suspense>
   )
-}
-
-function SchedulesRedirect() {
-  const { id } = useParams<{ id: string }>()
-  const location = useLocation()
-  const suffix = location.search ?? ""
-  return <Navigate to={id ? `/projects/${id}/callsheet${suffix}` : "/projects"} replace />
 }

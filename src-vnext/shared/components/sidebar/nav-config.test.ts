@@ -166,7 +166,7 @@ describe("getMobileNavConfig", () => {
     )
     expect(libraryItem).toBeDefined()
     if (libraryItem?.type === "item") {
-      expect(libraryItem.item.to).toBe("/library")
+      expect(libraryItem.item.to).toBe("/library/talent")
     }
   })
 
