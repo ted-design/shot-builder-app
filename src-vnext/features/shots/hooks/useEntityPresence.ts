@@ -3,6 +3,10 @@ import { doc, onSnapshot } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
 import { useAuth } from "@/app/providers/AuthProvider"
 import {
+  markSubscriptionMount,
+  markSubscriptionUnmount,
+} from "@/shared/lib/devSubscriptionCounter"
+import {
   LOCK_EXPIRATION_MS,
   type ActiveEditor,
   type EntityPresence,
@@ -61,6 +65,7 @@ export function useEntityPresence(
     setIsLoading(true)
 
     const presenceRef = doc(db, pathKey)
+    markSubscriptionMount(pathKey)
     const unsubscribe = onSnapshot(
       presenceRef,
       (snapshot) => {
@@ -77,7 +82,10 @@ export function useEntityPresence(
       },
     )
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      markSubscriptionUnmount(pathKey)
+    }
   }, [pathKey, enabled])
 
   const { locks, activeEditors } = useMemo(() => {

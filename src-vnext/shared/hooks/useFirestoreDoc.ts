@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react"
 import { doc, onSnapshot } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
+import {
+  markSubscriptionMount,
+  markSubscriptionUnmount,
+} from "@/shared/lib/devSubscriptionCounter"
 
 interface FirestoreDocResult<T> {
   readonly data: T | null
@@ -29,6 +33,7 @@ export function useFirestoreDoc<T>(
     setError(null)
 
     const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
+    markSubscriptionMount(pathKey)
 
     const unsubscribe = onSnapshot(
       docRef,
@@ -50,7 +55,10 @@ export function useFirestoreDoc<T>(
       },
     )
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      markSubscriptionUnmount(pathKey)
+    }
   }, [pathKey])
 
   return { data, loading, error }
