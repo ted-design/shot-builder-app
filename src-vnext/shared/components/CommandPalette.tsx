@@ -8,6 +8,9 @@ import {
   Plus,
   ClipboardCheck,
   Settings,
+  Film,
+  Package2,
+  Clapperboard,
 } from "lucide-react"
 import {
   Command,
@@ -21,11 +24,13 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog"
 import { useSearchCommand } from "@/app/providers/SearchCommandProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useOptionalProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { ROLE } from "@/shared/lib/rbac"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
 import { useCrewLibrary } from "@/features/library/hooks/useCrewLibrary"
+import { useCommandPaletteLazyIndex } from "@/shared/hooks/useCommandPaletteLazyIndex"
 import {
   buildFuseIndex,
   groupByType,
@@ -49,6 +54,10 @@ function EntityIcon({ type }: { readonly type: EntityType }) {
   if (type === "project") return <FolderOpen className="text-muted-foreground" />
   if (type === "product") return <Package className="text-muted-foreground" />
   if (type === "talent") return <Users className="text-muted-foreground" />
+  if (type === "crew") return <UserCog className="text-muted-foreground" />
+  if (type === "shot") return <Film className="text-muted-foreground" />
+  if (type === "pull") return <Package2 className="text-muted-foreground" />
+  if (type === "scene") return <Clapperboard className="text-muted-foreground" />
   return <UserCog className="text-muted-foreground" />
 }
 
@@ -58,8 +67,10 @@ function EntityIcon({ type }: { readonly type: EntityType }) {
 
 function CommandPaletteInner({
   onClose,
+  lazyEntries,
 }: {
   readonly onClose: () => void
+  readonly lazyEntries: ReadonlyArray<SearchEntry>
 }) {
   const navigate = useNavigate()
   const { role } = useAuth()
@@ -75,8 +86,14 @@ function CommandPaletteInner({
     const productEntries = (products ?? []).map(mapProductToEntry)
     const talentEntries = (talent ?? []).map(mapTalentToEntry)
     const crewEntries = (crew ?? []).map(mapCrewToEntry)
-    return [...projectEntries, ...productEntries, ...talentEntries, ...crewEntries]
-  }, [projects, products, talent, crew])
+    return [
+      ...projectEntries,
+      ...productEntries,
+      ...talentEntries,
+      ...crewEntries,
+      ...lazyEntries,
+    ]
+  }, [projects, products, talent, crew, lazyEntries])
 
   const fuseIndex = useMemo(() => buildFuseIndex(allEntries), [allEntries])
 
@@ -189,6 +206,66 @@ function CommandPaletteInner({
                 ))}
               </CommandGroup>
             )}
+
+            {grouped.shots.length > 0 && (
+              <CommandGroup heading="Shots">
+                {grouped.shots.map((entry) => (
+                  <CommandItem
+                    key={entry.id}
+                    value={`shot-${entry.id}`}
+                    onSelect={() => handleSelect(entry)}
+                  >
+                    <EntityIcon type="shot" />
+                    <span>{entry.name}</span>
+                    {entry.subtitle && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {entry.subtitle}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {grouped.pulls.length > 0 && (
+              <CommandGroup heading="Pulls">
+                {grouped.pulls.map((entry) => (
+                  <CommandItem
+                    key={entry.id}
+                    value={`pull-${entry.id}`}
+                    onSelect={() => handleSelect(entry)}
+                  >
+                    <EntityIcon type="pull" />
+                    <span>{entry.name}</span>
+                    {entry.subtitle && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {entry.subtitle}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {grouped.scenes.length > 0 && (
+              <CommandGroup heading="Scenes">
+                {grouped.scenes.map((entry) => (
+                  <CommandItem
+                    key={entry.id}
+                    value={`scene-${entry.id}`}
+                    onSelect={() => handleSelect(entry)}
+                  >
+                    <EntityIcon type="scene" />
+                    <span>{entry.name}</span>
+                    {entry.subtitle && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {entry.subtitle}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </>
         )}
 
@@ -263,6 +340,11 @@ function CommandPaletteInner({
 
 export function CommandPalette() {
   const { open, setOpen } = useSearchCommand()
+  const { clientId } = useAuth()
+  const projectScope = useOptionalProjectScope()
+  const projectId = projectScope?.projectId ?? null
+
+  const lazyEntries = useCommandPaletteLazyIndex({ open, projectId, clientId })
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -284,7 +366,12 @@ export function CommandPalette() {
           shouldFilter={false}
           className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
-          {open && <CommandPaletteInner onClose={() => setOpen(false)} />}
+          {open && (
+            <CommandPaletteInner
+              onClose={() => setOpen(false)}
+              lazyEntries={lazyEntries}
+            />
+          )}
         </Command>
       </DialogContent>
     </Dialog>
