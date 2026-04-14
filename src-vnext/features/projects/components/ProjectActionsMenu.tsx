@@ -155,7 +155,7 @@ export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: Pro
             onSelect={(e) => {
               e.stopPropagation()
               markActionInteraction()
-              if (status !== completeCopy.nextStatus) updateStatus(completeCopy.nextStatus)
+              if (status !== completeCopy.nextStatus) void updateStatus(completeCopy.nextStatus)
             }}
             disabled={busy}
           >

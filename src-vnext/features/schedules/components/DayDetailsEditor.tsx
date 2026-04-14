@@ -221,11 +221,15 @@ export function DayDetailsEditor({
         const normalized = parsed.kind === "time" ? parsed.canonical : null
         void updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
           [field]: normalized,
+        }).catch(() => {
+          toast.error("Failed to save details.")
         })
         return
       }
-      updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
+      void updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
         [field]: value || null,
+      }).catch(() => {
+        toast.error("Failed to save details.")
       })
     },
     [clientId, projectId, scheduleId, dayDetails?.id],

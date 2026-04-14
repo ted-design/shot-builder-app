@@ -661,7 +661,7 @@ function ProjectAssetRow({
           disabled={!canEdit || busy}
           onClick={() => {
             if (needsConfirm) setConfirmOpen(true)
-            else remove()
+            else void remove()
           }}
         >
           Remove
@@ -677,7 +677,7 @@ function ProjectAssetRow({
         destructive
         confirmDisabled={busy}
         onConfirm={() => {
-          remove()
+          void remove()
         }}
       />
     </div>

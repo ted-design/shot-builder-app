@@ -104,7 +104,7 @@ export default function PublicPullViewPage() {
       }
     }
 
-    load()
+    void load()
     return () => {
       active = false
     }

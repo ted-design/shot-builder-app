@@ -221,9 +221,11 @@ export function CallOverridesEditor({
     (talentId: string) => {
       if (!clientId || !talentId) return
       const talent = talentMap.get(talentId)
-      upsertTalentCall(clientId, projectId, scheduleId, null, {
+      void upsertTalentCall(clientId, projectId, scheduleId, null, {
         talentId,
         role: talent?.notes ?? null,
+      }).catch(() => {
+        toast.error("Failed to add talent override.")
       })
     },
     [clientId, projectId, scheduleId, talentMap],
@@ -255,7 +257,9 @@ export function CallOverridesEditor({
   const handleRemoveTalent = useCallback(
     (talentCallId: string) => () => {
       if (!clientId) return
-      removeTalentCall(clientId, projectId, scheduleId, talentCallId)
+      void removeTalentCall(clientId, projectId, scheduleId, talentCallId).catch(() => {
+        toast.error("Failed to remove talent override.")
+      })
     },
     [clientId, projectId, scheduleId],
   )
@@ -266,10 +270,12 @@ export function CallOverridesEditor({
     (crewMemberId: string) => {
       if (!clientId || !crewMemberId) return
       const crew = crewMap.get(crewMemberId)
-      upsertCrewCall(clientId, projectId, scheduleId, null, {
+      void upsertCrewCall(clientId, projectId, scheduleId, null, {
         crewMemberId,
         department: crew?.department ?? null,
         position: crew?.position ?? null,
+      }).catch(() => {
+        toast.error("Failed to add crew override.")
       })
     },
     [clientId, projectId, scheduleId, crewMap],
@@ -301,7 +307,9 @@ export function CallOverridesEditor({
   const handleRemoveCrew = useCallback(
     (crewCallId: string) => () => {
       if (!clientId) return
-      removeCrewCall(clientId, projectId, scheduleId, crewCallId)
+      void removeCrewCall(clientId, projectId, scheduleId, crewCallId).catch(() => {
+        toast.error("Failed to remove crew override.")
+      })
     },
     [clientId, projectId, scheduleId],
   )

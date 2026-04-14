@@ -661,7 +661,7 @@ export default function TagManagementPage() {
         destructive
         confirmDisabled={busy}
         onConfirm={() => {
-          confirmDelete()
+          void confirmDelete()
         }}
       />
     </ErrorBoundary>

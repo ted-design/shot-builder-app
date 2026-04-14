@@ -97,7 +97,7 @@ export function CreatePullFromShotsDialog({
               placeholder="e.g. Day 1 Pull"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreate()
+                if (e.key === "Enter") void handleCreate()
               }}
             />
           </div>

@@ -271,16 +271,20 @@ export function TalentCastingPrintPortal({
         const resolvedSrc = await resolveStoragePath(asset.source)
         return { key: asset.key, src: resolvedSrc }
       }),
-    ).then((results) => {
-      if (cancelled) return
-      const next: Record<string, string> = {}
-      for (const res of results) {
-        if (res.status !== "fulfilled") continue
-        next[res.value.key] = res.value.src
-      }
-      setSrcByKey(next)
-      setResolved(true)
-    })
+    )
+      .then((results) => {
+        if (cancelled) return
+        const next: Record<string, string> = {}
+        for (const res of results) {
+          if (res.status !== "fulfilled") continue
+          next[res.value.key] = res.value.src
+        }
+        setSrcByKey(next)
+        setResolved(true)
+      })
+      .catch((err) => {
+        console.error("[TalentCastingPrintPortal] resolve failed", err)
+      })
 
     return () => {
       cancelled = true
