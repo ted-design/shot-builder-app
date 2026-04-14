@@ -1,4 +1,5 @@
 import { ChevronLeft, Share2 } from "lucide-react"
+import { useAuth } from "@/app/providers/AuthProvider"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/ActiveLookCoverReferencesPanel"
@@ -47,6 +48,7 @@ export function ThreePanelCanvasPanel({
   laneById,
   onOpenSceneSheet,
 }: ThreePanelCanvasPanelProps) {
+  const { clientId } = useAuth()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
   const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
