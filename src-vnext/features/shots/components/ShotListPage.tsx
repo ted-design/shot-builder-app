@@ -163,6 +163,30 @@ export default function ShotListPage() {
     [conditions],
   )
 
+  // -- Cmd+K scene navigation: ?scene=<laneId> switches to scene-grouped view
+  // and auto-expands the matching scene header. Consumed once on mount and
+  // then cleaned out of the URL so back-nav does not re-trigger. We write
+  // `group=scene` and drop `scene` in a single setSearchParams call so both
+  // updates survive (separate setters would race on the stale snapshot).
+  useEffect(() => {
+    const sceneParam = searchParams.get("scene")
+    if (!sceneParam) return
+
+    setCollapsedScenes((prev) => {
+      if (!prev.has(sceneParam)) return prev
+      const next = new Set(prev)
+      next.delete(sceneParam)
+      return next
+    })
+
+    setSearchParamsFab((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("scene")
+      next.set("group", "scene")
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParamsFab])
+
   // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
   useKeyboardShortcuts([
     { key: "1", handler: () => setViewMode("card") },
