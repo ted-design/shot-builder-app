@@ -44,3 +44,10 @@ export function useProjectScope(): ProjectScopeContextValue {
   }
   return ctx
 }
+
+// Non-throwing variant for components that may render on both project-
+// scoped and non-project routes (e.g. the shared PageHeader breadcrumb
+// resolver). Returns null when no provider is mounted.
+export function useOptionalProjectScope(): ProjectScopeContextValue | null {
+  return useContext(ProjectScopeContext)
+}
