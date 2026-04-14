@@ -69,7 +69,6 @@ export default function LibraryCrewPage() {
       <div className="flex flex-col gap-5">
         <PageHeader
           title="Crew"
-          breadcrumbs={[{ label: "Library" }]}
           actions={
             canCreate ? (
               isMobile ? (

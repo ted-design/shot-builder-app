@@ -1,4 +1,5 @@
-import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
 import {
   collection,
   getCountFromServer,
@@ -186,16 +187,21 @@ export default function ShotDetailPage() {
         entityId={shot.id}
       />
       <div className="flex flex-col gap-5">
-        {/* ── Breadcrumb ── */}
-        <div className="text-2xs text-[var(--color-text-subtle)]">
-          <Link to="/projects" className="hover:text-[var(--color-text-muted)]">Projects</Link>
-          <span className="mx-1">/</span>
-          <Link to={`/projects/${shot.projectId}/shots`} className="hover:text-[var(--color-text-muted)]">{projectName || "Project"}</Link>
-          <span className="mx-1">/</span>
-          <Link to={`/projects/${shot.projectId}/shots${window.location.search}`} className="hover:text-[var(--color-text-muted)]">Shots</Link>
-          <span className="mx-1">/</span>
-          <span>#{shot.shotNumber || "—"}</span>
-        </div>
+        {/* ── Breadcrumb — preserves URL search so filter state survives going back to Shots ── */}
+        <Breadcrumbs
+          items={[
+            { label: "Projects", to: "/projects" },
+            {
+              label: projectName || "Project",
+              to: `/projects/${shot.projectId}/shots`,
+            },
+            {
+              label: "Shots",
+              to: `/projects/${shot.projectId}/shots${window.location.search}`,
+            },
+            { label: shot.shotNumber ? `#${shot.shotNumber}` : "Shot" },
+          ]}
+        />
 
         {/* ── Scene context banner ── */}
         <SceneContextBanner

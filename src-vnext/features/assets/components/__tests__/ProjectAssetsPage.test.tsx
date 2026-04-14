@@ -7,6 +7,7 @@ import type { Shot } from "@/shared/types"
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project One" }),
+  useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project One" }),
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({

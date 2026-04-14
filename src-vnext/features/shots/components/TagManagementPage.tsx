@@ -340,10 +340,6 @@ export default function TagManagementPage() {
     <ErrorBoundary>
       <PageHeader
         title="Tags"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || projectId || "Project" },
-        ]}
         actions={
           canEdit && mergeIds.length >= 2 ? (
             <Button variant="outline" onClick={() => setMergeOpen(true)} className="gap-2">

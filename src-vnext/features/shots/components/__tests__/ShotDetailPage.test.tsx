@@ -25,6 +25,7 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
+  useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
 }))
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({

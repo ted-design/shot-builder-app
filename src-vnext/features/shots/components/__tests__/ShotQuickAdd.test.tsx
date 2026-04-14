@@ -34,6 +34,7 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1" }),
+  useOptionalProjectScope: () => null,
 }))
 
 vi.mock("@/features/shots/lib/shotVersioning", () => ({

@@ -37,10 +37,6 @@ export default function PullListPage() {
     <ErrorBoundary>
       <PageHeader
         title="Pull Sheets"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || "Project" },
-        ]}
         actions={
           showCreate ? (
             <Button onClick={() => setCreateOpen(true)}>

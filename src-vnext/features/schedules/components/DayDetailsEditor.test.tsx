@@ -17,6 +17,7 @@ vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({
     projectId: "project-1",
   }),
+  useOptionalProjectScope: () => null,
 }))
 
 vi.mock("@/features/schedules/hooks/useLocations", () => ({

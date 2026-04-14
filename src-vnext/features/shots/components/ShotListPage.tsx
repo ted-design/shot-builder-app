@@ -219,10 +219,6 @@ export default function ShotListPage() {
       <div className="space-y-4">
         <PageHeader
           title="Shots"
-          breadcrumbs={[
-            { label: "Projects", to: "/projects" },
-            { label: projectName || "Project" },
-          ]}
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -303,10 +299,6 @@ export default function ShotListPage() {
     <ErrorBoundary>
       <PageHeader
         title="Shots"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || "Project" },
-        ]}
         actions={
           <div className="flex items-center gap-2">
             {canExport && (

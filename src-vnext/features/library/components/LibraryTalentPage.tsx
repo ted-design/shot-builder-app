@@ -537,7 +537,6 @@ export default function LibraryTalentPage() {
     <ErrorBoundary>
       <PageHeader
         title="Talent"
-        breadcrumbs={[{ label: "Library" }]}
         actions={
           canCreate ? (
             isMobile ? (

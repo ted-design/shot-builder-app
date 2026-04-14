@@ -278,14 +278,7 @@ export default function CallSheetBuilderPage() {
           {/* E1: Header band */}
           <div className="mb-3 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] pb-3">
             <div>
-              <PageHeader
-                title={schedule.name || "Call Sheet"}
-                breadcrumbs={[
-                  { label: "Projects", to: "/projects" },
-                  { label: projectName || "Project", to: `/projects/${projectId}/shots` },
-                  { label: "Call Sheet" },
-                ]}
-              />
+              <PageHeader title={schedule.name || "Call Sheet"} />
               {dateStr && (
                 <p className="-mt-3 text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}
