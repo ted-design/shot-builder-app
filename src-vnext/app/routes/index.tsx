@@ -6,6 +6,7 @@ import { RequireRole } from "@/app/routes/guards/RequireRole"
 import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
 import { AppShell } from "@/shared/components/AppShell"
+import { RouteBoundary } from "@/app/routes/RouteBoundary"
 
 const LoginPage = lazy(() => import("@/features/auth/components/LoginPage"))
 const ProjectDashboard = lazy(
@@ -126,133 +127,259 @@ export function AppRoutes() {
           }
         >
           <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="projects" element={<ProjectDashboard />} />
+          <Route
+            path="projects"
+            element={
+              <RouteBoundary featureName="Projects">
+                <ProjectDashboard />
+              </RouteBoundary>
+            }
+          />
           <Route
             path="projects/:id/shots"
             element={
-              <ProjectScopeProvider>
-                <ShotListPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Shots">
+                <ProjectScopeProvider>
+                  <ShotListPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/shots/:sid"
             element={
-              <ProjectScopeProvider>
-                <ShotDetailPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Shot details">
+                <ProjectScopeProvider>
+                  <ShotDetailPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/pulls"
             element={
-              <ProjectScopeProvider>
-                <PullListPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Pulls">
+                <ProjectScopeProvider>
+                  <PullListPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/pulls/:pid"
             element={
-              <ProjectScopeProvider>
-                <PullDetailPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Pull details">
+                <ProjectScopeProvider>
+                  <PullDetailPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/assets"
             element={
-              <ProjectScopeProvider>
-                <ProjectAssetsPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Assets">
+                <ProjectScopeProvider>
+                  <ProjectAssetsPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/casting"
             element={
-              <ProjectScopeProvider>
-                <CastingBoardPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Casting">
+                <ProjectScopeProvider>
+                  <CastingBoardPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/tags"
             element={
-              <ProjectScopeProvider>
-                <RequireDesktop label="Tag management">
-                  <TagManagementPage />
-                </RequireDesktop>
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Tags">
+                <ProjectScopeProvider>
+                  <RequireDesktop label="Tag management">
+                    <TagManagementPage />
+                  </RequireDesktop>
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/links"
             element={
-              <ProjectScopeProvider>
-                <SharedLinksPage />
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Shared links">
+                <ProjectScopeProvider>
+                  <SharedLinksPage />
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/callsheet"
             element={
-              <ProjectScopeProvider>
-                <RequireDesktop label="Call sheets">
-                  <CallSheetBuilderPage />
-                </RequireDesktop>
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Call sheet">
+                <ProjectScopeProvider>
+                  <RequireDesktop label="Call sheets">
+                    <CallSheetBuilderPage />
+                  </RequireDesktop>
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/export"
             element={
-              <ProjectScopeProvider>
-                <RequireDesktop label="Export builder">
-                  <ExportBuilderPage />
-                </RequireDesktop>
-              </ProjectScopeProvider>
+              <RouteBoundary featureName="Export">
+                <ProjectScopeProvider>
+                  <RequireDesktop label="Export builder">
+                    <ExportBuilderPage />
+                  </RequireDesktop>
+                </ProjectScopeProvider>
+              </RouteBoundary>
             }
           />
           <Route
             path="projects/:id/schedules/:scheduleId/onset"
-            element={<OnSetViewerPage />}
+            element={
+              <RouteBoundary featureName="On-set viewer">
+                <OnSetViewerPage />
+              </RouteBoundary>
+            }
           />
           <Route
             path="requests"
             element={
-              <RequireRole allowed={["admin", "producer"]}>
-                <ShotRequestCentrePage />
-              </RequireRole>
+              <RouteBoundary featureName="Requests">
+                <RequireRole allowed={["admin", "producer"]}>
+                  <ShotRequestCentrePage />
+                </RequireRole>
+              </RouteBoundary>
             }
           />
-          <Route path="products" element={<ProductListPage />} />
-          <Route path="products/new" element={<ProductEditorPage />} />
-          <Route path="products/:fid/edit" element={<ProductEditorPage />} />
-          <Route path="products/:fid" element={<ProductDetailPage />} />
-          <Route path="library/talent" element={<LibraryTalentPage />} />
-          <Route path="library/locations" element={<LibraryLocationsPage />} />
-          <Route path="library/locations/:locationId" element={<LocationDetailPage />} />
-          <Route path="library/crew" element={<LibraryCrewPage />} />
-          <Route path="library/crew/:crewId" element={<CrewDetailPage />} />
-          <Route path="library/palette" element={<LibraryPalettePage />} />
+          <Route
+            path="products"
+            element={
+              <RouteBoundary featureName="Products">
+                <ProductListPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="products/new"
+            element={
+              <RouteBoundary featureName="New product">
+                <ProductEditorPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="products/:fid/edit"
+            element={
+              <RouteBoundary featureName="Product editor">
+                <ProductEditorPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="products/:fid"
+            element={
+              <RouteBoundary featureName="Product">
+                <ProductDetailPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/talent"
+            element={
+              <RouteBoundary featureName="Talent library">
+                <LibraryTalentPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/locations"
+            element={
+              <RouteBoundary featureName="Locations library">
+                <LibraryLocationsPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/locations/:locationId"
+            element={
+              <RouteBoundary featureName="Location">
+                <LocationDetailPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/crew"
+            element={
+              <RouteBoundary featureName="Crew library">
+                <LibraryCrewPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/crew/:crewId"
+            element={
+              <RouteBoundary featureName="Crew member">
+                <CrewDetailPage />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="library/palette"
+            element={
+              <RouteBoundary featureName="Palette library">
+                <LibraryPalettePage />
+              </RouteBoundary>
+            }
+          />
           <Route
             path="admin"
             element={
-              <RequireRole allowed={["admin"]}>
-                <RequireDesktop label="Admin">
-                  <AdminPage />
-                </RequireDesktop>
-              </RequireRole>
+              <RouteBoundary featureName="Admin">
+                <RequireRole allowed={["admin"]}>
+                  <RequireDesktop label="Admin">
+                    <AdminPage />
+                  </RequireDesktop>
+                </RequireRole>
+              </RouteBoundary>
             }
           />
           {import.meta.env.DEV && DevImportQ2 && (
-            <Route path="dev/import-q2" element={<DevImportQ2 />} />
+            <Route
+              path="dev/import-q2"
+              element={
+                <RouteBoundary featureName="Dev tools">
+                  <DevImportQ2 />
+                </RouteBoundary>
+              }
+            />
           )}
           {import.meta.env.DEV && DevImportQ2Shots && (
-            <Route path="dev/import-q2-shots" element={<DevImportQ2Shots />} />
+            <Route
+              path="dev/import-q2-shots"
+              element={
+                <RouteBoundary featureName="Dev tools">
+                  <DevImportQ2Shots />
+                </RouteBoundary>
+              }
+            />
           )}
           {import.meta.env.DEV && DevImportQ1HubShots && (
-            <Route path="dev/import-q1-hub-shots" element={<DevImportQ1HubShots />} />
+            <Route
+              path="dev/import-q1-hub-shots"
+              element={
+                <RouteBoundary featureName="Dev tools">
+                  <DevImportQ1HubShots />
+                </RouteBoundary>
+              }
+            />
           )}
         </Route>
         <Route path="*" element={<NotFoundPage />} />
