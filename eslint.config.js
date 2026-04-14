@@ -14,6 +14,7 @@ export default [
       "src-vnext/ui/**",
       "coverage/**",
       "playwright-report/**",
+      "archive/**",
       "**/*.d.ts",
     ],
   },
