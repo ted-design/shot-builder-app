@@ -18,7 +18,6 @@ import { useShotListState } from "@/features/shots/hooks/useShotListState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
-import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
@@ -48,7 +47,6 @@ import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
-  const { data: projects } = useProjects()
   const { role, clientId, user } = useAuth()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
@@ -172,24 +170,9 @@ export default function ShotListPage() {
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ], { enabled: !threePanelActive })
 
-  // -- Existing shot titles (duplicate detection for create dialog) --
-  const existingShotTitles = useMemo(() => {
-    return new Set(
-      shots
-        .map((entry) => entry.title?.trim())
-        .filter((entry): entry is string => !!entry && entry.length > 0),
-    )
-  }, [shots])
-
   const renderLifecycleAction = (shot: Shot) => {
     if (!canManageLifecycle) return null
-    return (
-      <ShotLifecycleActionsMenu
-        shot={shot}
-        projects={projects}
-        existingTitles={existingShotTitles}
-      />
-    )
+    return <ShotLifecycleActionsMenu shot={shot} />
   }
 
   // -- Selection --
@@ -309,8 +292,6 @@ export default function ShotListPage() {
           onShotCreated={(shotId, title) => {
             toast.success("Shot created", { description: title })
           }}
-          projects={projects}
-          existingTitles={existingShotTitles}
           lanes={lanes}
           laneById={laneById}
         />

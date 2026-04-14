@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { MoreHorizontal } from "lucide-react"
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore"
+import { db } from "@/shared/lib/firebase"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { projectsPath, shotsPath } from "@/shared/lib/paths"
+import { mapProject } from "@/features/projects/hooks/useProjects"
 import {
   copyShotToProject,
   duplicateShotInProject,
@@ -37,8 +46,6 @@ import {
 
 interface ShotLifecycleActionsMenuProps {
   readonly shot: Shot
-  readonly projects: ReadonlyArray<Project>
-  readonly existingTitles: ReadonlySet<string>
   readonly disabled?: boolean
 }
 
@@ -46,8 +53,6 @@ type TransferMode = "copy" | "move"
 
 export function ShotLifecycleActionsMenu({
   shot,
-  projects,
-  existingTitles,
   disabled = false,
 }: ShotLifecycleActionsMenuProps) {
   const navigate = useNavigate()
@@ -63,6 +68,49 @@ export function ShotLifecycleActionsMenu({
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteText, setDeleteText] = useState("")
+
+  // Lazy-loaded on first menu open (see ensureMenuData). Avoids keeping a
+  // live project+shot-list subscription open for the whole shot-detail
+  // session when the menu is only used intermittently.
+  const [projects, setProjects] = useState<ReadonlyArray<Project>>([])
+  const [existingTitles, setExistingTitles] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  )
+  const [menuDataLoaded, setMenuDataLoaded] = useState(false)
+  const [menuDataLoading, setMenuDataLoading] = useState(false)
+
+  const ensureMenuData = useCallback(async () => {
+    if (!clientId || menuDataLoaded || menuDataLoading) return
+    setMenuDataLoading(true)
+    try {
+      const projectsSegs = projectsPath(clientId)
+      const shotsSegs = shotsPath(clientId)
+      const [projectsSnap, shotsSnap] = await Promise.all([
+        getDocs(collection(db, projectsSegs[0]!, ...projectsSegs.slice(1))),
+        getDocs(
+          query(
+            collection(db, shotsSegs[0]!, ...shotsSegs.slice(1)),
+            where("projectId", "==", shot.projectId),
+            where("deleted", "==", false),
+          ),
+        ),
+      ])
+      const mappedProjects = projectsSnap.docs.map((d) => mapProject(d.id, d.data()))
+      const titles = new Set<string>()
+      for (const d of shotsSnap.docs) {
+        const title = (d.data()["title"] as string | undefined)?.trim()
+        if (title) titles.add(title)
+      }
+      setProjects(mappedProjects)
+      setExistingTitles(titles)
+      setMenuDataLoaded(true)
+    } catch (err) {
+      console.error("[ShotLifecycleActionsMenu] lazy load failed", err)
+      toast.error("Couldn't load action data")
+    } finally {
+      setMenuDataLoading(false)
+    }
+  }, [clientId, menuDataLoaded, menuDataLoading, shot.projectId])
 
   const targetProjects = useMemo(() => {
     return projects.filter(
@@ -87,6 +135,7 @@ export function ShotLifecycleActionsMenu({
     if (!clientId || disabled || busyAction) return
     setBusyAction("duplicate")
     try {
+      await ensureMenuData()
       const result = await duplicateShotInProject({
         clientId,
         shot,
@@ -186,7 +235,11 @@ export function ShotLifecycleActionsMenu({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) void ensureMenuData()
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"

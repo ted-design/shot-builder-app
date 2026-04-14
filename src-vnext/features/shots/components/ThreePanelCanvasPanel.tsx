@@ -15,7 +15,7 @@ import {
 } from "@/features/shots/components/ShotDetailShared"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
-import type { Shot, Project, Lane } from "@/shared/types"
+import type { Shot, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -28,8 +28,6 @@ interface ThreePanelCanvasPanelProps {
   readonly canDoOperational: boolean
   readonly onClose: () => void
   readonly onShareClick?: () => void
-  readonly projects: ReadonlyArray<Project>
-  readonly existingTitles: ReadonlySet<string>
   readonly laneById?: ReadonlyMap<string, Lane>
   /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
   readonly onOpenSceneSheet?: (laneId: string) => void
@@ -46,8 +44,6 @@ export function ThreePanelCanvasPanel({
   canDoOperational,
   onClose,
   onShareClick,
-  projects,
-  existingTitles,
   laneById,
   onOpenSceneSheet,
 }: ThreePanelCanvasPanelProps) {
@@ -83,12 +79,7 @@ export function ThreePanelCanvasPanel({
             </button>
           )}
           {canDoOperational && (
-            <ShotLifecycleActionsMenu
-              shot={shot}
-              projects={projects}
-              existingTitles={existingTitles}
-              disabled={!canDoOperational}
-            />
+            <ShotLifecycleActionsMenu shot={shot} disabled={!canDoOperational} />
           )}
         </div>
       </div>
