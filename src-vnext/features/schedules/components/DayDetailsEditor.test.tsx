@@ -5,6 +5,20 @@ import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEdit
 import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
 import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 
+// Radix Select polyfills for JSDOM — used by the label preset combobox.
+if (!HTMLElement.prototype.hasPointerCapture) {
+  HTMLElement.prototype.hasPointerCapture = () => false
+}
+if (!HTMLElement.prototype.setPointerCapture) {
+  HTMLElement.prototype.setPointerCapture = () => {}
+}
+if (!HTMLElement.prototype.releasePointerCapture) {
+  HTMLElement.prototype.releasePointerCapture = () => {}
+}
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = () => {}
+}
+
 const { toastMock, toastErrorMock, toastSuccessMock, toastInfoMock } = vi.hoisted(() => ({
   toastMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -355,6 +369,59 @@ describe("DayDetailsEditor location module", () => {
     await waitFor(() => {
       expect(screen.getByRole("status")).toHaveTextContent("Saved")
     })
+  })
+
+  it("picking the Basecamp preset writes both title and role:'basecamp' to the persisted block", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+          // Start with a custom-titled block so the Basecamp preset is a real
+          // "new selection" and not a no-op.
+          locations: [
+            {
+              id: "block-1",
+              title: "Studio A",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+          ],
+        }}
+        undoStack={buildFakeUndoStack()}
+      />,
+    )
+
+    updateDayDetailsMock.mockClear()
+
+    // Open the Label combobox (first of two — Label + From Library — in the
+    // block's form) and pick the Basecamp preset.
+    const [labelCombobox] = screen.getAllByRole("combobox")
+    await user.click(labelCombobox!)
+    await user.click(screen.getByRole("option", { name: "Basecamp" }))
+
+    await waitFor(() => {
+      expect(updateDayDetailsMock).toHaveBeenCalled()
+    })
+
+    const [, , , , patch] = updateDayDetailsMock.mock.calls.at(-1) as unknown[]
+    const typedPatch = patch as {
+      readonly locations?: readonly {
+        readonly title: string
+        readonly role?: string | null
+      }[]
+    }
+    expect(typedPatch.locations?.[0]?.title).toBe("Basecamp")
+    expect(typedPatch.locations?.[0]?.role).toBe("basecamp")
   })
 
   it("clicking Undo reinserts the block at its original index against the current dayDetails.locations", async () => {

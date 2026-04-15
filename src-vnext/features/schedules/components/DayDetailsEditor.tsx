@@ -38,7 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/dialog"
-import type { DayDetails, LocationBlock, LocationRecord } from "@/shared/types"
+import type { DayDetails, LocationBlock, LocationRecord, LocationRole } from "@/shared/types"
 
 const TIME_FIELD_NAMES = new Set([
   "crewCallTime",
@@ -82,6 +82,19 @@ interface LocationDraft {
   readonly locationId: string
   readonly label: string
   readonly notes: string
+  /**
+   * Explicit canonical role for this block. Undefined if the block has never
+   * been tagged — consumers fall back to inferLocationRole(title) at display
+   * time. Persisted on the next write.
+   */
+  readonly role?: LocationRole
+}
+
+const LOCATION_PRESET_TO_ROLE: Readonly<Record<(typeof LOCATION_LABEL_PRESETS)[number], LocationRole>> = {
+  Basecamp: "basecamp",
+  Hospital: "hospital",
+  Parking: "parking",
+  "Production Office": "office",
 }
 
 function TimeAnchor({ icon, label, value, placeholder, onSave, required }: TimeAnchorProps) {
@@ -127,6 +140,7 @@ function normalizeLocationDrafts(
     locationId: (loc.ref?.locationId || "").trim(),
     label: (loc.ref?.label || "").trim(),
     notes: (loc.ref?.notes || "").trim(),
+    role: loc.role ?? undefined,
   }))
 }
 
@@ -139,6 +153,7 @@ function toLocationBlock(draft: LocationDraft): LocationBlock {
   return {
     id: draft.id,
     title: draft.title.trim() || "Location",
+    role: draft.role ?? null,
     ref: hasRef
       ? {
           locationId: locationId || null,
@@ -150,6 +165,7 @@ function toLocationBlock(draft: LocationDraft): LocationBlock {
     showPhone: false,
   }
 }
+
 
 function nextSuggestedLocationTitle(drafts: readonly LocationDraft[]): string {
   const used = new Set(drafts.map((draft) => draft.title.trim().toLowerCase()))
@@ -404,9 +420,12 @@ export function DayDetailsEditor({
               title: LOCATION_LABEL_PRESETS.includes(loc.title as (typeof LOCATION_LABEL_PRESETS)[number])
                 ? "Location"
                 : loc.title,
+              role: "custom",
             }
           }
-          return { ...loc, title: value }
+          const presetRole =
+            LOCATION_PRESET_TO_ROLE[value as (typeof LOCATION_LABEL_PRESETS)[number]]
+          return { ...loc, title: value, role: presetRole }
         }),
       )
     },
