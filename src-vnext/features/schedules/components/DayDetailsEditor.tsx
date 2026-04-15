@@ -316,7 +316,14 @@ export function DayDetailsEditor({
       ]
       const nextPayload = nextDrafts.map(toLocationBlock)
 
-      const label = `Removed ${snapshotBlock.title || "location"} block`
+      const label = `Removed ${snapshotBlock.title} block`
+
+      // Captures the dayDetails doc id that updateDayDetails settled on
+      // during perform — used as a fallback when the snapshot listener
+      // hasn't yet propagated a freshly-created doc back into
+      // dayDetailsRef. Without this, a delete that creates the dayDetails
+      // doc on its first write would orphan it on undo.
+      let createdDayDetailsId: string | null = null
 
       void destructiveActionWithUndo<UndoSnapshot>({
         label,
@@ -327,9 +334,14 @@ export function DayDetailsEditor({
         stack: undoStack,
         perform: async () => {
           setLocationDrafts(nextDrafts)
-          await updateDayDetails(clientId, projectId, scheduleId, dayDetailsRef.current?.id ?? null, {
-            locations: nextPayload.length > 0 ? nextPayload : null,
-          })
+          const { id } = await updateDayDetails(
+            clientId,
+            projectId,
+            scheduleId,
+            dayDetailsRef.current?.id ?? null,
+            { locations: nextPayload.length > 0 ? nextPayload : null },
+          )
+          createdDayDetailsId = id
         },
         undo: async (snap) => {
           if (snap.kind !== "locationRemoved") return
@@ -337,11 +349,21 @@ export function DayDetailsEditor({
           // than the stale adjacent array captured at delete time. This
           // way any edits the user made to other blocks between the
           // delete and the undo are preserved.
+          //
+          // Tradeoff: locationDraftsRef holds the local drafts state,
+          // which includes any in-progress typing the user hasn't yet
+          // blurred. Undo therefore force-commits any in-flight edits
+          // to other rows alongside the reinsertion. Acceptable —
+          // committing the user's visible state is what they expect.
           const currentBlocks = locationDraftsRef.current.map(toLocationBlock)
           const restored = reinsertLocationAtIndex(currentBlocks, snap.payload)
-          await updateDayDetails(clientId, projectId, scheduleId, dayDetailsRef.current?.id ?? null, {
-            locations: restored.length > 0 ? [...restored] : null,
-          })
+          await updateDayDetails(
+            clientId,
+            projectId,
+            scheduleId,
+            dayDetailsRef.current?.id ?? createdDayDetailsId ?? null,
+            { locations: restored.length > 0 ? [...restored] : null },
+          )
         },
       }).catch(() => {
         toast.error("Failed to remove location block.")
