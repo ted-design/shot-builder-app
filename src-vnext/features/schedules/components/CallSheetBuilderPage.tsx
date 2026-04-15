@@ -24,6 +24,9 @@ import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetP
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { OnSetViewer } from "@/features/schedules/components/OnSetViewer"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
+import { deriveDefaultCallSheetTitle } from "@/features/schedules/lib/callSheetTitle"
+import { updateScheduleFields } from "@/features/schedules/lib/scheduleWrites"
+import { InlineEdit } from "@/shared/components/InlineEdit"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/ui/sheet"
@@ -278,7 +281,28 @@ export default function CallSheetBuilderPage() {
           {/* E1: Header band */}
           <div className="mb-3 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] pb-3">
             <div>
-              <PageHeader title={schedule.name || "Call Sheet"} />
+              <PageHeader
+                title={
+                  <InlineEdit
+                    value={schedule.name}
+                    placeholder={deriveDefaultCallSheetTitle(schedule)}
+                    disabled={!canManage || !clientId}
+                    showEditIcon
+                    onSave={(nextName) => {
+                      if (!clientId || !scheduleId) return
+                      void updateScheduleFields(
+                        clientId,
+                        projectId,
+                        scheduleId,
+                        { name: nextName },
+                      ).catch((err) => {
+                        console.error("Failed to rename call sheet", err)
+                        toast.error("Couldn't rename call sheet — try again.")
+                      })
+                    }}
+                  />
+                }
+              />
               {dateStr && (
                 <p className="-mt-3 text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}
