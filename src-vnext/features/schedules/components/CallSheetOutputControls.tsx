@@ -14,6 +14,7 @@ import {
 } from "@/features/schedules/lib/fieldConfig"
 import { CallSheetLayoutDialog } from "@/features/schedules/components/CallSheetLayoutDialog"
 import { EditSectionFieldsDialog } from "@/features/schedules/components/EditSectionFieldsDialog"
+import { SaveIndicator } from "@/shared/components/SaveIndicator"
 import type {
   CallSheetColors,
   CallSheetHeaderLayout,
@@ -28,6 +29,10 @@ interface CallSheetOutputControlsProps {
   readonly headerLayout: CallSheetHeaderLayout
   readonly castFieldConfig?: CallSheetSectionFieldConfig
   readonly crewFieldConfig?: CallSheetSectionFieldConfig
+  // Timestamp driving the "Saved Xs ago" pill in the Output header.
+  // Owned by the parent (CallSheetBuilderPage) because all of the
+  // output-config writes are routed through parent handlers.
+  readonly savedAt?: number | null
   readonly onPatchSections: (
     patch: Partial<Required<CallSheetSectionVisibility>>,
   ) => void
@@ -49,6 +54,7 @@ export function CallSheetOutputControls({
   headerLayout,
   castFieldConfig,
   crewFieldConfig,
+  savedAt = null,
   onPatchSections,
   onPatchScheduleFields,
   onPatchColors,
@@ -120,6 +126,7 @@ export function CallSheetOutputControls({
         <h2 className="text-sm font-semibold text-[var(--color-text)]">
           Output
         </h2>
+        <SaveIndicator savedAt={savedAt} />
       </div>
 
       <div className="flex flex-col gap-2">

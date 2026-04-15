@@ -321,6 +321,42 @@ describe("DayDetailsEditor location module", () => {
     }
   })
 
+  it("renders a SaveIndicator pill in the Location Details header after a successful write", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+        }}
+        undoStack={buildFakeUndoStack()}
+      />,
+    )
+
+    // Pill is absent before any save lands (savedAt === null).
+    expect(screen.queryByRole("status")).toBeNull()
+
+    // Trigger a save by adding a location block.
+    await user.click(screen.getByRole("button", { name: "Add Location" }))
+
+    await waitFor(() => {
+      expect(updateDayDetailsMock).toHaveBeenCalled()
+    })
+
+    // After the await settles, markSaved() runs and the SaveIndicator
+    // mounts. Default label within the 3s recent threshold: "Saved".
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Saved")
+    })
+  })
+
   it("clicking Undo reinserts the block at its original index against the current dayDetails.locations", async () => {
     const user = userEvent.setup()
     const undoStack = buildFakeUndoStack()

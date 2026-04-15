@@ -18,6 +18,8 @@ import {
   takeLocationRemoveSnapshot,
   type UndoSnapshot,
 } from "@/features/schedules/lib/undoSnapshots"
+import { useLastSaved } from "@/shared/hooks/useLastSaved"
+import { SaveIndicator } from "@/shared/components/SaveIndicator"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
@@ -186,6 +188,7 @@ export function DayDetailsEditor({
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
   const { data: locations } = useLocations(clientId)
+  const lastSaved = useLastSaved()
 
   // Ref to latest dayDetails so the undo closure can read the current
   // dayDetails id at the moment the user clicks Undo, not the stale
@@ -240,6 +243,7 @@ export function DayDetailsEditor({
           await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
             [field]: normalized,
           })
+          lastSaved.markSaved()
         } catch {
           toast.error("Failed to save details.")
         }
@@ -249,11 +253,12 @@ export function DayDetailsEditor({
         await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
           [field]: value || null,
         })
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to save details.")
       }
     },
-    [clientId, projectId, scheduleId, dayDetails?.id],
+    [clientId, projectId, scheduleId, dayDetails?.id, lastSaved],
   )
 
   const saveLocationDrafts = useCallback(
@@ -264,11 +269,12 @@ export function DayDetailsEditor({
         await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
           locations: payload.length > 0 ? payload : null,
         })
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to save location details.")
       }
     },
-    [clientId, dayDetails?.id, projectId, scheduleId],
+    [clientId, dayDetails?.id, projectId, scheduleId, lastSaved],
   )
 
   const applyLocationMutation = useCallback(
@@ -349,6 +355,7 @@ export function DayDetailsEditor({
             { locations: nextPayload.length > 0 ? nextPayload : null },
           )
           createdDayDetailsId = id
+          lastSaved.markSaved()
         },
         undo: async (snap) => {
           if (snap.kind !== "locationRemoved") return
@@ -371,13 +378,14 @@ export function DayDetailsEditor({
             dayDetailsRef.current?.id ?? createdDayDetailsId ?? null,
             { locations: restored.length > 0 ? [...restored] : null },
           )
+          lastSaved.markSaved()
         },
         })
       } catch {
         toast.error("Failed to remove location block.")
       }
     },
-    [clientId, locationDrafts, projectId, scheduleId, undoStack],
+    [clientId, lastSaved, locationDrafts, projectId, scheduleId, undoStack],
   )
 
   const handleLabelPresetChange = useCallback(
@@ -549,6 +557,7 @@ export function DayDetailsEditor({
             <h3 className="label-meta text-[var(--color-text-muted)]">
               Location Details
             </h3>
+            <SaveIndicator savedAt={lastSaved.savedAt} />
           </div>
           <Button
             type="button"

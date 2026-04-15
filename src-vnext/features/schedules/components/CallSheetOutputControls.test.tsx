@@ -56,4 +56,20 @@ describe("CallSheetOutputControls", () => {
 
     expect(screen.getByRole("button", { name: "Reset Defaults" })).toBeDisabled()
   })
+
+  it("renders a SaveIndicator pill in the Output header when a savedAt timestamp is passed", () => {
+    const props = buildProps()
+    render(<CallSheetOutputControls {...props} savedAt={Date.now()} />)
+
+    // Pill is mounted and shows the initial "Saved" label (within the
+    // 3s recent threshold).
+    expect(screen.getByRole("status")).toHaveTextContent("Saved")
+  })
+
+  it("does not render the SaveIndicator pill when savedAt is null", () => {
+    const props = buildProps()
+    render(<CallSheetOutputControls {...props} savedAt={null} />)
+
+    expect(screen.queryByRole("status")).toBeNull()
+  })
 })

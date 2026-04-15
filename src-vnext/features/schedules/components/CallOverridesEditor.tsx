@@ -21,6 +21,8 @@ import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
 import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
 import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
 import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
+import { useLastSaved } from "@/shared/hooks/useLastSaved"
+import { SaveIndicator } from "@/shared/components/SaveIndicator"
 import type { TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord, DayDetails } from "@/shared/types"
 
 // --- Props ---
@@ -203,6 +205,10 @@ export function CallOverridesEditor({
 }: CallOverridesEditorProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
+  // Single shared useLastSaved instance drives BOTH the Talent and
+  // Crew section headers — every successful upsert/remove bumps the
+  // same timestamp so the two pills tick in sync.
+  const lastSaved = useLastSaved()
 
   // Build lookup maps
   const talentMap = useMemo(() => {
@@ -259,11 +265,12 @@ export function CallOverridesEditor({
           talentId,
           role: talent?.notes ?? null,
         })
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to add talent override.")
       }
     },
-    [clientId, projectId, scheduleId, talentMap],
+    [clientId, lastSaved, projectId, scheduleId, talentMap],
   )
 
   const handleSaveTalentCallTime = useCallback(
@@ -284,11 +291,12 @@ export function CallOverridesEditor({
 
       try {
         await upsertTalentCall(clientId, projectId, scheduleId, talentCallId, patch)
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to save talent override.")
       }
     },
-    [clientId, projectId, scheduleId],
+    [clientId, lastSaved, projectId, scheduleId],
   )
 
   const handleRemoveTalent = useCallback(
@@ -302,6 +310,7 @@ export function CallOverridesEditor({
         stack: undoStack,
         perform: async () => {
           await removeTalentCall(clientId, projectId, scheduleId, call.id)
+          lastSaved.markSaved()
         },
         undo: async (snapshot) => {
           if (snapshot.kind !== "talentCallRemoved") return
@@ -312,12 +321,13 @@ export function CallOverridesEditor({
             snapshot.payload.id,
             talentCallToPatch(snapshot.payload),
           )
+          lastSaved.markSaved()
         },
       }).catch(() => {
         toast.error("Failed to remove talent override.")
       })
     },
-    [clientId, projectId, scheduleId, talentMap, undoStack],
+    [clientId, lastSaved, projectId, scheduleId, talentMap, undoStack],
   )
 
   // --- Crew handlers ---
@@ -332,11 +342,12 @@ export function CallOverridesEditor({
           department: crew?.department ?? null,
           position: crew?.position ?? null,
         })
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to add crew override.")
       }
     },
-    [clientId, projectId, scheduleId, crewMap],
+    [clientId, lastSaved, projectId, scheduleId, crewMap],
   )
 
   const handleSaveCrewCallTime = useCallback(
@@ -357,11 +368,12 @@ export function CallOverridesEditor({
 
       try {
         await upsertCrewCall(clientId, projectId, scheduleId, crewCallId, patch)
+        lastSaved.markSaved()
       } catch {
         toast.error("Failed to save crew override.")
       }
     },
-    [clientId, projectId, scheduleId],
+    [clientId, lastSaved, projectId, scheduleId],
   )
 
   const handleRemoveCrew = useCallback(
@@ -375,6 +387,7 @@ export function CallOverridesEditor({
         stack: undoStack,
         perform: async () => {
           await removeCrewCall(clientId, projectId, scheduleId, call.id)
+          lastSaved.markSaved()
         },
         undo: async (snapshot) => {
           if (snapshot.kind !== "crewCallRemoved") return
@@ -385,12 +398,13 @@ export function CallOverridesEditor({
             snapshot.payload.id,
             crewCallToPatch(snapshot.payload),
           )
+          lastSaved.markSaved()
         },
       }).catch(() => {
         toast.error("Failed to remove crew override.")
       })
     },
-    [clientId, projectId, scheduleId, crewMap, undoStack],
+    [clientId, lastSaved, projectId, scheduleId, crewMap, undoStack],
   )
 
   return (
@@ -402,6 +416,7 @@ export function CallOverridesEditor({
           <h3 className="label-meta text-[var(--color-text-muted)]">
             Talent Overrides
           </h3>
+          <SaveIndicator savedAt={lastSaved.savedAt} />
           {defaultShootingCall && (
             <span className="ml-auto text-2xs text-[var(--color-text-subtle)]">
               Default: {displayDefaultTime(defaultShootingCall)}
@@ -463,6 +478,7 @@ export function CallOverridesEditor({
           <h3 className="label-meta text-[var(--color-text-muted)]">
             Crew Overrides
           </h3>
+          <SaveIndicator savedAt={lastSaved.savedAt} />
           {defaultCrewCall && (
             <span className="ml-auto text-2xs text-[var(--color-text-subtle)]">
               Default: {displayDefaultTime(defaultCrewCall)}

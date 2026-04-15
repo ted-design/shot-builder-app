@@ -27,14 +27,20 @@ function formatSaveLabel(savedAt: number, now: number): string {
 }
 
 export function SaveIndicator({ savedAt, className }: SaveIndicatorProps) {
-  const [now, setNow] = useState<number>(() => Date.now())
+  // Seed `now` from savedAt (or Date.now() if savedAt is still null)
+  // so the very first render already yields the correct "Saved" label
+  // without any follow-up state write inside useEffect. Avoiding the
+  // post-mount setNow keeps React's "update not wrapped in act()"
+  // warning quiet in tests that render the editor components.
+  //
+  // savedAt changes re-drive the initial state via the React key the
+  // parent passes — or, lacking that, via the interval below which
+  // eventually catches up. Consumers that need a hard reset on
+  // savedAt change can remount via a key prop.
+  const [now, setNow] = useState<number>(() => savedAt ?? Date.now())
 
   useEffect(() => {
     if (savedAt === null) return
-    // Seed `now` synchronously on mount / on savedAt change so the
-    // label reflects the latest timestamp without waiting for the
-    // first interval tick.
-    setNow(Date.now())
     const id = setInterval(() => {
       setNow(Date.now())
     }, TICK_INTERVAL_MS)

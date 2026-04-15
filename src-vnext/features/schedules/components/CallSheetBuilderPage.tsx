@@ -27,6 +27,7 @@ import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConf
 import { deriveDefaultCallSheetTitle } from "@/features/schedules/lib/callSheetTitle"
 import { updateScheduleFields } from "@/features/schedules/lib/scheduleWrites"
 import { useUndoStack } from "@/shared/hooks/useUndoStack"
+import { useLastSaved } from "@/shared/hooks/useLastSaved"
 import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { PageHeader } from "@/shared/components/PageHeader"
@@ -102,6 +103,11 @@ export default function CallSheetBuilderPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
   const undoStack = useUndoStack<UndoSnapshot>()
+  // Drives the "Saved Xs ago" pill on the Output controls header. The
+  // output writes are all routed through callSheetConfig setters from
+  // this component, so the useLastSaved instance lives here (not in
+  // CallSheetOutputControls).
+  const outputLastSaved = useLastSaved()
 
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
@@ -443,20 +449,38 @@ export default function CallSheetBuilderPage() {
                 headerLayout={rendererConfig.headerLayout ?? "legacy"}
                 castFieldConfig={rendererConfig.fieldConfigs?.cast}
                 crewFieldConfig={rendererConfig.fieldConfigs?.crew}
+                savedAt={outputLastSaved.savedAt}
                 onPatchSections={(patch) => {
-                  void callSheetConfig.setSectionVisibility(patch)
+                  void callSheetConfig
+                    .setSectionVisibility(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {
+                      // setSectionVisibility already surfaces its own toast
+                    })
                 }}
                 onPatchScheduleFields={(patch) => {
-                  void callSheetConfig.setScheduleBlockFields(patch)
+                  void callSheetConfig
+                    .setScheduleBlockFields(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onPatchColors={(patch) => {
-                  void callSheetConfig.setColors(patch)
+                  void callSheetConfig
+                    .setColors(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onSetHeaderLayout={(layout) => {
-                  void callSheetConfig.setHeaderLayout(layout)
+                  void callSheetConfig
+                    .setHeaderLayout(layout)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onSaveSectionFieldConfig={(sectionKey, config) => {
-                  void callSheetConfig.setSectionFieldConfig(sectionKey, config)
+                  void callSheetConfig
+                    .setSectionFieldConfig(sectionKey, config)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
               />
 

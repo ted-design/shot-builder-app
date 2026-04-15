@@ -289,6 +289,32 @@ describe("CallOverridesEditor — destructive undo wiring", () => {
     )
   })
 
+  it("renders TWO SaveIndicator pills (one per section header) after a successful talent save", async () => {
+    const user = userEvent.setup()
+    renderEditor({ talentCalls: [] })
+
+    // Before any save: no pill in either section header.
+    expect(screen.queryAllByRole("status")).toHaveLength(0)
+
+    // Trigger a talent override creation via the mocked native select.
+    const selects = screen.getAllByTestId("mock-select")
+    await user.selectOptions(selects[0]!, "talent-1")
+
+    await waitFor(() => {
+      expect(upsertTalentCallMock).toHaveBeenCalled()
+    })
+
+    // Both pills should be visible, driven by the same shared lastSaved
+    // instance — the Talent header pill and the Crew header pill tick
+    // in sync, so the text content is identical.
+    await waitFor(() => {
+      const pills = screen.getAllByRole("status")
+      expect(pills).toHaveLength(2)
+      expect(pills[0]?.textContent).toBe(pills[1]?.textContent)
+      expect(pills[0]).toHaveTextContent("Saved")
+    })
+  })
+
   it("awaits upsertTalentCall when adding a new talent override (no optimistic creation)", async () => {
     const user = userEvent.setup()
 
