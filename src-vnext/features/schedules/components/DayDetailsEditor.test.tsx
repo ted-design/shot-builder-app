@@ -2,6 +2,23 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
+
+const { toastMock, toastErrorMock, toastSuccessMock, toastInfoMock } = vi.hoisted(() => ({
+  toastMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  toastInfoMock: vi.fn(),
+}))
+
+vi.mock("sonner", () => ({
+  toast: Object.assign(toastMock, {
+    error: toastErrorMock,
+    success: toastSuccessMock,
+    info: toastInfoMock,
+  }),
+}))
 
 const updateDayDetailsMock = vi.fn()
 const createLocationAndAssignToProjectMock = vi.fn()
@@ -47,11 +64,36 @@ vi.mock("@/features/schedules/lib/scheduleWrites", () => ({
   ensureLocationAssignedToProject: (...args: unknown[]) => ensureLocationAssignedToProjectMock(...args),
 }))
 
+function buildFakeUndoStack(): UseUndoStackResult<UndoSnapshot> {
+  const pushMock = vi.fn((input: {
+    readonly label: string
+    readonly snapshot: UndoSnapshot
+    readonly undo: (snapshot: UndoSnapshot) => Promise<void>
+  }) => ({
+    id: "fake-action-id",
+    label: input.label,
+    snapshot: input.snapshot,
+    undo: input.undo,
+    createdAt: 123,
+  }))
+  return {
+    actions: [],
+    push: pushMock,
+    pop: vi.fn(() => null),
+    remove: vi.fn(),
+    clear: vi.fn(),
+  }
+}
+
 describe("DayDetailsEditor location module", () => {
   beforeEach(() => {
     updateDayDetailsMock.mockReset()
     createLocationAndAssignToProjectMock.mockReset()
     ensureLocationAssignedToProjectMock.mockReset()
+    toastMock.mockReset()
+    toastErrorMock.mockReset()
+    toastSuccessMock.mockReset()
+    toastInfoMock.mockReset()
 
     updateDayDetailsMock.mockResolvedValue("day-details-1")
     createLocationAndAssignToProjectMock.mockResolvedValue({
@@ -77,6 +119,7 @@ describe("DayDetailsEditor location module", () => {
           shootingCallTime: "07:00",
           estimatedWrap: "19:00",
         }}
+        undoStack={buildFakeUndoStack()}
       />,
     )
 
@@ -116,6 +159,7 @@ describe("DayDetailsEditor location module", () => {
             },
           ],
         }}
+        undoStack={buildFakeUndoStack()}
       />,
     )
 
@@ -149,5 +193,137 @@ describe("DayDetailsEditor location module", () => {
       expect(typedPatch.locations?.[0]?.ref?.label).toBe("New Hospital")
       expect(typedPatch.locations?.[0]?.ref?.notes).toBe("55 Health Way")
     })
+  })
+
+  it("removing a location block fires destructiveActionWithUndo and pushes a locationRemoved snapshot", async () => {
+    const user = userEvent.setup()
+    const undoStack = buildFakeUndoStack()
+
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+          locations: [
+            {
+              id: "block-keep",
+              title: "Basecamp",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "block-remove",
+              title: "Hospital",
+              ref: { locationId: "loc-lib-1", label: "City Hospital", notes: "100 Main St" },
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "block-keep-2",
+              title: "Parking",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+          ],
+        }}
+        undoStack={undoStack}
+      />,
+    )
+
+    const [, removeButton] = screen.getAllByRole("button", { name: "Remove location block" })
+    await user.click(removeButton!)
+
+    await waitFor(() => {
+      expect(updateDayDetailsMock).toHaveBeenCalled()
+    })
+
+    // Assert the filtered payload was written (no longer contains Hospital)
+    const lastRemovalCall = updateDayDetailsMock.mock.calls.at(-1) as unknown[]
+    const lastPatch = lastRemovalCall[4] as { readonly locations?: ReadonlyArray<{ readonly id: string }> | null }
+    expect(lastPatch.locations).toBeTruthy()
+    expect(lastPatch.locations?.map((l) => l.id)).toEqual(["block-keep", "block-keep-2"])
+
+    // Assert the undo stack received a locationRemoved snapshot
+    await waitFor(() => {
+      expect(undoStack.push).toHaveBeenCalledTimes(1)
+    })
+    const pushArg = (undoStack.push as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      readonly label: string
+      readonly snapshot: UndoSnapshot
+    }
+    expect(pushArg.snapshot.kind).toBe("locationRemoved")
+    if (pushArg.snapshot.kind === "locationRemoved") {
+      expect(pushArg.snapshot.payload.index).toBe(1)
+      expect(pushArg.snapshot.payload.block.id).toBe("block-remove")
+      expect(pushArg.snapshot.payload.block.title).toBe("Hospital")
+      expect(pushArg.snapshot.payload.block.ref?.locationId).toBe("loc-lib-1")
+    }
+  })
+
+  it("clicking Undo reinserts the block at its original index against the current dayDetails.locations", async () => {
+    const user = userEvent.setup()
+    const undoStack = buildFakeUndoStack()
+
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+          locations: [
+            {
+              id: "block-a",
+              title: "Basecamp",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "block-b",
+              title: "Hospital",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+          ],
+        }}
+        undoStack={undoStack}
+      />,
+    )
+
+    const [, removeSecond] = screen.getAllByRole("button", { name: "Remove location block" })
+    await user.click(removeSecond!)
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledTimes(1)
+    })
+
+    const toastOptions = toastMock.mock.calls[0]?.[1] as { action: { onClick: () => void } }
+    updateDayDetailsMock.mockClear()
+
+    toastOptions.action.onClick()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    await waitFor(() => {
+      expect(updateDayDetailsMock).toHaveBeenCalled()
+    })
+
+    const undoCall = updateDayDetailsMock.mock.calls.at(-1) as unknown[]
+    const undoPatch = undoCall[4] as { readonly locations?: ReadonlyArray<{ readonly id: string }> | null }
+    expect(undoPatch.locations?.map((l) => l.id)).toEqual(["block-a", "block-b"])
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Clock, Utensils, Sun, Camera, MapPin, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -11,6 +11,13 @@ import {
 } from "@/features/schedules/lib/scheduleWrites"
 import { classifyTimeInput } from "@/features/schedules/lib/time"
 import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
+import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import {
+  reinsertLocationAtIndex,
+  takeLocationRemoveSnapshot,
+  type UndoSnapshot,
+} from "@/features/schedules/lib/undoSnapshots"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
@@ -56,6 +63,7 @@ interface DayDetailsEditorProps {
   readonly scheduleName: string
   readonly dateStr: string
   readonly dayDetails: DayDetails | null
+  readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }
 
 interface TimeAnchorProps {
@@ -173,12 +181,21 @@ export function DayDetailsEditor({
   scheduleName,
   dateStr,
   dayDetails,
+  undoStack,
 }: DayDetailsEditorProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
   const { data: locations } = useLocations(clientId)
 
+  // Ref to latest dayDetails so the undo closure can read the current
+  // dayDetails id at the moment the user clicks Undo, not the stale
+  // value captured when removeLocationBlock fired.
+  const dayDetailsRef = useRef(dayDetails)
+  dayDetailsRef.current = dayDetails
+
   const [locationDrafts, setLocationDrafts] = useState<readonly LocationDraft[]>([])
+  const locationDraftsRef = useRef<readonly LocationDraft[]>(locationDrafts)
+  locationDraftsRef.current = locationDrafts
   const [createLocationOpen, setCreateLocationOpen] = useState(false)
   const [createLocationTargetId, setCreateLocationTargetId] = useState<string | null>(null)
   const [createLocationName, setCreateLocationName] = useState("")
@@ -283,9 +300,54 @@ export function DayDetailsEditor({
 
   const removeLocationBlock = useCallback(
     (locationId: string) => {
-      applyLocationMutation((prev) => prev.filter((loc) => loc.id !== locationId))
+      if (!clientId) return
+
+      // Capture the block being removed (from current drafts state)
+      // BEFORE we mutate the drafts array. The drafts represent the
+      // user's on-screen state and include any unsaved local edits.
+      const draftIndex = locationDrafts.findIndex((loc) => loc.id === locationId)
+      if (draftIndex < 0) return
+      const draft = locationDrafts[draftIndex]!
+      const snapshotBlock = toLocationBlock(draft)
+
+      const nextDrafts = [
+        ...locationDrafts.slice(0, draftIndex),
+        ...locationDrafts.slice(draftIndex + 1),
+      ]
+      const nextPayload = nextDrafts.map(toLocationBlock)
+
+      const label = `Removed ${snapshotBlock.title || "location"} block`
+
+      void destructiveActionWithUndo<UndoSnapshot>({
+        label,
+        snapshot: {
+          kind: "locationRemoved",
+          payload: { index: draftIndex, block: snapshotBlock },
+        },
+        stack: undoStack,
+        perform: async () => {
+          setLocationDrafts(nextDrafts)
+          await updateDayDetails(clientId, projectId, scheduleId, dayDetailsRef.current?.id ?? null, {
+            locations: nextPayload.length > 0 ? nextPayload : null,
+          })
+        },
+        undo: async (snap) => {
+          if (snap.kind !== "locationRemoved") return
+          // Re-insert against the CURRENT drafts (via their ref) rather
+          // than the stale adjacent array captured at delete time. This
+          // way any edits the user made to other blocks between the
+          // delete and the undo are preserved.
+          const currentBlocks = locationDraftsRef.current.map(toLocationBlock)
+          const restored = reinsertLocationAtIndex(currentBlocks, snap.payload)
+          await updateDayDetails(clientId, projectId, scheduleId, dayDetailsRef.current?.id ?? null, {
+            locations: restored.length > 0 ? [...restored] : null,
+          })
+        },
+      }).catch(() => {
+        toast.error("Failed to remove location block.")
+      })
     },
-    [applyLocationMutation],
+    [clientId, locationDrafts, projectId, scheduleId, undoStack],
   )
 
   const handleLabelPresetChange = useCallback(

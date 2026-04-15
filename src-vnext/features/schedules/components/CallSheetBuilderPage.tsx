@@ -399,6 +399,7 @@ export default function CallSheetBuilderPage() {
                 scheduleName={schedule.name}
                 dateStr={dateStr}
                 dayDetails={dayDetails}
+                undoStack={undoStack}
               />
 
               <ScheduleTrackControls
