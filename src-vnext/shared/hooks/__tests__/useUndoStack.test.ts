@@ -34,7 +34,7 @@ describe("useUndoStack", () => {
     expect(pushed!.createdAt).toBeGreaterThanOrEqual(before)
 
     expect(result.current.actions).toHaveLength(1)
-    expect(result.current.actions[0].id).toBe(pushed!.id)
+    expect(result.current.actions[0]?.id).toBe(pushed!.id)
   })
 
   it("default capacity is 10 — after 12 pushes the oldest two are evicted, insertion order preserved", () => {
@@ -51,9 +51,11 @@ describe("useUndoStack", () => {
     })
 
     expect(result.current.actions).toHaveLength(10)
-    expect(result.current.actions[0].label).toBe("action-2")
-    expect(result.current.actions[9].label).toBe("action-11")
-    expect(result.current.actions[result.current.actions.length - 1].label).toBe("action-11")
+    expect(result.current.actions[0]?.label).toBe("action-2")
+    expect(result.current.actions[9]?.label).toBe("action-11")
+    expect(result.current.actions[result.current.actions.length - 1]?.label).toBe(
+      "action-11",
+    )
   })
 
   it("custom capacity evicts after the (capacity+1)th push, preserving insertion order", () => {
@@ -125,7 +127,7 @@ describe("useUndoStack", () => {
     })
 
     act(() => {
-      result.current.remove(ids[1])
+      result.current.remove(ids[1]!)
     })
 
     expect(result.current.actions.map((entry) => entry.label)).toEqual(["a", "c"])
@@ -209,7 +211,7 @@ describe("useUndoStack", () => {
     expect(returned!.label).toBe("X")
     expect(typeof returned!.id).toBe("string")
     expect(returned!.id.length).toBeGreaterThan(0)
-    expect(result.current.actions[0].id).toBe(returned!.id)
+    expect(result.current.actions[0]?.id).toBe(returned!.id)
   })
 
   it("five pushes produce five distinct ids", () => {
