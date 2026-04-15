@@ -15,7 +15,6 @@ import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUnd
 import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
 import {
   reinsertLocationAtIndex,
-  takeLocationRemoveSnapshot,
   type UndoSnapshot,
 } from "@/features/schedules/lib/undoSnapshots"
 import { useLastSaved } from "@/shared/hooks/useLastSaved"
@@ -346,15 +345,21 @@ export function DayDetailsEditor({
         },
         stack: undoStack,
         perform: async () => {
+          // Local drafts updated BEFORE the await — destructive
+          // removals are idempotent, so optimistic state matches
+          // what the snapshot listener will eventually echo back.
+          // Asymmetric with applyLocationMutation (which awaits
+          // FIRST because creates are NOT §5-allowed to be
+          // optimistic). The undo helper handles the rollback if
+          // the write rejects.
           setLocationDrafts(nextDrafts)
-          const { id } = await updateDayDetails(
+          createdDayDetailsId = await updateDayDetails(
             clientId,
             projectId,
             scheduleId,
             dayDetailsRef.current?.id ?? null,
             { locations: nextPayload.length > 0 ? nextPayload : null },
           )
-          createdDayDetailsId = id
           lastSaved.markSaved()
         },
         undo: async (snap) => {

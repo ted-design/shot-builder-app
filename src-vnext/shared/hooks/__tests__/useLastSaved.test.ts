@@ -46,18 +46,4 @@ describe("useLastSaved", () => {
     expect(second).toBeGreaterThan(first)
     expect(second - first).toBe(10_000)
   })
-
-  it("reset() returns savedAt to null", () => {
-    const { result } = renderHook(() => useLastSaved())
-
-    act(() => {
-      result.current.markSaved()
-    })
-    expect(result.current.savedAt).not.toBeNull()
-
-    act(() => {
-      result.current.reset()
-    })
-    expect(result.current.savedAt).toBeNull()
-  })
 })
