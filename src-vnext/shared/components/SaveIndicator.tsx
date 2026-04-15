@@ -1,0 +1,64 @@
+import { useEffect, useState } from "react"
+import { cn } from "@/shared/lib/utils"
+
+// "Saved Xs ago" pill. Driven by the useLastSaved hook — see
+// src-vnext/shared/hooks/useLastSaved.ts. Renders nothing until the
+// first save lands. After that, shows "Saved" for the first 3 seconds
+// (quiet, friendly confirmation) and then ticks every 5 seconds with a
+// relative time label.
+
+export interface SaveIndicatorProps {
+  readonly savedAt: number | null
+  readonly className?: string
+}
+
+const TICK_INTERVAL_MS = 5_000
+const RECENT_THRESHOLD_MS = 3_000
+
+function formatSaveLabel(savedAt: number, now: number): string {
+  const ageMs = Math.max(0, now - savedAt)
+  if (ageMs < RECENT_THRESHOLD_MS) return "Saved"
+  const ageSeconds = Math.floor(ageMs / 1000)
+  if (ageSeconds < 60) return `Saved ${ageSeconds}s ago`
+  const ageMinutes = Math.floor(ageSeconds / 60)
+  if (ageMinutes < 60) return `Saved ${ageMinutes}m ago`
+  const ageHours = Math.floor(ageMinutes / 60)
+  return `Saved ${ageHours}h ago`
+}
+
+export function SaveIndicator({ savedAt, className }: SaveIndicatorProps) {
+  const [now, setNow] = useState<number>(() => Date.now())
+
+  useEffect(() => {
+    if (savedAt === null) return
+    // Seed `now` synchronously on mount / on savedAt change so the
+    // label reflects the latest timestamp without waiting for the
+    // first interval tick.
+    setNow(Date.now())
+    const id = setInterval(() => {
+      setNow(Date.now())
+    }, TICK_INTERVAL_MS)
+    return () => {
+      clearInterval(id)
+    }
+  }, [savedAt])
+
+  if (savedAt === null) return null
+
+  return (
+    <span
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "inline-flex items-center gap-1.5 text-2xs font-medium text-[var(--color-success)]",
+        className,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full bg-current"
+      />
+      {formatSaveLabel(savedAt, now)}
+    </span>
+  )
+}
