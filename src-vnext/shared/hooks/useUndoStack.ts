@@ -45,9 +45,11 @@ export interface UseUndoStackOptions {
  *   for the synchronous `pop()` return value.
  * - `setActions` is still called on every mutation to trigger re-renders;
  *   the ref and the state stay in lockstep.
- * - Action identities and method references are re-created when the array
- *   changes; callers should not memoize based on the returned method
- *   references across renders.
+ * - The returned object and every method (`push`/`pop`/`remove`/`clear`)
+ *   are memoized so the stack reference stays stable across renders
+ *   except when `actions` changes. Consumers can safely pass the whole
+ *   stack object (or individual methods) to `useCallback` / `useMemo` /
+ *   `useEffect` dep arrays without triggering re-memoization every tick.
  */
 export function useUndoStack<T>(
   opts: UseUndoStackOptions = {},
@@ -122,11 +124,14 @@ export function useUndoStack<T>(
     commit([])
   }, [commit])
 
-  return {
-    actions,
-    push,
-    pop,
-    remove,
-    clear,
-  }
+  return React.useMemo(
+    () => ({
+      actions,
+      push,
+      pop,
+      remove,
+      clear,
+    }),
+    [actions, push, pop, remove, clear],
+  )
 }

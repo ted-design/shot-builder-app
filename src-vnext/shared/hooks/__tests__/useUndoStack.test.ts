@@ -232,4 +232,32 @@ describe("useUndoStack", () => {
     expect(ids.size).toBe(5)
     expect(result.current.actions).toHaveLength(5)
   })
+
+  it("returns a stable stack reference across unrelated re-renders", () => {
+    // Guards against regression: sub-phase 1.3 consumers will pass the
+    // returned stack object into destructiveActionWithUndo + useCallback
+    // dep arrays. If the hook re-creates its return literal on every
+    // render, those callers would thrash their memoized closures.
+    const { result, rerender } = renderHook(() => useUndoStack<SimpleSnapshot>())
+    const first = result.current
+    rerender()
+    rerender()
+    expect(result.current).toBe(first)
+  })
+
+  it("returns a new stack reference when actions change", () => {
+    // The other half of the contract — the reference MUST update when
+    // actions change, otherwise React will skip re-renders of consumers
+    // that key off the stack identity.
+    const { result } = renderHook(() => useUndoStack<SimpleSnapshot>())
+    const first = result.current
+    act(() => {
+      result.current.push({
+        label: "Removed",
+        snapshot: { value: "alpha" },
+        undo: noopUndo,
+      })
+    })
+    expect(result.current).not.toBe(first)
+  })
 })
