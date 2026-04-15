@@ -12,6 +12,9 @@ import { updateScheduleFields, batchUpdateScheduleAndEntries } from "@/features/
 import { buildCollapseToSingleTrack } from "@/features/schedules/lib/transforms"
 import { classifyTimeInput } from "@/features/schedules/lib/time"
 import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
+import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import { takeCollapseSnapshot, type UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import type { Schedule, ScheduleEntry, ScheduleSettings, ScheduleTrack } from "@/shared/types"
 
 function normalizeSettings(settings: Schedule["settings"] | undefined): ScheduleSettings {
@@ -42,10 +45,12 @@ export function ScheduleTrackControls({
   scheduleId,
   schedule,
   entries,
+  undoStack,
 }: {
   readonly scheduleId: string
   readonly schedule: Schedule
   readonly entries: readonly ScheduleEntry[]
+  readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
@@ -245,18 +250,40 @@ export function ScheduleTrackControls({
         open={collapseOpen}
         onOpenChange={setCollapseOpen}
         title="Collapse to single track"
-        description="This will merge all tracks into Primary, clear shared applicability, and normalize ordering/times. This cannot be undone."
+        description="This will merge all tracks into Primary and normalize ordering/times. You can undo this for a few seconds via the toast."
         confirmLabel="Collapse"
         destructive
         onConfirm={async () => {
           if (!clientId) return
+          // Capture the snapshot BEFORE building the collapse patch so
+          // the stored state reflects what the user is collapsing away
+          // from. Both the tracks array and every entry's trackId must
+          // be preserved for a full restore.
+          const snapshotPayload = takeCollapseSnapshot(tracks, entries)
+
           try {
-            const collapse = buildCollapseToSingleTrack({ entries, settings })
-            await batchUpdateScheduleAndEntries(clientId, projectId, scheduleId, {
-              schedulePatch: { tracks: collapse.tracks },
-              entryUpdates: collapse.entryUpdates,
+            await destructiveActionWithUndo<UndoSnapshot>({
+              label: "Collapsed tracks to single",
+              snapshot: { kind: "tracksCollapsed", payload: snapshotPayload },
+              stack: undoStack,
+              perform: async () => {
+                const collapse = buildCollapseToSingleTrack({ entries, settings })
+                await batchUpdateScheduleAndEntries(clientId, projectId, scheduleId, {
+                  schedulePatch: { tracks: collapse.tracks },
+                  entryUpdates: collapse.entryUpdates,
+                })
+              },
+              undo: async (snap) => {
+                if (snap.kind !== "tracksCollapsed") return
+                await batchUpdateScheduleAndEntries(clientId, projectId, scheduleId, {
+                  schedulePatch: { tracks: snap.payload.tracks },
+                  entryUpdates: snap.payload.entryTrackIds.map(({ entryId, trackId }) => ({
+                    entryId,
+                    patch: { trackId },
+                  })),
+                })
+              },
             })
-            toast.success("Collapsed to a single track.")
           } catch (err) {
             toast.error("Failed to collapse schedule.")
             throw err

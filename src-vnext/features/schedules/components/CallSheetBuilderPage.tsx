@@ -406,6 +406,7 @@ export default function CallSheetBuilderPage() {
                 scheduleId={scheduleId}
                 schedule={schedule}
                 entries={entries}
+                undoStack={undoStack}
               />
               <AdaptiveTimelineView
                 scheduleId={scheduleId}
