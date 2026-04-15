@@ -150,6 +150,81 @@ describe("CallSheetRenderer", () => {
     expect(screen.queryByText("9:00 AM–11:00 AM")).not.toBeInTheDocument()
   })
 
+  it("sorts locations into canonical role order on the rendered call sheet", () => {
+    render(
+      <CallSheetRenderer
+        schedule={buildSchedule()}
+        dayDetails={{
+          id: "day-1",
+          scheduleId: "sched-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+          // Intentionally NOT in canonical order: custom, basecamp, office, parking.
+          // Expected canonical order: basecamp, parking, office, custom.
+          locations: [
+            {
+              id: "loc-studio",
+              title: "Studio A",
+              role: "custom",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "loc-basecamp",
+              title: "Basecamp",
+              role: "basecamp",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "loc-office",
+              title: "Production Office",
+              role: "office",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "loc-parking",
+              title: "Parking",
+              role: "parking",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+          ],
+        }}
+        entries={[]}
+        shots={[]}
+        talentCalls={[]}
+        crewCalls={[]}
+        talentLookup={[]}
+        crewLookup={[]}
+        config={{ sections: { header: false, dayDetails: true } }}
+      />,
+    )
+
+    // The renderer wraps each location title in a styled <span>. Query by role
+    // label text and assert their appearance order in the DOM.
+    const rendered = [
+      screen.getByText("Basecamp"),
+      screen.getByText("Parking"),
+      screen.getByText("Production Office"),
+      screen.getByText("Studio A"),
+    ]
+    // Verify DOM order matches canonical sort. Each title's
+    // compareDocumentPosition against the next should flag
+    // DOCUMENT_POSITION_FOLLOWING (0x04).
+    for (let i = 0; i < rendered.length - 1; i += 1) {
+      const current = rendered[i]!
+      const next = rendered[i + 1]!
+      expect(current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+  })
+
   it("does not render track/applicability labels in advanced schedule output", () => {
     render(
       <CallSheetRenderer

@@ -39,6 +39,10 @@ import {
   DialogTitle,
 } from "@/ui/dialog"
 import type { DayDetails, LocationBlock, LocationRecord, LocationRole } from "@/shared/types"
+import {
+  inferLocationRole,
+  roleDisplayLabel,
+} from "@/features/schedules/lib/locationRoles"
 
 const TIME_FIELD_NAMES = new Set([
   "crewCallTime",
@@ -97,6 +101,27 @@ const LOCATION_PRESET_TO_ROLE: Readonly<Record<(typeof LOCATION_LABEL_PRESETS)[n
   "Production Office": "office",
 }
 
+/**
+ * Semantic token classes for each role chip. basecamp and shoot share the
+ * blue family intentionally — they both represent "work locations" on the
+ * call sheet. Uses the existing --color-status-* token families from
+ * tokens.css; no new tokens introduced for this slice.
+ */
+const ROLE_CHIP_STYLES: Readonly<Record<LocationRole, string>> = {
+  basecamp:
+    "border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]",
+  hospital:
+    "border-[var(--color-status-red-border)] bg-[var(--color-status-red-bg)] text-[var(--color-status-red-text)]",
+  parking:
+    "border-[var(--color-status-green-border)] bg-[var(--color-status-green-bg)] text-[var(--color-status-green-text)]",
+  office:
+    "border-[var(--color-status-amber-border)] bg-[var(--color-status-amber-bg)] text-[var(--color-status-amber-text)]",
+  shoot:
+    "border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]",
+  custom:
+    "border-[var(--color-status-gray-border)] bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]",
+}
+
 function TimeAnchor({ icon, label, value, placeholder, onSave, required }: TimeAnchorProps) {
   return (
     <div className="flex items-center gap-2.5">
@@ -142,6 +167,10 @@ function normalizeLocationDrafts(
     notes: (loc.ref?.notes || "").trim(),
     role: loc.role ?? undefined,
   }))
+}
+
+function resolveDraftRole(draft: LocationDraft): LocationRole {
+  return draft.role ?? inferLocationRole(draft.title || "")
 }
 
 function toLocationBlock(draft: LocationDraft): LocationBlock {
@@ -607,6 +636,9 @@ export function DayDetailsEditor({
               const isPreset = LOCATION_LABEL_PRESETS.includes(
                 loc.title as (typeof LOCATION_LABEL_PRESETS)[number],
               )
+              const resolvedRole = resolveDraftRole(loc)
+              const chipLabel = roleDisplayLabel(resolvedRole)
+              const chipStyles = ROLE_CHIP_STYLES[resolvedRole]
 
               return (
                 <div
@@ -614,9 +646,17 @@ export function DayDetailsEditor({
                   className="flex flex-col gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="label-meta truncate text-[var(--color-text-muted)]">
-                      {loc.title || "Location"}
-                    </span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="label-meta truncate text-[var(--color-text-muted)]">
+                        {loc.title || "Location"}
+                      </span>
+                      <span
+                        data-testid={`location-role-chip-${loc.id}`}
+                        className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide ${chipStyles}`}
+                      >
+                        {chipLabel}
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {

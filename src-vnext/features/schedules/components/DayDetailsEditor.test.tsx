@@ -424,6 +424,49 @@ describe("DayDetailsEditor location module", () => {
     expect(typedPatch.locations?.[0]?.role).toBe("basecamp")
   })
 
+  it("renders a colored role chip next to each location title (Basecamp preset + Custom fallback)", () => {
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+          locations: [
+            {
+              id: "block-basecamp",
+              title: "Basecamp",
+              role: "basecamp",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+            {
+              id: "block-custom",
+              title: "Studio A",
+              ref: null,
+              showName: true,
+              showPhone: false,
+            },
+          ],
+        }}
+        undoStack={buildFakeUndoStack()}
+      />,
+    )
+
+    const basecampChip = screen.getByTestId("location-role-chip-block-basecamp")
+    expect(basecampChip).toHaveTextContent("Basecamp")
+    expect(basecampChip.className).toContain("color-status-blue-bg")
+
+    const customChip = screen.getByTestId("location-role-chip-block-custom")
+    expect(customChip).toHaveTextContent("Custom")
+    expect(customChip.className).toContain("color-status-gray-bg")
+  })
+
   it("clicking Undo reinserts the block at its original index against the current dayDetails.locations", async () => {
     const user = userEvent.setup()
     const undoStack = buildFakeUndoStack()
