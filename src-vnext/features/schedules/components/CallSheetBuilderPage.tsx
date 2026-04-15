@@ -26,6 +26,8 @@ import { OnSetViewer } from "@/features/schedules/components/OnSetViewer"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import { deriveDefaultCallSheetTitle } from "@/features/schedules/lib/callSheetTitle"
 import { updateScheduleFields } from "@/features/schedules/lib/scheduleWrites"
+import { useUndoStack } from "@/shared/hooks/useUndoStack"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
@@ -99,6 +101,7 @@ export default function CallSheetBuilderPage() {
   const [previewScale, setPreviewScale] = useState(100)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
+  const undoStack = useUndoStack<UndoSnapshot>()
 
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
@@ -461,6 +464,7 @@ export default function CallSheetBuilderPage() {
                 crewCalls={crewCalls}
                 talentLibrary={talentLibrary}
                 crewLibrary={crewLibrary}
+                undoStack={undoStack}
               />
 
               <TrustChecks

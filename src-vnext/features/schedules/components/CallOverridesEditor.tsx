@@ -18,6 +18,9 @@ import {
 } from "@/ui/select"
 import { classifyTimeInput, formatHHMMTo12h } from "@/features/schedules/lib/time"
 import { TypedTimeInput } from "@/features/schedules/components/TypedTimeInput"
+import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import type { TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord, DayDetails } from "@/shared/types"
 
 // --- Props ---
@@ -29,6 +32,7 @@ interface CallOverridesEditorProps {
   readonly crewCalls: readonly CrewCallSheet[]
   readonly talentLibrary: readonly TalentRecord[]
   readonly crewLibrary: readonly CrewRecord[]
+  readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }
 
 // --- Talent override row ---
@@ -160,6 +164,34 @@ function CrewOverrideRow({
 
 // --- Main component ---
 
+function talentCallToPatch(call: TalentCallSheet): Record<string, unknown> {
+  return {
+    talentId: call.talentId,
+    callTime: call.callTime ?? null,
+    callText: call.callText ?? null,
+    setTime: call.setTime ?? null,
+    wrapTime: call.wrapTime ?? null,
+    role: call.role ?? null,
+    status: call.status ?? null,
+    notes: call.notes ?? null,
+  }
+}
+
+function crewCallToPatch(call: CrewCallSheet): Record<string, unknown> {
+  return {
+    crewMemberId: call.crewMemberId,
+    callTime: call.callTime ?? null,
+    callText: call.callText ?? null,
+    callOffsetDirection: call.callOffsetDirection ?? null,
+    callOffsetMinutes: call.callOffsetMinutes ?? null,
+    wrapTime: call.wrapTime ?? null,
+    wrapText: call.wrapText ?? null,
+    department: call.department ?? null,
+    position: call.position ?? null,
+    notes: call.notes ?? null,
+  }
+}
+
 export function CallOverridesEditor({
   scheduleId,
   dayDetails,
@@ -167,6 +199,7 @@ export function CallOverridesEditor({
   crewCalls,
   talentLibrary,
   crewLibrary,
+  undoStack,
 }: CallOverridesEditorProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
@@ -255,13 +288,32 @@ export function CallOverridesEditor({
   )
 
   const handleRemoveTalent = useCallback(
-    (talentCallId: string) => () => {
+    (call: TalentCallSheet) => () => {
       if (!clientId) return
-      void removeTalentCall(clientId, projectId, scheduleId, talentCallId).catch(() => {
+      const talent = talentMap.get(call.talentId)
+      const label = `Removed ${talent?.name ?? "talent"} override`
+      void destructiveActionWithUndo<UndoSnapshot>({
+        label,
+        snapshot: { kind: "talentCallRemoved", payload: call },
+        stack: undoStack,
+        perform: async () => {
+          await removeTalentCall(clientId, projectId, scheduleId, call.id)
+        },
+        undo: async (snapshot) => {
+          if (snapshot.kind !== "talentCallRemoved") return
+          await upsertTalentCall(
+            clientId,
+            projectId,
+            scheduleId,
+            snapshot.payload.id,
+            talentCallToPatch(snapshot.payload),
+          )
+        },
+      }).catch(() => {
         toast.error("Failed to remove talent override.")
       })
     },
-    [clientId, projectId, scheduleId],
+    [clientId, projectId, scheduleId, talentMap, undoStack],
   )
 
   // --- Crew handlers ---
@@ -305,13 +357,32 @@ export function CallOverridesEditor({
   )
 
   const handleRemoveCrew = useCallback(
-    (crewCallId: string) => () => {
+    (call: CrewCallSheet) => () => {
       if (!clientId) return
-      void removeCrewCall(clientId, projectId, scheduleId, crewCallId).catch(() => {
+      const crew = crewMap.get(call.crewMemberId)
+      const label = `Removed ${crew?.name ?? "crew"} override`
+      void destructiveActionWithUndo<UndoSnapshot>({
+        label,
+        snapshot: { kind: "crewCallRemoved", payload: call },
+        stack: undoStack,
+        perform: async () => {
+          await removeCrewCall(clientId, projectId, scheduleId, call.id)
+        },
+        undo: async (snapshot) => {
+          if (snapshot.kind !== "crewCallRemoved") return
+          await upsertCrewCall(
+            clientId,
+            projectId,
+            scheduleId,
+            snapshot.payload.id,
+            crewCallToPatch(snapshot.payload),
+          )
+        },
+      }).catch(() => {
         toast.error("Failed to remove crew override.")
       })
     },
-    [clientId, projectId, scheduleId],
+    [clientId, projectId, scheduleId, crewMap, undoStack],
   )
 
   return (
@@ -342,7 +413,7 @@ export function CallOverridesEditor({
                   role={tc.role ?? ""}
                   defaultTime={defaultShootingCall}
                   onSaveCallTime={handleSaveTalentCallTime(tc.id)}
-                  onRemove={handleRemoveTalent(tc.id)}
+                  onRemove={handleRemoveTalent(tc)}
                 />
               )
             })}
@@ -404,7 +475,7 @@ export function CallOverridesEditor({
                   deptPosition={deptPosition}
                   defaultTime={defaultCrewCall}
                   onSaveCallTime={handleSaveCrewCallTime(cc.id)}
-                  onRemove={handleRemoveCrew(cc.id)}
+                  onRemove={handleRemoveCrew(cc)}
                 />
               )
             })}
