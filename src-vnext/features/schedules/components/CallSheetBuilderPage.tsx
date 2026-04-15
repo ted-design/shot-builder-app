@@ -286,7 +286,7 @@ export default function CallSheetBuilderPage() {
                   <InlineEdit
                     value={schedule.name}
                     placeholder={deriveDefaultCallSheetTitle(schedule)}
-                    disabled={!canManage || !clientId}
+                    disabled={!clientId}
                     showEditIcon
                     onSave={(nextName) => {
                       if (!clientId || !scheduleId) return

@@ -26,8 +26,9 @@ export function InlineEdit({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (editing) return
     setDraft(value)
-  }, [value])
+  }, [editing, value])
 
   useEffect(() => {
     if (editing) {
