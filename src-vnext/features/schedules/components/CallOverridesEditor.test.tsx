@@ -47,6 +47,69 @@ vi.mock("@/features/schedules/components/TypedTimeInput", () => ({
   ),
 }))
 
+// Mock the Radix Select primitive with a trivial native <select> so that
+// jsdom-driven tests can drive onValueChange without Radix's pointer-capture
+// polyfill. The real Select is exercised in e2e.
+vi.mock("@/ui/select", async () => {
+  const React = await import("react")
+  interface SelectProps {
+    readonly children?: React.ReactNode
+    readonly value?: string
+    readonly onValueChange?: (value: string) => void
+  }
+  interface SelectItemProps {
+    readonly children?: React.ReactNode
+    readonly value: string
+  }
+  const MOCK_SELECT_ITEM_TYPE = Symbol.for("mock-select-item")
+  const Select = ({ children, value, onValueChange }: SelectProps) => {
+    const options: { value: string; label: string }[] = []
+    const visit = (node: React.ReactNode): void => {
+      React.Children.forEach(node, (child) => {
+        if (!React.isValidElement(child)) return
+        const elType = child.type as unknown
+        if (
+          typeof elType === "function" &&
+          (elType as { mockSelectItemTag?: symbol }).mockSelectItemTag === MOCK_SELECT_ITEM_TYPE
+        ) {
+          const props = child.props as SelectItemProps
+          const label = typeof props.children === "string" ? props.children : props.value
+          options.push({ value: props.value, label })
+          return
+        }
+        const props = child.props as { children?: React.ReactNode }
+        if (props?.children !== undefined) visit(props.children)
+      })
+    }
+    visit(children)
+    return React.createElement(
+      "select",
+      {
+        "data-testid": "mock-select",
+        "aria-label": "mock-select",
+        value: value ?? "",
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
+          onValueChange?.(e.target.value),
+      },
+      React.createElement("option", { key: "__placeholder__", value: "" }, "placeholder"),
+      ...options.map((o) =>
+        React.createElement("option", { key: o.value, value: o.value }, o.label),
+      ),
+    )
+  }
+  const SelectItem = ({ children }: SelectItemProps) => React.createElement(React.Fragment, null, children)
+  ;(SelectItem as unknown as { mockSelectItemTag: symbol }).mockSelectItemTag = MOCK_SELECT_ITEM_TYPE
+  const Passthrough = ({ children }: { readonly children?: React.ReactNode }) =>
+    React.createElement(React.Fragment, null, children)
+  return {
+    Select,
+    SelectContent: Passthrough,
+    SelectTrigger: Passthrough,
+    SelectValue: Passthrough,
+    SelectItem,
+  }
+})
+
 const removeCrewCallMock = vi.fn()
 const removeTalentCallMock = vi.fn()
 const upsertCrewCallMock = vi.fn()
@@ -224,6 +287,77 @@ describe("CallOverridesEditor — destructive undo wiring", () => {
         }),
       }),
     )
+  })
+
+  it("awaits upsertTalentCall when adding a new talent override (no optimistic creation)", async () => {
+    const user = userEvent.setup()
+
+    // Defer the upsert so we can observe that no optimistic state was
+    // applied before the write resolves.
+    let resolveWrite: (id: string) => void = () => {}
+    upsertTalentCallMock.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveWrite = resolve
+        }),
+    )
+
+    // Only render with empty talentCalls so the "Add talent" dropdown is visible.
+    renderEditor({ talentCalls: [] })
+
+    // The mocked Select renders as a native <select>. There are two
+    // selects when talentCalls is empty: the talent-add dropdown (first)
+    // and the crew-add dropdown (second). Select the talent one.
+    const selects = screen.getAllByTestId("mock-select")
+    await user.selectOptions(selects[0]!, "talent-1")
+
+    // upsertTalentCall fires with creation args (talentCallId === null)
+    await waitFor(() => {
+      expect(upsertTalentCallMock).toHaveBeenCalledWith(
+        "client-1",
+        "project-1",
+        "schedule-1",
+        null,
+        expect.objectContaining({ talentId: "talent-1" }),
+      )
+    })
+
+    // Resolve and confirm no crash or flakiness after the await
+    resolveWrite("talent-call-new")
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+
+  it("awaits upsertCrewCall when adding a new crew override (no optimistic creation)", async () => {
+    const user = userEvent.setup()
+
+    let resolveWrite: (id: string) => void = () => {}
+    upsertCrewCallMock.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveWrite = resolve
+        }),
+    )
+
+    renderEditor({ crewCalls: [] })
+
+    const selects = screen.getAllByTestId("mock-select")
+    // With empty crewCalls: first select = talent add, second select = crew add.
+    await user.selectOptions(selects[1]!, "crew-1")
+
+    await waitFor(() => {
+      expect(upsertCrewCallMock).toHaveBeenCalledWith(
+        "client-1",
+        "project-1",
+        "schedule-1",
+        null,
+        expect.objectContaining({ crewMemberId: "crew-1" }),
+      )
+    })
+
+    resolveWrite("crew-call-new")
+    await Promise.resolve()
+    await Promise.resolve()
   })
 
   it("invokes upsertCrewCall on Undo click to re-create the removed crew call", async () => {

@@ -135,6 +135,59 @@ describe("DayDetailsEditor location module", () => {
     expect(typedPatch.locations?.[0]?.title).toBe("Basecamp")
   })
 
+  it("awaits the Firestore write before the new location appears in local state", async () => {
+    const user = userEvent.setup()
+
+    // Defer the updateDayDetails resolution so we can observe ordering:
+    // setLocationDrafts must NOT fire until the Firestore write settles.
+    let resolveWrite: (id: string) => void = () => {}
+    updateDayDetailsMock.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveWrite = resolve
+        }),
+    )
+
+    render(
+      <DayDetailsEditor
+        scheduleId="schedule-1"
+        scheduleName="Shoot Day"
+        dateStr="Thursday"
+        dayDetails={{
+          id: "day-details-1",
+          scheduleId: "schedule-1",
+          crewCallTime: "06:00",
+          shootingCallTime: "07:00",
+          estimatedWrap: "19:00",
+        }}
+        undoStack={buildFakeUndoStack()}
+      />,
+    )
+
+    // Click Add Location. The async handler fires updateDayDetails but
+    // must NOT yet update local state (we control when the promise resolves).
+    await user.click(screen.getByRole("button", { name: "Add Location" }))
+
+    await waitFor(() => {
+      expect(updateDayDetailsMock).toHaveBeenCalled()
+    })
+
+    // Before the write resolves: no "Basecamp" location block in the UI.
+    // The empty-state copy still shows.
+    expect(
+      screen.getByText(/No location blocks yet/i),
+    ).toBeInTheDocument()
+
+    // Resolve the write and assert the local state caught up.
+    resolveWrite("day-details-1")
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/No location blocks yet/i),
+      ).toBeNull()
+    })
+  })
+
   it("creates a new location and links it to the target block", async () => {
     const user = userEvent.setup()
 

@@ -227,7 +227,7 @@ export function DayDetailsEditor({
   }, [remoteLocationSnapshot, remoteLocationDrafts])
 
   const saveField = useCallback(
-    (field: string) => (value: string) => {
+    (field: string) => async (value: string): Promise<void> => {
       if (!clientId) return
       if (TIME_FIELD_NAMES.has(field)) {
         const parsed = classifyTimeInput(value)
@@ -236,42 +236,48 @@ export function DayDetailsEditor({
           return
         }
         const normalized = parsed.kind === "time" ? parsed.canonical : null
-        void updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
-          [field]: normalized,
-        }).catch(() => {
+        try {
+          await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
+            [field]: normalized,
+          })
+        } catch {
           toast.error("Failed to save details.")
-        })
+        }
         return
       }
-      void updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
-        [field]: value || null,
-      }).catch(() => {
+      try {
+        await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
+          [field]: value || null,
+        })
+      } catch {
         toast.error("Failed to save details.")
-      })
+      }
     },
     [clientId, projectId, scheduleId, dayDetails?.id],
   )
 
   const saveLocationDrafts = useCallback(
-    (nextDrafts: readonly LocationDraft[]) => {
+    async (nextDrafts: readonly LocationDraft[]): Promise<void> => {
       if (!clientId) return
       const payload = nextDrafts.map(toLocationBlock)
-      void updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
-        locations: payload.length > 0 ? payload : null,
-      }).catch(() => {
+      try {
+        await updateDayDetails(clientId, projectId, scheduleId, dayDetails?.id ?? null, {
+          locations: payload.length > 0 ? payload : null,
+        })
+      } catch {
         toast.error("Failed to save location details.")
-      })
+      }
     },
     [clientId, dayDetails?.id, projectId, scheduleId],
   )
 
   const applyLocationMutation = useCallback(
-    (updater: (prev: readonly LocationDraft[]) => readonly LocationDraft[]) => {
-      setLocationDrafts((prev) => {
-        const next = updater(prev)
-        saveLocationDrafts(next)
-        return next
-      })
+    async (
+      updater: (prev: readonly LocationDraft[]) => readonly LocationDraft[],
+    ): Promise<void> => {
+      const next = updater(locationDraftsRef.current)
+      await saveLocationDrafts(next)
+      setLocationDrafts(next)
     },
     [saveLocationDrafts],
   )
@@ -285,8 +291,8 @@ export function DayDetailsEditor({
     [],
   )
 
-  const addLocationBlock = useCallback(() => {
-    applyLocationMutation((prev) => [
+  const addLocationBlock = useCallback(async (): Promise<void> => {
+    await applyLocationMutation((prev) => [
       ...prev,
       {
         id: randomId(),
@@ -299,7 +305,7 @@ export function DayDetailsEditor({
   }, [applyLocationMutation])
 
   const removeLocationBlock = useCallback(
-    (locationId: string) => {
+    async (locationId: string): Promise<void> => {
       if (!clientId) return
 
       // Capture the block being removed (from current drafts state)
@@ -325,7 +331,8 @@ export function DayDetailsEditor({
       // doc on its first write would orphan it on undo.
       let createdDayDetailsId: string | null = null
 
-      void destructiveActionWithUndo<UndoSnapshot>({
+      try {
+        await destructiveActionWithUndo<UndoSnapshot>({
         label,
         snapshot: {
           kind: "locationRemoved",
@@ -365,16 +372,17 @@ export function DayDetailsEditor({
             { locations: restored.length > 0 ? [...restored] : null },
           )
         },
-      }).catch(() => {
+        })
+      } catch {
         toast.error("Failed to remove location block.")
-      })
+      }
     },
     [clientId, locationDrafts, projectId, scheduleId, undoStack],
   )
 
   const handleLabelPresetChange = useCallback(
-    (locationId: string, value: string) => {
-      applyLocationMutation((prev) =>
+    async (locationId: string, value: string): Promise<void> => {
+      await applyLocationMutation((prev) =>
         prev.map((loc) => {
           if (loc.id !== locationId) return loc
           if (value === LOCATION_CUSTOM_VALUE) {
@@ -393,9 +401,9 @@ export function DayDetailsEditor({
   )
 
   const handleLibraryLocationChange = useCallback(
-    (locationBlockId: string, value: string) => {
+    async (locationBlockId: string, value: string): Promise<void> => {
       const selectedLocationId = value === LOCATION_NONE_VALUE ? "" : value
-      applyLocationMutation((prev) =>
+      await applyLocationMutation((prev) =>
         prev.map((loc) => {
           if (loc.id !== locationBlockId) return loc
           if (!selectedLocationId) {
@@ -415,17 +423,19 @@ export function DayDetailsEditor({
       )
 
       if (clientId && selectedLocationId) {
-        void ensureLocationAssignedToProject(clientId, projectId, selectedLocationId).catch(() => {
+        try {
+          await ensureLocationAssignedToProject(clientId, projectId, selectedLocationId)
+        } catch {
           toast.error("Failed to attach location to this project.")
-        })
+        }
       }
     },
     [applyLocationMutation, clientId, locationById, projectId],
   )
 
-  const commitLocationDrafts = useCallback(() => {
-    saveLocationDrafts(locationDrafts)
-  }, [locationDrafts, saveLocationDrafts])
+  const commitLocationDrafts = useCallback(async (): Promise<void> => {
+    await saveLocationDrafts(locationDraftsRef.current)
+  }, [saveLocationDrafts])
 
   const openCreateLocation = useCallback((targetLocationId: string) => {
     setCreateLocationTargetId(targetLocationId)
@@ -452,7 +462,7 @@ export function DayDetailsEditor({
         notes: createLocationNotes,
       })
 
-      applyLocationMutation((prev) =>
+      await applyLocationMutation((prev) =>
         prev.map((loc) => {
           if (loc.id !== createLocationTargetId) return loc
           return {
@@ -545,7 +555,9 @@ export function DayDetailsEditor({
             variant="outline"
             size="sm"
             className="h-7 gap-1 px-2 text-xs"
-            onClick={addLocationBlock}
+            onClick={() => {
+              void addLocationBlock()
+            }}
           >
             <Plus className="h-3.5 w-3.5" />
             Add Location
@@ -574,7 +586,9 @@ export function DayDetailsEditor({
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeLocationBlock(loc.id)}
+                      onClick={() => {
+                        void removeLocationBlock(loc.id)
+                      }}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]"
                       aria-label="Remove location block"
                     >
@@ -589,7 +603,9 @@ export function DayDetailsEditor({
                       </Label>
                       <Select
                         value={isPreset ? loc.title : LOCATION_CUSTOM_VALUE}
-                        onValueChange={(value) => handleLabelPresetChange(loc.id, value)}
+                        onValueChange={(value) => {
+                          void handleLabelPresetChange(loc.id, value)
+                        }}
                       >
                         <SelectTrigger className="h-8">
                           <SelectValue placeholder="Select label" />
@@ -612,7 +628,9 @@ export function DayDetailsEditor({
                       <div className="flex items-center gap-2">
                         <Select
                           value={loc.locationId || LOCATION_NONE_VALUE}
-                          onValueChange={(value) => handleLibraryLocationChange(loc.id, value)}
+                          onValueChange={(value) => {
+                            void handleLibraryLocationChange(loc.id, value)
+                          }}
                         >
                           <SelectTrigger className="h-8 min-w-0 flex-1">
                             <SelectValue placeholder="Select location" />
@@ -651,7 +669,9 @@ export function DayDetailsEditor({
                       <Input
                         value={loc.title}
                         onChange={(event) => patchLocationDraft(loc.id, { title: event.target.value })}
-                        onBlur={commitLocationDrafts}
+                        onBlur={() => {
+                          void commitLocationDrafts()
+                        }}
                         placeholder="e.g. Studio Holding"
                         className="h-8 text-xs"
                       />
@@ -666,7 +686,9 @@ export function DayDetailsEditor({
                       <Input
                         value={loc.label}
                         onChange={(event) => patchLocationDraft(loc.id, { label: event.target.value })}
-                        onBlur={commitLocationDrafts}
+                        onBlur={() => {
+                          void commitLocationDrafts()
+                        }}
                         placeholder={loc.locationId ? (locationById.get(loc.locationId)?.name ?? "Location name") : "Optional"}
                         className="h-8 text-xs"
                       />
@@ -678,7 +700,9 @@ export function DayDetailsEditor({
                       <Textarea
                         value={loc.notes}
                         onChange={(event) => patchLocationDraft(loc.id, { notes: event.target.value })}
-                        onBlur={commitLocationDrafts}
+                        onBlur={() => {
+                          void commitLocationDrafts()
+                        }}
                         placeholder="Address, contact, access notes..."
                         className="min-h-[64px] text-xs"
                       />

@@ -251,21 +251,23 @@ export function CallOverridesEditor({
   // --- Talent handlers ---
 
   const handleAddTalent = useCallback(
-    (talentId: string) => {
+    async (talentId: string): Promise<void> => {
       if (!clientId || !talentId) return
       const talent = talentMap.get(talentId)
-      void upsertTalentCall(clientId, projectId, scheduleId, null, {
-        talentId,
-        role: talent?.notes ?? null,
-      }).catch(() => {
+      try {
+        await upsertTalentCall(clientId, projectId, scheduleId, null, {
+          talentId,
+          role: talent?.notes ?? null,
+        })
+      } catch {
         toast.error("Failed to add talent override.")
-      })
+      }
     },
     [clientId, projectId, scheduleId, talentMap],
   )
 
   const handleSaveTalentCallTime = useCallback(
-    (talentCallId: string) => (value: string) => {
+    (talentCallId: string) => async (value: string): Promise<void> => {
       if (!clientId) return
       const parsed = classifyTimeInput(value, { allowText: true })
       if (parsed.kind === "invalid-time") {
@@ -280,9 +282,11 @@ export function CallOverridesEditor({
             ? { callTime: null, callText: parsed.text }
             : { callTime: null, callText: null }
 
-      void upsertTalentCall(clientId, projectId, scheduleId, talentCallId, patch).catch(() => {
+      try {
+        await upsertTalentCall(clientId, projectId, scheduleId, talentCallId, patch)
+      } catch {
         toast.error("Failed to save talent override.")
-      })
+      }
     },
     [clientId, projectId, scheduleId],
   )
@@ -319,22 +323,24 @@ export function CallOverridesEditor({
   // --- Crew handlers ---
 
   const handleAddCrew = useCallback(
-    (crewMemberId: string) => {
+    async (crewMemberId: string): Promise<void> => {
       if (!clientId || !crewMemberId) return
       const crew = crewMap.get(crewMemberId)
-      void upsertCrewCall(clientId, projectId, scheduleId, null, {
-        crewMemberId,
-        department: crew?.department ?? null,
-        position: crew?.position ?? null,
-      }).catch(() => {
+      try {
+        await upsertCrewCall(clientId, projectId, scheduleId, null, {
+          crewMemberId,
+          department: crew?.department ?? null,
+          position: crew?.position ?? null,
+        })
+      } catch {
         toast.error("Failed to add crew override.")
-      })
+      }
     },
     [clientId, projectId, scheduleId, crewMap],
   )
 
   const handleSaveCrewCallTime = useCallback(
-    (crewCallId: string) => (value: string) => {
+    (crewCallId: string) => async (value: string): Promise<void> => {
       if (!clientId) return
       const parsed = classifyTimeInput(value, { allowText: true })
       if (parsed.kind === "invalid-time") {
@@ -349,9 +355,11 @@ export function CallOverridesEditor({
             ? { callTime: null, callText: parsed.text }
             : { callTime: null, callText: null }
 
-      void upsertCrewCall(clientId, projectId, scheduleId, crewCallId, patch).catch(() => {
+      try {
+        await upsertCrewCall(clientId, projectId, scheduleId, crewCallId, patch)
+      } catch {
         toast.error("Failed to save crew override.")
-      })
+      }
     },
     [clientId, projectId, scheduleId],
   )
@@ -421,7 +429,12 @@ export function CallOverridesEditor({
         )}
 
         {availableTalent.length > 0 ? (
-          <Select onValueChange={handleAddTalent} value="">
+          <Select
+            onValueChange={(value) => {
+              void handleAddTalent(value)
+            }}
+            value=""
+          >
             <SelectTrigger className="h-8 text-xs">
               <div className="flex items-center gap-1.5 text-[var(--color-text-muted)]">
                 <UserPlus className="h-3 w-3" />
@@ -483,7 +496,12 @@ export function CallOverridesEditor({
         )}
 
         {availableCrew.length > 0 ? (
-          <Select onValueChange={handleAddCrew} value="">
+          <Select
+            onValueChange={(value) => {
+              void handleAddCrew(value)
+            }}
+            value=""
+          >
             <SelectTrigger className="h-8 text-xs">
               <div className="flex items-center gap-1.5 text-[var(--color-text-muted)]">
                 <UserPlus className="h-3 w-3" />
