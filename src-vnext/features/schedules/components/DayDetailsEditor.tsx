@@ -40,7 +40,7 @@ import {
 } from "@/ui/dialog"
 import type { DayDetails, LocationBlock, LocationRecord, LocationRole } from "@/shared/types"
 import {
-  inferLocationRole,
+  resolveLocationRole,
   roleDisplayLabel,
 } from "@/features/schedules/lib/locationRoles"
 
@@ -167,10 +167,6 @@ function normalizeLocationDrafts(
     notes: (loc.ref?.notes || "").trim(),
     role: loc.role ?? undefined,
   }))
-}
-
-function resolveDraftRole(draft: LocationDraft): LocationRole {
-  return draft.role ?? inferLocationRole(draft.title || "")
 }
 
 function toLocationBlock(draft: LocationDraft): LocationBlock {
@@ -636,7 +632,7 @@ export function DayDetailsEditor({
               const isPreset = LOCATION_LABEL_PRESETS.includes(
                 loc.title as (typeof LOCATION_LABEL_PRESETS)[number],
               )
-              const resolvedRole = resolveDraftRole(loc)
+              const resolvedRole = resolveLocationRole(loc)
               const chipLabel = roleDisplayLabel(resolvedRole)
               const chipStyles = ROLE_CHIP_STYLES[resolvedRole]
 
@@ -652,6 +648,7 @@ export function DayDetailsEditor({
                       </span>
                       <span
                         data-testid={`location-role-chip-${loc.id}`}
+                        aria-hidden="true"
                         className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide ${chipStyles}`}
                       >
                         {chipLabel}

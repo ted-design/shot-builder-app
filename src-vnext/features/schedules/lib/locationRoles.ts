@@ -3,6 +3,17 @@ import type { LocationBlock, LocationRole } from "@/shared/types"
 export type { LocationRole }
 
 /**
+ * Structural input for resolveLocationRole / compareLocationsByRole —
+ * anything with a title + optional role field. Widened from LocationBlock
+ * so the editor's local LocationDraft can pass through the same resolver
+ * without adapter objects.
+ */
+export interface RoleResolvable {
+  readonly title: string
+  readonly role?: LocationRole | null
+}
+
+/**
  * Canonical sort order for locations on the printed call sheet and wherever
  * multiple locations render as a group.
  */
@@ -50,13 +61,15 @@ export function inferLocationRole(title: string): LocationRole {
 }
 
 /**
- * Resolves the effective role of a LocationBlock. If the block carries an
+ * Resolves the effective role of a location. If the input carries an
  * explicit role it wins; otherwise the title is used to infer one. Null is
  * treated the same as undefined so Firestore round-trips stay consistent.
+ * Accepts any RoleResolvable so LocationBlock and LocationDraft can share
+ * the same resolver.
  */
-export function resolveLocationRole(block: LocationBlock): LocationRole {
-  if (block.role) return block.role
-  return inferLocationRole(block.title || "")
+export function resolveLocationRole(input: RoleResolvable): LocationRole {
+  if (input.role) return input.role
+  return inferLocationRole(input.title || "")
 }
 
 /**

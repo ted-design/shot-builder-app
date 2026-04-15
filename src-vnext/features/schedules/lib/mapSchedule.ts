@@ -9,12 +9,27 @@ import type {
   CallOffsetDirection,
   CrewRecord,
   LocationBlock,
+  LocationRole,
   WeatherData,
   ScheduleTrack,
   ScheduleSettings,
   LocationRecord,
   ScheduleEntryHighlight,
 } from "@/shared/types"
+
+const LOCATION_ROLE_VALUES: ReadonlySet<LocationRole> = new Set<LocationRole>([
+  "basecamp",
+  "parking",
+  "hospital",
+  "office",
+  "shoot",
+  "custom",
+])
+
+function asLocationRole(raw: unknown): LocationRole | null {
+  if (typeof raw !== "string") return null
+  return LOCATION_ROLE_VALUES.has(raw as LocationRole) ? (raw as LocationRole) : null
+}
 import { classifyTimeInput, minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
 
 function normalizeTimeOnly(value: unknown): string | null {
@@ -218,12 +233,14 @@ function mapLocationBlock(raw: unknown, fallback: {
   const id = asTrimmedText(obj["id"]) ?? fallback.id
   const showName = typeof obj["showName"] === "boolean" ? obj["showName"] : fallback.showName
   const showPhone = typeof obj["showPhone"] === "boolean" ? obj["showPhone"] : fallback.showPhone
+  const role = asLocationRole(obj["role"])
 
   if (!title && !hasLocationRefContent(ref)) return null
 
   return {
     id,
     title,
+    role,
     ref,
     showName,
     showPhone,

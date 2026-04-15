@@ -76,6 +76,17 @@ describe("inferLocationRole", () => {
   it("returns 'custom' for 'Lot B' (no substring match)", () => {
     expect(inferLocationRole("Lot B")).toBe("custom")
   })
+
+  it("uses first-match precedence when a title contains multiple canonical keywords", () => {
+    // The substring check order is basecamp → hospital → parking → office
+    // → shoot, so "Hospital Parking" resolves to hospital (the safety-
+    // critical tag dominates). Pinning this here so any future refactor
+    // that reorders the checks fails loudly rather than silently flipping
+    // producer-facing chip colors.
+    expect(inferLocationRole("Hospital Parking")).toBe("hospital")
+    expect(inferLocationRole("Basecamp Parking")).toBe("basecamp")
+    expect(inferLocationRole("Production Office Basecamp")).toBe("basecamp")
+  })
 })
 
 describe("resolveLocationRole", () => {
