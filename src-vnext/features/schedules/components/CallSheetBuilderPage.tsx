@@ -414,6 +414,7 @@ export default function CallSheetBuilderPage() {
                 entries={entries}
                 shots={shots}
                 talentLookup={talentLibrary}
+                undoStack={undoStack}
               />
 
               <CallSheetOutputControls

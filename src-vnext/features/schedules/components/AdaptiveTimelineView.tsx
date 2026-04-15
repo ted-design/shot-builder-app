@@ -24,7 +24,11 @@ import {
   batchUpdateScheduleEntries,
   removeScheduleEntry,
   updateScheduleEntryFields,
+  upsertScheduleEntry,
 } from "@/features/schedules/lib/scheduleWrites"
+import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import {
   buildCascadeMoveBetweenTracksPatches,
   buildCascadeDurationPatches,
@@ -111,9 +115,26 @@ interface AdaptiveTimelineViewProps {
   readonly entries: readonly ScheduleEntry[]
   readonly shots: readonly Shot[]
   readonly talentLookup?: readonly TalentRecord[]
+  readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }
 
 // ─── Component ───────────────────────────────────────────────────────
+
+function scheduleEntryToPatch(entry: ScheduleEntry): Record<string, unknown> {
+  return {
+    type: entry.type,
+    title: entry.title,
+    shotId: entry.shotId ?? null,
+    startTime: entry.startTime ?? null,
+    time: entry.time ?? null,
+    duration: entry.duration ?? null,
+    order: entry.order,
+    trackId: entry.trackId ?? null,
+    appliesToTrackIds: entry.appliesToTrackIds ?? null,
+    highlight: entry.highlight ?? null,
+    notes: entry.notes ?? null,
+  }
+}
 
 export function AdaptiveTimelineView({
   scheduleId,
@@ -121,6 +142,7 @@ export function AdaptiveTimelineView({
   entries,
   shots,
   talentLookup,
+  undoStack,
 }: AdaptiveTimelineViewProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
@@ -263,8 +285,31 @@ export function AdaptiveTimelineView({
 
   const handleRemove = useCallback(async (entryId: string) => {
     if (!clientId) return
-    await removeScheduleEntry(clientId, projectId, scheduleId, entryId)
-  }, [clientId, projectId, scheduleId])
+    // Look up the full ScheduleEntry BEFORE the delete fires so the
+    // undo snapshot carries enough data to re-create the doc at the
+    // same path via upsertScheduleEntry.
+    const snapshotEntry = entries.find((e) => e.id === entryId)
+    if (!snapshotEntry) return
+
+    await destructiveActionWithUndo<UndoSnapshot>({
+      label: `Removed ${snapshotEntry.title || "entry"}`,
+      snapshot: { kind: "scheduleEntryRemoved", payload: snapshotEntry },
+      stack: undoStack,
+      perform: async () => {
+        await removeScheduleEntry(clientId, projectId, scheduleId, entryId)
+      },
+      undo: async (snap) => {
+        if (snap.kind !== "scheduleEntryRemoved") return
+        await upsertScheduleEntry(
+          clientId,
+          projectId,
+          scheduleId,
+          snap.payload.id,
+          scheduleEntryToPatch(snap.payload),
+        )
+      },
+    })
+  }, [clientId, entries, projectId, scheduleId, undoStack])
 
   const handleUpdateNotes = useCallback(async (entryId: string, notes: string) => {
     if (!clientId) return
