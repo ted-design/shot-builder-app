@@ -642,6 +642,20 @@ Optimistic updates are permitted only for idempotent toggles (section visibility
 
 An earlier draft of this spec suggested Zustand or React Context for a `CallSheetBuilderState` store — **that suggestion is rejected**; it contradicts the hard architectural rule in `CLAUDE.md` §5. Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 1.
 
+### Autosave semantics
+
+Call sheet field edits save on blur (input leaves focus) via dirty-field `updateDoc` writes to Firestore. Re-renders flow through `onSnapshot` subscribers per `CLAUDE.md` §5. Three rules govern the save path:
+
+1. **Idempotent toggles** (section visibility, `is_visible`, `is_key_contact`, `showName` / `showPhone` on locations) apply optimistically client-side and converge on the next snapshot tick. These never need a confirmation gesture; the toggle IS the confirmation.
+2. **Free-text and numeric fields** save on blur via dirty-field `updateDoc`. No debounce on text input — only the on-blur write is dispatched. The user's draft state lives in component-local `useState`; the snapshot listener is the single source of truth and re-syncs after the write lands.
+3. **Destructive actions** (section hide, row delete, section reorder, location remove, track collapse, timeline entry delete) require an explicit confirmation OR a 5-second `sonner` undo toast (the `destructiveActionWithUndo` helper in `src-vnext/shared/lib/`). The undo window prevents the silent-loss hazard SetHero exhibits with its fail-silent autosave.
+
+Every section header renders an unobtrusive "Saved Xs ago" pill (green dot + relative timestamp, ticking every ~5 seconds) so the producer never has to wonder whether their last keystroke landed. Implementation lives in `src-vnext/shared/components/SaveIndicator.tsx` and a sibling `useLastSaved` hook.
+
+There is **no client-side cache layer**, **no custom sync engine**, **no offline mutation queue**. Firestore's default IndexedDB persistence handles offline reads; a failed write surfaces a `sonner` error toast and the user re-tries manually. This is the deliberate inverse of SetHero's "PUT and forget" pattern, which loses changes silently when the network drops mid-edit.
+
+Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 6 (corrected: the spec delta originally referenced `react-hot-toast`; the codebase uses `sonner`, which has native action-button support and is the established toast layer).
+
 ### Drag and Drop
 Use `@dnd-kit/core` for:
 - Section reordering in layout panel
