@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react"
 import type { ExportBlock, ExportTemplate } from "../types/exportBuilder"
 import { BUILT_IN_TEMPLATES } from "../lib/builtInTemplates"
-import { loadTemplates } from "../lib/documentPersistence"
 import {
   Dialog,
   DialogContent,
@@ -12,12 +11,16 @@ import {
 } from "@/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/ui/tabs"
 import { Button } from "@/ui/button"
+import { Trash2 } from "lucide-react"
 
 interface TemplateDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onSelectTemplate: (template: ExportTemplate) => void
   readonly onSaveCurrent?: () => void
+  readonly workspaceTemplates?: readonly ExportTemplate[]
+  readonly onDeleteTemplate?: (templateId: string) => void
+  readonly workspaceLoading?: boolean
 }
 
 function TemplatePreview({
@@ -66,27 +69,44 @@ function TemplateCard({
   template,
   selected,
   onSelect,
+  onDelete,
 }: {
   readonly template: ExportTemplate
   readonly selected: boolean
   readonly onSelect: () => void
+  readonly onDelete?: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`flex flex-col gap-1 rounded-md border p-3 text-left transition-colors ${
+      className={`group flex items-start gap-2 rounded-md border p-3 text-left transition-colors ${
         selected
           ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
           : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
       }`}
     >
-      <span className="text-sm font-medium text-[var(--color-text)]">
-        {template.name}
-      </span>
-      <span className="text-2xs text-[var(--color-text-muted)]">
-        {template.description}
-      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-sm font-medium text-[var(--color-text)]">
+          {template.name}
+        </span>
+        <span className="text-2xs text-[var(--color-text-muted)]">
+          {template.description}
+        </span>
+      </div>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="shrink-0 rounded p-1 text-[var(--color-text-muted)] opacity-0 transition-opacity hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-destructive)] group-hover:opacity-100"
+          aria-label={`Delete ${template.name}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </button>
   )
 }
@@ -96,9 +116,11 @@ export function TemplateDialog({
   onOpenChange,
   onSelectTemplate,
   onSaveCurrent,
+  workspaceTemplates = [],
+  onDeleteTemplate,
+  workspaceLoading = false,
 }: TemplateDialogProps) {
   const [selected, setSelected] = useState<ExportTemplate | null>(null)
-  const savedTemplates = open ? loadTemplates() : []
 
   const handleConfirm = useCallback(() => {
     if (!selected) return
@@ -118,7 +140,7 @@ export function TemplateDialog({
         <DialogHeader>
           <DialogTitle>Choose a Template</DialogTitle>
           <DialogDescription>
-            Start with a pre-built layout or one of your saved templates.
+            Start with a pre-built layout or one of your workspace templates.
           </DialogDescription>
         </DialogHeader>
 
@@ -127,7 +149,7 @@ export function TemplateDialog({
             <Tabs defaultValue="built-in">
               <TabsList>
                 <TabsTrigger value="built-in">Built-in</TabsTrigger>
-                <TabsTrigger value="saved">Saved</TabsTrigger>
+                <TabsTrigger value="workspace">Workspace</TabsTrigger>
               </TabsList>
 
               <TabsContent value="built-in">
@@ -143,7 +165,7 @@ export function TemplateDialog({
                 </div>
               </TabsContent>
 
-              <TabsContent value="saved">
+              <TabsContent value="workspace">
                 <div className="flex flex-col gap-2 pt-2">
                   {onSaveCurrent && (
                     <Button
@@ -155,17 +177,26 @@ export function TemplateDialog({
                       Save current as template
                     </Button>
                   )}
-                  {savedTemplates.length === 0 ? (
+                  {workspaceLoading ? (
                     <p className="py-6 text-center text-2xs text-[var(--color-text-muted)]">
-                      No saved templates yet.
+                      Loading templates...
+                    </p>
+                  ) : workspaceTemplates.length === 0 ? (
+                    <p className="py-6 text-center text-2xs text-[var(--color-text-muted)]">
+                      No workspace templates yet. Save your current document as a template to get started.
                     </p>
                   ) : (
-                    savedTemplates.map((template) => (
+                    workspaceTemplates.map((template) => (
                       <TemplateCard
                         key={template.id}
                         template={template}
                         selected={selected?.id === template.id}
                         onSelect={() => setSelected(template)}
+                        onDelete={
+                          onDeleteTemplate
+                            ? () => onDeleteTemplate(template.id)
+                            : undefined
+                        }
                       />
                     ))
                   )}

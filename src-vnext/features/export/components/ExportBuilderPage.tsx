@@ -39,10 +39,8 @@ import {
 import {
   saveDocument,
   loadDocument,
-  saveTemplate as persistTemplate,
 } from "../lib/documentPersistence"
 import { BLOCK_REGISTRY } from "../lib/blockRegistry"
-import { BUILT_IN_TEMPLATES } from "../lib/builtInTemplates"
 import { BlockPalette } from "./BlockPalette"
 import { BlockSettingsPanel } from "./BlockSettingsPanel"
 import { DocumentPreview } from "./DocumentPreview"
@@ -55,6 +53,7 @@ import { PaletteDragOverlay } from "./PaletteDragOverlay"
 import { generateExportPdf } from "../lib/pdf/generateExportPdf"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useExportReports } from "../hooks/useExportReports"
+import { useExportTemplates } from "../hooks/useExportTemplates"
 import { useExportBlockOps } from "../hooks/useExportBlockOps"
 import { useExportPageOps } from "../hooks/useExportPageOps"
 
@@ -120,6 +119,14 @@ function ExportBuilderPageInner() {
     loadReport,
     importReport,
   } = useExportReports(clientId, projectId)
+
+  // --- Firestore workspace templates ---
+  const {
+    workspaceTemplates,
+    loading: templatesLoading,
+    saveTemplate: saveWorkspaceTemplate,
+    deleteTemplate: deleteWorkspaceTemplate,
+  } = useExportTemplates(clientId)
 
   const [activeReportId, setActiveReportId] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
@@ -620,16 +627,13 @@ function ExportBuilderPageInner() {
   }, [])
 
   const handleSaveCurrentAsTemplate = useCallback(() => {
-    const template: ExportTemplate = {
-      id: crypto.randomUUID(),
-      name: document.name,
-      description: `Saved from "${document.name}"`,
-      category: "saved",
-      pages: document.pages,
-      settings: document.settings,
-    }
-    persistTemplate(template)
-    toast.success("Template saved")
+    void saveWorkspaceTemplate(
+      document.name,
+      `Saved from "${document.name}"`,
+      document.pages,
+      document.settings,
+    ).then(() => toast.success("Template saved to workspace"))
+      .catch(() => toast.error("Failed to save template"))
   }, [document])
 
   const handleUpdateSettings = useCallback((settings: PageSettings) => {
@@ -777,6 +781,9 @@ function ExportBuilderPageInner() {
         onOpenChange={setShowTemplates}
         onSelectTemplate={handleSelectTemplate}
         onSaveCurrent={handleSaveCurrentAsTemplate}
+        workspaceTemplates={workspaceTemplates}
+        onDeleteTemplate={deleteWorkspaceTemplate}
+        workspaceLoading={templatesLoading}
       />
 
       <VariablesPanel

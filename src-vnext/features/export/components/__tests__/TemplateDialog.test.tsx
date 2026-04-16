@@ -1,24 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { TemplateDialog } from "../TemplateDialog"
 import { BUILT_IN_TEMPLATES } from "../../lib/builtInTemplates"
 import type { ExportTemplate } from "../../types/exportBuilder"
-
-// Mock localStorage for saved templates
-let storage: Map<string, string>
-
-beforeEach(() => {
-  storage = new Map()
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => storage.get(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-    removeItem: (key: string) => storage.delete(key),
-    clear: () => storage.clear(),
-    get length() { return storage.size },
-    key: (index: number) => [...storage.keys()][index] ?? null,
-  })
-})
 
 describe("TemplateDialog", () => {
   it("renders all built-in template names", () => {
@@ -84,9 +69,7 @@ describe("TemplateDialog", () => {
       />,
     )
 
-    // Click the first built-in template
     fireEvent.click(screen.getByText(BUILT_IN_TEMPLATES[0]!.name))
-    // Click Use Template
     fireEvent.click(screen.getByRole("button", { name: /use template/i }))
 
     expect(onSelect).toHaveBeenCalledTimes(1)
@@ -109,44 +92,45 @@ describe("TemplateDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it("shows saved tab with empty message when no saved templates exist", async () => {
+  it("shows workspace tab with empty message when no workspace templates", async () => {
     const user = userEvent.setup()
     render(
       <TemplateDialog
         open={true}
         onOpenChange={vi.fn()}
         onSelectTemplate={vi.fn()}
+        workspaceTemplates={[]}
       />,
     )
 
-    // Use userEvent to click the Saved tab (Radix uses pointer events)
-    await user.click(screen.getByRole("tab", { name: /saved/i }))
-    expect(screen.getByText(/no saved templates/i)).toBeInTheDocument()
+    await user.click(screen.getByRole("tab", { name: /workspace/i }))
+    expect(screen.getByText(/no workspace templates/i)).toBeInTheDocument()
   })
 
-  it("shows saved templates from localStorage", async () => {
+  it("shows workspace templates when provided", async () => {
     const user = userEvent.setup()
-    const saved: ExportTemplate[] = [
+    const templates: ExportTemplate[] = [
       {
-        id: "saved-1",
+        id: "ws-1",
         name: "My Custom Template",
         description: "Custom layout",
-        category: "saved",
+        category: "workspace",
         settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
         pages: [{ id: "p1", items: [] }],
+        createdBy: "user-1",
       },
     ]
-    storage.set("sb:export-templates", JSON.stringify(saved))
 
     render(
       <TemplateDialog
         open={true}
         onOpenChange={vi.fn()}
         onSelectTemplate={vi.fn()}
+        workspaceTemplates={templates}
       />,
     )
 
-    await user.click(screen.getByRole("tab", { name: /saved/i }))
+    await user.click(screen.getByRole("tab", { name: /workspace/i }))
     expect(screen.getByText("My Custom Template")).toBeInTheDocument()
   })
 
@@ -174,11 +158,56 @@ describe("TemplateDialog", () => {
       />,
     )
 
-    await user.click(screen.getByRole("tab", { name: /saved/i }))
+    await user.click(screen.getByRole("tab", { name: /workspace/i }))
     const saveBtn = screen.getByRole("button", { name: /save current/i })
     expect(saveBtn).toBeInTheDocument()
 
     await user.click(saveBtn)
     expect(onSaveCurrent).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows delete button on workspace templates when onDeleteTemplate provided", async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const templates: ExportTemplate[] = [
+      {
+        id: "ws-1",
+        name: "Deletable Template",
+        description: "Can be deleted",
+        category: "workspace",
+        settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
+        pages: [{ id: "p1", items: [] }],
+      },
+    ]
+
+    render(
+      <TemplateDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        onSelectTemplate={vi.fn()}
+        workspaceTemplates={templates}
+        onDeleteTemplate={onDelete}
+      />,
+    )
+
+    await user.click(screen.getByRole("tab", { name: /workspace/i }))
+    const deleteBtn = screen.getByRole("button", { name: /delete deletable template/i })
+    await user.click(deleteBtn)
+    expect(onDelete).toHaveBeenCalledWith("ws-1")
+  })
+
+  it("shows loading state when workspaceLoading is true", async () => {
+    const user = userEvent.setup()
+    render(
+      <TemplateDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        onSelectTemplate={vi.fn()}
+        workspaceLoading={true}
+      />,
+    )
+
+    await user.click(screen.getByRole("tab", { name: /workspace/i }))
+    expect(screen.getByText(/loading templates/i)).toBeInTheDocument()
   })
 })
