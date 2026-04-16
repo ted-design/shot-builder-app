@@ -36,8 +36,10 @@ import {
 } from "@/features/schedules/lib/cascade"
 import { buildAutoDurationFillPatches } from "@/features/schedules/lib/autoDuration"
 import { findTrackOverlapConflicts, type TrackOverlapConflict } from "@/features/schedules/lib/conflicts"
-import { parseTimeToMinutes } from "@/features/schedules/lib/time"
+import { parseTimeToMinutes, formatMinutesTo12h } from "@/features/schedules/lib/time"
+import { detectScheduleGaps, type ScheduleGap } from "@/features/schedules/lib/gapDetection"
 import type { VisibleFields } from "@/features/schedules/lib/adaptiveSegments"
+import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
 import type {
   Schedule,
   ScheduleEntry,
@@ -85,6 +87,20 @@ function applyEntryPatches(
     if (!patch) return entry
     return { ...entry, ...patch } as ScheduleEntry
   })
+}
+
+function formatScheduleGapLabel(gap: ScheduleGap): string {
+  const hours = Math.floor(gap.durationMinutes / 60)
+  const mins = gap.durationMinutes % 60
+  const startLabel = formatMinutesTo12h(gap.startMin)
+  const endLabel = formatMinutesTo12h(gap.endMin)
+  const duration =
+    hours > 0
+      ? mins > 0
+        ? `${hours}h ${mins}m`
+        : `${hours}h`
+      : `${mins}m`
+  return `GAP \u00b7 ${duration} (${startLabel} \u2013 ${endLabel})`
 }
 
 function conflictKey(c: TrackOverlapConflict): string {
@@ -185,6 +201,19 @@ export function AdaptiveTimelineView({
     showNotes: true,
     showTags: true,
   }), [])
+
+  // Schedule gaps (idle windows > 30min per track)
+  const scheduleGaps = useMemo(() => {
+    const allRows: ProjectedScheduleRow[] = []
+    for (const seg of layout.segments) {
+      if (seg.kind === "dense") {
+        for (const trackRows of seg.rowsByTrack.values()) {
+          allRows.push(...trackRows)
+        }
+      }
+    }
+    return detectScheduleGaps(allRows)
+  }, [layout.segments])
 
   // ─── View mode ───────────────────────────────────────────────────
 
@@ -552,6 +581,30 @@ export function AdaptiveTimelineView({
                   </p>
                 </div>
               ) : null}
+
+              {/* Schedule gap indicators */}
+              {scheduleGaps.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-dashed border-[var(--color-border)] px-3 pb-2 pt-2">
+                  <span className="text-2xs font-medium text-[var(--color-text-muted)]">
+                    Schedule Gaps
+                  </span>
+                  {scheduleGaps.map((gap) => (
+                    <div
+                      key={`schedule-gap-${gap.trackId}-${gap.startMin}`}
+                      className="flex items-center gap-2 rounded border border-dashed border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-2 py-1 text-2xs text-[var(--color-text-muted)]"
+                    >
+                      <span className="font-medium">
+                        {formatScheduleGapLabel(gap)}
+                      </span>
+                      {tracks.length >= 2 && (
+                        <span className="text-3xs text-[var(--color-text-subtle)]">
+                          {tracks.find((t) => t.id === gap.trackId)?.name ?? gap.trackId}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Unscheduled tray */}
