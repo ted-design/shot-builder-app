@@ -486,6 +486,7 @@ export default function CallSheetBuilderPage() {
 
               <CallOverridesEditor
                 scheduleId={scheduleId}
+                tracks={schedule?.tracks ?? []}
                 dayDetails={dayDetails}
                 talentCalls={talentCalls}
                 crewCalls={crewCalls}

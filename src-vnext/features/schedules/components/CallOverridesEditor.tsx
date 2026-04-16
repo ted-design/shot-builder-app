@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { UserPlus, X, Users, Clapperboard, Eye, EyeOff, Mail, MailX, Phone, PhoneOff } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -23,12 +23,15 @@ import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
 import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import { useLastSaved } from "@/shared/hooks/useLastSaved"
 import { SaveIndicator } from "@/shared/components/SaveIndicator"
-import type { TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord, DayDetails } from "@/shared/types"
+import { Tabs, TabsList, TabsTrigger } from "@/ui/tabs"
+import { filterCrewCallsByTrack, filterTalentCallsByTrack } from "@/features/schedules/lib/trackFiltering"
+import type { TalentCallSheet, CrewCallSheet, TalentRecord, CrewRecord, DayDetails, ScheduleTrack } from "@/shared/types"
 
 // --- Props ---
 
 interface CallOverridesEditorProps {
   readonly scheduleId: string
+  readonly tracks: readonly ScheduleTrack[]
   readonly dayDetails: DayDetails | null
   readonly talentCalls: readonly TalentCallSheet[]
   readonly crewCalls: readonly CrewCallSheet[]
@@ -250,6 +253,7 @@ function crewCallToPatch(call: CrewCallSheet): Record<string, unknown> {
 
 export function CallOverridesEditor({
   scheduleId,
+  tracks,
   dayDetails,
   talentCalls,
   crewCalls,
@@ -263,6 +267,19 @@ export function CallOverridesEditor({
   // Crew section headers — every successful upsert/remove bumps the
   // same timestamp so the two pills tick in sync.
   const lastSaved = useLastSaved()
+
+  // Unit filter state (null = "All Units")
+  const [activeTrackId, setActiveTrackId] = useState<string | null>(null)
+
+  // Filtered calls for rendering rows
+  const filteredTalentCalls = useMemo(
+    () => filterTalentCallsByTrack(talentCalls, activeTrackId),
+    [talentCalls, activeTrackId],
+  )
+  const filteredCrewCalls = useMemo(
+    () => filterCrewCallsByTrack(crewCalls, activeTrackId),
+    [crewCalls, activeTrackId],
+  )
 
   // Build lookup maps
   const talentMap = useMemo(() => {
@@ -318,13 +335,14 @@ export function CallOverridesEditor({
         await upsertTalentCall(clientId, projectId, scheduleId, null, {
           talentId,
           role: talent?.notes ?? null,
+          trackId: activeTrackId ?? null,
         })
         lastSaved.markSaved()
       } catch {
         toast.error("Failed to add talent override.")
       }
     },
-    [clientId, lastSaved, projectId, scheduleId, talentMap],
+    [activeTrackId, clientId, lastSaved, projectId, scheduleId, talentMap],
   )
 
   const handleSaveTalentCallTime = useCallback(
@@ -395,13 +413,14 @@ export function CallOverridesEditor({
           crewMemberId,
           department: crew?.department ?? null,
           position: crew?.position ?? null,
+          trackId: activeTrackId ?? null,
         })
         lastSaved.markSaved()
       } catch {
         toast.error("Failed to add crew override.")
       }
     },
-    [clientId, lastSaved, projectId, scheduleId, crewMap],
+    [activeTrackId, clientId, lastSaved, projectId, scheduleId, crewMap],
   )
 
   const handleSaveCrewCallTime = useCallback(
@@ -513,6 +532,24 @@ export function CallOverridesEditor({
 
   return (
     <div className="flex flex-col gap-4">
+      {tracks.length >= 2 && (
+        <Tabs
+          value={activeTrackId ?? "all"}
+          onValueChange={(v) => setActiveTrackId(v === "all" ? null : v)}
+        >
+          <TabsList className="h-8">
+            <TabsTrigger value="all" className="text-xs px-3">
+              All Units
+            </TabsTrigger>
+            {tracks.map((track) => (
+              <TabsTrigger key={track.id} value={track.id} className="text-xs px-3">
+                {track.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+
       {/* Talent Overrides */}
       <div className="flex flex-col gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <div className="flex items-center gap-2">
@@ -528,9 +565,9 @@ export function CallOverridesEditor({
           )}
         </div>
 
-        {talentCalls.length > 0 && (
+        {filteredTalentCalls.length > 0 && (
           <div className="flex flex-col gap-0.5">
-            {talentCalls.map((tc) => {
+            {filteredTalentCalls.map((tc) => {
               const talent = talentMap.get(tc.talentId)
               return (
                 <TalentOverrideRow
@@ -592,9 +629,9 @@ export function CallOverridesEditor({
           )}
         </div>
 
-        {crewCalls.length > 0 && (
+        {filteredCrewCalls.length > 0 && (
           <div className="flex flex-col gap-0.5">
-            {crewCalls.map((cc) => {
+            {filteredCrewCalls.map((cc) => {
               const crew = crewMap.get(cc.crewMemberId)
               const deptPosition = [
                 cc.department ?? crew?.department,

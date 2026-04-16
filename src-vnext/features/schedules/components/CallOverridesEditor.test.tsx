@@ -182,6 +182,7 @@ function renderEditor(overrides: Partial<Parameters<typeof CallOverridesEditor>[
   const result = render(
     <CallOverridesEditor
       scheduleId="schedule-1"
+      tracks={[]}
       dayDetails={dayDetails}
       talentCalls={[baseTalentCall]}
       crewCalls={[baseCrewCall]}
