@@ -7,6 +7,7 @@ import type {
 import { isHStackRow } from "../../types/exportBuilder"
 import type { ExportData } from "../../hooks/useExportData"
 import { styles, PAGE_SIZES } from "./pdfStyles"
+import { mapFontFamilyBase } from "./fontMapping"
 import { WatermarkOverlay } from "./WatermarkOverlay"
 import { ExportPdfBlockMapper } from "./ExportPdfBlockMapper"
 import { HStackRowPdf } from "./blocks/HStackRowPdf"
@@ -74,7 +75,7 @@ export function ExportPdfDocument({
       producer="Production Hub"
     >
       {pages.map((pageItems, pageIndex) => (
-        <Page key={pageIndex} size={pageSize} style={styles.page} wrap>
+        <Page key={pageIndex} size={pageSize} style={{ ...styles.page, fontFamily: mapFontFamilyBase(settings.fontFamily) }} wrap>
           {settings.watermark?.text && (
             <WatermarkOverlay watermark={settings.watermark} />
           )}

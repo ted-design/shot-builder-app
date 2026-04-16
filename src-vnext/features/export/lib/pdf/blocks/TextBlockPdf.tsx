@@ -44,32 +44,9 @@ function splitRenderTokens(
     })
 }
 
-/** Map fontFamily name to the Helvetica-based PDF font */
-function resolvePdfFontFamily(
-  fontFamily: string | undefined,
-  bold?: boolean,
-  italic?: boolean,
-): string {
-  const base = fontFamily ?? "Helvetica"
+import { mapFontFamilyToPdf } from "../fontMapping"
 
-  if (base === "Courier New" || base === "Courier") {
-    if (bold && italic) return "Courier-BoldOblique"
-    if (bold) return "Courier-Bold"
-    if (italic) return "Courier-Oblique"
-    return "Courier"
-  }
-  if (base === "Georgia" || base === "Times New Roman") {
-    if (bold && italic) return "Times-BoldItalic"
-    if (bold) return "Times-Bold"
-    if (italic) return "Times-Italic"
-    return "Times-Roman"
-  }
-
-  if (bold && italic) return "Helvetica-BoldOblique"
-  if (bold) return "Helvetica-Bold"
-  if (italic) return "Helvetica-Oblique"
-  return "Helvetica"
-}
+const resolvePdfFontFamily = mapFontFamilyToPdf
 
 /** Build style object for a PdfTextNode */
 function buildTextNodeStyle(
