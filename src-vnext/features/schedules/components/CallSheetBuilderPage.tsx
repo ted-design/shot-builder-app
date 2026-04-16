@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { CalendarDays, ZoomIn, ZoomOut } from "lucide-react"
+import { CalendarDays, ListOrdered, ZoomIn, ZoomOut } from "lucide-react"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
@@ -15,6 +15,7 @@ import { useTalent } from "@/features/shots/hooks/usePickerData"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
 import { CallSheetRenderer } from "@/features/schedules/components/CallSheetRenderer"
+import { SectionOrderDialog } from "@/features/schedules/components/SectionOrderDialog"
 import { DayDetailsEditor } from "@/features/schedules/components/DayDetailsEditor"
 import { AdaptiveTimelineView } from "@/features/schedules/components/AdaptiveTimelineView"
 import { ScheduleTrackControls } from "@/features/schedules/components/ScheduleTrackControls"
@@ -103,6 +104,7 @@ export default function CallSheetBuilderPage() {
   const [previewScale, setPreviewScale] = useState(100)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
+  const [sectionOrderOpen, setSectionOrderOpen] = useState(false)
   const undoStack = useUndoStack<UndoSnapshot>()
   // Drives the "Saved Xs ago" pill on the Output controls header. The
   // output writes are all routed through callSheetConfig setters from
@@ -341,6 +343,15 @@ export default function CallSheetBuilderPage() {
               <Button
                 variant="outline"
                 size="sm"
+                aria-label="Section order"
+                onClick={() => setSectionOrderOpen(true)}
+              >
+                <ListOrdered className="mr-1 h-3.5 w-3.5" />
+                Section Order
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setPreviewOpen(true)}
               >
                 Preview
@@ -350,6 +361,20 @@ export default function CallSheetBuilderPage() {
               </Button>
             </div>
           </div>
+
+          <SectionOrderDialog
+            open={sectionOrderOpen}
+            onOpenChange={setSectionOrderOpen}
+            sectionOrder={rendererConfig.sectionOrder ?? []}
+            onSave={(order) => {
+              void callSheetConfig
+                .setSectionOrder(order)
+                .then(() => outputLastSaved.markSaved())
+                .catch(() => {
+                  // setSectionOrder surfaces its own toast on failure
+                })
+            }}
+          />
 
           <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
             <SheetContent
