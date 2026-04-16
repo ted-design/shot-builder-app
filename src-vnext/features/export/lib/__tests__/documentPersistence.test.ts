@@ -24,7 +24,7 @@ function makeTemplate(id: string, name: string): ExportTemplate {
     id,
     name,
     description: "Test template",
-    category: "saved",
+    category: "workspace",
     settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
     pages: [{ id: "page-1", items: [] }],
   }

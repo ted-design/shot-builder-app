@@ -503,6 +503,19 @@ service cloud.firestore {
       allow delete: if clientMatches(clientId) && isAdmin();
     }
 
+    // Export templates - workspace-level shared PDF builder templates
+    match /clients/{clientId}/exportTemplates/{templateId} {
+      allow read: if clientMatches(clientId) && (isAdmin() || isProducer());
+      allow create: if clientMatches(clientId) &&
+        (isAdmin() || isProducer()) &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow update: if clientMatches(clientId) &&
+        (isAdmin() || isProducer()) &&
+        request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if clientMatches(clientId) &&
+        (isAdmin() || isProducer());
+    }
+
 	    match /clients/{clientId}/projects/{projectId} {
         // --- Project Visibility Model ---
         // Projects have an optional 'visibility' field: 'team' (default), 'private', or 'restricted'.

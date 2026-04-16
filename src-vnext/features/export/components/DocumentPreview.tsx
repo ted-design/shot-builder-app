@@ -36,6 +36,7 @@ interface DocumentPreviewProps {
   readonly onDeletePage?: (pageId: string) => void
   readonly isPaletteDrag?: boolean
   readonly onPageClick?: (pageId: string) => void
+  readonly onOpenBlockPicker?: (pageId: string, insertIndex: number) => void
 }
 
 /** Flatten page items into ExportBlocks (expanding HStack columns) */
@@ -70,36 +71,57 @@ function splitItemsByPageBreaks(
   return pages
 }
 
-/** Drop zone indicator between blocks for palette drag */
+/** Drop zone indicator between blocks for palette drag, plus inline add button */
 function DropGap({
   id,
   isPaletteDrag,
+  onClickAdd,
 }: {
   readonly id: string
   readonly isPaletteDrag: boolean
+  readonly onClickAdd?: () => void
 }) {
   const { isOver, setNodeRef } = useDroppable({ id })
 
-  if (!isPaletteDrag) return null
+  if (isPaletteDrag) {
+    return (
+      <div
+        ref={setNodeRef}
+        className="relative flex items-center justify-center"
+        style={{ height: isOver ? 40 : 12 }}
+      >
+        <div
+          className={`absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 transition-all ${
+            isOver
+              ? "bg-[var(--color-accent)] opacity-100"
+              : "bg-transparent opacity-0"
+          }`}
+        />
+        {isOver && (
+          <div className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-white">
+            <Plus className="h-3 w-3" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!onClickAdd) return null
 
   return (
-    <div
-      ref={setNodeRef}
-      className="relative flex items-center justify-center"
-      style={{ height: isOver ? 40 : 12 }}
-    >
-      <div
-        className={`absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 transition-all ${
-          isOver
-            ? "bg-[var(--color-accent)] opacity-100"
-            : "bg-transparent opacity-0"
-        }`}
-      />
-      {isOver && (
-        <div className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-white">
-          <Plus className="h-3 w-3" />
-        </div>
-      )}
+    <div className="group/gap relative flex h-4 items-center justify-center">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClickAdd()
+        }}
+        className="absolute z-10 flex h-5 w-5 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-subtle)] opacity-0 shadow-sm transition-opacity hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] group-hover/gap:opacity-100"
+        aria-label="Insert block"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-transparent transition-colors group-hover/gap:bg-[var(--color-border)]" />
     </div>
   )
 }
@@ -182,6 +204,7 @@ export function DocumentPreview({
   onDeletePage,
   isPaletteDrag = false,
   onPageClick,
+  onOpenBlockPicker,
 }: DocumentPreviewProps) {
   // Each ExportPage is a distinct visual page; within each, page-break blocks
   // create additional visual pages. Result: a flat list of visual pages.
@@ -294,6 +317,7 @@ export function DocumentPreview({
                         <DropGap
                           id={`drop-gap-${currentPageId}-0`}
                           isPaletteDrag={isPaletteDrag}
+                          onClickAdd={onOpenBlockPicker ? () => onOpenBlockPicker(currentPageId, 0) : undefined}
                         />
                         <div className="flex flex-col items-center justify-center py-24 text-center">
                           <p className="text-sm text-[var(--color-text-subtle)]">
@@ -309,6 +333,7 @@ export function DocumentPreview({
                             <DropGap
                               id={`drop-gap-${currentPageId}-${String(localIndex)}`}
                               isPaletteDrag={isPaletteDrag}
+                              onClickAdd={onOpenBlockPicker ? () => onOpenBlockPicker(currentPageId, localIndex) : undefined}
                             />
                             {isHStackRow(item) ? (
                               <HStackRowView
@@ -352,6 +377,7 @@ export function DocumentPreview({
                       <DropGap
                         id={`drop-gap-${currentPageId}-${String(localIndexOffset + pageItems.length)}`}
                         isPaletteDrag={isPaletteDrag}
+                        onClickAdd={onOpenBlockPicker ? () => onOpenBlockPicker(currentPageId, localIndexOffset + pageItems.length) : undefined}
                       />
                     )}
 

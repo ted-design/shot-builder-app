@@ -79,12 +79,36 @@ export function resolveVariables(
   let resolved = text
   for (const variable of variables) {
     const token = `{{${variable.key}}}`
-    // Only replace if the token exists to avoid unnecessary string allocations
     if (resolved.includes(token)) {
       resolved = resolved.split(token).join(variable.value)
     }
   }
   return resolved
+}
+
+const PDF_RENDER_TIME_TOKENS = new Set(["pageNumber", "pageCount"])
+
+/** Find all {{token}} keys in text that don't match any known variable */
+export function findUnresolvedTokens(
+  text: string,
+  variables: readonly ExportVariable[],
+): readonly string[] {
+  const knownKeys = new Set(variables.map((v) => v.key))
+  const tokenPattern = /\{\{(\w+)\}\}/g
+  const unresolved: string[] = []
+  const seen = new Set<string>()
+
+  let match: RegExpExecArray | null
+  while ((match = tokenPattern.exec(text)) !== null) {
+    const key = match[1]
+    if (!key) continue
+    if (!knownKeys.has(key) && !PDF_RENDER_TIME_TOKENS.has(key) && !seen.has(key)) {
+      seen.add(key)
+      unresolved.push(key)
+    }
+  }
+
+  return unresolved
 }
 
 function formatShootDates(dates?: readonly string[]): string {

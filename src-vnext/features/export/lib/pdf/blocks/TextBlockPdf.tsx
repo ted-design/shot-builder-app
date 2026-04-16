@@ -1,7 +1,7 @@
 import { Text, View } from "@react-pdf/renderer"
 import type { Style } from "@react-pdf/types"
 import type { TextBlock, ExportVariable } from "../../../types/exportBuilder"
-import { resolveVariables } from "../../exportVariables"
+import { resolveVariables, findUnresolvedTokens } from "../../exportVariables"
 import { styles } from "../pdfStyles"
 import {
   parseHtmlToNodes,
@@ -44,32 +44,9 @@ function splitRenderTokens(
     })
 }
 
-/** Map fontFamily name to the Helvetica-based PDF font */
-function resolvePdfFontFamily(
-  fontFamily: string | undefined,
-  bold?: boolean,
-  italic?: boolean,
-): string {
-  const base = fontFamily ?? "Helvetica"
+import { mapFontFamilyToPdf } from "../fontMapping"
 
-  if (base === "Courier New" || base === "Courier") {
-    if (bold && italic) return "Courier-BoldOblique"
-    if (bold) return "Courier-Bold"
-    if (italic) return "Courier-Oblique"
-    return "Courier"
-  }
-  if (base === "Georgia" || base === "Times New Roman") {
-    if (bold && italic) return "Times-BoldItalic"
-    if (bold) return "Times-Bold"
-    if (italic) return "Times-Italic"
-    return "Times-Roman"
-  }
-
-  if (bold && italic) return "Helvetica-BoldOblique"
-  if (bold) return "Helvetica-Bold"
-  if (italic) return "Helvetica-Oblique"
-  return "Helvetica"
-}
+const resolvePdfFontFamily = mapFontFamilyToPdf
 
 /** Build style object for a PdfTextNode */
 function buildTextNodeStyle(
@@ -253,6 +230,17 @@ export function TextBlockPdf({ block, variables }: TextBlockPdfProps) {
   }
 
   // Plain text fallback
+  const unresolvedKeys = findUnresolvedTokens(resolved, variables)
+  if (unresolvedKeys.length > 0) {
+    return (
+      <View style={containerStyle}>
+        <Text style={textStyle}>
+          {renderWithWarningHighlights(resolved)}
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <View style={containerStyle}>
       <Text style={textStyle}>{resolved}</Text>
@@ -308,6 +296,23 @@ function renderHtmlContent(
       })}
     </View>
   )
+}
+
+/** Split text on unresolved {{token}} patterns and wrap them in yellow highlight */
+function renderWithWarningHighlights(text: string): React.ReactNode {
+  const parts = text.split(/(\{\{\w+\}\})/g)
+  if (parts.length === 1) return text
+
+  return parts.map((part, i) => {
+    if (/^\{\{\w+\}\}$/.test(part)) {
+      return (
+        <Text key={i} style={{ backgroundColor: "#FEF3C7", color: "#92400E" }}>
+          {part}
+        </Text>
+      )
+    }
+    return part.length > 0 ? <Text key={i}>{part}</Text> : null
+  })
 }
 
 /** Group consecutive text nodes together, keeping list nodes separate */

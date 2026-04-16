@@ -39,14 +39,14 @@ import {
 import {
   saveDocument,
   loadDocument,
-  saveTemplate as persistTemplate,
 } from "../lib/documentPersistence"
 import { BLOCK_REGISTRY } from "../lib/blockRegistry"
-import { BUILT_IN_TEMPLATES } from "../lib/builtInTemplates"
 import { BlockPalette } from "./BlockPalette"
 import { BlockSettingsPanel } from "./BlockSettingsPanel"
 import { DocumentPreview } from "./DocumentPreview"
 import { ExportTopBar } from "./ExportTopBar"
+import { ExportKeyboardHelp } from "./ExportKeyboardHelp"
+import { InlineBlockPicker } from "./InlineBlockPicker"
 import { TemplateDialog } from "./TemplateDialog"
 import { VariablesPanel } from "./VariablesPanel"
 import { PageSettingsPanel } from "./PageSettingsPanel"
@@ -55,7 +55,9 @@ import { PaletteDragOverlay } from "./PaletteDragOverlay"
 import { generateExportPdf } from "../lib/pdf/generateExportPdf"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useExportReports } from "../hooks/useExportReports"
+import { useExportTemplates } from "../hooks/useExportTemplates"
 import { useExportBlockOps } from "../hooks/useExportBlockOps"
+import { useInlineBlockPicker } from "../hooks/useInlineBlockPicker"
 import { useExportPageOps } from "../hooks/useExportPageOps"
 
 function createDefaultDocument(): ExportDocument {
@@ -107,7 +109,7 @@ export default function ExportBuilderPage() {
 function ExportBuilderPageInner() {
   const { id: projectId } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { clientId } = useAuth()
+  const { clientId, user } = useAuth()
   const { project, shots, productFamilies } = useExportDataContext()
 
   // --- Firestore multi-report ---
@@ -121,6 +123,14 @@ function ExportBuilderPageInner() {
     importReport,
   } = useExportReports(clientId, projectId)
 
+  // --- Firestore workspace templates ---
+  const {
+    workspaceTemplates,
+    loading: templatesLoading,
+    saveTemplate: saveWorkspaceTemplate,
+    deleteTemplate: deleteWorkspaceTemplate,
+  } = useExportTemplates(clientId)
+
   const [activeReportId, setActiveReportId] = useState<string | null>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
   const [showImportPrompt, setShowImportPrompt] = useState(false)
@@ -130,6 +140,7 @@ function ExportBuilderPageInner() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [showVariables, setShowVariables] = useState(false)
   const [showPageSettings, setShowPageSettings] = useState(false)
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
   const [zoom, setZoom] = useState(100)
   const [activeDragType, setActiveDragType] = useState<string | null>(null)
 
@@ -159,6 +170,13 @@ function ExportBuilderPageInner() {
     handleAddColumn,
     handleRemoveColumn,
   } = useExportPageOps(document, setDocument, activePageId, setActivePageId)
+
+  const {
+    blockPickerOpen,
+    setBlockPickerOpen,
+    handleBlockPickerSelect,
+    handleOpenBlockPicker,
+  } = useInlineBlockPicker(document, setDocument, setSelectedBlockId, handleAddBlock, activePageIdRef)
 
   // --- Initialization: select first report or detect legacy localStorage ---
   useEffect(() => {
@@ -620,16 +638,13 @@ function ExportBuilderPageInner() {
   }, [])
 
   const handleSaveCurrentAsTemplate = useCallback(() => {
-    const template: ExportTemplate = {
-      id: crypto.randomUUID(),
-      name: document.name,
-      description: `Saved from "${document.name}"`,
-      category: "saved",
-      pages: document.pages,
-      settings: document.settings,
-    }
-    persistTemplate(template)
-    toast.success("Template saved")
+    void saveWorkspaceTemplate(
+      document.name,
+      `Saved from "${document.name}"`,
+      document.pages,
+      document.settings,
+    ).then(() => toast.success("Template saved to workspace"))
+      .catch(() => toast.error("Failed to save template"))
   }, [document])
 
   const handleUpdateSettings = useCallback((settings: PageSettings) => {
@@ -639,23 +654,36 @@ function ExportBuilderPageInner() {
   const exportData = useExportDataContext()
 
   const handleExport = useCallback(() => {
-    void generateExportPdf(document, exportData, variables)
-  }, [document, exportData, variables])
+    void generateExportPdf(document, exportData, variables, user?.displayName ?? undefined)
+  }, [document, exportData, variables, user?.displayName])
 
-  // --- Keyboard shortcut: Delete/Backspace removes selected block ---
+  // --- Keyboard shortcuts: Delete/Backspace + Esc + ? ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      const inInput = target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA"
+      if (inInput) return
+
+      if (e.key === "Escape" && selectedBlockId) {
+        setSelectedBlockId(null)
+        return
+      }
+
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        setShowKeyboardHelp(true)
+        return
+      }
+
       if (!selectedBlockId) return
       if (e.key === "Delete" || e.key === "Backspace") {
-        const target = e.target as HTMLElement
-        if (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
         e.preventDefault()
         handleDeleteBlock(selectedBlockId)
       }
     }
     window.document.addEventListener("keydown", handleKeyDown)
     return () => window.document.removeEventListener("keydown", handleKeyDown)
-  }, [selectedBlockId, handleDeleteBlock])
+  }, [selectedBlockId, handleDeleteBlock, setSelectedBlockId])
 
   // --- Derived ---
 
@@ -751,6 +779,7 @@ function ExportBuilderPageInner() {
             onDeletePage={handleDeletePage}
             isPaletteDrag={activeDragType !== null}
             onPageClick={setActivePageId}
+            onOpenBlockPicker={handleOpenBlockPicker}
           />
 
           {/* Right -- Block Settings */}
@@ -772,11 +801,25 @@ function ExportBuilderPageInner() {
       </DndContext>
 
       {/* Panels / Dialogs */}
+      <ExportKeyboardHelp
+        open={showKeyboardHelp}
+        onOpenChange={setShowKeyboardHelp}
+      />
+
+      <InlineBlockPicker
+        open={blockPickerOpen}
+        onOpenChange={setBlockPickerOpen}
+        onSelectBlock={handleBlockPickerSelect}
+      />
+
       <TemplateDialog
         open={showTemplates}
         onOpenChange={setShowTemplates}
         onSelectTemplate={handleSelectTemplate}
         onSaveCurrent={handleSaveCurrentAsTemplate}
+        workspaceTemplates={workspaceTemplates}
+        onDeleteTemplate={deleteWorkspaceTemplate}
+        workspaceLoading={templatesLoading}
       />
 
       <VariablesPanel

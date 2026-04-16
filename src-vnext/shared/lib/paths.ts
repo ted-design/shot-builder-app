@@ -285,6 +285,17 @@ export const exportReportDocPath = (
   reportId: string,
 ): string[] => [...exportReportsPath(clientId, projectId), reportId]
 
+// --- Export Templates (workspace-scoped) ---
+
+export const exportTemplatesPath = (
+  clientId: string,
+): string[] => ["clients", clientId, "exportTemplates"]
+
+export const exportTemplateDocPath = (
+  clientId: string,
+  templateId: string,
+): string[] => [...exportTemplatesPath(clientId), templateId]
+
 // --- Casting Board (project-scoped) ---
 
 export const castingBoardPath = (

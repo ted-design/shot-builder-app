@@ -18,6 +18,8 @@ function escapeHtml(str: string): string {
   )
 }
 
+const PDF_RENDER_TIME_TOKENS = new Set(["pageNumber", "pageCount"])
+
 /** Replace {{variableKey}} tokens with styled chip spans for display */
 function renderContentWithChips(
   content: string,
@@ -28,7 +30,11 @@ function renderContentWithChips(
     const variable = variableMap.get(key)
     const safeKey = escapeHtml(key)
     const safeLabel = escapeHtml(variable?.label ?? key)
-    return `<span class="inline-flex items-center rounded bg-[var(--color-accent-subtle)] px-1.5 text-xs text-[var(--color-accent)]" data-token="${safeKey}" contenteditable="false">${safeLabel}</span>`
+    const isResolved = variable !== undefined || PDF_RENDER_TIME_TOKENS.has(key)
+    const chipClass = isResolved
+      ? "inline-flex items-center rounded bg-[var(--color-accent-subtle)] px-1.5 text-xs text-[var(--color-accent)]"
+      : "inline-flex items-center rounded bg-amber-100 dark:bg-amber-900/30 px-1.5 text-xs text-amber-700 dark:text-amber-400 ring-1 ring-amber-300 dark:ring-amber-700"
+    return `<span class="${chipClass}" data-token="${safeKey}" contenteditable="false" ${!isResolved ? 'title="Undefined variable"' : ""}>${safeLabel}</span>`
   })
 }
 

@@ -7,6 +7,7 @@ import type {
 import { isHStackRow } from "../../types/exportBuilder"
 import type { ExportData } from "../../hooks/useExportData"
 import { styles, PAGE_SIZES } from "./pdfStyles"
+import { mapFontFamilyBase } from "./fontMapping"
 import { WatermarkOverlay } from "./WatermarkOverlay"
 import { ExportPdfBlockMapper } from "./ExportPdfBlockMapper"
 import { HStackRowPdf } from "./blocks/HStackRowPdf"
@@ -17,6 +18,8 @@ interface ExportPdfDocumentProps {
   readonly variables: readonly ExportVariable[]
   readonly data: ExportData
   readonly imageMap: ReadonlyMap<string, string>
+  readonly documentName?: string
+  readonly authorName?: string
 }
 
 /** Render a single page item (block or HStack row) as a PDF element */
@@ -54,6 +57,8 @@ export function ExportPdfDocument({
   variables,
   data,
   imageMap,
+  documentName,
+  authorName,
 }: ExportPdfDocumentProps) {
   const sizeKey = settings.size ?? "letter"
   const dims = PAGE_SIZES[sizeKey] ?? PAGE_SIZES.letter
@@ -64,9 +69,13 @@ export function ExportPdfDocument({
       : { width: dims.width, height: dims.height }
 
   return (
-    <Document>
+    <Document
+      title={documentName ?? "Export"}
+      author={authorName ?? ""}
+      producer="Production Hub"
+    >
       {pages.map((pageItems, pageIndex) => (
-        <Page key={pageIndex} size={pageSize} style={styles.page} wrap>
+        <Page key={pageIndex} size={pageSize} style={{ ...styles.page, fontFamily: mapFontFamilyBase(settings.fontFamily) }} wrap>
           {settings.watermark?.text && (
             <WatermarkOverlay watermark={settings.watermark} />
           )}

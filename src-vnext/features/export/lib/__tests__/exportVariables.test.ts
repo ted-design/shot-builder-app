@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { getDynamicVariables, resolveVariables } from "../exportVariables"
+import { getDynamicVariables, resolveVariables, findUnresolvedTokens } from "../exportVariables"
 import type { ExportVariable } from "../../types/exportBuilder"
 
 describe("getDynamicVariables", () => {
@@ -112,5 +112,67 @@ describe("resolveVariables", () => {
   it("handles empty variables array", () => {
     const result = resolveVariables("{{projectName}} stays", [])
     expect(result).toBe("{{projectName}} stays")
+  })
+})
+
+describe("findUnresolvedTokens", () => {
+  const variables: ExportVariable[] = [
+    { key: "projectName", label: "Project Name", value: "FW26 Campaign", source: "dynamic" },
+    { key: "clientName", label: "Client", value: "Acme Corp", source: "dynamic" },
+  ]
+
+  it("returns empty array when all tokens are resolved", () => {
+    const result = findUnresolvedTokens(
+      "{{projectName}} by {{clientName}}",
+      variables,
+    )
+    expect(result).toEqual([])
+  })
+
+  it("returns unresolved token keys", () => {
+    const result = findUnresolvedTokens(
+      "Hello {{unknown}} and {{projectName}}",
+      variables,
+    )
+    expect(result).toEqual(["unknown"])
+  })
+
+  it("returns multiple unresolved tokens", () => {
+    const result = findUnresolvedTokens(
+      "{{foo}} {{bar}} {{projectName}}",
+      variables,
+    )
+    expect(result).toEqual(["foo", "bar"])
+  })
+
+  it("deduplicates repeated unresolved tokens", () => {
+    const result = findUnresolvedTokens(
+      "{{unknown}} and {{unknown}} again",
+      variables,
+    )
+    expect(result).toEqual(["unknown"])
+  })
+
+  it("returns empty array when text has no tokens", () => {
+    const result = findUnresolvedTokens("No tokens here", variables)
+    expect(result).toEqual([])
+  })
+
+  it("returns empty array for empty text", () => {
+    const result = findUnresolvedTokens("", variables)
+    expect(result).toEqual([])
+  })
+
+  it("treats pageNumber and pageCount as resolved (PDF render-time tokens)", () => {
+    const result = findUnresolvedTokens(
+      "Page {{pageNumber}} of {{pageCount}} — {{unknown}}",
+      variables,
+    )
+    expect(result).toEqual(["unknown"])
+  })
+
+  it("works with empty variables array — all tokens are unresolved", () => {
+    const result = findUnresolvedTokens("{{projectName}} {{clientName}}", [])
+    expect(result).toEqual(["projectName", "clientName"])
   })
 })

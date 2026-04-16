@@ -14,6 +14,7 @@ import {
   resolveProductNamesString,
   resolveTalentNames,
 } from "../../blockDataResolvers"
+import { computeOrphanGroupIndex } from "../widowOrphan"
 
 interface ShotGridBlockPdfProps {
   readonly block: ShotGridBlock
@@ -54,6 +55,22 @@ export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
   const showHeaderBg = ts?.showHeaderBg !== false
   const stripe = ts?.stripeRows !== false
 
+  const orphanGroupStart = computeOrphanGroupIndex(sorted.length)
+  const headRows = orphanGroupStart > 0 ? sorted.slice(0, orphanGroupStart) : sorted
+  const tailRows = orphanGroupStart > 0 ? sorted.slice(orphanGroupStart) : []
+
+  function renderRow(shot: Shot, i: number) {
+    return (
+      <View
+        key={shot.id}
+        wrap={false}
+        style={stripe && i % 2 === 1 ? styles.tableRowStriped : styles.tableRow}
+      >
+        {cols.map((col) => renderCell(col, shot, data))}
+      </View>
+    )
+  }
+
   return (
     <View style={showBorders ? styles.tableContainer : undefined}>
       <View style={showHeaderBg ? styles.tableHeader : { flexDirection: "row" as const }}>
@@ -63,70 +80,73 @@ export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
           </Text>
         ))}
       </View>
-      {sorted.map((shot, i) => (
-        <View
-          key={shot.id}
-          wrap={false}
-          style={stripe && i % 2 === 1 ? styles.tableRowStriped : styles.tableRow}
-        >
-          {cols.map((col) => {
-            if (col.key === "status") {
-              const color = getShotStatusColor(shot.status as ShotFirestoreStatus)
-              const sc = PDF_STATUS_COLORS[color] ?? { bg: "#F3F4F6", text: "#374151" }
-              return (
-                <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
-                  <Text style={{ ...styles.badge, backgroundColor: sc.bg, color: sc.text }}>
-                    {getShotStatusLabel(shot.status as ShotFirestoreStatus)}
-                  </Text>
-                </View>
-              )
-            }
-            if (col.key === "tags") {
-              const tags: readonly ShotTag[] = shot.tags ?? []
-              if (tags.length === 0) {
-                return (
-                  <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
-                    {"\u2014"}
-                  </Text>
-                )
-              }
-              return (
-                <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col), flexDirection: "row", flexWrap: "wrap", gap: 2 }}>
-                  {tags.map((t) => {
-                    const cat = resolveShotTagCategory(t)
-                    const catColors = PDF_TAG_CATEGORY_COLORS[cat] ?? PDF_TAG_CATEGORY_COLORS.other!
-                    const borderColor = (typeof t.color === "string" && isTagColorKey(t.color))
-                      ? (PDF_TAG_COLOR_MAP[t.color] ?? catColors.border)
-                      : catColors.border
-                    return (
-                      <Text
-                        key={t.id}
-                        style={{
-                          ...styles.badge,
-                          backgroundColor: catColors.bg,
-                          color: catColors.text,
-                          borderLeftWidth: 2,
-                          borderLeftColor: borderColor,
-                          borderRadius: 3,
-                          marginRight: 2,
-                          marginBottom: 1,
-                        }}
-                      >
-                        {t.label.length > 24 ? `${t.label.slice(0, 22)}\u2026` : t.label}
-                      </Text>
-                    )
-                  })}
-                </View>
-              )
-            }
-            return (
-              <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
-                {cellText(shot, col.key, data)}
-              </Text>
-            )
-          })}
+      {headRows.map((shot, i) => renderRow(shot, i))}
+      {tailRows.length > 0 && (
+        <View wrap={false}>
+          {tailRows.map((shot, i) => renderRow(shot, orphanGroupStart + i))}
         </View>
-      ))}
+      )}
     </View>
+  )
+}
+
+function renderCell(
+  col: ShotGridColumn,
+  shot: Shot,
+  data: ExportData,
+): React.ReactNode {
+  if (col.key === "status") {
+    const color = getShotStatusColor(shot.status as ShotFirestoreStatus)
+    const sc = PDF_STATUS_COLORS[color] ?? { bg: "#F3F4F6", text: "#374151" }
+    return (
+      <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
+        <Text style={{ ...styles.badge, backgroundColor: sc.bg, color: sc.text }}>
+          {getShotStatusLabel(shot.status as ShotFirestoreStatus)}
+        </Text>
+      </View>
+    )
+  }
+  if (col.key === "tags") {
+    const tags: readonly ShotTag[] = shot.tags ?? []
+    if (tags.length === 0) {
+      return (
+        <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
+          {"\u2014"}
+        </Text>
+      )
+    }
+    return (
+      <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col), flexDirection: "row", flexWrap: "wrap", gap: 2 }}>
+        {tags.map((t) => {
+          const cat = resolveShotTagCategory(t)
+          const catColors = PDF_TAG_CATEGORY_COLORS[cat] ?? PDF_TAG_CATEGORY_COLORS.other!
+          const borderColor = (typeof t.color === "string" && isTagColorKey(t.color))
+            ? (PDF_TAG_COLOR_MAP[t.color] ?? catColors.border)
+            : catColors.border
+          return (
+            <Text
+              key={t.id}
+              style={{
+                ...styles.badge,
+                backgroundColor: catColors.bg,
+                color: catColors.text,
+                borderLeftWidth: 2,
+                borderLeftColor: borderColor,
+                borderRadius: 3,
+                marginRight: 2,
+                marginBottom: 1,
+              }}
+            >
+              {t.label.length > 24 ? `${t.label.slice(0, 22)}\u2026` : t.label}
+            </Text>
+          )
+        })}
+      </View>
+    )
+  }
+  return (
+    <Text key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
+      {cellText(shot, col.key, data)}
+    </Text>
   )
 }

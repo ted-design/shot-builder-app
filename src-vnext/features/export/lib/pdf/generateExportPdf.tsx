@@ -52,6 +52,7 @@ export async function generateExportPdf(
   doc: ExportDocument,
   data: ExportData,
   variables: readonly ExportVariable[],
+  authorName?: string,
 ): Promise<void> {
   const toastId = toast.loading("Generating PDF...")
 
@@ -87,6 +88,8 @@ export async function generateExportPdf(
         variables={variables}
         data={data}
         imageMap={imageMap}
+        documentName={doc.name || undefined}
+        authorName={authorName}
       />
     )
 

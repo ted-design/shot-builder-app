@@ -16,6 +16,7 @@ import type {
   CallSheetConfig,
   CallSheetHeaderLayout,
   CallSheetSectionVisibility,
+  SectionKey,
   ScheduleBlockFields,
 } from "@/features/schedules/components/CallSheetRenderer"
 
@@ -120,6 +121,21 @@ export function useCallSheetConfig(
     [clientId, projectId, scheduleId, raw],
   )
 
+  const setSectionOrder = useCallback(
+    async (order: readonly SectionKey[]) => {
+      if (!clientId || !scheduleId) return
+      try {
+        await upsertCallSheetConfig(clientId, projectId, scheduleId, {
+          sectionOrder: order,
+        })
+      } catch (err) {
+        toast.error("Failed to save section order.")
+        throw err
+      }
+    },
+    [clientId, projectId, scheduleId],
+  )
+
   return {
     raw,
     config,
@@ -130,6 +146,7 @@ export function useCallSheetConfig(
     setColors,
     setHeaderLayout,
     setSectionFieldConfig,
+    setSectionOrder,
   }
 }
 
