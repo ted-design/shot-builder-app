@@ -72,4 +72,47 @@ describe("CallSheetOutputControls", () => {
 
     expect(screen.queryByRole("status")).toBeNull()
   })
+
+  it("shows Export Unit selector when 2+ tracks are provided with a callback", () => {
+    const props = buildProps()
+    const onActiveTrackChange = vi.fn()
+
+    render(
+      <CallSheetOutputControls
+        {...props}
+        tracks={[
+          { id: "primary", name: "Primary", order: 0 },
+          { id: "track-2", name: "Unit 2", order: 1 },
+        ]}
+        activeTrackId={null}
+        onActiveTrackChange={onActiveTrackChange}
+      />,
+    )
+
+    expect(screen.getByText("Export Unit")).toBeInTheDocument()
+    expect(screen.getByText("All Units")).toBeInTheDocument()
+  })
+
+  it("does not show Export Unit selector for single-track schedules", () => {
+    const props = buildProps()
+
+    render(
+      <CallSheetOutputControls
+        {...props}
+        tracks={[{ id: "primary", name: "Primary", order: 0 }]}
+        activeTrackId={null}
+        onActiveTrackChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText("Export Unit")).not.toBeInTheDocument()
+  })
+
+  it("does not show Export Unit selector when no tracks prop is provided", () => {
+    const props = buildProps()
+
+    render(<CallSheetOutputControls {...props} />)
+
+    expect(screen.queryByText("Export Unit")).not.toBeInTheDocument()
+  })
 })

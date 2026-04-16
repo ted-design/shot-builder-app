@@ -28,6 +28,7 @@ import { deriveDefaultCallSheetTitle } from "@/features/schedules/lib/callSheetT
 import { updateScheduleFields } from "@/features/schedules/lib/scheduleWrites"
 import { useUndoStack } from "@/shared/hooks/useUndoStack"
 import { useLastSaved } from "@/shared/hooks/useLastSaved"
+import { filterCrewCallsByTrack, filterTalentCallsByTrack } from "@/features/schedules/lib/trackFiltering"
 import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { PageHeader } from "@/shared/components/PageHeader"
@@ -108,6 +109,19 @@ export default function CallSheetBuilderPage() {
   // this component, so the useLastSaved instance lives here (not in
   // CallSheetOutputControls).
   const outputLastSaved = useLastSaved()
+
+  // Per-unit export filtering: null = "All Units" (no filter)
+  const [activeExportTrackId, setActiveExportTrackId] = useState<string | null>(null)
+
+  // Filtered calls for the print portal
+  const exportTalentCalls = useMemo(
+    () => filterTalentCallsByTrack(talentCalls, activeExportTrackId),
+    [talentCalls, activeExportTrackId],
+  )
+  const exportCrewCalls = useMemo(
+    () => filterCrewCallsByTrack(crewCalls, activeExportTrackId),
+    [crewCalls, activeExportTrackId],
+  )
 
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
@@ -214,8 +228,8 @@ export default function CallSheetBuilderPage() {
           dayDetails,
           entries,
           shots,
-          talentCalls,
-          crewCalls,
+          talentCalls: exportTalentCalls,
+          crewCalls: exportCrewCalls,
           talentLibrary,
           crewLibrary,
           config: rendererConfig,
@@ -425,6 +439,9 @@ export default function CallSheetBuilderPage() {
               />
 
               <CallSheetOutputControls
+                tracks={schedule?.tracks ?? []}
+                activeTrackId={activeExportTrackId}
+                onActiveTrackChange={setActiveExportTrackId}
                 sections={{
                   header: rendererConfig.sections?.header ?? true,
                   dayDetails: rendererConfig.sections?.dayDetails ?? true,
