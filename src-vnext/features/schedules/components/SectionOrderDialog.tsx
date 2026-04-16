@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import {
   DndContext,
   closestCenter,
@@ -89,6 +89,10 @@ export function SectionOrderDialog({
   onSave,
 }: SectionOrderDialogProps) {
   const [order, setOrder] = useState<readonly SectionKey[]>(sectionOrder)
+
+  useEffect(() => {
+    if (open) setOrder(sectionOrder)
+  }, [open, sectionOrder])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

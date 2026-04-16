@@ -20,7 +20,7 @@ import type { ExportTemplate, ExportPage, PageSettings } from "../types/exportBu
 import { loadTemplates as loadLocalStorageTemplates } from "../lib/documentPersistence"
 
 const LS_TEMPLATES_KEY = "sb:export-templates"
-const LS_MIGRATED_KEY = "sb:export-templates-migrated"
+const LS_MIGRATED_PREFIX = "sb:export-templates-migrated:"
 
 export interface UseExportTemplatesReturn {
   readonly templates: readonly ExportTemplate[]
@@ -103,7 +103,8 @@ export function useExportTemplates(
     if (!clientId || !user?.uid || migrationAttempted.current) return
     migrationAttempted.current = true
 
-    const alreadyMigrated = localStorage.getItem(LS_MIGRATED_KEY)
+    const migratedKey = `${LS_MIGRATED_PREFIX}${clientId}`
+    const alreadyMigrated = localStorage.getItem(migratedKey)
     if (alreadyMigrated) return
 
     const localTemplates = loadLocalStorageTemplates()
@@ -112,7 +113,7 @@ export function useExportTemplates(
       return
     }
 
-    void migrateLocalTemplates(clientId, user.uid, localTemplates)
+    void migrateLocalTemplates(clientId, user.uid, localTemplates, migratedKey)
   }, [clientId, user?.uid])
 
   const saveTemplate = useCallback(
@@ -162,6 +163,7 @@ async function migrateLocalTemplates(
   clientId: string,
   uid: string,
   localTemplates: readonly ExportTemplate[],
+  migratedKey: string,
 ): Promise<void> {
   try {
     const pathSegments = exportTemplatesPath(clientId)
@@ -185,7 +187,7 @@ async function migrateLocalTemplates(
       })
     }
 
-    localStorage.setItem(LS_MIGRATED_KEY, "true")
+    localStorage.setItem(migratedKey, "true")
     localStorage.removeItem(LS_TEMPLATES_KEY)
   } catch (err) {
     console.error("[useExportTemplates] migration failed:", err)
