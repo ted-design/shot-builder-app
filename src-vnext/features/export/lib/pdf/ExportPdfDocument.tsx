@@ -17,6 +17,8 @@ interface ExportPdfDocumentProps {
   readonly variables: readonly ExportVariable[]
   readonly data: ExportData
   readonly imageMap: ReadonlyMap<string, string>
+  readonly documentName?: string
+  readonly authorName?: string
 }
 
 /** Render a single page item (block or HStack row) as a PDF element */
@@ -54,6 +56,8 @@ export function ExportPdfDocument({
   variables,
   data,
   imageMap,
+  documentName,
+  authorName,
 }: ExportPdfDocumentProps) {
   const sizeKey = settings.size ?? "letter"
   const dims = PAGE_SIZES[sizeKey] ?? PAGE_SIZES.letter
@@ -64,7 +68,11 @@ export function ExportPdfDocument({
       : { width: dims.width, height: dims.height }
 
   return (
-    <Document>
+    <Document
+      title={documentName ?? "Export"}
+      author={authorName ?? ""}
+      producer="Production Hub"
+    >
       {pages.map((pageItems, pageIndex) => (
         <Page key={pageIndex} size={pageSize} style={styles.page} wrap>
           {settings.watermark?.text && (

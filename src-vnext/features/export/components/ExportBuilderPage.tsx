@@ -107,7 +107,7 @@ export default function ExportBuilderPage() {
 function ExportBuilderPageInner() {
   const { id: projectId } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { clientId } = useAuth()
+  const { clientId, user } = useAuth()
   const { project, shots, productFamilies } = useExportDataContext()
 
   // --- Firestore multi-report ---
@@ -639,8 +639,8 @@ function ExportBuilderPageInner() {
   const exportData = useExportDataContext()
 
   const handleExport = useCallback(() => {
-    void generateExportPdf(document, exportData, variables)
-  }, [document, exportData, variables])
+    void generateExportPdf(document, exportData, variables, user?.displayName ?? undefined)
+  }, [document, exportData, variables, user?.displayName])
 
   // --- Keyboard shortcut: Delete/Backspace removes selected block ---
   useEffect(() => {
