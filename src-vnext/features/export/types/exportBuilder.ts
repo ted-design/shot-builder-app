@@ -247,7 +247,10 @@ export interface ExportTemplate {
   readonly id: string
   readonly name: string
   readonly description: string
-  readonly category: "built-in" | "saved"
+  readonly category: "built-in" | "workspace"
   readonly pages: readonly ExportPage[]
   readonly settings: PageSettings
+  readonly createdBy?: string
+  readonly createdAt?: string
+  readonly updatedAt?: string
 }
