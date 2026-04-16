@@ -116,11 +116,62 @@ describe("mapSchedule time sanitization", () => {
       {
         id: "loc-1",
         title: "Basecamp",
+        role: null,
         ref: { locationId: "library-1", label: "North Lot", notes: "Gate B" },
         showName: true,
         showPhone: false,
       },
     ])
+  })
+
+  it("round-trips an explicit location role through the mapper", () => {
+    const mapped = mapDayDetails("dd-role", {
+      scheduleId: "s1",
+      crewCallTime: "06:00",
+      shootingCallTime: "07:00",
+      estimatedWrap: "19:00",
+      locations: [
+        {
+          id: "loc-1",
+          title: "Studio A",
+          role: "basecamp",
+          ref: { locationId: null, label: "Toronto West", notes: null },
+          showName: true,
+          showPhone: false,
+        },
+      ],
+    })
+
+    // The user tagged a non-canonical title ("Studio A") with an
+    // explicit role ("basecamp"). Without the mapper reading the
+    // role field, the snapshot listener would drop the user's
+    // classification and the display would fall back to inference,
+    // silently re-tagging the block as "custom". This test guards
+    // that round-trip.
+    expect(mapped.locations?.[0]?.role).toBe("basecamp")
+  })
+
+  it("sanitizes unknown role strings to null at the read boundary", () => {
+    const mapped = mapDayDetails("dd-bad-role", {
+      scheduleId: "s1",
+      crewCallTime: "06:00",
+      shootingCallTime: "07:00",
+      estimatedWrap: "19:00",
+      locations: [
+        {
+          id: "loc-1",
+          title: "Basecamp",
+          role: "greenroom", // not in the canonical six
+          ref: { locationId: null, label: "North Lot", notes: null },
+          showName: true,
+          showPhone: false,
+        },
+      ],
+    })
+
+    // Invalid role strings are coerced to null so downstream code
+    // never has to guard against unexpected enum values.
+    expect(mapped.locations?.[0]?.role).toBeNull()
   })
 
   it("derives day-details locations from legacy fixed fields and custom locations", () => {

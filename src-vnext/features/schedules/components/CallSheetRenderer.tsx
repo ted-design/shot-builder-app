@@ -7,6 +7,7 @@ import { CallSheetKeyTimesStrip } from "@/features/schedules/components/CallShee
 import { CallSheetCastTable } from "@/features/schedules/components/CallSheetCastTable"
 import { CallSheetDeptGrid } from "@/features/schedules/components/CallSheetDeptGrid"
 import { CallSheetPageHeader } from "@/features/schedules/components/CallSheetPageHeader"
+import { compareLocationsByRole } from "@/features/schedules/lib/locationRoles"
 import type { CallSheetSectionFieldConfig } from "@/features/schedules/lib/fieldConfig"
 import type {
   Schedule,
@@ -445,17 +446,20 @@ export function CallSheetRenderer({
           )}
           {dayDetails.locations && dayDetails.locations.length > 0 && (
             <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
-              {dayDetails.locations.map((loc) => (
-                <p key={loc.id}>
-                  <span
-                    className="font-semibold uppercase tracking-wide"
-                    style={{ color: "var(--doc-accent,#2563eb)" }}
-                  >
-                    {loc.title}
-                  </span>{" "}
-                  {loc.ref?.label ?? loc.ref?.locationId ?? ""}
-                </p>
-              ))}
+              {dayDetails.locations
+                .slice()
+                .sort(compareLocationsByRole)
+                .map((loc) => (
+                  <p key={loc.id}>
+                    <span
+                      className="font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--doc-accent,#2563eb)" }}
+                    >
+                      {loc.title}
+                    </span>{" "}
+                    {loc.ref?.label ?? loc.ref?.locationId ?? ""}
+                  </p>
+                ))}
             </div>
           )}
         </div>

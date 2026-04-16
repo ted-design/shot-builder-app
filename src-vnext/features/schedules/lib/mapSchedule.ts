@@ -9,12 +9,31 @@ import type {
   CallOffsetDirection,
   CrewRecord,
   LocationBlock,
+  LocationRole,
   WeatherData,
   ScheduleTrack,
   ScheduleSettings,
   LocationRecord,
   ScheduleEntryHighlight,
 } from "@/shared/types"
+
+function asBoolOrNull(raw: unknown): boolean | null {
+  return typeof raw === "boolean" ? raw : null
+}
+
+const LOCATION_ROLE_VALUES: ReadonlySet<LocationRole> = new Set<LocationRole>([
+  "basecamp",
+  "parking",
+  "hospital",
+  "office",
+  "shoot",
+  "custom",
+])
+
+function asLocationRole(raw: unknown): LocationRole | null {
+  if (typeof raw !== "string") return null
+  return LOCATION_ROLE_VALUES.has(raw as LocationRole) ? (raw as LocationRole) : null
+}
 import { classifyTimeInput, minutesToHHMM, parseTimeToMinutes } from "@/features/schedules/lib/time"
 
 function normalizeTimeOnly(value: unknown): string | null {
@@ -63,7 +82,7 @@ export function mapSchedule(id: string, data: Record<string, unknown>): Schedule
           if (!tid) return null
           const name = typeof obj["name"] === "string" ? obj["name"].trim() : ""
           const order = typeof obj["order"] === "number" ? obj["order"] : 0
-          return { id: tid, name: name || "Track", order }
+          return { id: tid, name: name || "Unit", order }
         })
         .filter(Boolean) as ScheduleTrack[]
     : undefined
@@ -218,12 +237,14 @@ function mapLocationBlock(raw: unknown, fallback: {
   const id = asTrimmedText(obj["id"]) ?? fallback.id
   const showName = typeof obj["showName"] === "boolean" ? obj["showName"] : fallback.showName
   const showPhone = typeof obj["showPhone"] === "boolean" ? obj["showPhone"] : fallback.showPhone
+  const role = asLocationRole(obj["role"])
 
   if (!title && !hasLocationRefContent(ref)) return null
 
   return {
     id,
     title,
+    role,
     ref,
     showName,
     showPhone,
@@ -327,6 +348,8 @@ export function mapTalentCall(id: string, data: Record<string, unknown>): Talent
     createdAt: data["createdAt"] as TalentCallSheet["createdAt"],
     updatedAt: data["updatedAt"] as TalentCallSheet["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
+    isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
+    trackId: typeof data["trackId"] === "string" ? data["trackId"] : undefined,
   }
 }
 
@@ -356,6 +379,10 @@ export function mapCrewCall(id: string, data: Record<string, unknown>): CrewCall
     createdAt: data["createdAt"] as CrewCallSheet["createdAt"],
     updatedAt: data["updatedAt"] as CrewCallSheet["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
+    isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
+    showEmailOverride: asBoolOrNull(data["showEmailOverride"]),
+    showPhoneOverride: asBoolOrNull(data["showPhoneOverride"]),
+    trackId: typeof data["trackId"] === "string" ? data["trackId"] : undefined,
   }
 }
 

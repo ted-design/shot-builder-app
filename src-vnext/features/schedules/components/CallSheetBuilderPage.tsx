@@ -24,6 +24,13 @@ import { CallSheetPrintPortal } from "@/features/schedules/components/CallSheetP
 import { TrustChecks } from "@/features/schedules/components/TrustChecks"
 import { OnSetViewer } from "@/features/schedules/components/OnSetViewer"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
+import { deriveDefaultCallSheetTitle } from "@/features/schedules/lib/callSheetTitle"
+import { updateScheduleFields } from "@/features/schedules/lib/scheduleWrites"
+import { useUndoStack } from "@/shared/hooks/useUndoStack"
+import { useLastSaved } from "@/shared/hooks/useLastSaved"
+import { filterCrewCallsByTrack, filterTalentCallsByTrack } from "@/features/schedules/lib/trackFiltering"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
+import { InlineEdit } from "@/shared/components/InlineEdit"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { Button } from "@/ui/button"
 import { Sheet, SheetContent, SheetTitle } from "@/ui/sheet"
@@ -96,6 +103,25 @@ export default function CallSheetBuilderPage() {
   const [previewScale, setPreviewScale] = useState(100)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
+  const undoStack = useUndoStack<UndoSnapshot>()
+  // Drives the "Saved Xs ago" pill on the Output controls header. The
+  // output writes are all routed through callSheetConfig setters from
+  // this component, so the useLastSaved instance lives here (not in
+  // CallSheetOutputControls).
+  const outputLastSaved = useLastSaved()
+
+  // Per-unit export filtering: null = "All Units" (no filter)
+  const [activeExportTrackId, setActiveExportTrackId] = useState<string | null>(null)
+
+  // Filtered calls for the print portal
+  const exportTalentCalls = useMemo(
+    () => filterTalentCallsByTrack(talentCalls, activeExportTrackId),
+    [talentCalls, activeExportTrackId],
+  )
+  const exportCrewCalls = useMemo(
+    () => filterCrewCallsByTrack(crewCalls, activeExportTrackId),
+    [crewCalls, activeExportTrackId],
+  )
 
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
@@ -202,8 +228,8 @@ export default function CallSheetBuilderPage() {
           dayDetails,
           entries,
           shots,
-          talentCalls,
-          crewCalls,
+          talentCalls: exportTalentCalls,
+          crewCalls: exportCrewCalls,
           talentLibrary,
           crewLibrary,
           config: rendererConfig,
@@ -278,7 +304,28 @@ export default function CallSheetBuilderPage() {
           {/* E1: Header band */}
           <div className="mb-3 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] pb-3">
             <div>
-              <PageHeader title={schedule.name || "Call Sheet"} />
+              <PageHeader
+                title={
+                  <InlineEdit
+                    value={schedule.name}
+                    placeholder={deriveDefaultCallSheetTitle(schedule)}
+                    disabled={!clientId}
+                    showEditIcon
+                    onSave={(nextName) => {
+                      if (!clientId || !scheduleId) return
+                      void updateScheduleFields(
+                        clientId,
+                        projectId,
+                        scheduleId,
+                        { name: nextName },
+                      ).catch((err) => {
+                        console.error("Failed to rename call sheet", err)
+                        toast.error("Couldn't rename call sheet — try again.")
+                      })
+                    }}
+                  />
+                }
+              />
               {dateStr && (
                 <p className="-mt-3 text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}
@@ -372,12 +419,14 @@ export default function CallSheetBuilderPage() {
                 scheduleName={schedule.name}
                 dateStr={dateStr}
                 dayDetails={dayDetails}
+                undoStack={undoStack}
               />
 
               <ScheduleTrackControls
                 scheduleId={scheduleId}
                 schedule={schedule}
                 entries={entries}
+                undoStack={undoStack}
               />
               <AdaptiveTimelineView
                 scheduleId={scheduleId}
@@ -385,9 +434,14 @@ export default function CallSheetBuilderPage() {
                 entries={entries}
                 shots={shots}
                 talentLookup={talentLibrary}
+                talentCalls={talentCalls}
+                undoStack={undoStack}
               />
 
               <CallSheetOutputControls
+                tracks={schedule?.tracks ?? []}
+                activeTrackId={activeExportTrackId}
+                onActiveTrackChange={setActiveExportTrackId}
                 sections={{
                   header: rendererConfig.sections?.header ?? true,
                   dayDetails: rendererConfig.sections?.dayDetails ?? true,
@@ -413,30 +467,50 @@ export default function CallSheetBuilderPage() {
                 headerLayout={rendererConfig.headerLayout ?? "legacy"}
                 castFieldConfig={rendererConfig.fieldConfigs?.cast}
                 crewFieldConfig={rendererConfig.fieldConfigs?.crew}
+                savedAt={outputLastSaved.savedAt}
                 onPatchSections={(patch) => {
-                  void callSheetConfig.setSectionVisibility(patch)
+                  void callSheetConfig
+                    .setSectionVisibility(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {
+                      // setSectionVisibility already surfaces its own toast
+                    })
                 }}
                 onPatchScheduleFields={(patch) => {
-                  void callSheetConfig.setScheduleBlockFields(patch)
+                  void callSheetConfig
+                    .setScheduleBlockFields(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onPatchColors={(patch) => {
-                  void callSheetConfig.setColors(patch)
+                  void callSheetConfig
+                    .setColors(patch)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onSetHeaderLayout={(layout) => {
-                  void callSheetConfig.setHeaderLayout(layout)
+                  void callSheetConfig
+                    .setHeaderLayout(layout)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
                 onSaveSectionFieldConfig={(sectionKey, config) => {
-                  void callSheetConfig.setSectionFieldConfig(sectionKey, config)
+                  void callSheetConfig
+                    .setSectionFieldConfig(sectionKey, config)
+                    .then(() => outputLastSaved.markSaved())
+                    .catch(() => {})
                 }}
               />
 
               <CallOverridesEditor
                 scheduleId={scheduleId}
+                tracks={schedule?.tracks ?? []}
                 dayDetails={dayDetails}
                 talentCalls={talentCalls}
                 crewCalls={crewCalls}
                 talentLibrary={talentLibrary}
                 crewLibrary={crewLibrary}
+                undoStack={undoStack}
               />
 
               <TrustChecks

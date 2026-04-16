@@ -5,7 +5,7 @@ import { useBreadcrumbs } from "@/app/routes/useBreadcrumbs"
 import type { BreadcrumbEntry } from "@/app/routes/breadcrumbs"
 
 interface PageHeaderProps {
-  readonly title: string
+  readonly title: ReactNode
   readonly actions?: ReactNode
   /**
    * Override the auto-resolved breadcrumb trail. When omitted, PageHeader

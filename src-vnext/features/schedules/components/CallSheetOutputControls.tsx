@@ -5,6 +5,13 @@ import { Switch } from "@/ui/switch"
 import { Label } from "@/ui/label"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/select"
 import { DEFAULT_CALLSHEET_COLORS } from "@/features/schedules/lib/callSheetConfig"
 import { SECTION_META } from "@/features/schedules/lib/callSheetLayouts"
 import {
@@ -14,20 +21,29 @@ import {
 } from "@/features/schedules/lib/fieldConfig"
 import { CallSheetLayoutDialog } from "@/features/schedules/components/CallSheetLayoutDialog"
 import { EditSectionFieldsDialog } from "@/features/schedules/components/EditSectionFieldsDialog"
+import { SaveIndicator } from "@/shared/components/SaveIndicator"
 import type {
   CallSheetColors,
   CallSheetHeaderLayout,
   CallSheetSectionVisibility,
   ScheduleBlockFields,
 } from "@/features/schedules/components/CallSheetRenderer"
+import type { ScheduleTrack } from "@/shared/types"
 
 interface CallSheetOutputControlsProps {
+  readonly tracks?: readonly ScheduleTrack[]
+  readonly activeTrackId?: string | null
+  readonly onActiveTrackChange?: (trackId: string | null) => void
   readonly sections: Required<CallSheetSectionVisibility>
   readonly scheduleBlockFields: Required<ScheduleBlockFields>
   readonly colors: Required<CallSheetColors>
   readonly headerLayout: CallSheetHeaderLayout
   readonly castFieldConfig?: CallSheetSectionFieldConfig
   readonly crewFieldConfig?: CallSheetSectionFieldConfig
+  // Timestamp driving the "Saved Xs ago" pill in the Output header.
+  // Owned by the parent (CallSheetBuilderPage) because all of the
+  // output-config writes are routed through parent handlers.
+  readonly savedAt?: number | null
   readonly onPatchSections: (
     patch: Partial<Required<CallSheetSectionVisibility>>,
   ) => void
@@ -43,12 +59,16 @@ interface CallSheetOutputControlsProps {
 }
 
 export function CallSheetOutputControls({
+  tracks = [],
+  activeTrackId = null,
+  onActiveTrackChange,
   sections,
   scheduleBlockFields,
   colors,
   headerLayout,
   castFieldConfig,
   crewFieldConfig,
+  savedAt = null,
   onPatchSections,
   onPatchScheduleFields,
   onPatchColors,
@@ -120,7 +140,32 @@ export function CallSheetOutputControls({
         <h2 className="text-sm font-semibold text-[var(--color-text)]">
           Output
         </h2>
+        <SaveIndicator savedAt={savedAt} />
       </div>
+
+      {tracks.length >= 2 && onActiveTrackChange && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+            Export Unit
+          </p>
+          <Select
+            value={activeTrackId ?? "all"}
+            onValueChange={(v) => onActiveTrackChange(v === "all" ? null : v)}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="All Units" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Units</SelectItem>
+              {tracks.map((track) => (
+                <SelectItem key={track.id} value={track.id}>
+                  {track.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">

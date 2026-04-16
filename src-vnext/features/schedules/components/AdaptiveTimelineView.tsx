@@ -24,7 +24,11 @@ import {
   batchUpdateScheduleEntries,
   removeScheduleEntry,
   updateScheduleEntryFields,
+  upsertScheduleEntry,
 } from "@/features/schedules/lib/scheduleWrites"
+import { destructiveActionWithUndo } from "@/shared/lib/destructiveActionWithUndo"
+import type { UseUndoStackResult } from "@/shared/hooks/useUndoStack"
+import type { UndoSnapshot } from "@/features/schedules/lib/undoSnapshots"
 import {
   buildCascadeMoveBetweenTracksPatches,
   buildCascadeDurationPatches,
@@ -32,14 +36,18 @@ import {
 } from "@/features/schedules/lib/cascade"
 import { buildAutoDurationFillPatches } from "@/features/schedules/lib/autoDuration"
 import { findTrackOverlapConflicts, type TrackOverlapConflict } from "@/features/schedules/lib/conflicts"
-import { parseTimeToMinutes } from "@/features/schedules/lib/time"
+import { parseTimeToMinutes, formatMinutesTo12h } from "@/features/schedules/lib/time"
+import { detectScheduleGaps, type ScheduleGap } from "@/features/schedules/lib/gapDetection"
+import { detectSharedResourceConflicts } from "@/features/schedules/lib/sharedResourceConflicts"
 import type { VisibleFields } from "@/features/schedules/lib/adaptiveSegments"
+import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
 import type {
   Schedule,
   ScheduleEntry,
   ScheduleSettings,
   ScheduleTrack,
   Shot,
+  TalentCallSheet,
   TalentRecord,
 } from "@/shared/types"
 
@@ -83,6 +91,20 @@ function applyEntryPatches(
   })
 }
 
+function formatScheduleGapLabel(gap: ScheduleGap): string {
+  const hours = Math.floor(gap.durationMinutes / 60)
+  const mins = gap.durationMinutes % 60
+  const startLabel = formatMinutesTo12h(gap.startMin)
+  const endLabel = formatMinutesTo12h(gap.endMin)
+  const duration =
+    hours > 0
+      ? mins > 0
+        ? `${hours}h ${mins}m`
+        : `${hours}h`
+      : `${mins}m`
+  return `GAP \u00b7 ${duration} (${startLabel} \u2013 ${endLabel})`
+}
+
 function conflictKey(c: TrackOverlapConflict): string {
   return [c.firstEntryId, c.secondEntryId].sort().join("|")
 }
@@ -111,9 +133,27 @@ interface AdaptiveTimelineViewProps {
   readonly entries: readonly ScheduleEntry[]
   readonly shots: readonly Shot[]
   readonly talentLookup?: readonly TalentRecord[]
+  readonly talentCalls?: readonly TalentCallSheet[]
+  readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }
 
 // ─── Component ───────────────────────────────────────────────────────
+
+function scheduleEntryToPatch(entry: ScheduleEntry): Record<string, unknown> {
+  return {
+    type: entry.type,
+    title: entry.title,
+    shotId: entry.shotId ?? null,
+    startTime: entry.startTime ?? null,
+    time: entry.time ?? null,
+    duration: entry.duration ?? null,
+    order: entry.order,
+    trackId: entry.trackId ?? null,
+    appliesToTrackIds: entry.appliesToTrackIds ?? null,
+    highlight: entry.highlight ?? null,
+    notes: entry.notes ?? null,
+  }
+}
 
 export function AdaptiveTimelineView({
   scheduleId,
@@ -121,6 +161,8 @@ export function AdaptiveTimelineView({
   entries,
   shots,
   talentLookup,
+  talentCalls,
+  undoStack,
 }: AdaptiveTimelineViewProps) {
   const { clientId } = useAuth()
   const { projectId } = useProjectScope()
@@ -163,6 +205,25 @@ export function AdaptiveTimelineView({
     showNotes: true,
     showTags: true,
   }), [])
+
+  // Schedule gaps (idle windows > 30min per track)
+  const scheduleGaps = useMemo(() => {
+    const allRows: ProjectedScheduleRow[] = []
+    for (const seg of layout.segments) {
+      if (seg.kind === "dense") {
+        for (const trackRows of seg.rowsByTrack.values()) {
+          allRows.push(...trackRows)
+        }
+      }
+    }
+    return detectScheduleGaps(allRows)
+  }, [layout.segments])
+
+  // Shared resource conflicts (talent on 2+ tracks)
+  const talentConflicts = useMemo(
+    () => detectSharedResourceConflicts(talentCalls ?? [], talentLookup ?? []),
+    [talentCalls, talentLookup],
+  )
 
   // ─── View mode ───────────────────────────────────────────────────
 
@@ -263,8 +324,31 @@ export function AdaptiveTimelineView({
 
   const handleRemove = useCallback(async (entryId: string) => {
     if (!clientId) return
-    await removeScheduleEntry(clientId, projectId, scheduleId, entryId)
-  }, [clientId, projectId, scheduleId])
+    // Look up the full ScheduleEntry BEFORE the delete fires so the
+    // undo snapshot carries enough data to re-create the doc at the
+    // same path via upsertScheduleEntry.
+    const snapshotEntry = entries.find((e) => e.id === entryId)
+    if (!snapshotEntry) return
+
+    await destructiveActionWithUndo<UndoSnapshot>({
+      label: `Removed ${snapshotEntry.title || "entry"}`,
+      snapshot: { kind: "scheduleEntryRemoved", payload: snapshotEntry },
+      stack: undoStack,
+      perform: async () => {
+        await removeScheduleEntry(clientId, projectId, scheduleId, entryId)
+      },
+      undo: async (snap) => {
+        if (snap.kind !== "scheduleEntryRemoved") return
+        await upsertScheduleEntry(
+          clientId,
+          projectId,
+          scheduleId,
+          snap.payload.id,
+          scheduleEntryToPatch(snap.payload),
+        )
+      },
+    })
+  }, [clientId, entries, projectId, scheduleId, undoStack])
 
   const handleUpdateNotes = useCallback(async (entryId: string, notes: string) => {
     if (!clientId) return
@@ -507,6 +591,57 @@ export function AdaptiveTimelineView({
                   </p>
                 </div>
               ) : null}
+
+              {/* Schedule gap indicators */}
+              {scheduleGaps.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-dashed border-[var(--color-border)] px-3 pb-2 pt-2">
+                  <span className="text-2xs font-medium text-[var(--color-text-muted)]">
+                    Schedule Gaps
+                  </span>
+                  {scheduleGaps.map((gap) => (
+                    <div
+                      key={`schedule-gap-${gap.trackId}-${gap.startMin}`}
+                      className="flex items-center gap-2 rounded border border-dashed border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-2 py-1 text-2xs text-[var(--color-text-muted)]"
+                    >
+                      <span className="font-medium">
+                        {formatScheduleGapLabel(gap)}
+                      </span>
+                      {tracks.length >= 2 && (
+                        <span className="text-3xs text-[var(--color-text-subtle)]">
+                          {tracks.find((t) => t.id === gap.trackId)?.name ?? gap.trackId}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Shared resource conflict warnings */}
+              {talentConflicts.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-dashed border-[var(--color-border)] px-3 pb-2 pt-2">
+                  <span className="text-2xs font-medium text-[var(--color-warning)]">
+                    Shared Resource Conflicts
+                  </span>
+                  {talentConflicts.map((conflict) => {
+                    const trackNames = conflict.trackIds
+                      .map((tid) => tracks.find((t) => t.id === tid)?.name ?? tid)
+                      .join(", ")
+                    return (
+                      <div
+                        key={`conflict-${conflict.resourceId}`}
+                        className="flex items-center gap-2 rounded border border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-2 py-1 text-2xs"
+                      >
+                        <span className="font-medium text-[var(--color-warning)]">
+                          {conflict.resourceName}
+                        </span>
+                        <span className="text-[var(--color-text-muted)]">
+                          appears on {trackNames}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Unscheduled tray */}

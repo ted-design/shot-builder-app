@@ -17,7 +17,7 @@ function makeEntry(overrides: Partial<ScheduleEntry> = {}): ScheduleEntry {
 
 const tracks: readonly ScheduleTrack[] = [
   { id: "primary", name: "Primary", order: 0 },
-  { id: "track-2", name: "Track 2", order: 1 },
+  { id: "track-2", name: "Unit 2", order: 1 },
 ]
 
 const settings: ScheduleSettings = {

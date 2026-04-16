@@ -635,6 +635,13 @@ export interface ScheduleEntry {
 export interface LocationBlock {
   readonly id: string
   readonly title: string
+  /**
+   * Explicit canonical role (basecamp/parking/hospital/office/shoot/custom).
+   * Optional for backward compat — existing blocks without a role are treated
+   * as unset and fall back to title-based inference at read time. Written on
+   * the next edit (no backfill migration).
+   */
+  readonly role?: LocationRole | null
   readonly ref: {
     readonly locationId?: string | null
     readonly label?: string | null
@@ -643,6 +650,14 @@ export interface LocationBlock {
   readonly showName: boolean
   readonly showPhone: boolean
 }
+
+export type LocationRole =
+  | "basecamp"
+  | "parking"
+  | "hospital"
+  | "office"
+  | "shoot"
+  | "custom"
 
 export interface WeatherData {
   readonly lowTemp?: number | null
@@ -688,6 +703,8 @@ export interface TalentCallSheet {
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp
   readonly createdBy?: string
+  readonly isVisibleOverride?: boolean | null
+  readonly trackId?: string
 }
 
 export type CallOffsetDirection = "early" | "delay"
@@ -707,6 +724,10 @@ export interface CrewCallSheet {
   readonly createdAt?: Timestamp
   readonly updatedAt?: Timestamp
   readonly createdBy?: string
+  readonly isVisibleOverride?: boolean | null
+  readonly showEmailOverride?: boolean | null
+  readonly showPhoneOverride?: boolean | null
+  readonly trackId?: string
 }
 
 // --- Shot Requests ---

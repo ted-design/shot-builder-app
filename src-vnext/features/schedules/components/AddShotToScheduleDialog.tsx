@@ -122,11 +122,11 @@ export function AddShotToScheduleDialog({
         {tracks.length > 1 && (
           <div className="flex flex-col gap-2">
             <span className="text-xs font-medium text-[var(--color-text-muted)]">
-              Track
+              Unit
             </span>
             <Select value={trackId} onValueChange={setTrackId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select track" />
+                <SelectValue placeholder="Select unit" />
               </SelectTrigger>
               <SelectContent>
                 {tracks.map((t) => (

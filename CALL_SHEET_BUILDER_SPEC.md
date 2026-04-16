@@ -28,6 +28,8 @@ Transform the Schedule page into a full-featured Call Sheet Builder with:
 
 ## 🏗️ ARCHITECTURE OVERVIEW
 
+> **Design data models for the goal, not for the current feature set.** SetHero's scene data model has `slugline` / `pageCount` (fractional, 1/8 precision) / `storyDay` / `intExt` / `dayNight` fields despite having no script parser. These are producer-entered manual fields that unlock classic 1st-AD production workflows (coverage tracking, production reports) without requiring a script-importer engineering investment. When Shot Builder adds scene support, the scene schema should include these fields from day one even if no downstream feature uses them yet — the marginal cost is trivial (a few optional fields), and the option value is large (enables a later Production Reports / Coverage Tracker sprint without a schema migration). Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 13.
+
 ### New Data Models Required
 ```typescript
 // Departments & Positions
@@ -96,25 +98,38 @@ interface CallSheetConfig {
 
 interface CallSheetSection {
   id: string;
-  type: SectionType;
+  slug: SectionSlug;
+  displayTitle: string;  // user-editable label; defaults to the canonical display name for each slug
   isVisible: boolean;
   order: number;
   config: SectionConfig;
 }
 
-type SectionType =
-  | 'header'
-  | 'day-details'
-  | 'reminders'
-  | 'schedule'
-  | 'clients'
-  | 'talent'
-  | 'extras'
-  | 'advanced-schedule'
-  | 'page-break'
-  | 'crew'
-  | 'notes-contacts'
-  | 'custom-banner';
+// Canonical section slugs — match SetHero's internal names where applicable,
+// diverge where SB is extending (custom-banner) or collapsing (schedule).
+// Slug is stable and machine-readable; the user-visible title lives on
+// `CallSheetSection.displayTitle` so rename-in-place does not mutate the slug.
+type SectionSlug =
+  | 'header'            // SH parity (display: "Header")
+  | 'day'               // SH parity slug (display: "Day Details")
+  | 'reminders'         // SH parity (display: "Reminders")
+  | 'schedule'          // SB unified — encompasses SH's today-schedule.
+                        // Tomorrow-preview is a config flag (`showNextDayPreview`),
+                        // NOT a separate section type. SH's `advanced-schedule`
+                        // is collapsed into this.
+  | 'clients'           // SH parity (display: "Clients")
+  | 'cast'              // SH parity slug (display: "Talent")
+  | 'extras'            // SH parity (display: "Extras and Dept. Notes")
+  | 'page-break'        // SH parity (display: "Page Break")
+  | 'crew'              // SH parity (display: "Crew")
+  | 'notes'             // SH parity slug (display: "Notes & Contacts")
+  | 'custom-banner';    // SB-only extension — no SH analogue. Full-width
+                        // announcement block insertable between sections.
+
+// NOTE: 'quote' (SetHero's disabled-by-default Quote of the Day) is intentionally
+// omitted from the canonical taxonomy. Low demand for commercial/fashion producers;
+// can be added later via a custom-section extension if the need emerges.
+// Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 2.
 
 interface DayDetails {
   scheduleId: string;
@@ -161,6 +176,10 @@ interface ScheduleEntry {
   unit: string; // "Main", "Motion", "Stills", etc.
 }
 ```
+
+### Patterns worth considering (speculative, not requirements)
+
+SetHero's `crew_new` modal was observed to default `add_to_previous_reports: true` — meaning when a producer adds a crew member to a project, that crew member is **retroactively back-filled onto all prior Production Reports** so historical documents rebuild themselves as the project grows. **Medium confidence** — the field default was observed in the modal template but the behavior was not directly verified with live data. If Shot Builder ever ships Production Reports (tracked separately as a v2/v3 roadmap question, out of scope for this spec), this is a pattern worth prototyping: automatically back-fill late crew additions onto historical documents rather than leaving them as partial records. Not a hard recommendation. Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 14.
 
 ---
 
@@ -343,7 +362,10 @@ interface LayoutPanelProps {
 
 // Features:
 // - Drag handles for reordering
-// - Eye icon for visibility toggle
+// - Eye icon for visibility toggle (SetHero precedent confirmed —
+//   `is_shown: false` + `.disabled` wrapper. Do NOT replace with a
+//   text "Hide" button or a kebab menu item; the eye icon is the
+//   canonical affordance. Sourced from spec-delta Item 8.)
 // - Checkmark icon for enabled/disabled
 // - Edit button to open section editor
 // - "+" menu between sections for inserting custom banners or page breaks
@@ -482,7 +504,11 @@ Accessible via gear icon or "Settings" tab:
 - Preview mode vs Edit mode toggle
 - Generate PDF
 - Send via email (with recipient list from crew)
-- Live preview URL (shareable link)
+- Live preview URL (shareable link) — reuse the existing token-based share
+  pattern from `shotShares` (Sprint S21) and `castingShares` (Sprint S24). The
+  call sheet share is a root-level `callSheetShares/{shareToken}` collection
+  with a denormalized `resolvedSheet` so the public reader never touches
+  protected collections. Sourced from spec-delta Item 11.
 - Version history
 
 #### 5.3 File Attachments
@@ -609,18 +635,26 @@ src/
 ## 💡 IMPLEMENTATION TIPS
 
 ### State Management
-Consider using Zustand or React Context for call sheet builder state:
-```typescript
-interface CallSheetBuilderState {
-  activeSection: string | null;
-  setActiveSection: (id: string | null) => void;
-  sections: CallSheetSection[];
-  updateSection: (id: string, updates: Partial<CallSheetSection>) => void;
-  reorderSections: (newOrder: string[]) => void;
-  isPreviewMode: boolean;
-  togglePreviewMode: () => void;
-}
-```
+
+Per `CLAUDE.md` §5 (State Strategy), server state for the call sheet builder is Firestore `onSnapshot` subscriptions — **no Redux, no Zustand, no client-side cache, no custom sync engine**. Section edits flow through per-field `updateDoc` writes (dirty-field only). Re-renders are driven by snapshot observers, not a client-side store. UI-only state (which section is being edited, expanded / collapsed state of the outline sidebar, unsaved-draft flags) lives in component-local `useState` or a minimal context provider — never mirrors Firestore documents.
+
+Optimistic updates are permitted only for idempotent toggles (section visibility, `is_visible`, `is_key_contact`); optimistic **entity creation** (new section, new crew assignment) is explicitly disallowed and must await Firestore write confirmation per `CLAUDE.md` §5. The dual-PUT pattern SetHero uses on visibility writes (per the `sethero-callsheet-editor` research) maps to writing a structured Firestore document — the section shape and subcollection layout follows the existing `schedules/{scheduleId}/callSheet` / `schedules/{scheduleId}/crewCalls` / `schedules/{scheduleId}/talentCalls` paths already present in the codebase.
+
+An earlier draft of this spec suggested Zustand or React Context for a `CallSheetBuilderState` store — **that suggestion is rejected**; it contradicts the hard architectural rule in `CLAUDE.md` §5. Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 1.
+
+### Autosave semantics
+
+Call sheet field edits save on blur (input leaves focus) via dirty-field `updateDoc` writes to Firestore. Re-renders flow through `onSnapshot` subscribers per `CLAUDE.md` §5. Three rules govern the save path:
+
+1. **Idempotent toggles** (section visibility, `is_visible`, `is_key_contact`, `showName` / `showPhone` on locations) apply optimistically client-side and converge on the next snapshot tick. These never need a confirmation gesture; the toggle IS the confirmation.
+2. **Free-text and numeric fields** save on blur via dirty-field `updateDoc`. No debounce on text input — only the on-blur write is dispatched. The user's draft state lives in component-local `useState`; the snapshot listener is the single source of truth and re-syncs after the write lands.
+3. **Destructive actions** (section hide, row delete, section reorder, location remove, track collapse, timeline entry delete) require an explicit confirmation OR a 5-second `sonner` undo toast (the `destructiveActionWithUndo` helper in `src-vnext/shared/lib/`). The undo window prevents the silent-loss hazard SetHero exhibits with its fail-silent autosave.
+
+Every section header renders an unobtrusive "Saved Xs ago" pill (green dot + relative timestamp, ticking every ~5 seconds) so the producer never has to wonder whether their last keystroke landed. Implementation lives in `src-vnext/shared/components/SaveIndicator.tsx` and a sibling `useLastSaved` hook.
+
+There is **no client-side cache layer**, **no custom sync engine**, **no offline mutation queue**. Firestore's default IndexedDB persistence handles offline reads; a failed write surfaces a `sonner` error toast and the user re-tries manually. This is the deliberate inverse of SetHero's "PUT and forget" pattern, which loses changes silently when the network drops mid-edit.
+
+Sourced from `outputs/sethero-callsheet-spec-delta.md` Item 6 (corrected: the spec delta originally referenced `react-hot-toast`; the codebase uses `sonner`, which has native action-button support and is the established toast layer).
 
 ### Drag and Drop
 Use `@dnd-kit/core` for:

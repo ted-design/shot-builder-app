@@ -6,11 +6,75 @@ import { useOverlapGroups } from "@/features/schedules/hooks/useOverlapGroups"
 import { useNowMinute } from "@/shared/hooks/useNowMinute"
 import { COMPACT_HEIGHT } from "@/features/schedules/components/TimelineBlockCard"
 import type { DenseBlock } from "@/features/schedules/lib/adaptiveSegments"
+import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
 import type { ScheduleTrack, Shot } from "@/shared/types"
 
 // ─── Constants ────────────────────────────────────────────────────────
 
 const PX_PER_MIN = 4
+
+// ─── Cross-track overlap bands ───────────────────────────────────────
+
+interface OverlapBand {
+  readonly startMin: number
+  readonly endMin: number
+}
+
+/**
+ * Finds time ranges where entries on 2+ different tracks overlap.
+ * Returns merged, sorted bands suitable for rendering highlight strips.
+ */
+function computeCrossTrackOverlapBands(
+  rowsByTrack: ReadonlyMap<string, readonly ProjectedScheduleRow[]>,
+): readonly OverlapBand[] {
+  const trackIntervals: ReadonlyArray<{ startMin: number; endMin: number }>[] = []
+
+  for (const rows of rowsByTrack.values()) {
+    const intervals = rows
+      .filter((r): r is ProjectedScheduleRow & { startMin: number; endMin: number } =>
+        r.startMin != null && r.endMin != null,
+      )
+      .map((r) => ({ startMin: r.startMin, endMin: r.endMin }))
+    if (intervals.length > 0) trackIntervals.push(intervals)
+  }
+
+  if (trackIntervals.length < 2) return []
+
+  // For each pair of tracks, find pairwise entry overlaps
+  const bands: OverlapBand[] = []
+  for (let i = 0; i < trackIntervals.length; i++) {
+    for (let j = i + 1; j < trackIntervals.length; j++) {
+      for (const a of trackIntervals[i]) {
+        for (const b of trackIntervals[j]) {
+          const overlapStart = Math.max(a.startMin, b.startMin)
+          const overlapEnd = Math.min(a.endMin, b.endMin)
+          if (overlapStart < overlapEnd) {
+            bands.push({ startMin: overlapStart, endMin: overlapEnd })
+          }
+        }
+      }
+    }
+  }
+
+  if (bands.length === 0) return []
+
+  // Merge overlapping/adjacent bands into contiguous ranges
+  const sorted = [...bands].sort((a, b) => a.startMin - b.startMin)
+  const merged: OverlapBand[] = [sorted[0]]
+  for (let k = 1; k < sorted.length; k++) {
+    const last = merged[merged.length - 1]
+    if (sorted[k].startMin <= last.endMin) {
+      merged[merged.length - 1] = {
+        startMin: last.startMin,
+        endMin: Math.max(last.endMin, sorted[k].endMin),
+      }
+    } else {
+      merged.push(sorted[k])
+    }
+  }
+
+  return merged
+}
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -54,6 +118,12 @@ export function TimelineGridView({
   }, [rowsByTrack])
 
   const overlapGroups = useOverlapGroups(allRows)
+
+  // Cross-track overlap highlight bands (only meaningful with 2+ tracks)
+  const overlapBands = useMemo(
+    () => computeCrossTrackOverlapBands(rowsByTrack),
+    [rowsByTrack],
+  )
 
   // Empty state: no scheduled entries in this segment
   const hasEntries = allRows.length > 0
@@ -113,6 +183,18 @@ export function TimelineGridView({
               line.isHour ? "bg-[var(--color-border)]" : "bg-[var(--color-border-muted)]"
             }`}
             style={{ top: `${line.offsetPx}px` }}
+          />
+        ))}
+
+        {/* Cross-track overlap highlights */}
+        {overlapBands.map((band, i) => (
+          <div
+            key={`overlap-${i}`}
+            className="pointer-events-none absolute inset-x-0 bg-[var(--color-primary)]/5"
+            style={{
+              top: `${(band.startMin - startMin) * PX_PER_MIN}px`,
+              height: `${(band.endMin - band.startMin) * PX_PER_MIN}px`,
+            }}
           />
         ))}
 

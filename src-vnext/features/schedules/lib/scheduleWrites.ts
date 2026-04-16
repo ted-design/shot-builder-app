@@ -235,6 +235,31 @@ export async function removeScheduleEntry(
   await deleteDoc(ref(segments))
 }
 
+/**
+ * Re-create a schedule entry at a specific doc id. Intended for the
+ * undo side of a timeline-entry delete — callers pass the full snapshot
+ * captured before deletion. Uses `setDoc` without merge so the entry
+ * is restored to the exact snapshotted state. `updatedAt` is refreshed
+ * so listeners notice the re-creation.
+ */
+export async function upsertScheduleEntry(
+  clientId: string,
+  projectId: string,
+  scheduleId: string,
+  entryId: string,
+  patch: Record<string, unknown>,
+): Promise<{ readonly id: string }> {
+  const segments = [
+    ...scheduleEntriesPath(projectId, scheduleId, clientId),
+    entryId,
+  ]
+  await setDoc(ref(segments), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  })
+  return { id: entryId }
+}
+
 // --- Day Details ---
 
 export async function updateDayDetails(

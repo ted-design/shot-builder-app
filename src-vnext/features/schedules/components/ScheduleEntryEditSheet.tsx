@@ -311,7 +311,7 @@ export function ScheduleEntryEditSheet({
                 <Label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   <span className="inline-flex items-center gap-1">
                     <Rows className="h-3 w-3" />
-                    Track
+                    Unit
                   </span>
                 </Label>
                 <Select value={trackDraft} onValueChange={(next) => void handleTrackChange(next)}>

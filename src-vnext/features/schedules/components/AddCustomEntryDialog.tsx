@@ -76,7 +76,7 @@ export function AddCustomEntryDialog({
 
   const trackLabel = useMemo(() => {
     if (isShared) return "Shared"
-    return tracks.find((track) => track.id === trackId)?.name ?? "Track"
+    return tracks.find((track) => track.id === trackId)?.name ?? "Unit"
   }, [isShared, trackId, tracks])
 
   function handleSubmit() {
@@ -109,10 +109,10 @@ export function AddCustomEntryDialog({
         <div className="flex flex-col gap-4">
           {!isShared && tracks.length > 1 && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="custom-entry-track">Track</Label>
+              <Label htmlFor="custom-entry-track">Unit</Label>
               <Select value={trackId} onValueChange={setTrackId}>
                 <SelectTrigger id="custom-entry-track">
-                  <SelectValue placeholder="Select track" />
+                  <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
                   {tracks.map((track) => (
