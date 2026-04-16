@@ -76,38 +76,41 @@ function TemplateCard({
   readonly onSelect: () => void
   readonly onDelete?: () => void
 }) {
+  // Card + delete are SIBLING buttons inside a positioning wrapper to avoid
+  // nested <button> elements (invalid HTML — fires validateDOMNesting warning
+  // and breaks keyboard semantics).
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`group flex items-start gap-2 rounded-md border p-3 text-left transition-colors ${
-        selected
-          ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
-          : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-      }`}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-sm font-medium text-[var(--color-text)]">
-          {template.name}
-        </span>
-        <span className="text-2xs text-[var(--color-text-muted)]">
-          {template.description}
-        </span>
-      </div>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`flex w-full items-start gap-2 rounded-md border p-3 text-left transition-colors ${
+          selected
+            ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
+            : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
+        }`}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-sm font-medium text-[var(--color-text)]">
+            {template.name}
+          </span>
+          <span className="text-2xs text-[var(--color-text-muted)]">
+            {template.description}
+          </span>
+        </div>
+        {onDelete && <span aria-hidden="true" className="h-5 w-5 shrink-0" />}
+      </button>
       {onDelete && (
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="shrink-0 rounded p-1 text-[var(--color-text-muted)] opacity-0 transition-opacity hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-destructive)] group-hover:opacity-100"
+          onClick={onDelete}
+          className="absolute right-2 top-2 rounded p-1 text-[var(--color-text-muted)] opacity-0 transition-opacity hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-destructive)] group-hover:opacity-100 focus-visible:opacity-100"
           aria-label={`Delete ${template.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
-    </button>
+    </div>
   )
 }
 
