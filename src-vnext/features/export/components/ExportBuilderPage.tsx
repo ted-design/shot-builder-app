@@ -45,6 +45,7 @@ import { BlockPalette } from "./BlockPalette"
 import { BlockSettingsPanel } from "./BlockSettingsPanel"
 import { DocumentPreview } from "./DocumentPreview"
 import { ExportTopBar } from "./ExportTopBar"
+import { InlineBlockPicker } from "./InlineBlockPicker"
 import { TemplateDialog } from "./TemplateDialog"
 import { VariablesPanel } from "./VariablesPanel"
 import { PageSettingsPanel } from "./PageSettingsPanel"
@@ -55,6 +56,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useExportReports } from "../hooks/useExportReports"
 import { useExportTemplates } from "../hooks/useExportTemplates"
 import { useExportBlockOps } from "../hooks/useExportBlockOps"
+import { useInlineBlockPicker } from "../hooks/useInlineBlockPicker"
 import { useExportPageOps } from "../hooks/useExportPageOps"
 
 function createDefaultDocument(): ExportDocument {
@@ -166,6 +168,13 @@ function ExportBuilderPageInner() {
     handleAddColumn,
     handleRemoveColumn,
   } = useExportPageOps(document, setDocument, activePageId, setActivePageId)
+
+  const {
+    blockPickerOpen,
+    setBlockPickerOpen,
+    handleBlockPickerSelect,
+    handleOpenBlockPicker,
+  } = useInlineBlockPicker(document, setDocument, setSelectedBlockId, handleAddBlock, activePageIdRef)
 
   // --- Initialization: select first report or detect legacy localStorage ---
   useEffect(() => {
@@ -755,6 +764,7 @@ function ExportBuilderPageInner() {
             onDeletePage={handleDeletePage}
             isPaletteDrag={activeDragType !== null}
             onPageClick={setActivePageId}
+            onOpenBlockPicker={handleOpenBlockPicker}
           />
 
           {/* Right -- Block Settings */}
@@ -776,6 +786,12 @@ function ExportBuilderPageInner() {
       </DndContext>
 
       {/* Panels / Dialogs */}
+      <InlineBlockPicker
+        open={blockPickerOpen}
+        onOpenChange={setBlockPickerOpen}
+        onSelectBlock={handleBlockPickerSelect}
+      />
+
       <TemplateDialog
         open={showTemplates}
         onOpenChange={setShowTemplates}
