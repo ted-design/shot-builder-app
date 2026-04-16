@@ -38,6 +38,7 @@ import { buildAutoDurationFillPatches } from "@/features/schedules/lib/autoDurat
 import { findTrackOverlapConflicts, type TrackOverlapConflict } from "@/features/schedules/lib/conflicts"
 import { parseTimeToMinutes, formatMinutesTo12h } from "@/features/schedules/lib/time"
 import { detectScheduleGaps, type ScheduleGap } from "@/features/schedules/lib/gapDetection"
+import { detectSharedResourceConflicts } from "@/features/schedules/lib/sharedResourceConflicts"
 import type { VisibleFields } from "@/features/schedules/lib/adaptiveSegments"
 import type { ProjectedScheduleRow } from "@/features/schedules/lib/projection"
 import type {
@@ -46,6 +47,7 @@ import type {
   ScheduleSettings,
   ScheduleTrack,
   Shot,
+  TalentCallSheet,
   TalentRecord,
 } from "@/shared/types"
 
@@ -131,6 +133,7 @@ interface AdaptiveTimelineViewProps {
   readonly entries: readonly ScheduleEntry[]
   readonly shots: readonly Shot[]
   readonly talentLookup?: readonly TalentRecord[]
+  readonly talentCalls?: readonly TalentCallSheet[]
   readonly undoStack: UseUndoStackResult<UndoSnapshot>
 }
 
@@ -158,6 +161,7 @@ export function AdaptiveTimelineView({
   entries,
   shots,
   talentLookup,
+  talentCalls,
   undoStack,
 }: AdaptiveTimelineViewProps) {
   const { clientId } = useAuth()
@@ -214,6 +218,12 @@ export function AdaptiveTimelineView({
     }
     return detectScheduleGaps(allRows)
   }, [layout.segments])
+
+  // Shared resource conflicts (talent on 2+ tracks)
+  const talentConflicts = useMemo(
+    () => detectSharedResourceConflicts(talentCalls ?? [], talentLookup ?? []),
+    [talentCalls, talentLookup],
+  )
 
   // ─── View mode ───────────────────────────────────────────────────
 
@@ -603,6 +613,33 @@ export function AdaptiveTimelineView({
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Shared resource conflict warnings */}
+              {talentConflicts.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-dashed border-[var(--color-border)] px-3 pb-2 pt-2">
+                  <span className="text-2xs font-medium text-[var(--color-warning)]">
+                    Shared Resource Conflicts
+                  </span>
+                  {talentConflicts.map((conflict) => {
+                    const trackNames = conflict.trackIds
+                      .map((tid) => tracks.find((t) => t.id === tid)?.name ?? tid)
+                      .join(", ")
+                    return (
+                      <div
+                        key={`conflict-${conflict.resourceId}`}
+                        className="flex items-center gap-2 rounded border border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-2 py-1 text-2xs"
+                      >
+                        <span className="font-medium text-[var(--color-warning)]">
+                          {conflict.resourceName}
+                        </span>
+                        <span className="text-[var(--color-text-muted)]">
+                          appears on {trackNames}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

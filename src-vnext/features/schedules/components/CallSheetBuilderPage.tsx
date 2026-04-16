@@ -420,6 +420,7 @@ export default function CallSheetBuilderPage() {
                 entries={entries}
                 shots={shots}
                 talentLookup={talentLibrary}
+                talentCalls={talentCalls}
                 undoStack={undoStack}
               />
 
