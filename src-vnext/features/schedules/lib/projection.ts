@@ -34,7 +34,7 @@ function defaultTracks(tracks: readonly ScheduleTrack[] | null | undefined): rea
     .filter((t) => t && typeof t.id === "string" && t.id.trim().length > 0)
     .map((t, index) => ({
       id: t.id.trim(),
-      name: typeof t.name === "string" && t.name.trim().length > 0 ? t.name.trim() : `Track ${index + 1}`,
+      name: typeof t.name === "string" && t.name.trim().length > 0 ? t.name.trim() : `Unit ${index + 1}`,
       order: typeof t.order === "number" ? t.order : index,
     }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))

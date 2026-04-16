@@ -33,7 +33,7 @@ function normalizeTracks(tracks: readonly ScheduleTrack[] | null | undefined): r
     .filter((track) => typeof track.id === "string" && track.id.trim().length > 0)
     .map((track, index) => ({
       id: track.id.trim(),
-      name: typeof track.name === "string" && track.name.trim().length > 0 ? track.name.trim() : `Track ${index + 1}`,
+      name: typeof track.name === "string" && track.name.trim().length > 0 ? track.name.trim() : `Unit ${index + 1}`,
       order: typeof track.order === "number" ? track.order : index,
     }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))

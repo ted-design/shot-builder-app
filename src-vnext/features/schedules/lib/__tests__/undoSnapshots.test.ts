@@ -100,7 +100,7 @@ describe("takeCollapseSnapshot", () => {
   it("deep-clones tracks so source mutation does not leak into the snapshot", () => {
     const tracks: ScheduleTrack[] = [
       makeTrack("primary", "Primary", 0),
-      makeTrack("t2", "Track 2", 1),
+      makeTrack("t2", "Unit 2", 1),
     ]
     const entries: ScheduleEntry[] = [makeEntry("e1", { trackId: "primary" })]
 
@@ -108,7 +108,7 @@ describe("takeCollapseSnapshot", () => {
 
     tracks[0] = makeTrack("primary", "MUTATED", 99)
 
-    expect(snapshot.tracks.map((t) => t.name)).toEqual(["Primary", "Track 2"])
+    expect(snapshot.tracks.map((t) => t.name)).toEqual(["Primary", "Unit 2"])
     expect(snapshot.tracks[0]).not.toBe(tracks[0])
   })
 

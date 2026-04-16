@@ -73,7 +73,7 @@ describe("ScheduleEntryCard", () => {
           value: "track-2",
           options: [
             { value: "primary", label: "Primary" },
-            { value: "track-2", label: "Track 2" },
+            { value: "track-2", label: "Unit 2" },
           ],
         }}
         onRemove={() => {}}
@@ -84,7 +84,7 @@ describe("ScheduleEntryCard", () => {
       />,
     )
 
-    expect(screen.getByText("Track 2")).toBeInTheDocument()
+    expect(screen.getByText("Unit 2")).toBeInTheDocument()
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
   })
 })

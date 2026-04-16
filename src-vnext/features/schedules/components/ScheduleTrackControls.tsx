@@ -122,7 +122,7 @@ export function ScheduleTrackControls({
               onClick={() => {
                 const next: ScheduleTrack[] = [
                   { id: "primary", name: "Primary", order: 0 },
-                  { id: createTrackId(), name: "Track 2", order: 1 },
+                  { id: createTrackId(), name: "Unit 2", order: 1 },
                 ]
                 void patchTracks(next)
               }}
@@ -138,7 +138,7 @@ export function ScheduleTrackControls({
                 onClick={() => {
                   const next = [
                     ...tracks,
-                    { id: createTrackId(), name: `Track ${tracks.length + 1}`, order: tracks.length },
+                    { id: createTrackId(), name: `Unit ${tracks.length + 1}`, order: tracks.length },
                   ]
                   void patchTracks(next)
                 }}
@@ -170,7 +170,7 @@ export function ScheduleTrackControls({
               <div className="min-w-0 flex-1">
                 <InlineEdit
                   value={t.name}
-                  placeholder="Track name"
+                  placeholder="Unit name"
                   onSave={(nextName) => {
                     const next = tracks.map((track) =>
                       track.id === t.id
@@ -195,8 +195,8 @@ export function ScheduleTrackControls({
                   const next = tracks.filter((track) => track.id !== t.id)
                   void patchTracks(next)
                 }}
-                aria-label="Remove track"
-                title={canRemove ? "Remove track" : "Track must be empty to remove"}
+                aria-label="Remove unit"
+                title={canRemove ? "Remove unit" : "Unit must be empty to remove"}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

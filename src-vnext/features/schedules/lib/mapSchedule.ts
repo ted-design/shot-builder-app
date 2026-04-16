@@ -82,7 +82,7 @@ export function mapSchedule(id: string, data: Record<string, unknown>): Schedule
           if (!tid) return null
           const name = typeof obj["name"] === "string" ? obj["name"].trim() : ""
           const order = typeof obj["order"] === "number" ? obj["order"] : 0
-          return { id: tid, name: name || "Track", order }
+          return { id: tid, name: name || "Unit", order }
         })
         .filter(Boolean) as ScheduleTrack[]
     : undefined

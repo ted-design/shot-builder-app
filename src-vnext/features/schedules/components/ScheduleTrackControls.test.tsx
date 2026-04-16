@@ -77,8 +77,8 @@ const schedule: Schedule = {
   date: null,
   tracks: [
     { id: "primary", name: "Primary", order: 0 },
-    { id: "track-b", name: "Track 2", order: 1 },
-    { id: "track-c", name: "Track 3", order: 2 },
+    { id: "track-b", name: "Unit 2", order: 1 },
+    { id: "track-c", name: "Unit 3", order: 2 },
   ],
   settings: {
     cascadeChanges: true,

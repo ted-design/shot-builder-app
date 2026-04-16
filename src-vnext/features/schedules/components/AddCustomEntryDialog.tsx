@@ -76,7 +76,7 @@ export function AddCustomEntryDialog({
 
   const trackLabel = useMemo(() => {
     if (isShared) return "Shared"
-    return tracks.find((track) => track.id === trackId)?.name ?? "Track"
+    return tracks.find((track) => track.id === trackId)?.name ?? "Unit"
   }, [isShared, trackId, tracks])
 
   function handleSubmit() {
