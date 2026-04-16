@@ -225,6 +225,7 @@ function talentCallToPatch(call: TalentCallSheet): Record<string, unknown> {
     status: call.status ?? null,
     notes: call.notes ?? null,
     isVisibleOverride: call.isVisibleOverride ?? null,
+    trackId: call.trackId ?? null,
   }
 }
 
@@ -243,6 +244,7 @@ function crewCallToPatch(call: CrewCallSheet): Record<string, unknown> {
     isVisibleOverride: call.isVisibleOverride ?? null,
     showEmailOverride: call.showEmailOverride ?? null,
     showPhoneOverride: call.showPhoneOverride ?? null,
+    trackId: call.trackId ?? null,
   }
 }
 

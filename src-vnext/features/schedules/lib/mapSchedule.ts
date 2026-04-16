@@ -349,6 +349,7 @@ export function mapTalentCall(id: string, data: Record<string, unknown>): Talent
     updatedAt: data["updatedAt"] as TalentCallSheet["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
     isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
+    trackId: typeof data["trackId"] === "string" ? data["trackId"] : undefined,
   }
 }
 
@@ -381,6 +382,7 @@ export function mapCrewCall(id: string, data: Record<string, unknown>): CrewCall
     isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
     showEmailOverride: asBoolOrNull(data["showEmailOverride"]),
     showPhoneOverride: asBoolOrNull(data["showPhoneOverride"]),
+    trackId: typeof data["trackId"] === "string" ? data["trackId"] : undefined,
   }
 }
 

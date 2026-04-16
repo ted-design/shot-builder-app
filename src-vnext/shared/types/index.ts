@@ -704,6 +704,7 @@ export interface TalentCallSheet {
   readonly updatedAt?: Timestamp
   readonly createdBy?: string
   readonly isVisibleOverride?: boolean | null
+  readonly trackId?: string
 }
 
 export type CallOffsetDirection = "early" | "delay"
@@ -726,6 +727,7 @@ export interface CrewCallSheet {
   readonly isVisibleOverride?: boolean | null
   readonly showEmailOverride?: boolean | null
   readonly showPhoneOverride?: boolean | null
+  readonly trackId?: string
 }
 
 // --- Shot Requests ---
