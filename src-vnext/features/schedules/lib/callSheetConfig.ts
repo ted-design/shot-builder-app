@@ -5,7 +5,8 @@ import {
   serializeSectionFieldConfig,
   type CallSheetSectionFieldConfig,
 } from "@/features/schedules/lib/fieldConfig"
-import type { CallSheetConfig, CallSheetSectionVisibility, ScheduleBlockFields, CallSheetColors, CallSheetHeaderLayout } from "@/features/schedules/components/CallSheetRenderer"
+import type { CallSheetConfig, CallSheetSectionVisibility, ScheduleBlockFields, CallSheetColors, CallSheetHeaderLayout, SectionKey } from "@/features/schedules/components/CallSheetRenderer"
+import { DEFAULT_SECTION_ORDER } from "@/features/schedules/components/CallSheetRenderer"
 
 type LegacySectionType =
   | "header"
@@ -56,6 +57,7 @@ export const DEFAULT_CALLSHEET_COLORS: Required<CallSheetColors> = {
 interface LegacyConfigExtended extends LegacyConfig {
   readonly headerLayout?: string
   readonly fieldConfigs?: Record<string, unknown>
+  readonly sectionOrder?: unknown
 }
 
 export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): CallSheetConfig {
@@ -117,13 +119,40 @@ export function normalizeCallSheetConfig(raw: Record<string, unknown> | null): C
     ),
   }
 
+  const sectionOrder = normalizeSectionOrder(legacy.sectionOrder)
+
   return {
     sections,
     scheduleBlockFields,
     colors,
     headerLayout,
     fieldConfigs,
+    sectionOrder,
   }
+}
+
+function normalizeSectionOrder(raw: unknown): readonly SectionKey[] {
+  const validKeys = new Set<string>(DEFAULT_SECTION_ORDER)
+
+  if (!Array.isArray(raw)) return DEFAULT_SECTION_ORDER
+
+  const seen = new Set<string>()
+  const ordered: SectionKey[] = []
+
+  for (const item of raw) {
+    if (typeof item === "string" && validKeys.has(item) && !seen.has(item)) {
+      seen.add(item)
+      ordered.push(item as SectionKey)
+    }
+  }
+
+  for (const key of DEFAULT_SECTION_ORDER) {
+    if (!seen.has(key)) {
+      ordered.push(key)
+    }
+  }
+
+  return ordered
 }
 
 export function upsertLegacySectionVisibility(

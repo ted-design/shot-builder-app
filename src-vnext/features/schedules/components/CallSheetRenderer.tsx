@@ -50,18 +50,24 @@ export interface ScheduleBlockFields {
   readonly showNotes?: boolean
 }
 
+export type SectionKey = keyof Required<CallSheetSectionVisibility>
+
+export const DEFAULT_SECTION_ORDER: readonly SectionKey[] = [
+  "header",
+  "dayDetails",
+  "schedule",
+  "talent",
+  "crew",
+  "notes",
+]
+
 export interface CallSheetConfig {
   readonly sections?: CallSheetSectionVisibility
   readonly colors?: CallSheetColors
   readonly scheduleBlockFields?: ScheduleBlockFields
-  /**
-   * Header layout variant.
-   * 'legacy' = current header (default, never breaks existing call sheets).
-   * 'grid' = new 3-zone modular grid header (S7-7).
-   */
   readonly headerLayout?: CallSheetHeaderLayout
-  /** Per-section field configs (cast/crew column customization). */
   readonly fieldConfigs?: Readonly<Record<string, CallSheetSectionFieldConfig>>
+  readonly sectionOrder?: readonly SectionKey[]
 }
 
 // --- Data props ---
@@ -379,31 +385,21 @@ export function CallSheetRenderer({
   const headerSubtitle = projectName?.trim() ? schedule.name : ""
   const resolvedProjectName = projectName?.trim() || schedule.name
 
-  return (
-    <div
-      className="flex flex-col gap-4"
-      style={{
-        color: "var(--color-doc-ink)",
-        ...(primary
-          ? ({ ["--doc-section-band-bg" as string]: primary } as CSSProperties)
-          : {}),
-        ...(accent
-          ? ({ ["--doc-accent" as string]: accent } as CSSProperties)
-          : {}),
-        ...(text ? ({ ["--color-doc-ink" as string]: text } as CSSProperties) : {}),
-      }}
-    >
-      {/* Header section */}
-      {sections.header && (
+  const sectionOrder = config?.sectionOrder ?? DEFAULT_SECTION_ORDER
+
+  const sectionRenderers: Record<SectionKey, () => React.ReactNode> = {
+    header: () =>
+      sections.header ? (
         headerLayout === "grid" ? (
           <CallSheetPageHeader
+            key="header"
             projectName={resolvedProjectName}
             scheduleName={schedule.name}
             schedule={schedule}
             dayDetails={dayDetails}
           />
         ) : (
-          <div className="border-b-2 border-[var(--color-doc-ink)] pb-3">
+          <div key="header" className="border-b-2 border-[var(--color-doc-ink)] pb-3">
             <h2 className="text-lg font-bold" style={{ color: "var(--color-doc-ink)" }}>
               {headerTitle}
             </h2>
@@ -419,11 +415,11 @@ export function CallSheetRenderer({
             )}
           </div>
         )
-      )}
+      ) : null,
 
-      {/* Day details section — only shown in legacy header mode */}
-      {sections.dayDetails && dayDetails && headerLayout === "legacy" && (
-        <div className="flex flex-col gap-3">
+    dayDetails: () =>
+      sections.dayDetails && dayDetails && headerLayout === "legacy" ? (
+        <div key="dayDetails" className="flex flex-col gap-3">
           <div className="callsheet-section-label">Day Details</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2">
             <TimeField label="Crew Call" value={dayDetails.crewCallTime} />
@@ -435,138 +431,92 @@ export function CallSheetRenderer({
           </div>
           {dayDetails.weather?.summary && (
             <p className="text-xs text-[var(--color-text-muted)]">
-              <span
-                className="font-semibold uppercase tracking-wide"
-                style={{ color: "var(--doc-accent,#2563eb)" }}
-              >
-                Weather
-              </span>{" "}
+              <span className="font-semibold uppercase tracking-wide" style={{ color: "var(--doc-accent,#2563eb)" }}>Weather</span>{" "}
               {dayDetails.weather.summary}
             </p>
           )}
           {dayDetails.locations && dayDetails.locations.length > 0 && (
             <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
-              {dayDetails.locations
-                .slice()
-                .sort(compareLocationsByRole)
-                .map((loc) => (
-                  <p key={loc.id}>
-                    <span
-                      className="font-semibold uppercase tracking-wide"
-                      style={{ color: "var(--doc-accent,#2563eb)" }}
-                    >
-                      {loc.title}
-                    </span>{" "}
-                    {loc.ref?.label ?? loc.ref?.locationId ?? ""}
-                  </p>
-                ))}
+              {dayDetails.locations.slice().sort(compareLocationsByRole).map((loc) => (
+                <p key={loc.id}>
+                  <span className="font-semibold uppercase tracking-wide" style={{ color: "var(--doc-accent,#2563eb)" }}>{loc.title}</span>{" "}
+                  {loc.ref?.label ?? loc.ref?.locationId ?? ""}
+                </p>
+              ))}
             </div>
           )}
         </div>
-      )}
+      ) : null,
 
-      {/* Schedule entries */}
-      {sections.schedule && (
-        <div className="flex flex-col gap-1">
+    schedule: () =>
+      sections.schedule ? (
+        <div key="schedule" className="flex flex-col gap-1">
           <div className="callsheet-section-label">Schedule</div>
           {(!entries || entries.length === 0) ? (
-            <p className="py-2 text-xs text-[var(--color-text-subtle)]">
-              No entries scheduled.
-            </p>
+            <p className="py-2 text-xs text-[var(--color-text-subtle)]">No entries scheduled.</p>
+          ) : hasMultiStream ? (
+            <AdvancedScheduleBlockSection schedule={schedule} entries={entries} shots={shots ?? []} talentLookup={talentLookup ?? []} fields={scheduleFields} />
           ) : (
-            hasMultiStream ? (
-              <AdvancedScheduleBlockSection
-                schedule={schedule}
-                entries={entries}
-                shots={shots ?? []}
-                talentLookup={talentLookup ?? []}
-                fields={scheduleFields}
-              />
-            ) : (
-              <div className="flex flex-col">
-                {entries.map((entry) => {
-                  const shot = entry.shotId ? (shotMap.get(entry.shotId) ?? null) : null
-                  const talentIds =
-                    shot?.talentIds && shot.talentIds.length > 0
-                      ? shot.talentIds
-                      : (shot?.talent ?? [])
-                  const talentNames = entry.type === "shot" && shot
-                    ? talentIds
-                        .map((id) => talentMap.get(id)?.name ?? id)
-                        .filter(Boolean)
-                    : []
-                  return (
-                    <RendererEntryRow
-                      key={entry.id}
-                      entry={entry}
-                      shot={shot}
-                      fields={scheduleFields}
-                      talentNames={talentNames}
-                    />
-                  )
-                })}
-              </div>
-            )
+            <div className="flex flex-col">
+              {entries.map((entry) => {
+                const shot = entry.shotId ? (shotMap.get(entry.shotId) ?? null) : null
+                const talentIds = shot?.talentIds && shot.talentIds.length > 0 ? shot.talentIds : (shot?.talent ?? [])
+                const talentNames = entry.type === "shot" && shot ? talentIds.map((id) => talentMap.get(id)?.name ?? id).filter(Boolean) : []
+                return <RendererEntryRow key={entry.id} entry={entry} shot={shot} fields={scheduleFields} talentNames={talentNames} />
+              })}
+            </div>
           )}
-          {/* Key times strip after schedule entries */}
-          {dayDetails && (
-            <CallSheetKeyTimesStrip dayDetails={dayDetails} />
-          )}
+          {dayDetails && <CallSheetKeyTimesStrip dayDetails={dayDetails} />}
         </div>
-      )}
+      ) : null,
 
-      {/* Talent / Cast calls */}
-      {sections.talent && (
-        <div className="flex flex-col gap-1">
+    talent: () =>
+      sections.talent ? (
+        <div key="talent" className="flex flex-col gap-1">
           <div className="callsheet-section-label">
             {fieldConfigs?.cast?.title ?? "Cast"}
-            {talentCalls && talentCalls.length > 0 && (
-              <span className="callsheet-section-label-meta">{talentCalls.length} Talent</span>
-            )}
+            {talentCalls && talentCalls.length > 0 && <span className="callsheet-section-label-meta">{talentCalls.length} Talent</span>}
           </div>
-          <CallSheetCastTable
-            talentCalls={talentCalls ?? []}
-            talentLookup={talentLookup ?? []}
-            dayDetails={dayDetails}
-            fieldConfig={fieldConfigs?.cast}
-          />
+          <CallSheetCastTable talentCalls={talentCalls ?? []} talentLookup={talentLookup ?? []} dayDetails={dayDetails} fieldConfig={fieldConfigs?.cast} />
         </div>
-      )}
+      ) : null,
 
-      {/* Crew calls — grouped by department */}
-      {sections.crew && (
-        <div className="flex flex-col gap-1">
-          {/* Running header for print page 2+ */}
+    crew: () =>
+      sections.crew ? (
+        <div key="crew" className="flex flex-col gap-1">
           <div className="callsheet-running-header" aria-hidden="true">
             <span>{resolvedProjectName}</span>
             <span>Crew Call Sheet</span>
           </div>
           <div className="callsheet-section-label">
             {fieldConfigs?.crew?.title ?? "Crew"}
-            {crewCalls && crewCalls.length > 0 && (
-              <span className="callsheet-section-label-meta">{crewCalls.length} Members</span>
-            )}
+            {crewCalls && crewCalls.length > 0 && <span className="callsheet-section-label-meta">{crewCalls.length} Members</span>}
           </div>
-          <CallSheetDeptGrid
-            crewCalls={crewCalls ?? []}
-            crewLookup={crewLookup ?? []}
-            dayDetails={dayDetails}
-            fieldConfig={fieldConfigs?.crew}
-          />
+          <CallSheetDeptGrid crewCalls={crewCalls ?? []} crewLookup={crewLookup ?? []} dayDetails={dayDetails} fieldConfig={fieldConfigs?.crew} />
         </div>
-      )}
+      ) : null,
 
-      {/* Notes */}
-      {sections.notes && dayDetails?.notes && dayDetails.notes.trim().length > 0 && (
-        <div className="flex flex-col gap-1">
+    notes: () =>
+      sections.notes && dayDetails?.notes && dayDetails.notes.trim().length > 0 ? (
+        <div key="notes" className="flex flex-col gap-1">
           <div className="callsheet-section-label">Production Notes</div>
-          <div className="whitespace-pre-wrap text-xs text-[var(--color-text)]">
-            {dayDetails.notes}
-          </div>
+          <div className="whitespace-pre-wrap text-xs text-[var(--color-text)]">{dayDetails.notes}</div>
         </div>
-      )}
+      ) : null,
+  }
 
-      {/* Page footer (confidential + print only) */}
+  return (
+    <div
+      className="flex flex-col gap-4"
+      style={{
+        color: "var(--color-doc-ink)",
+        ...(primary ? ({ ["--doc-section-band-bg" as string]: primary } as CSSProperties) : {}),
+        ...(accent ? ({ ["--doc-accent" as string]: accent } as CSSProperties) : {}),
+        ...(text ? ({ ["--color-doc-ink" as string]: text } as CSSProperties) : {}),
+      }}
+    >
+      {sectionOrder.map((key) => sectionRenderers[key]())}
+
       <div className="callsheet-page-footer-left" aria-hidden="true">
         {resolvedProjectName} &mdash; Call Sheet &mdash; Confidential
       </div>
