@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { UserPlus, X, Users, Clapperboard, Eye, EyeOff, Mail, MailX, Phone, PhoneOff } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -270,6 +270,13 @@ export function CallOverridesEditor({
 
   // Unit filter state (null = "All Units")
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null)
+
+  // Reset tab if the selected track no longer exists
+  useEffect(() => {
+    if (activeTrackId !== null && !tracks.some(t => t.id === activeTrackId)) {
+      setActiveTrackId(null)
+    }
+  }, [activeTrackId, tracks])
 
   // Filtered calls for rendering rows
   const filteredTalentCalls = useMemo(

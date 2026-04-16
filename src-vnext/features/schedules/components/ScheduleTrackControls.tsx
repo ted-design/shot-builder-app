@@ -101,7 +101,7 @@ export function ScheduleTrackControls({
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-[var(--color-text-subtle)]" />
           <span className="label-meta text-[var(--color-text-muted)]">
-            Tracks
+            Units
           </span>
         </div>
 
@@ -144,7 +144,7 @@ export function ScheduleTrackControls({
                 }}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Add Track
+                Add Unit
               </Button>
               <Button
                 variant="destructive"
