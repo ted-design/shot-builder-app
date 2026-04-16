@@ -152,7 +152,7 @@ export function getMobileNavConfig(projectId?: string, role?: string): NavConfig
         type: "item",
         item: {
           label: entry.group.label,
-          to: "/library",
+          to: "/library/talent",
           iconName: entry.group.iconName,
           surfaceBadge: "Reader",
         },

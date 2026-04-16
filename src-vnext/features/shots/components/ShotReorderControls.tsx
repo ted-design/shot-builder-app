@@ -53,7 +53,7 @@ export function ShotReorderControls({
         disabled={isFirst}
         onClick={(e) => {
           e.stopPropagation()
-          move(-1)
+          void move(-1)
         }}
       >
         <ChevronUp className="h-3 w-3" />
@@ -65,7 +65,7 @@ export function ShotReorderControls({
         disabled={isLast}
         onClick={(e) => {
           e.stopPropagation()
-          move(1)
+          void move(1)
         }}
       >
         <ChevronDown className="h-3 w-3" />

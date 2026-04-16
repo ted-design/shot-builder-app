@@ -61,13 +61,7 @@ export default function SharedLinksPage() {
   if (!canEdit) {
     return (
       <ErrorBoundary>
-        <PageHeader
-          title="Shared Links"
-          breadcrumbs={[
-            { label: "Projects", to: "/projects" },
-            { label: projectName || projectId || "Project" },
-          ]}
-        />
+        <PageHeader title="Shared Links" />
         <EmptyState
           icon={<Link2 className="h-8 w-8" />}
           title="You don't have permission to manage shared links"
@@ -154,13 +148,7 @@ export default function SharedLinksPage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader
-        title="Shared Links"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || projectId || "Project" },
-        ]}
-      />
+      <PageHeader title="Shared Links" />
 
       {links.length === 0 ? (
         <EmptyState

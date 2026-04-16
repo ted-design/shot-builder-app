@@ -161,13 +161,7 @@ export default function LocationDetailPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">
-      <PageHeader
-        title={location.name}
-        breadcrumbs={[
-          { label: "Library" },
-          { label: "Locations", to: "/library/locations" },
-        ]}
-      />
+      <PageHeader title={location.name} trailingCrumbLabel={location.name} />
 
       {/* Photo section */}
       <input

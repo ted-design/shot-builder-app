@@ -6,6 +6,10 @@ import {
   type QueryConstraint,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
+import {
+  markSubscriptionMount,
+  markSubscriptionUnmount,
+} from "@/shared/lib/devSubscriptionCounter"
 
 export interface FirestoreCollectionError {
   readonly message: string
@@ -43,6 +47,8 @@ export function useFirestoreCollection<T>(
 
     const collRef = collection(db, pathSegments[0]!, ...pathSegments.slice(1))
     const q = constraints.length > 0 ? query(collRef, ...constraints) : collRef
+    const counterKey = constraintKeys ? `${pathKey}?${constraintKeys}` : pathKey
+    markSubscriptionMount(counterKey)
 
     const unsubscribe = onSnapshot(
       q,
@@ -73,7 +79,10 @@ export function useFirestoreCollection<T>(
       },
     )
 
-    return unsubscribe
+    return () => {
+      unsubscribe()
+      markSubscriptionUnmount(counterKey)
+    }
   }, [pathKey, constraintKeys])
 
   return { data, loading, error }

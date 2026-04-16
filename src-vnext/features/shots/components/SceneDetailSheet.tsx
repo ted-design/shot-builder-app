@@ -101,7 +101,7 @@ export function SceneDetailSheet({
     if (!lane) return
     const trimmed = name.trim()
     if (trimmed && trimmed !== lane.name) {
-      savePatch({ name: trimmed })
+      void savePatch({ name: trimmed })
     }
   }, [name, lane, savePatch])
 
@@ -147,7 +147,7 @@ export function SceneDetailSheet({
       return
     }
     if (parsed !== lane.sceneNumber) {
-      savePatch({ sceneNumber: parsed })
+      void savePatch({ sceneNumber: parsed })
       // Reflect the normalized value back into the input (e.g., "01" → "1")
       setSceneNumber(String(parsed))
     }
@@ -165,7 +165,7 @@ export function SceneDetailSheet({
 
   const handleColorSelect = useCallback(
     (colorKey: string) => {
-      savePatch({ color: colorKey })
+      void savePatch({ color: colorKey })
     },
     [savePatch],
   )
@@ -190,7 +190,7 @@ export function SceneDetailSheet({
     if (!lane) return
     const current = lane.direction ?? ""
     if (direction !== current) {
-      savePatch({ direction: direction || null })
+      void savePatch({ direction: direction || null })
     }
   }, [direction, lane, savePatch])
 
@@ -198,7 +198,7 @@ export function SceneDetailSheet({
     if (!lane) return
     const current = lane.notes ?? ""
     if (notes !== current) {
-      savePatch({ notes: notes || null })
+      void savePatch({ notes: notes || null })
     }
   }, [notes, lane, savePatch])
 

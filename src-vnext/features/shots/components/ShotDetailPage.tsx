@@ -1,11 +1,18 @@
-import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
+import {
+  collection,
+  getCountFromServer,
+  query,
+  where,
+} from "firebase/firestore"
+import { db } from "@/shared/lib/firebase"
+import { shotsPath } from "@/shared/lib/paths"
 import { LoadingState } from "@/shared/components/LoadingState"
 import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary"
 import { InlineEdit } from "@/shared/components/InlineEdit"
-import { useShot } from "@/features/shots/hooks/useShot"
-import { useShots } from "@/features/shots/hooks/useShots"
-import { useLanes } from "@/features/shots/hooks/useLanes"
+import { useShotDetailBundle } from "@/features/shots/hooks/useShotDetailBundle"
 import { ShotStatusSelect } from "@/features/shots/components/ShotStatusSelect"
 import { ShotStatusTapRow } from "@/features/shots/components/ShotStatusTapRow"
 import { TalentPicker } from "@/features/shots/components/TalentPicker"
@@ -41,18 +48,15 @@ import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
-import { useProjects } from "@/features/projects/hooks/useProjects"
 
 export default function ShotDetailPage() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
-  const { data: shot, loading, error } = useShot(sid)
-  const { data: projectShots } = useShots()
-  const { data: projects } = useProjects()
+  const { shot, laneById, loading, error } = useShotDetailBundle(sid)
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
   const isMobile = useIsMobile()
@@ -62,8 +66,10 @@ export default function ShotDetailPage() {
   const canShare = role === "admin" || role === "producer"
   const [shareOpen, setShareOpen] = useState(false)
   const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
+  const [sceneSheetShotCount, setSceneSheetShotCount] = useState<number | undefined>(
+    undefined,
+  )
   const canExport = !isMobile
-  const { data: lanes, laneById } = useLanes()
 
   // -- FAB integration: ?status_picker=1 and ?focus=notes --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -92,13 +98,37 @@ export default function ShotDetailPage() {
     }
   }, [searchParams, setSearchParamsFab])
 
-  const existingShotTitles = useMemo(() => {
-    return new Set(
-      projectShots
-        .map((entry) => entry.title?.trim())
-        .filter((entry): entry is string => !!entry && entry.length > 0),
-    )
-  }, [projectShots])
+  // Lazy one-shot count for SceneDetailSheet's "N shots in this scene" label.
+  // Runs only when the sheet opens for a shot whose lane is known; avoids the
+  // old pattern of keeping a project-wide useShots() subscription just to
+  // derive a single number.
+  useEffect(() => {
+    if (!sceneSheetOpen || !clientId || !shot?.laneId) {
+      setSceneSheetShotCount(undefined)
+      return
+    }
+    let cancelled = false
+    const run = async () => {
+      try {
+        const segs = shotsPath(clientId)
+        const q = query(
+          collection(db, segs[0]!, ...segs.slice(1)),
+          where("projectId", "==", shot.projectId),
+          where("laneId", "==", shot.laneId),
+          where("deleted", "==", false),
+        )
+        const snap = await getCountFromServer(q)
+        if (!cancelled) setSceneSheetShotCount(snap.data().count)
+      } catch (err) {
+        console.error("[ShotDetailPage] scene count failed", err)
+        if (!cancelled) setSceneSheetShotCount(undefined)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [sceneSheetOpen, clientId, shot?.laneId, shot?.projectId])
 
   // -- Keyboard shortcuts: Escape = back, Cmd+S = prevent browser save (auto-save handles it) --
   useKeyboardShortcuts([
@@ -157,16 +187,21 @@ export default function ShotDetailPage() {
         entityId={shot.id}
       />
       <div className="flex flex-col gap-5">
-        {/* ── Breadcrumb ── */}
-        <div className="text-2xs text-[var(--color-text-subtle)]">
-          <Link to="/projects" className="hover:text-[var(--color-text-muted)]">Projects</Link>
-          <span className="mx-1">/</span>
-          <Link to={`/projects/${shot.projectId}`} className="hover:text-[var(--color-text-muted)]">{projectName || "Project"}</Link>
-          <span className="mx-1">/</span>
-          <Link to={`/projects/${shot.projectId}/shots${window.location.search}`} className="hover:text-[var(--color-text-muted)]">Shots</Link>
-          <span className="mx-1">/</span>
-          <span>#{shot.shotNumber || "—"}</span>
-        </div>
+        {/* ── Breadcrumb — preserves URL search so filter state survives going back to Shots ── */}
+        <Breadcrumbs
+          items={[
+            { label: "Projects", to: "/projects" },
+            {
+              label: projectName || "Project",
+              to: `/projects/${shot.projectId}/shots`,
+            },
+            {
+              label: "Shots",
+              to: `/projects/${shot.projectId}/shots${window.location.search}`,
+            },
+            { label: shot.shotNumber ? `#${shot.shotNumber}` : "Shot" },
+          ]}
+        />
 
         {/* ── Scene context banner ── */}
         <SceneContextBanner
@@ -218,13 +253,7 @@ export default function ShotDetailPage() {
               Share
             </Button>
           )}
-          {canManageLifecycle && (
-            <ShotLifecycleActionsMenu
-              shot={shot}
-              projects={projects}
-              existingTitles={existingShotTitles}
-            />
-          )}
+          {canManageLifecycle && <ShotLifecycleActionsMenu shot={shot} />}
           {!isMobile && (
             <ShotStatusSelect
               shotId={shot.id}
@@ -283,12 +312,12 @@ export default function ShotDetailPage() {
                       value={formatDateOnly(shot.date)}
                       onSave={(dateStr) => {
                         if (!dateStr) {
-                          save({ date: null })
+                          void save({ date: null })
                           return
                         }
                         try {
                           const ts = parseDateOnly(dateStr)
-                          save({ date: ts })
+                          void save({ date: ts })
                         } catch {
                           toast.error("Invalid date")
                         }
@@ -396,7 +425,7 @@ export default function ShotDetailPage() {
           lane={shot.laneId ? laneById.get(shot.laneId) ?? null : null}
           projectId={shot.projectId}
           clientId={clientId}
-          shotCount={shot.laneId ? projectShots.filter((s) => s.laneId === shot.laneId).length : 0}
+          shotCount={sceneSheetShotCount}
         />
 
       </div>

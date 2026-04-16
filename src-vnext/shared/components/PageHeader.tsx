@@ -1,25 +1,43 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { ChevronRight } from "lucide-react"
-
-interface Breadcrumb {
-  readonly label: string
-  readonly to?: string
-}
+import { useBreadcrumbs } from "@/app/routes/useBreadcrumbs"
+import type { BreadcrumbEntry } from "@/app/routes/breadcrumbs"
 
 interface PageHeaderProps {
   readonly title: string
   readonly actions?: ReactNode
-  readonly breadcrumbs?: readonly Breadcrumb[]
+  /**
+   * Override the auto-resolved breadcrumb trail. When omitted, PageHeader
+   * looks up the current route in breadcrumbsConfig and renders that trail
+   * automatically — Phase 0.3 unification. Pass an explicit array to
+   * short-circuit the lookup (rarely needed).
+   */
+  readonly breadcrumbs?: readonly BreadcrumbEntry[]
+  /**
+   * Dynamic label for the trailing crumb on detail routes
+   * (e.g. "Shot #47", a product styleName). Ignored when `breadcrumbs`
+   * is passed explicitly or when the route's config resolver does not
+   * consume it.
+   */
+  readonly trailingCrumbLabel?: string
 }
 
-export function PageHeader({ title, actions, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  actions,
+  breadcrumbs,
+  trailingCrumbLabel,
+}: PageHeaderProps) {
+  const autoCrumbs = useBreadcrumbs(trailingCrumbLabel)
+  const effectiveCrumbs = breadcrumbs ?? autoCrumbs
+
   return (
     <div className="pb-4">
-      {breadcrumbs && breadcrumbs.length > 0 && (
+      {effectiveCrumbs.length > 0 && (
         <nav className="flex items-center gap-1 pb-1 text-xs text-[var(--color-text-muted)]">
-          {breadcrumbs.map((crumb, idx) => (
-            <span key={crumb.label} className="flex items-center gap-1">
+          {effectiveCrumbs.map((crumb, idx) => (
+            <span key={`${crumb.label}-${idx}`} className="flex items-center gap-1">
               {idx > 0 && <ChevronRight className="h-3 w-3" />}
               {crumb.to ? (
                 <Link

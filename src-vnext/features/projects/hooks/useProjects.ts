@@ -5,7 +5,7 @@ import { projectsPath } from "@/shared/lib/paths"
 import { normalizeShootDates } from "@/features/projects/lib/shootDates"
 import type { Project } from "@/shared/types"
 
-function mapProject(id: string, data: Record<string, unknown>): Project {
+export function mapProject(id: string, data: Record<string, unknown>): Project {
   return {
     id,
     name: (data["name"] as string) ?? "",

@@ -331,7 +331,7 @@ function ExportBuilderPageInner() {
           const remaining = reports.filter((r) => r.id !== reportId)
           if (remaining.length > 0) {
             const first = remaining[0]!
-            handleSelectReport(first.id)
+            void handleSelectReport(first.id)
           } else {
             setActiveReportId(null)
             setDocument(createDefaultDocument())
@@ -639,7 +639,7 @@ function ExportBuilderPageInner() {
   const exportData = useExportDataContext()
 
   const handleExport = useCallback(() => {
-    generateExportPdf(document, exportData, variables)
+    void generateExportPdf(document, exportData, variables)
   }, [document, exportData, variables])
 
   // --- Keyboard shortcut: Delete/Backspace removes selected block ---

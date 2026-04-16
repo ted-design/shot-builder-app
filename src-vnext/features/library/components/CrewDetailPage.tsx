@@ -204,13 +204,7 @@ export default function CrewDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <PageHeader
-        title={crew.name}
-        breadcrumbs={[
-          { label: "Library" },
-          { label: "Crew", to: "/library/crew" },
-        ]}
-      />
+      <PageHeader title={crew.name} trailingCrumbLabel={crew.name} />
 
       {/* Info section */}
       <Card className="rounded-lg">

@@ -71,7 +71,6 @@ export default function LibraryLocationsPage() {
       <div className="flex flex-col gap-5">
         <PageHeader
           title="Locations"
-          breadcrumbs={[{ label: "Library" }]}
           actions={
             canCreate ? (
               isMobile ? (

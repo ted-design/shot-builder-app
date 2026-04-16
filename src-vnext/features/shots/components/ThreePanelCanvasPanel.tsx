@@ -1,4 +1,7 @@
 import { ChevronLeft, Share2 } from "lucide-react"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { HeroImageSection } from "@/features/shots/components/HeroImageSection"
 import { ActiveLookCoverReferencesPanel } from "@/features/shots/components/ActiveLookCoverReferencesPanel"
@@ -15,7 +18,7 @@ import {
 } from "@/features/shots/components/ShotDetailShared"
 import { textPreview } from "@/shared/lib/textPreview"
 import type { SaveState } from "@/shared/hooks/useAutoSave"
-import type { Shot, Project, Lane } from "@/shared/types"
+import type { Shot, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Props
@@ -28,8 +31,6 @@ interface ThreePanelCanvasPanelProps {
   readonly canDoOperational: boolean
   readonly onClose: () => void
   readonly onShareClick?: () => void
-  readonly projects: ReadonlyArray<Project>
-  readonly existingTitles: ReadonlySet<string>
   readonly laneById?: ReadonlyMap<string, Lane>
   /** Opens the SceneDetailSheet for the given lane id — owned by ThreePanelLayout. */
   readonly onOpenSceneSheet?: (laneId: string) => void
@@ -46,26 +47,46 @@ export function ThreePanelCanvasPanel({
   canDoOperational,
   onClose,
   onShareClick,
-  projects,
-  existingTitles,
   laneById,
   onOpenSceneSheet,
 }: ThreePanelCanvasPanelProps) {
+  const { clientId } = useAuth()
+  const { projectName } = useProjectScope()
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
   const resolvedLaneById = laneById ?? new Map<string, Lane>()
 
+  const shotCrumbLabel = shot.shotNumber
+    ? `#${shot.shotNumber}`
+    : shot.title || "Shot"
+
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {/* Back to list + presence indicator */}
-      <div className="flex-shrink-0 border-b border-[var(--color-border)] px-4 py-1.5 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 -ml-1.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          <span>Shots</span>
-        </button>
+      {/* Breadcrumbs + back button + presence indicator */}
+      <div className="flex-shrink-0 border-b border-[var(--color-border)] px-4 py-1.5 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 -ml-1.5 text-xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+            aria-label="Back to shot list"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <Breadcrumbs
+            items={[
+              { label: "Projects", to: "/projects" },
+              {
+                label: projectName || "Project",
+                to: `/projects/${shot.projectId}/shots`,
+              },
+              {
+                label: "Shots",
+                to: `/projects/${shot.projectId}/shots`,
+              },
+              { label: shotCrumbLabel },
+            ]}
+          />
+        </div>
         <div className="flex items-center gap-1">
           <CompactActiveEditors
             clientId={clientId}
@@ -83,12 +104,7 @@ export function ThreePanelCanvasPanel({
             </button>
           )}
           {canDoOperational && (
-            <ShotLifecycleActionsMenu
-              shot={shot}
-              projects={projects}
-              existingTitles={existingTitles}
-              disabled={!canDoOperational}
-            />
+            <ShotLifecycleActionsMenu shot={shot} disabled={!canDoOperational} />
           )}
         </div>
       </div>

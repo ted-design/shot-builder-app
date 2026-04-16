@@ -10,12 +10,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageSchedules } from "@/shared/lib/rbac"
-import { useSchedule } from "@/features/schedules/hooks/useSchedule"
-import { useScheduleDayDetails } from "@/features/schedules/hooks/useScheduleDayDetails"
-import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntries"
-import { useScheduleTalentCalls } from "@/features/schedules/hooks/useScheduleTalentCalls"
-import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
-import { useCallSheetConfig } from "@/features/schedules/hooks/useCallSheetConfig"
+import { useCallSheetBundle } from "@/features/schedules/hooks/useCallSheetBundle"
 import { useTalent } from "@/features/shots/hooks/usePickerData"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
@@ -78,40 +73,29 @@ export default function CallSheetBuilderPage() {
   }, [isMobile, canManage, isPreviewParam, navigate, projectId])
 
   const {
-    data: schedule,
-    loading: scheduleLoading,
+    schedule,
+    dayDetails,
+    entries,
+    talentCalls,
+    crewCalls,
+    callSheet: callSheetConfig,
     error: scheduleError,
-  } = useSchedule(clientId, projectId, scheduleId)
-
+    loadingFlags,
+  } = useCallSheetBundle(clientId, projectId, scheduleId)
   const {
-    data: dayDetails,
-    loading: dayDetailsLoading,
-  } = useScheduleDayDetails(clientId, projectId, scheduleId)
-
-  const {
-    data: entries,
-    loading: entriesLoading,
-  } = useScheduleEntries(clientId, projectId, scheduleId)
+    schedule: scheduleLoading,
+    dayDetails: dayDetailsLoading,
+    entries: entriesLoading,
+    talentCalls: talentCallsLoading,
+    crewCalls: crewCallsLoading,
+  } = loadingFlags
 
   const { data: shots, loading: shotsLoading } = useShots()
-
-  const {
-    data: talentCalls,
-    loading: talentCallsLoading,
-  } = useScheduleTalentCalls(clientId, projectId, scheduleId)
-
-  const {
-    data: crewCalls,
-    loading: crewCallsLoading,
-  } = useScheduleCrewCalls(clientId, projectId, scheduleId)
-
   const { data: talentLibrary, loading: talentLibraryLoading } = useTalent()
   const { data: crewLibrary, loading: crewLibraryLoading } = useCrew(clientId)
   const [previewScale, setPreviewScale] = useState(100)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
-
-  const callSheetConfig = useCallSheetConfig(clientId, projectId, scheduleId)
 
   const participatingTalentIds = useMemo(() => {
     if (!entries || entries.length === 0 || shots.length === 0) return [] as string[]
@@ -294,14 +278,7 @@ export default function CallSheetBuilderPage() {
           {/* E1: Header band */}
           <div className="mb-3 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] pb-3">
             <div>
-              <PageHeader
-                title={schedule.name || "Call Sheet"}
-                breadcrumbs={[
-                  { label: "Projects", to: "/projects" },
-                  { label: projectName || "Project", to: `/projects/${projectId}/shots` },
-                  { label: "Call Sheet" },
-                ]}
-              />
+              <PageHeader title={schedule.name || "Call Sheet"} />
               {dateStr && (
                 <p className="-mt-3 text-sm text-[var(--color-text-muted)]">{dateStr}</p>
               )}

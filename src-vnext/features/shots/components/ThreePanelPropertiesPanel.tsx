@@ -97,12 +97,12 @@ export function ThreePanelPropertiesPanel({
               value={formatDateOnly(shot.date)}
               onSave={(dateStr) => {
                 if (!dateStr) {
-                  save({ date: null })
+                  void save({ date: null })
                   return
                 }
                 try {
                   const ts = parseDateOnly(dateStr)
-                  save({ date: ts })
+                  void save({ date: ts })
                 } catch {
                   toast.error("Invalid date")
                 }

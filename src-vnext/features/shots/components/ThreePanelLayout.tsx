@@ -16,7 +16,7 @@ import { ThreePanelPropertiesPanel } from "@/features/shots/components/ThreePane
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { toast } from "sonner"
-import type { Shot, ShotFirestoreStatus, Project, Lane } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, Lane } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,8 +61,6 @@ interface ThreePanelLayoutProps {
   readonly onDeselect: () => void
   readonly onSelectShot: (shotId: string) => void
   readonly onShotCreated?: (shotId: string, title: string) => void
-  readonly projects: ReadonlyArray<Project>
-  readonly existingTitles: ReadonlySet<string>
   /**
    * Lane data from the parent ShotListPage's useLanes subscription. Passed
    * through instead of re-subscribing here to avoid a duplicate onSnapshot
@@ -84,8 +82,6 @@ export function ThreePanelLayout({
   onDeselect,
   onSelectShot,
   onShotCreated,
-  projects,
-  existingTitles,
   lanes: lanesProp,
   laneById: laneByIdProp,
 }: ThreePanelLayoutProps) {
@@ -251,8 +247,6 @@ export function ThreePanelLayout({
         canDoOperational={canDoOperational}
         onClose={onDeselect}
         onShareClick={canShare ? () => setShareOpen(true) : undefined}
-        projects={projects}
-        existingTitles={existingTitles}
         laneById={laneById}
         onOpenSceneSheet={handleOpenSceneSheet}
       />

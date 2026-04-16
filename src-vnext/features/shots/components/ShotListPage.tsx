@@ -18,7 +18,6 @@ import { useShotListState } from "@/features/shots/hooks/useShotListState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
-import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
@@ -48,7 +47,6 @@ import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
-  const { data: projects } = useProjects()
   const { role, clientId, user } = useAuth()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
@@ -165,6 +163,30 @@ export default function ShotListPage() {
     [conditions],
   )
 
+  // -- Cmd+K scene navigation: ?scene=<laneId> switches to scene-grouped view
+  // and auto-expands the matching scene header. Consumed once on mount and
+  // then cleaned out of the URL so back-nav does not re-trigger. We write
+  // `group=scene` and drop `scene` in a single setSearchParams call so both
+  // updates survive (separate setters would race on the stale snapshot).
+  useEffect(() => {
+    const sceneParam = searchParams.get("scene")
+    if (!sceneParam) return
+
+    setCollapsedScenes((prev) => {
+      if (!prev.has(sceneParam)) return prev
+      const next = new Set(prev)
+      next.delete(sceneParam)
+      return next
+    })
+
+    setSearchParamsFab((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("scene")
+      next.set("group", "scene")
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParamsFab])
+
   // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
   useKeyboardShortcuts([
     { key: "1", handler: () => setViewMode("card") },
@@ -172,24 +194,9 @@ export default function ShotListPage() {
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ], { enabled: !threePanelActive })
 
-  // -- Existing shot titles (duplicate detection for create dialog) --
-  const existingShotTitles = useMemo(() => {
-    return new Set(
-      shots
-        .map((entry) => entry.title?.trim())
-        .filter((entry): entry is string => !!entry && entry.length > 0),
-    )
-  }, [shots])
-
   const renderLifecycleAction = (shot: Shot) => {
     if (!canManageLifecycle) return null
-    return (
-      <ShotLifecycleActionsMenu
-        shot={shot}
-        projects={projects}
-        existingTitles={existingShotTitles}
-      />
-    )
+    return <ShotLifecycleActionsMenu shot={shot} />
   }
 
   // -- Selection --
@@ -236,10 +243,6 @@ export default function ShotListPage() {
       <div className="space-y-4">
         <PageHeader
           title="Shots"
-          breadcrumbs={[
-            { label: "Projects", to: "/projects" },
-            { label: projectName || "Project" },
-          ]}
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -309,8 +312,6 @@ export default function ShotListPage() {
           onShotCreated={(shotId, title) => {
             toast.success("Shot created", { description: title })
           }}
-          projects={projects}
-          existingTitles={existingShotTitles}
           lanes={lanes}
           laneById={laneById}
         />
@@ -322,10 +323,6 @@ export default function ShotListPage() {
     <ErrorBoundary>
       <PageHeader
         title="Shots"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || "Project" },
-        ]}
         actions={
           <div className="flex items-center gap-2">
             {canExport && (

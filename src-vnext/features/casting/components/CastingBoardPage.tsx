@@ -288,14 +288,7 @@ export default function CastingBoardPage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader
-        title="Casting"
-        actions={actions}
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || projectId || "Project" },
-        ]}
-      />
+      <PageHeader title="Casting" actions={actions} />
 
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-3">

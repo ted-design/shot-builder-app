@@ -1,7 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { MemoryRouter, Routes, Route } from "react-router-dom"
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 
@@ -25,6 +25,7 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
+  useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
 }))
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
@@ -561,6 +562,49 @@ describe("ShotListPage", () => {
     renderPage("/projects/p1/shots?view=visual")
 
     expect(screen.getByText("Use 50mm lens, low angle.")).toBeInTheDocument()
+  })
+
+  it("consumes ?scene=<laneId> to switch into scene-grouped view and clean the param", async () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha", laneId: "lane-42" })],
+      loading: false,
+      error: null,
+    })
+
+    // Use an in-route observer to inspect the final search params after the
+    // consume-effect runs. We can't rely on window.location under MemoryRouter.
+    let capturedSearch: string | undefined
+    function SearchObserver() {
+      const { search } = useLocation()
+      capturedSearch = search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots?scene=lane-42"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <SearchObserver />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    // Wait for the consume effect + setSearchParams batch to flush.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // `scene` param has been consumed and removed; `group=scene` has been written.
+    expect(capturedSearch).toBeDefined()
+    const finalParams = new URLSearchParams(capturedSearch!)
+    expect(finalParams.get("scene")).toBeNull()
+    expect(finalParams.get("group")).toBe("scene")
   })
 
   it("renders note URLs as clickable links", () => {

@@ -4,7 +4,6 @@ export default {
   darkMode: 'class', // Enable class-based dark mode
   content: [
     "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}",
     "./src-vnext/**/*.{ts,tsx}",
   ],
   theme: {
@@ -232,6 +231,6 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
-    require('./src/styles/design-tokens'),
+    require('./design-tokens'),
   ],
 };

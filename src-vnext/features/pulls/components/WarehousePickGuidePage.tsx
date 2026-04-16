@@ -69,7 +69,7 @@ export default function WarehousePickGuidePage() {
       }
     }
 
-    load()
+    void load()
     return () => { active = false }
   }, [shareToken])
 

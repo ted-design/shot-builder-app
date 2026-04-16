@@ -9,12 +9,14 @@ vi.mock("@/features/shots/hooks/useShot", () => ({
   useShot: vi.fn(),
 }))
 
-vi.mock("@/features/shots/hooks/useShots", () => ({
-  useShots: () => ({ data: [], loading: false, error: null }),
-}))
-
-vi.mock("@/features/projects/hooks/useProjects", () => ({
-  useProjects: () => ({ data: [], loading: false, error: null }),
+vi.mock("@/features/shots/hooks/useLanes", () => ({
+  useLanes: () => ({
+    data: [],
+    laneById: new Map(),
+    laneNameById: new Map(),
+    loading: false,
+    error: null,
+  }),
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
@@ -23,6 +25,7 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
+  useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
 }))
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({

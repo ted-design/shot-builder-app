@@ -281,7 +281,7 @@ export function TagEditor({
             size="sm"
             disabled={saving}
             onClick={() => {
-              save()
+              void save()
             }}
           >
             {saving ? "Saving..." : "Save"}

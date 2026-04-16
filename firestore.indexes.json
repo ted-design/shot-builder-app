@@ -76,6 +76,15 @@
       ]
     },
     {
+      "collectionGroup": "shots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "projectId", "mode": "ASCENDING" },
+        { "fieldPath": "deleted", "mode": "ASCENDING" },
+        { "fieldPath": "updatedAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "shotShares",
       "queryScope": "COLLECTION",
       "fields": [

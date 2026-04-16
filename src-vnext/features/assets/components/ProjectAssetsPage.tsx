@@ -195,13 +195,7 @@ export default function ProjectAssetsPage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader
-        title="Assets"
-        breadcrumbs={[
-          { label: "Projects", to: "/projects" },
-          { label: projectName || projectId || "Project" },
-        ]}
-      />
+      <PageHeader title="Assets" />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ProjectScopedAssetCard
@@ -667,7 +661,7 @@ function ProjectAssetRow({
           disabled={!canEdit || busy}
           onClick={() => {
             if (needsConfirm) setConfirmOpen(true)
-            else remove()
+            else void remove()
           }}
         >
           Remove
@@ -683,7 +677,7 @@ function ProjectAssetRow({
         destructive
         confirmDisabled={busy}
         onConfirm={() => {
-          remove()
+          void remove()
         }}
       />
     </div>
