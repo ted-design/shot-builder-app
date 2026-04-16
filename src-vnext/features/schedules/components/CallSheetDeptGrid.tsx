@@ -7,6 +7,7 @@ import {
   type CallSheetFieldConfig,
   type CallSheetSectionFieldConfig,
 } from "@/features/schedules/lib/fieldConfig"
+import { mergeCrewWithOverride, type CrewMergeContext } from "@/features/schedules/lib/callSheetMerge"
 import type { CrewCallSheet, CrewRecord, DayDetails } from "@/shared/types"
 
 interface CallSheetDeptGridProps {
@@ -26,6 +27,10 @@ interface DeptMember {
   readonly name: string
   readonly position: string
   readonly callTime: string
+  readonly email: string | null
+  readonly phone: string | null
+  readonly showEmail: boolean
+  readonly showPhone: boolean
 }
 
 function formatTime(value: string | null | undefined): string {
@@ -37,10 +42,14 @@ function groupByDepartment(
   crewCalls: readonly CrewCallSheet[],
   crewMap: Map<string, CrewRecord>,
   defaultCallTime: string | null,
+  mergeContext: CrewMergeContext,
 ): readonly DeptGroup[] {
   const deptMap = new Map<string, DeptMember[]>()
 
   for (const cc of crewCalls) {
+    const merged = mergeCrewWithOverride(cc, mergeContext)
+    if (!merged.isVisible) continue
+
     const crew = crewMap.get(cc.crewMemberId)
     const dept = (cc.department ?? crew?.department ?? "Other").trim() || "Other"
     const position = (cc.position ?? crew?.position ?? "").trim()
@@ -50,7 +59,16 @@ function groupByDepartment(
     const existing = deptMap.get(dept) ?? []
     deptMap.set(dept, [
       ...existing,
-      { id: cc.id, name, position, callTime },
+      {
+        id: cc.id,
+        name,
+        position,
+        callTime,
+        email: crew?.email ?? null,
+        phone: crew?.phone ?? null,
+        showEmail: merged.showEmail,
+        showPhone: merged.showPhone,
+      },
     ])
   }
 
@@ -99,6 +117,16 @@ function DeptBlock({
                   {member.callTime}
                 </td>
               ),
+              email: (
+                <td key="email" className="text-2xs">
+                  {member.showEmail && member.email ? member.email : "\u2014"}
+                </td>
+              ),
+              phone: (
+                <td key="phone" className="text-2xs">
+                  {member.showPhone && member.phone ? member.phone : "\u2014"}
+                </td>
+              ),
             }
 
             return (
@@ -131,12 +159,17 @@ export function CallSheetDeptGrid({
     return m
   }, [crewLookup])
 
-  const groups = useMemo(
-    () => groupByDepartment(crewCalls, crewMap, dayDetails?.crewCallTime ?? null),
-    [crewCalls, crewMap, dayDetails],
-  )
-
   const visibleFields = useMemo(() => getVisibleFields(config.fields), [config.fields])
+
+  const mergeContext: CrewMergeContext = useMemo(() => ({
+    globalShowEmail: visibleFields.some((f) => f.key === "email"),
+    globalShowPhone: visibleFields.some((f) => f.key === "phone"),
+  }), [visibleFields])
+
+  const groups = useMemo(
+    () => groupByDepartment(crewCalls, crewMap, dayDetails?.crewCallTime ?? null, mergeContext),
+    [crewCalls, crewMap, dayDetails, mergeContext],
+  )
 
   if (groups.length === 0) {
     return (

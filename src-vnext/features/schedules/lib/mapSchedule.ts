@@ -17,6 +17,10 @@ import type {
   ScheduleEntryHighlight,
 } from "@/shared/types"
 
+function asBoolOrNull(raw: unknown): boolean | null {
+  return typeof raw === "boolean" ? raw : null
+}
+
 const LOCATION_ROLE_VALUES: ReadonlySet<LocationRole> = new Set<LocationRole>([
   "basecamp",
   "parking",
@@ -344,6 +348,7 @@ export function mapTalentCall(id: string, data: Record<string, unknown>): Talent
     createdAt: data["createdAt"] as TalentCallSheet["createdAt"],
     updatedAt: data["updatedAt"] as TalentCallSheet["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
+    isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
   }
 }
 
@@ -373,6 +378,9 @@ export function mapCrewCall(id: string, data: Record<string, unknown>): CrewCall
     createdAt: data["createdAt"] as CrewCallSheet["createdAt"],
     updatedAt: data["updatedAt"] as CrewCallSheet["updatedAt"],
     createdBy: data["createdBy"] as string | undefined,
+    isVisibleOverride: asBoolOrNull(data["isVisibleOverride"]),
+    showEmailOverride: asBoolOrNull(data["showEmailOverride"]),
+    showPhoneOverride: asBoolOrNull(data["showPhoneOverride"]),
   }
 }
 

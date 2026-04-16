@@ -54,6 +54,8 @@ const CREW_FIELDS: readonly CallSheetFieldConfig[] = [
   { key: "position", label: "Position", defaultLabel: "Position", visible: true, width: "lg", order: 0 },
   { key: "name", label: "Name", defaultLabel: "Name", visible: true, width: "lg", order: 1 },
   { key: "callTime", label: "Call", defaultLabel: "Call", visible: true, width: "sm", order: 2 },
+  { key: "email", label: "Email", defaultLabel: "Email", visible: false, width: "md", order: 3 },
+  { key: "phone", label: "Phone", defaultLabel: "Phone", visible: false, width: "md", order: 4 },
 ]
 
 export const DEFAULT_CAST_SECTION: CallSheetSectionFieldConfig = {

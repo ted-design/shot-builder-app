@@ -6,6 +6,7 @@ import {
   getVisibleFields,
   type CallSheetSectionFieldConfig,
 } from "@/features/schedules/lib/fieldConfig"
+import { mergeTalentWithOverride } from "@/features/schedules/lib/callSheetMerge"
 import { useColumnResize } from "@/shared/hooks/useColumnResize"
 import { useTableKeyboardNav } from "@/shared/hooks/useTableKeyboardNav"
 import { ResizableHeader } from "@/shared/components/ResizableHeader"
@@ -54,6 +55,11 @@ export function CallSheetCastTable({
   const config = fieldConfig ?? DEFAULT_CAST_SECTION
   const visibleFields = useMemo(() => getVisibleFields(config.fields), [config.fields])
 
+  const visibleTalentCalls = useMemo(
+    () => talentCalls.filter((tc) => mergeTalentWithOverride(tc).isVisible),
+    [talentCalls],
+  )
+
   // --- Container measurement for percentage → pixel conversion ---
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(FALLBACK_TABLE_WIDTH)
@@ -94,10 +100,10 @@ export function CallSheetCastTable({
   const tableRef = useRef<HTMLTableElement>(null)
   const { onTableKeyDown } = useTableKeyboardNav({
     tableRef,
-    rowCount: talentCalls.length,
+    rowCount: visibleTalentCalls.length,
   })
 
-  if (talentCalls.length === 0) {
+  if (visibleTalentCalls.length === 0) {
     return (
       <p className="py-2 text-xs text-[var(--color-text-subtle)]">
         No talent call times set.
@@ -135,7 +141,7 @@ export function CallSheetCastTable({
           </tr>
         </thead>
         <tbody>
-          {talentCalls.map((tc, idx) => {
+          {visibleTalentCalls.map((tc, idx) => {
             const talent = talentMap.get(tc.talentId)
             const displayName = talent?.name ?? tc.talentId
             const callTime = tc.callTime ?? tc.callText ?? shootingCall

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react"
-import { UserPlus, X, Users, Clapperboard } from "lucide-react"
+import { UserPlus, X, Users, Clapperboard, Eye, EyeOff, Mail, MailX, Phone, PhoneOff } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
@@ -46,6 +46,8 @@ interface TalentOverrideRowProps {
   readonly defaultTime: string
   readonly onSaveCallTime: (value: string) => void
   readonly onRemove: () => void
+  readonly isVisible: boolean
+  readonly onToggleVisibility: () => void
 }
 
 function displayCallValue(call: { readonly callTime?: string | null; readonly callText?: string | null }): string {
@@ -66,10 +68,12 @@ function TalentOverrideRow({
   defaultTime,
   onSaveCallTime,
   onRemove,
+  isVisible,
+  onToggleVisibility,
 }: TalentOverrideRowProps) {
   const hasOverride = !!(call.callTime || call.callText)
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)]">
+    <div className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)] ${!isVisible ? "opacity-40" : ""}`}>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium text-[var(--color-text)]">
           {name}
@@ -95,6 +99,14 @@ function TalentOverrideRow({
         )}
         <button
           type="button"
+          onClick={onToggleVisibility}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+          aria-label={isVisible ? `Hide ${name} from call sheet` : `Show ${name} on call sheet`}
+        >
+          {isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </button>
+        <button
+          type="button"
           onClick={onRemove}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
           aria-label={`Remove override for ${name}`}
@@ -115,6 +127,12 @@ interface CrewOverrideRowProps {
   readonly defaultTime: string
   readonly onSaveCallTime: (value: string) => void
   readonly onRemove: () => void
+  readonly isVisible: boolean
+  readonly showEmail: boolean
+  readonly showPhone: boolean
+  readonly onToggleVisibility: () => void
+  readonly onToggleEmail: () => void
+  readonly onTogglePhone: () => void
 }
 
 function CrewOverrideRow({
@@ -124,10 +142,16 @@ function CrewOverrideRow({
   defaultTime,
   onSaveCallTime,
   onRemove,
+  isVisible,
+  showEmail,
+  showPhone,
+  onToggleVisibility,
+  onToggleEmail,
+  onTogglePhone,
 }: CrewOverrideRowProps) {
   const hasOverride = !!(call.callTime || call.callText)
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)]">
+    <div className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-subtle)] ${!isVisible ? "opacity-40" : ""}`}>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium text-[var(--color-text)]">
           {name}
@@ -153,6 +177,30 @@ function CrewOverrideRow({
         )}
         <button
           type="button"
+          onClick={onToggleVisibility}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+          aria-label={isVisible ? `Hide ${name} from call sheet` : `Show ${name} on call sheet`}
+        >
+          {isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </button>
+        <button
+          type="button"
+          onClick={onToggleEmail}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+          aria-label={showEmail ? `Hide email for ${name}` : `Show email for ${name}`}
+        >
+          {showEmail ? <Mail className="h-3 w-3" /> : <MailX className="h-3 w-3" />}
+        </button>
+        <button
+          type="button"
+          onClick={onTogglePhone}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+          aria-label={showPhone ? `Hide phone for ${name}` : `Show phone for ${name}`}
+        >
+          {showPhone ? <Phone className="h-3 w-3" /> : <PhoneOff className="h-3 w-3" />}
+        </button>
+        <button
+          type="button"
           onClick={onRemove}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
           aria-label={`Remove override for ${name}`}
@@ -176,6 +224,7 @@ function talentCallToPatch(call: TalentCallSheet): Record<string, unknown> {
     role: call.role ?? null,
     status: call.status ?? null,
     notes: call.notes ?? null,
+    isVisibleOverride: call.isVisibleOverride ?? null,
   }
 }
 
@@ -191,6 +240,9 @@ function crewCallToPatch(call: CrewCallSheet): Record<string, unknown> {
     department: call.department ?? null,
     position: call.position ?? null,
     notes: call.notes ?? null,
+    isVisibleOverride: call.isVisibleOverride ?? null,
+    showEmailOverride: call.showEmailOverride ?? null,
+    showPhoneOverride: call.showPhoneOverride ?? null,
   }
 }
 
@@ -407,6 +459,56 @@ export function CallOverridesEditor({
     [clientId, lastSaved, projectId, scheduleId, crewMap, undoStack],
   )
 
+  // --- Visibility toggle handlers ---
+
+  const handleToggleTalentVisibility = useCallback(
+    (call: TalentCallSheet) => () => {
+      if (!clientId) return
+      const newValue = call.isVisibleOverride === false ? null : false
+      void upsertTalentCall(clientId, projectId, scheduleId, call.id, {
+        isVisibleOverride: newValue,
+      }).then(() => lastSaved.markSaved())
+        .catch(() => toast.error("Failed to update visibility."))
+    },
+    [clientId, lastSaved, projectId, scheduleId],
+  )
+
+  const handleToggleCrewVisibility = useCallback(
+    (call: CrewCallSheet) => () => {
+      if (!clientId) return
+      const newValue = call.isVisibleOverride === false ? null : false
+      void upsertCrewCall(clientId, projectId, scheduleId, call.id, {
+        isVisibleOverride: newValue,
+      }).then(() => lastSaved.markSaved())
+        .catch(() => toast.error("Failed to update visibility."))
+    },
+    [clientId, lastSaved, projectId, scheduleId],
+  )
+
+  const handleToggleCrewEmail = useCallback(
+    (call: CrewCallSheet) => () => {
+      if (!clientId) return
+      const newValue = call.showEmailOverride === false ? null : false
+      void upsertCrewCall(clientId, projectId, scheduleId, call.id, {
+        showEmailOverride: newValue,
+      }).then(() => lastSaved.markSaved())
+        .catch(() => toast.error("Failed to update email visibility."))
+    },
+    [clientId, lastSaved, projectId, scheduleId],
+  )
+
+  const handleToggleCrewPhone = useCallback(
+    (call: CrewCallSheet) => () => {
+      if (!clientId) return
+      const newValue = call.showPhoneOverride === false ? null : false
+      void upsertCrewCall(clientId, projectId, scheduleId, call.id, {
+        showPhoneOverride: newValue,
+      }).then(() => lastSaved.markSaved())
+        .catch(() => toast.error("Failed to update phone visibility."))
+    },
+    [clientId, lastSaved, projectId, scheduleId],
+  )
+
   return (
     <div className="flex flex-col gap-4">
       {/* Talent Overrides */}
@@ -437,6 +539,8 @@ export function CallOverridesEditor({
                   defaultTime={defaultShootingCall}
                   onSaveCallTime={handleSaveTalentCallTime(tc.id)}
                   onRemove={handleRemoveTalent(tc)}
+                  isVisible={tc.isVisibleOverride !== false}
+                  onToggleVisibility={handleToggleTalentVisibility(tc)}
                 />
               )
             })}
@@ -505,6 +609,12 @@ export function CallOverridesEditor({
                   defaultTime={defaultCrewCall}
                   onSaveCallTime={handleSaveCrewCallTime(cc.id)}
                   onRemove={handleRemoveCrew(cc)}
+                  isVisible={cc.isVisibleOverride !== false}
+                  showEmail={cc.showEmailOverride !== false}
+                  showPhone={cc.showPhoneOverride !== false}
+                  onToggleVisibility={handleToggleCrewVisibility(cc)}
+                  onToggleEmail={handleToggleCrewEmail(cc)}
+                  onTogglePhone={handleToggleCrewPhone(cc)}
                 />
               )
             })}
