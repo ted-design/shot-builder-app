@@ -109,7 +109,7 @@ export function useExportTemplates(
 
     const localTemplates = loadLocalStorageTemplates()
     if (localTemplates.length === 0) {
-      localStorage.setItem(LS_MIGRATED_KEY, "true")
+      localStorage.setItem(migratedKey, "true")
       return
     }
 
