@@ -328,3 +328,33 @@ export const castingShareVoteDocPath = (
   shareToken: string,
   voteId: string,
 ): string[] => ["castingShares", shareToken, "votes", voteId]
+
+// --- Call Sheet Shares (root-level, Phase 3 publishing) ---
+//
+// Per-recipient tokens (Q1 = B) mean we need a doc path per recipient under
+// each share's subcollection. The public reader compound token is
+// "{shareGroupId}.{recipientToken}" (Q7 = A). See
+// `src-vnext/features/publishing/lib/callSheetSharePaths.ts` for the canonical
+// builders; the helpers here are thin re-exports for call sites in
+// `shared/` that don't want to pull in the feature module.
+
+export const callSheetSharesPath = (): string[] => ["callSheetShares"]
+
+export const callSheetShareDocPath = (shareGroupId: string): string[] => [
+  "callSheetShares",
+  shareGroupId,
+]
+
+export const callSheetShareRecipientsPath = (
+  shareGroupId: string,
+): string[] => ["callSheetShares", shareGroupId, "recipients"]
+
+export const callSheetShareRecipientDocPath = (
+  shareGroupId: string,
+  recipientToken: string,
+): string[] => [
+  "callSheetShares",
+  shareGroupId,
+  "recipients",
+  recipientToken,
+]
