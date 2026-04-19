@@ -114,9 +114,9 @@ describe("validatePublishRecipients", () => {
       { personKind: "talent", name: "Alex", email: "alex@example.test" },
     ])
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe("Alex")
-    expect(result[0].email).toBe("alex@example.test")
-    expect(result[0].personId).toBeNull()
+    expect(result[0]!.name).toBe("Alex")
+    expect(result[0]!.email).toBe("alex@example.test")
+    expect(result[0]!.personId).toBeNull()
   })
 
   it("rejects empty array", () => {
@@ -191,11 +191,11 @@ describe("validatePublishRecipients", () => {
         precallTime: "6:00 AM",
       },
     ])
-    expect(result.personId).toBe("tal1")
-    expect(result.phone).toBe("555-1234")
-    expect(result.roleLabel).toBe("Lead")
-    expect(result.callTime).toBe("7:00 AM")
-    expect(result.precallTime).toBe("6:00 AM")
+    expect(result!.personId).toBe("tal1")
+    expect(result!.phone).toBe("555-1234")
+    expect(result!.roleLabel).toBe("Lead")
+    expect(result!.callTime).toBe("7:00 AM")
+    expect(result!.precallTime).toBe("6:00 AM")
   })
 
   it("normalizes empty/whitespace optionals to null", () => {
@@ -209,9 +209,9 @@ describe("validatePublishRecipients", () => {
         roleLabel: "   ",
       },
     ])
-    expect(result.personId).toBeNull()
-    expect(result.phone).toBeNull()
-    expect(result.roleLabel).toBeNull()
+    expect(result!.personId).toBeNull()
+    expect(result!.phone).toBeNull()
+    expect(result!.roleLabel).toBeNull()
   })
 })
 

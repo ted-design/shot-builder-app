@@ -37,10 +37,10 @@ describe("buildSections", () => {
   })
 
   it("normalizes missing titles to null", () => {
-    const [section] = snapshotModule.buildSections({
+    const result = snapshotModule.buildSections({
       sections: [{ key: "k", type: "t", visible: true, fields: [] }],
     }) as Array<{ title: unknown }>
-    expect(section.title).toBeNull()
+    expect(result[0]!.title).toBeNull()
   })
 
   it("returns empty array when config has no sections", () => {
@@ -58,7 +58,7 @@ describe("buildSections", () => {
         fields: [{ key: "f1", value: "hello" }, { key: "f2", value: 42 }],
       }],
     }) as Array<{ fields: Array<{ key: string; value: unknown }> }>
-    expect(result[0].fields).toEqual([
+    expect(result[0]!.fields).toEqual([
       { key: "f1", value: "hello" },
       { key: "f2", value: 42 },
     ])
@@ -73,7 +73,7 @@ describe("buildDayDetailsSnapshot", () => {
       sunset: "",
       weatherSummary: "Sunny",
       notes: null,
-    })
+    }) as Record<string, unknown>
     expect(result).toEqual({
       generalCallTime: null,
       sunrise: "6:20 AM",
@@ -94,7 +94,7 @@ describe("buildScheduleSnapshot", () => {
       tracks: [{ id: "t1", label: "1st Unit" }],
       entries: [{ id: "e1", title: "Block A", trackId: "t1" }],
     }) as { entries: Array<{ trackLabel: string | null }> }
-    expect(result.entries[0].trackLabel).toBe("1st Unit")
+    expect(result.entries[0]!.trackLabel).toBe("1st Unit")
   })
 
   it("prefers explicit trackLabel over trackId lookup", () => {
@@ -102,7 +102,7 @@ describe("buildScheduleSnapshot", () => {
       tracks: [{ id: "t1", label: "1st Unit" }],
       entries: [{ id: "e1", title: "Block A", trackId: "t1", trackLabel: "Custom Label" }],
     }) as { entries: Array<{ trackLabel: string | null }> }
-    expect(result.entries[0].trackLabel).toBe("Custom Label")
+    expect(result.entries[0]!.trackLabel).toBe("Custom Label")
   })
 
   it("returns null when neither tracks nor entries are present", () => {
@@ -116,7 +116,7 @@ describe("buildCrewCalls — private-by-default phone/email", () => {
       [{ crewMemberId: "c1", name: "Taylor", showPhone: false, showEmail: false, phone: "555" }],
       [],
     ) as Array<{ phone: string | null }>
-    expect(crew.phone).toBeNull()
+    expect(crew!.phone).toBeNull()
   })
 
   it("includes phone when showPhone=true", () => {
@@ -124,7 +124,7 @@ describe("buildCrewCalls — private-by-default phone/email", () => {
       [{ crewMemberId: "c1", name: "Taylor", showPhone: true, showEmail: false, phone: "555-1234" }],
       [],
     ) as Array<{ phone: string | null }>
-    expect(crew.phone).toBe("555-1234")
+    expect(crew!.phone).toBe("555-1234")
   })
 
   it("defaults showPhone/showEmail to false when the field is absent", () => {
@@ -132,10 +132,10 @@ describe("buildCrewCalls — private-by-default phone/email", () => {
       [{ crewMemberId: "c1", name: "Taylor", phone: "555", email: "t@x.com" }],
       [],
     ) as Array<{ showPhone: boolean; showEmail: boolean; phone: unknown; email: unknown }>
-    expect(crew.showPhone).toBe(false)
-    expect(crew.showEmail).toBe(false)
-    expect(crew.phone).toBeNull()
-    expect(crew.email).toBeNull()
+    expect(crew!.showPhone).toBe(false)
+    expect(crew!.showEmail).toBe(false)
+    expect(crew!.phone).toBeNull()
+    expect(crew!.email).toBeNull()
   })
 
   it("fills missing name from roster", () => {
@@ -143,8 +143,8 @@ describe("buildCrewCalls — private-by-default phone/email", () => {
       [{ crewMemberId: "c1", showPhone: false, showEmail: false }],
       [{ id: "c1", name: "Roster Name", roleLabel: "Gaffer" }],
     ) as Array<{ name: string; roleLabel: string | null }>
-    expect(crew.name).toBe("Roster Name")
-    expect(crew.roleLabel).toBe("Gaffer")
+    expect(crew!.name).toBe("Roster Name")
+    expect(crew!.roleLabel).toBe("Gaffer")
   })
 })
 
@@ -154,8 +154,8 @@ describe("buildTalentCalls", () => {
       [{ talentId: "t1" }],
       [{ id: "t1", name: "Alex" }],
     ) as Array<{ name: string; talentId: string | null }>
-    expect(talent.name).toBe("Alex")
-    expect(talent.talentId).toBe("t1")
+    expect(talent!.name).toBe("Alex")
+    expect(talent!.talentId).toBe("t1")
   })
 
   it("returns empty array when calls input is falsy", () => {
@@ -168,8 +168,8 @@ describe("buildLocations", () => {
     const [loc] = snapshotModule.buildLocations([
       { id: "l1", label: "Studio A", latitude: 43.65, longitude: "invalid" },
     ]) as Array<{ latitude: unknown; longitude: unknown }>
-    expect(loc.latitude).toBe(43.65)
-    expect(loc.longitude).toBeNull()
+    expect(loc!.latitude).toBe(43.65)
+    expect(loc!.longitude).toBeNull()
   })
 })
 
@@ -226,7 +226,7 @@ describe("buildCallSheetShareSnapshot — integration", () => {
     expect(result.clientName).toBe("Unboundmerino")
     expect((result.brand as { logoUrl: string }).logoUrl).toBe("u")
     expect((result.talentCalls as unknown[])).toHaveLength(1)
-    expect((result.crewCalls as Array<{ phone: unknown }>)[0].phone).toBeNull()
+    expect((result.crewCalls as Array<{ phone: unknown }>)[0]!.phone).toBeNull()
   })
 
   it("does not mutate the input arrays", () => {
