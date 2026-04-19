@@ -24,6 +24,10 @@ import {
   callSheetConfigPath,
   shotRequestsPath,
   shotRequestDocPath,
+  callSheetSharesPath,
+  callSheetShareDocPath,
+  callSheetShareRecipientsPath,
+  callSheetShareRecipientDocPath,
 } from "./paths"
 
 const CLIENT = "test-client"
@@ -175,6 +179,36 @@ describe("Firestore Path Builders", () => {
     it("builds shotRequestDocPath", () => {
       expect(shotRequestDocPath("req-1", CLIENT)).toEqual([
         "clients", "test-client", "shotRequests", "req-1",
+      ])
+    })
+  })
+
+  describe("call sheet shares (root-level, Phase 3 publishing)", () => {
+    it("builds callSheetSharesPath at root", () => {
+      expect(callSheetSharesPath()).toEqual(["callSheetShares"])
+    })
+
+    it("builds callSheetShareDocPath", () => {
+      expect(callSheetShareDocPath("group-1")).toEqual([
+        "callSheetShares",
+        "group-1",
+      ])
+    })
+
+    it("builds callSheetShareRecipientsPath", () => {
+      expect(callSheetShareRecipientsPath("group-1")).toEqual([
+        "callSheetShares",
+        "group-1",
+        "recipients",
+      ])
+    })
+
+    it("builds callSheetShareRecipientDocPath", () => {
+      expect(callSheetShareRecipientDocPath("group-1", "token-abc")).toEqual([
+        "callSheetShares",
+        "group-1",
+        "recipients",
+        "token-abc",
       ])
     })
   })

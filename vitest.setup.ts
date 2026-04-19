@@ -26,9 +26,11 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = ResizeObserver as unknown as typeof globalThis.ResizeObserver;
 }
 
-// Some tests assume scrollIntoView exists
+// Some tests assume scrollIntoView exists.
+// Guard on `typeof HTMLElement` so node-environment test files (e.g. Firestore
+// rules tests that use `// @vitest-environment node`) don't crash during setup.
 // @ts-ignore
-if (!HTMLElement.prototype.scrollIntoView) {
+if (typeof HTMLElement !== "undefined" && !HTMLElement.prototype.scrollIntoView) {
   HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
 }
 
