@@ -254,6 +254,62 @@ service cloud.firestore {
       }
     }
 
+    // Public call-sheet sharing — Phase 3 publishing.
+    // Root-level share docs at /callSheetShares/{shareGroupId} hold a
+    // denormalized snapshot of a published call sheet. Each share has a
+    // /recipients/{recipientToken} subcollection with one doc per crew /
+    // talent / client recipient. The public reader at /s/:token uses the
+    // compound token "{shareGroupId}.{recipientToken}" (Q7 = A) and fetches
+    // the recipient doc directly; the share doc itself exposes the `snapshot`
+    // field that the reader renders.
+    //
+    // Writes are Cloud-Function-only (Admin SDK). Direct client writes denied.
+    //
+    // LIST denial on both the share collection and the recipients subcollection
+    // is load-bearing: it's what prevents token enumeration. Readers MUST know
+    // the exact compound token — guessing via listing is impossible.
+    match /callSheetShares/{shareGroupId} {
+      // Anonymous GET — reader path. Only allowed when enabled + not expired.
+      // Token knowledge is the credential (Q7 = A).
+      allow get: if resource.data.enabled == true
+        && (!('expiresAt' in resource.data) || resource.data.expiresAt == null || resource.data.expiresAt > request.time);
+
+      // Authenticated admin / producer reads for RecipientsPanel, scoped by clientId.
+      allow get, list: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+
+      // All writes go through Cloud Functions (queue pattern).
+      allow create, update, delete: if false;
+
+      // Recipients subcollection — one doc per recipient, doc id = random token.
+      match /recipients/{recipientToken} {
+        // Anonymous GET — primary reader query. Guarded by the parent share's
+        // enabled + expiry state AND by the recipient's own revokedAt field.
+        allow get: if
+          get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data.enabled == true
+          && (!('expiresAt' in get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data)
+              || get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data.expiresAt == null
+              || get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data.expiresAt > request.time)
+          && (!('revokedAt' in resource.data) || resource.data.revokedAt == null);
+
+        // Anonymous LIST — NEVER. Listing would enumerate the recipient roster
+        // and leak tokens. The reader only ever does get() with the exact token.
+        allow list: if isAuthed() &&
+          (isAdmin() || isProducer()) &&
+          get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data.clientId == userClient();
+
+        // Authenticated admin / producer get (e.g. RecipientsPanel drilldown).
+        allow get: if isAuthed() &&
+          (isAdmin() || isProducer()) &&
+          get(/databases/$(database)/documents/callSheetShares/$(shareGroupId)).data.clientId == userClient();
+
+        // All writes go through Cloud Functions (view ping, confirm, resend,
+        // revoke, publish fan-out).
+        allow create, update, delete: if false;
+      }
+    }
+
     // LEGACY COLLECTIONS - DEPRECATED
     // These root-level collections are no longer used in the application.
     // All data has been migrated to client-scoped collections under /clients/{clientId}/
