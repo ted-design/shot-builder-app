@@ -2,13 +2,20 @@
 import { test as base, type Page } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { authenticateTestUser } from '../helpers/auth';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Playwright fixtures for role-based authentication.
  *
- * These fixtures provide pre-authenticated page contexts for different user roles.
- * Each fixture uses the storage state saved during global setup.
+ * Each fixture loads the storage state saved by `tests/global.setup.ts`
+ * (the global setup drives the emulator-only email/password login form and
+ * saves IndexedDB + cookies per role to `tests/playwright/.auth/<role>.json`).
+ *
+ * Specs that need raw login (e.g. `tests/auth.spec.ts`) should import from
+ * `@playwright/test` directly and use the helpers in `tests/helpers/auth.ts`.
  *
  * Usage:
  * ```typescript
@@ -16,15 +23,15 @@ import { authenticateTestUser } from '../helpers/auth';
  *
  * test('admin can manage users', async ({ adminPage }) => {
  *   await adminPage.goto('/admin');
- *   // Test admin-specific functionality
- * });
- *
- * test('producer can create shots', async ({ producerPage }) => {
- *   await producerPage.goto('/shots');
- *   // Test producer-specific functionality
  * });
  * ```
  */
+
+const AUTH_DIR = path.join(__dirname, '..', 'playwright', '.auth');
+
+function storageStatePath(role: string): string {
+  return path.join(AUTH_DIR, `${role}.json`);
+}
 
 // Re-export everything from @playwright/test
 export * from '@playwright/test';
@@ -38,194 +45,75 @@ type AuthFixtures = {
   viewerPage: Page;
 };
 
+/**
+ * Shared handler to suppress the noisy Firebase Installations error that
+ * can surface when running against the emulator. Not a real failure.
+ */
+function installFirebaseErrorFilter(page: Page): void {
+  page.on('pageerror', (error) => {
+    if (!error.message.includes('Installations: Create Installation request failed')) {
+      throw error;
+    }
+  });
+  page.on('console', (msg) => {
+    if (
+      msg.type() === 'error' &&
+      msg.text().includes('Installations: Create Installation request failed')
+    ) {
+      return;
+    }
+  });
+}
+
+async function buildRoleFixture(
+  browser: import('@playwright/test').Browser,
+  role: 'admin' | 'producer' | 'wardrobe' | 'crew' | 'viewer',
+  use: (page: Page) => Promise<void>,
+): Promise<void> {
+  const context = await browser.newContext({ storageState: storageStatePath(role) });
+  const page = await context.newPage();
+
+  installFirebaseErrorFilter(page);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await use(page);
+
+  await context.close();
+}
+
 // Extend base test with role-based page fixtures
 export const test = base.extend<AuthFixtures>({
-  /**
-   * Page fixture for admin user
-   * Full system access, can manage users and settings
-   */
+  /** Admin — full system access. */
   adminPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    // Filter out expected Firebase Installations errors (defense-in-depth)
-    // These errors can occur when using emulators and don't affect test functionality
-    page.on('pageerror', (error) => {
-      if (!error.message.includes('Installations: Create Installation request failed')) {
-        throw error;
-      }
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
-        return; // Suppress expected Firebase error
-      }
-    });
-
-    // Set viewport for consistency
-    await page.setViewportSize({ width: 1280, height: 720 });
-
-    // Authenticate directly instead of using storage state
-    const admin = TEST_CREDENTIALS.admin;
-    await authenticateTestUser(page, {
-      email: admin.email,
-      password: admin.password,
-      role: admin.role,
-      clientId: 'test-client'
-    });
-
-    await use(page);
-
-    await context.close();
+    await buildRoleFixture(browser, 'admin', use);
   },
 
-  /**
-   * Page fixture for producer user
-   * Can create/edit shots, manage projects, export
-   */
+  /** Producer — can create/edit shots, manage projects, export. */
   producerPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    // Filter out expected Firebase Installations errors (defense-in-depth)
-    page.on('pageerror', (error) => {
-      if (!error.message.includes('Installations: Create Installation request failed')) {
-        throw error;
-      }
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
-        return; // Suppress expected Firebase error
-      }
-    });
-
-    await page.setViewportSize({ width: 1280, height: 720 });
-
-    // Authenticate directly instead of using storage state
-    const producer = TEST_CREDENTIALS.producer;
-    await authenticateTestUser(page, {
-      email: producer.email,
-      password: producer.password,
-      role: producer.role,
-      clientId: 'test-client'
-    });
-
-    await use(page);
-
-    await context.close();
+    await buildRoleFixture(browser, 'producer', use);
   },
 
-  /**
-   * Page fixture for wardrobe user
-   * Can manage products, view/edit shots
-   */
+  /** Wardrobe — can manage products and view/edit shots. */
   wardrobePage: async ({ browser }, use) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    // Filter out expected Firebase Installations errors (defense-in-depth)
-    page.on('pageerror', (error) => {
-      if (!error.message.includes('Installations: Create Installation request failed')) {
-        throw error;
-      }
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
-        return; // Suppress expected Firebase error
-      }
-    });
-
-    await page.setViewportSize({ width: 1280, height: 720 });
-
-    // Authenticate directly instead of using storage state
-    const wardrobe = TEST_CREDENTIALS.wardrobe;
-    await authenticateTestUser(page, {
-      email: wardrobe.email,
-      password: wardrobe.password,
-      role: wardrobe.role,
-      clientId: 'test-client'
-    });
-
-    await use(page);
-
-    await context.close();
+    await buildRoleFixture(browser, 'wardrobe', use);
   },
 
-  /**
-   * Page fixture for crew user
-   * Can view shots, limited edit access
-   */
+  /** Crew — view shots, limited edit. */
   crewPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    // Filter out expected Firebase Installations errors (defense-in-depth)
-    page.on('pageerror', (error) => {
-      if (!error.message.includes('Installations: Create Installation request failed')) {
-        throw error;
-      }
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
-        return; // Suppress expected Firebase error
-      }
-    });
-
-    await page.setViewportSize({ width: 1280, height: 720 });
-
-    // Authenticate directly instead of using storage state
-    const crew = TEST_CREDENTIALS.crew;
-    await authenticateTestUser(page, {
-      email: crew.email,
-      password: crew.password,
-      role: crew.role,
-      clientId: 'test-client'
-    });
-
-    await use(page);
-
-    await context.close();
+    await buildRoleFixture(browser, 'crew', use);
   },
 
-  /**
-   * Page fixture for viewer user
-   * Read-only access to most content
-   */
+  /** Viewer — read-only access. */
   viewerPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    // Filter out expected Firebase Installations errors (defense-in-depth)
-    page.on('pageerror', (error) => {
-      if (!error.message.includes('Installations: Create Installation request failed')) {
-        throw error;
-      }
-    });
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && msg.text().includes('Installations: Create Installation request failed')) {
-        return; // Suppress expected Firebase error
-      }
-    });
-
-    await page.setViewportSize({ width: 1280, height: 720 });
-
-    // Authenticate directly instead of using storage state
-    const viewer = TEST_CREDENTIALS.viewer;
-    await authenticateTestUser(page, {
-      email: viewer.email,
-      password: viewer.password,
-      role: viewer.role,
-      clientId: 'test-client'
-    });
-
-    await use(page);
-
-    await context.close();
+    await buildRoleFixture(browser, 'viewer', use);
   },
 });
 
 /**
- * Helper to get test user credentials
- * Useful for tests that need to perform authentication flows
+ * Helper to get test user credentials.
+ * Useful for tests that need to perform authentication flows explicitly
+ * (e.g. `tests/auth.spec.ts`, which exercises the real login form).
  */
 export const TEST_CREDENTIALS = {
   admin: {
