@@ -186,7 +186,12 @@ export function TextBlockPdf({ block, variables }: TextBlockPdfProps) {
             if (containsHtml(seg.value)) {
               return renderHtmlContent(seg.value, {}, textStyle, fontSize, fontFamily, i)
             }
-            return <Text key={i} style={textStyle}>{seg.value}</Text>
+            // Plain text segment — wrap unresolved tokens with warning highlights
+            return (
+              <Text key={i} style={textStyle}>
+                {renderWithWarningHighlights(seg.value)}
+              </Text>
+            )
           })}
         </View>
       )
@@ -217,7 +222,10 @@ export function TextBlockPdf({ block, variables }: TextBlockPdfProps) {
             if (containsHtml(seg.value)) {
               return renderHtmlSegment(seg.value, fontSize, fontFamily, i)
             }
-            return <Text key={i}>{seg.value}</Text>
+            // Plain inline text segment — wrap unresolved tokens with warning highlights
+            return (
+              <Text key={i}>{renderWithWarningHighlights(seg.value)}</Text>
+            )
           })}
         </Text>
       </View>

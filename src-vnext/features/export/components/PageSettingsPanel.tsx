@@ -165,6 +165,7 @@ export function PageSettingsPanel({
                 <SelectItem value="Helvetica">Helvetica</SelectItem>
                 <SelectItem value="Georgia">Georgia</SelectItem>
                 <SelectItem value="Courier New">Courier New</SelectItem>
+                <SelectItem value="Arial">Arial</SelectItem>
               </SelectContent>
             </Select>
           </div>
