@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom"
-import { signInWithPopup } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth"
 import { auth, provider } from "@/shared/lib/firebase"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useEffect, useState } from "react"
@@ -8,12 +8,24 @@ interface LocationState {
   readonly from?: { readonly pathname: string }
 }
 
+/**
+ * Emulator-only sign-in. Gated by VITE_USE_FIREBASE_EMULATORS so the
+ * email/password form is never shipped to production. This exists purely
+ * to let Playwright drive authentication against the Auth emulator
+ * (the production app is Google OAuth only).
+ */
+const useEmulatorLogin =
+  (import.meta.env.VITE_USE_FIREBASE_EMULATORS ?? "").toString().toLowerCase() === "1" ||
+  (import.meta.env.VITE_USE_FIREBASE_EMULATORS ?? "").toString().toLowerCase() === "true"
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, loading } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [signingIn, setSigningIn] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
   const from = (location.state as LocationState)?.from?.pathname ?? "/projects"
 
@@ -28,6 +40,18 @@ export default function LoginPage() {
     setError(null)
     try {
       await signInWithPopup(auth, provider)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed")
+      setSigningIn(false)
+    }
+  }
+
+  const handleEmulatorSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSigningIn(true)
+    setError(null)
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed")
       setSigningIn(false)
@@ -151,6 +175,54 @@ export default function LoginPage() {
               </svg>
               {signingIn ? "Signing in\u2026" : "Sign in with Google"}
             </button>
+
+            {/* Emulator-only email/password form — NEVER shown in production.
+                Gated by VITE_USE_FIREBASE_EMULATORS so Playwright can drive
+                sign-in against the Firebase Auth emulator. */}
+            {useEmulatorLogin && (
+              <form
+                onSubmit={handleEmulatorSignIn}
+                className="flex flex-col gap-3 rounded-md border border-dashed border-amber-500/40 p-3"
+                data-testid="emulator-login-form"
+                aria-label="Emulator sign-in form"
+              >
+                <p
+                  className="text-xxs uppercase tracking-[0.08em]"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  Emulator sign-in (dev/test only)
+                </p>
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="username"
+                  required
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-button border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
+                  style={{ color: "var(--color-text)" }}
+                />
+                <input
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-button border border-[var(--color-border)] bg-transparent px-3 py-2 text-sm"
+                  style={{ color: "var(--color-text)" }}
+                />
+                <button
+                  type="submit"
+                  disabled={signingIn}
+                  className="rounded-button bg-neutral-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  {signingIn ? "Signing in\u2026" : "Sign in"}
+                </button>
+              </form>
+            )}
 
             {/* Divider */}
             <div className="flex items-center gap-3">

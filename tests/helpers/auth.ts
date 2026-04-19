@@ -50,8 +50,13 @@ export async function authenticateTestUser(
         return { email, password, role, clientId };
       }
 
-      // Wait for login form to be visible with increased timeout
-      const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
+      // Wait for login form to be visible with increased timeout.
+      // Prefer the emulator-only form (data-testid="emulator-login-form") which is
+      // rendered when VITE_USE_FIREBASE_EMULATORS=1 — this avoids accidentally
+      // targeting the Google OAuth button (which also contains the text "Sign in").
+      const emailInput = page.locator(
+        '[data-testid="emulator-login-form"] input[type="email"], input[type="email"], input[placeholder*="email" i]'
+      ).first();
       await emailInput.waitFor({ state: 'visible', timeout: 15000 });
 
       // Clear and fill email
@@ -59,15 +64,22 @@ export async function authenticateTestUser(
       await emailInput.fill(email);
 
       // Clear and fill password
-      const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
+      const passwordInput = page.locator(
+        '[data-testid="emulator-login-form"] input[type="password"], input[type="password"], input[placeholder*="password" i]'
+      ).first();
       await passwordInput.clear();
       await passwordInput.fill(password);
 
       // Small delay to ensure form is ready
       await page.waitForTimeout(500);
 
-      // Click sign in button
-      const signInButton = page.locator('button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]').first();
+      // Click sign in button — emulator form first, then generic fallbacks.
+      // Without the emulator-form-scoped selector, `.first()` would pick the
+      // Google OAuth button because "Sign in with Google" matches :has-text("Sign in")
+      // and it's rendered earlier in the DOM.
+      const signInButton = page.locator(
+        '[data-testid="emulator-login-form"] button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]'
+      ).first();
       await signInButton.click();
 
       // Wait for authentication to complete and redirect with increased timeout

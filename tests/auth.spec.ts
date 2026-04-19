@@ -11,18 +11,27 @@ test.describe('Authentication Flow', () => {
   test('user can sign in with email and password', async ({ page }) => {
     await page.goto('/');
 
-    // Wait for login form to be visible
-    const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]').first();
+    // Wait for login form to be visible.
+    // Prefer the emulator-only form (data-testid="emulator-login-form") so we
+    // don't accidentally target the Google OAuth button — "Sign in with Google"
+    // also matches :has-text("Sign in") and is rendered earlier in the DOM.
+    const emailInput = page.locator(
+      '[data-testid="emulator-login-form"] input[type="email"], input[type="email"], input[placeholder*="email" i]'
+    ).first();
     await expect(emailInput).toBeVisible({ timeout: 10000 });
 
     // Fill in credentials
     await emailInput.fill(TEST_CREDENTIALS.producer.email);
 
-    const passwordInput = page.locator('input[type="password"], input[placeholder*="password" i]').first();
+    const passwordInput = page.locator(
+      '[data-testid="emulator-login-form"] input[type="password"], input[type="password"], input[placeholder*="password" i]'
+    ).first();
     await passwordInput.fill(TEST_CREDENTIALS.producer.password);
 
-    // Submit
-    const signInButton = page.locator('button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]').first();
+    // Submit — emulator form first, then generic fallbacks.
+    const signInButton = page.locator(
+      '[data-testid="emulator-login-form"] button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]'
+    ).first();
     await signInButton.click();
 
     // Should redirect to authenticated page
