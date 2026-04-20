@@ -5,6 +5,13 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 const { sendInvitationEmail, sendRequestNotificationEmail } = require("./email");
+const {
+  handlePublishCallSheet,
+  handleRecordCallSheetShareView,
+  handleConfirmCallSheetShare,
+  handleResendCallSheetShare,
+  handleRevokeCallSheetShare,
+} = require("./src/callSheetShares.js");
 
 // FALLBACK: Only used if Firestore admin collection is not accessible
 // Set SUPER_ADMIN_EMAIL in environment variables for production
@@ -877,6 +884,42 @@ exports.publicUpdatePull = functions
     }
   });
 
+// --- Phase 3 publishing: anonymous view ping + confirm ---
+
+exports.recordCallSheetShareView = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      const result = await handleRecordCallSheetShareView(req.body || {});
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "recordCallSheetShareView");
+    }
+  });
+
+exports.confirmCallSheetShare = functions
+  .region("northamerica-northeast1")
+  .https.onRequest(async (req, res) => {
+    if (handleCors(req, res)) return;
+
+    try {
+      // Forward the caller's IP so the handler can hash it for abuse triage
+      // (plan §4.4 step 4). `req.ip` is populated by Cloud Functions from
+      // x-forwarded-for; fall back to connection remoteAddress locally.
+      const ip =
+        req.ip ||
+        req.headers["x-forwarded-for"] ||
+        req.socket?.remoteAddress ||
+        null;
+      const result = await handleConfirmCallSheetShare(req.body || {}, { ip });
+      res.status(200).json(result);
+    } catch (error) {
+      sendHandlerError(res, error, "confirmCallSheetShare");
+    }
+  });
+
 // --- Firestore queue trigger (bypasses HTTP/CORS/IAM) ---
 
 exports.processQueue = functions
@@ -921,6 +964,15 @@ exports.processQueue = functions
           break;
         case "sendRequestNotification":
           result = await handleSendRequestNotification(data, caller);
+          break;
+        case "publishCallSheet":
+          result = await handlePublishCallSheet(data, caller);
+          break;
+        case "resendCallSheetShare":
+          result = await handleResendCallSheetShare(data, caller);
+          break;
+        case "revokeCallSheetShare":
+          result = await handleRevokeCallSheetShare(data, caller);
           break;
         default:
           throw Object.assign(new Error(`Unknown action: ${action}`), { code: "invalid-argument" });
