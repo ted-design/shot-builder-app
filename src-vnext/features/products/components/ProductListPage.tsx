@@ -208,6 +208,8 @@ export default function ProductListPage() {
                   variant={viewMode === "gallery" ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 px-2"
+                  aria-label="Gallery view"
+                  aria-pressed={viewMode === "gallery"}
                   onClick={() => {
                     writeProductListViewMode("gallery")
                     setSearchParams((prev) => {
@@ -224,6 +226,8 @@ export default function ProductListPage() {
                   variant={viewMode === "table" ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 px-2"
+                  aria-label="Table view"
+                  aria-pressed={viewMode === "table"}
                   onClick={() => {
                     writeProductListViewMode("table")
                     setSearchParams((prev) => {
