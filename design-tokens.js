@@ -80,12 +80,25 @@ module.exports = plugin(function({ addComponents, theme }) {
     // Meta label — uppercase, tracked
     // 12px, font-semibold 600, uppercase, 0.05em tracking
     // Replaces repeated text-xs font-semibold uppercase tracking-widest pattern
+    //
+    // WCAG AA compliance (a11y H-2): color is --color-text-secondary (#52525b,
+    // zinc-600), not --color-text-subtle (#a1a1aa, zinc-400). At 12px semibold,
+    // `.label-meta` does NOT qualify as WCAG "large text" and must clear 4.5:1
+    // on every surface it renders on. `.label-meta` appears on both white
+    // (--color-surface) AND subtle (--color-surface-subtle / #f4f4f5) surfaces
+    // (e.g. table headers), so the foreground must clear 4.5:1 against the
+    // darker of the two — #f4f4f5:
+    //   - zinc-400 #a1a1aa on #f4f4f5: 2.33:1  (FAIL — original H-2 bug)
+    //   - zinc-500 #71717a on #f4f4f5: 4.40:1  (FAIL — still just below AA)
+    //   - zinc-600 #52525b on #f4f4f5: 7.03:1  (PASS AA, clears AAA)
+    // --color-text-subtle remains available for truly decorative uses (icons,
+    // large headings ≥18.66px bold / ≥24px regular) where 3:1 is sufficient.
     '.label-meta': {
       fontSize: 'var(--text-xs)',
       fontWeight: 'var(--weight-semibold)',
       textTransform: 'uppercase',
       letterSpacing: 'var(--tracking-wider)',
-      color: 'var(--color-text-subtle)',
+      color: 'var(--color-text-secondary)',
     },
   });
 
