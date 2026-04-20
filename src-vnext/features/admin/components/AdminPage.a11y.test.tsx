@@ -154,9 +154,7 @@ describe("Admin page color-contrast (H-2 regression)", () => {
     // Read the plugin source to confirm the class still references a token
     // that clears AA. We deliberately do NOT parse CSS; we read the JS plugin
     // definition statically.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- static read of plugin source
     const fs = require("fs") as typeof import("fs")
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require("path") as typeof import("path")
     const tokensPath = path.resolve(__dirname, "../../../../design-tokens.js")
     const src = fs.readFileSync(tokensPath, "utf8")
