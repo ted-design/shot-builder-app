@@ -242,8 +242,6 @@ export interface PullItemSize {
   readonly status?: PullItemSizeStatus
 }
 
-export type ChangeOrder = Record<string, unknown>
-
 export interface PullItem {
   /** Stable id required for public fulfillment updates */
   readonly id?: string
@@ -256,7 +254,6 @@ export interface PullItem {
   readonly sizes: PullItemSize[]
   readonly fulfillmentStatus: FulfillmentFirestoreStatus
   readonly notes?: string | null
-  readonly changeOrders?: ChangeOrder[]
 }
 
 export interface Pull {

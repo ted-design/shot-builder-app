@@ -3,11 +3,11 @@ import { ChevronDown, Phone } from "lucide-react"
 import type { CrewRecord } from "@/shared/types"
 
 const DEPT_ACCENT_COLORS = [
-  "#3b82f6",
-  "#f59e0b",
+  "var(--color-info)",
+  "var(--color-warning)",
   "#8b5cf6",
-  "#E31E24",
-  "#10b981",
+  "var(--color-accent)",
+  "var(--color-success)",
   "#71717a",
   "#ec4899",
   "#0ea5e9",

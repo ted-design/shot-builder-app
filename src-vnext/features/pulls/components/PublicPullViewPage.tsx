@@ -39,7 +39,6 @@ function deepCloneItems(items: readonly PullItem[]): PullItem[] {
   return items.map((item) => ({
     ...item,
     sizes: Array.isArray(item.sizes) ? item.sizes.map((s) => ({ ...s })) : [],
-    changeOrders: item.changeOrders ? [...item.changeOrders] : undefined,
   }))
 }
 
