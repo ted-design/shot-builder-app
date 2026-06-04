@@ -19,17 +19,36 @@ module.exports = plugin(function({ addComponents, theme }) {
    * Colors use CSS vars (not Tailwind theme) for dark mode compatibility.
    */
   addComponents({
-    // Page-level heading — light weight, editorial tracking
-    // 24px mobile / 28px desktop, font-light 300, -0.02em
+    // Page-level heading ("Big Statement") — Immediate brand display face.
+    // Style guide §2: Founders Grotesk X-Condensed Bold, 0 tracking, tight
+    // leading. (Was editorial Neue Haas Light 300 / -0.02em; superseded by the
+    // brand guide per Ted, 2026-06-04.) Founders is only available at weight
+    // 700, so the bold weight is required for the face to render. Sizes bumped
+    // one step to compensate for the condensed face reading narrower.
     '.heading-page': {
-      fontSize: 'var(--text-2xl)',
-      fontWeight: 'var(--weight-light)',
-      letterSpacing: 'var(--tracking-heading)',
-      lineHeight: 'var(--leading-heading)',
+      fontFamily: 'var(--font-display)',
+      fontSize: 'var(--text-3xl)',
+      fontWeight: 'var(--weight-bold)',
+      letterSpacing: 'var(--tracking-normal)',
+      lineHeight: 'var(--leading-none)',
       color: 'var(--color-text)',
       '@media (min-width: 768px)': {
-        fontSize: 'var(--text-3xl)',
+        fontSize: 'var(--text-4xl)',
       },
+    },
+
+    // Iconic period — the brand's signature red dot after headings/statements.
+    // Style guide §2 "Iconic Period": the period is NOT the heading's own glyph
+    // (Founders' period is square) — it is set in IVY PRESTO HEADLINE BOLD,
+    // which has a round dot. Size = heading ÷ 1.2 → 0.833em (relative, so it
+    // scales to any heading). Default colour Red; the call site can override to
+    // the heading colour where red isn't legible. Apply to a <span> wrapping ".".
+    '.iconic-period': {
+      fontFamily: 'var(--font-serif)',
+      fontWeight: 'var(--weight-bold)',
+      fontStyle: 'normal',
+      fontSize: '0.833em',
+      color: 'var(--color-accent)',
     },
 
     // Section heading — semibold, subtle negative tracking
