@@ -78,7 +78,7 @@
    * ============================================ */
 
   /* --- Surfaces --- */
-  --color-bg: #efefef;               /* App background — light grey, sits below Immediate White */
+  --color-bg: #eaeaea;               /* App background — light grey; deepened from #efefef so Immediate-White cards lift off it without shadows (brand: no drop shadows) */
   --color-surface: #f5f5f5;           /* Cards, panels — Immediate White #F5F5F5 (top of ramp; no pure #fff) */
   --color-surface-muted: #e0e0e0;     /* Layout panel background — ~Immediate Light Grey #E6E6E6 */
   --color-surface-subtle: #ebebeb;    /* Subtle backgrounds (kept below surface for elevation) */
@@ -127,13 +127,15 @@
   --color-sethero-blue-hover: #1a56b8;
   --color-sethero-blue-light: #b1c0d9;
 
-  /* --- Status Colors --- */
-  --color-success: #10b981;           /* emerald-500 */
-  --color-warning: #f59e0b;           /* amber-500 */
+  /* --- Status Colors ---
+     Muted, low-chroma OKLCH so the segmented bars sit WITH Immediate Red rather
+     than reading as generic-dashboard Tailwind-500s. (Was emerald/amber/blue-500.) */
+  --color-success: oklch(0.56 0.11 155); /* muted green */
+  --color-warning: oklch(0.70 0.13 70);  /* muted amber/gold */
   --color-warning-muted: #fde68a;     /* amber-200 — warning border/accent */
   --color-warning-subtle: #fffbeb;    /* amber-50 — warning background tint */
   --color-error: #ef4444;             /* red-500 */
-  --color-info: #3b82f6;              /* blue-500 */
+  --color-info: oklch(0.56 0.11 250);    /* muted blue */
 
   /* --- Schedule Entry Type Colors --- */
   /* Banner label "setup/prep" — amber */
