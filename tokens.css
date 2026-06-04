@@ -1,3 +1,14 @@
+/* Immediate display/wordmark face — self-hosted (Klim web licence). Adobe-kit
+   faces (Ivy Presto Headline, Neue Haas Grotesk Display) load via the Typekit
+   <link> in index.html; only Founders is self-hosted. */
+@font-face {
+  font-family: 'Founders Grotesk XCond';
+  src: url('/fonts/founders-grotesk-x-condensed-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /**
  * Shot Builder Design Tokens — Direction A (Near-Black Editorial)
  *
@@ -18,8 +29,9 @@
    * ============================================ */
 
   /* Font Families */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-serif: 'Lora', Georgia, Cambria, 'Times New Roman', serif;
+  --font-sans: 'neue-haas-grotesk-display', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: 'ivypresto-headline', 'Lora', Georgia, Cambria, 'Times New Roman', serif;
+  --font-display: 'Founders Grotesk XCond', 'Arial Narrow', ui-sans-serif, sans-serif; /* Immediate display / wordmark — condensed bold */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Font Sizes */

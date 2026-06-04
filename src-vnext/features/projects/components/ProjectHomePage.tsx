@@ -34,7 +34,10 @@ export default function ProjectHomePage() {
       </p>
 
       <div className="mt-2 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-3xl font-bold leading-none tracking-tight">
+        <h1
+          className="text-4xl font-bold leading-none tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           {project?.name ?? "…"}
           <span className="text-[var(--color-accent)]">.</span>
         </h1>
