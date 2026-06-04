@@ -47,7 +47,7 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
 
   const navigateToProject = () => {
     if (Date.now() < suppressNavigateUntilRef.current) return
-    navigate(`/projects/${project.id}/shots`)
+    navigate(`/projects/${project.id}`)
   }
 
   return (
@@ -98,6 +98,16 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
             {textPreview(notes, 120)}
           </p>
         )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/projects/${project.id}/shots`)
+          }}
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+        >
+          Open shots <span aria-hidden="true">{"→"}</span>
+        </button>
       </CardContent>
     </Card>
   )

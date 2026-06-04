@@ -51,11 +51,20 @@ describe("ProjectCard", () => {
     vi.clearAllMocks()
   })
 
-  it("navigates on normal card click", () => {
+  it("navigates to the project home on normal card click", () => {
     render(<ProjectCard project={makeProject({ id: "p123", name: "Alpha" })} />)
 
     fireEvent.click(screen.getByText("Alpha"))
 
+    expect(mockNavigate).toHaveBeenCalledWith("/projects/p123")
+  })
+
+  it("deep-links to shots without triggering the card navigate", () => {
+    render(<ProjectCard project={makeProject({ id: "p123", name: "Alpha" })} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /open shots/i }))
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1)
     expect(mockNavigate).toHaveBeenCalledWith("/projects/p123/shots")
   })
 
@@ -79,7 +88,7 @@ describe("ProjectCard", () => {
     vi.advanceTimersByTime(900)
     fireEvent.click(screen.getByText("Sample Project (TEST)"))
 
-    expect(mockNavigate).toHaveBeenCalledWith("/projects/p999/shots")
+    expect(mockNavigate).toHaveBeenCalledWith("/projects/p999")
 
     vi.useRealTimers()
   })

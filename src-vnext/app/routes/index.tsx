@@ -12,6 +12,9 @@ const LoginPage = lazy(() => import("@/features/auth/components/LoginPage"))
 const ProjectDashboard = lazy(
   () => import("@/features/projects/components/ProjectDashboard"),
 )
+const ProjectHomePage = lazy(
+  () => import("@/features/projects/components/ProjectHomePage"),
+)
 const ShotListPage = lazy(
   () => import("@/features/shots/components/ShotListPage"),
 )
@@ -132,6 +135,16 @@ export function AppRoutes() {
             element={
               <RouteBoundary featureName="Projects">
                 <ProjectDashboard />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="projects/:id"
+            element={
+              <RouteBoundary featureName="Overview">
+                <ProjectScopeProvider>
+                  <ProjectHomePage />
+                </ProjectScopeProvider>
               </RouteBoundary>
             }
           />
