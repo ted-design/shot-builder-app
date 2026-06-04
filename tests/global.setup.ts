@@ -138,6 +138,43 @@ async function authenticateAndSaveState(
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // Capture browser-side diagnostics so a white-screen / init crash is visible
+  // in the CI job log (the screenshot artifact is not uploaded for this path).
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
+  page.on('pageerror', (err) => pageErrors.push(err.message));
+
+  const dumpPageState = async (whenLabel: string) => {
+    try {
+      const url = page.url();
+      const title = await page.title().catch(() => '<no title>');
+      const rootHtml = await page
+        .locator('#root')
+        .innerHTML()
+        .catch(() => '<no #root>');
+      const bodyText = await page
+        .locator('body')
+        .innerText()
+        .catch(() => '');
+      console.error(
+        `\n----- PAGE DIAGNOSTIC (${whenLabel}) for ${email} -----\n` +
+          `url: ${url}\n` +
+          `title: ${title}\n` +
+          `#root innerHTML length: ${rootHtml.length}\n` +
+          `body text (first 300): ${bodyText.slice(0, 300)}\n` +
+          `console errors (${consoleErrors.length}): ${JSON.stringify(consoleErrors.slice(0, 10))}\n` +
+          `page errors (${pageErrors.length}): ${JSON.stringify(pageErrors.slice(0, 10))}\n` +
+          `#root innerHTML (first 800): ${rootHtml.slice(0, 800)}\n` +
+          `-------------------------------------------------------\n`,
+      );
+    } catch (diagErr) {
+      console.error(`Failed to dump page state (${whenLabel}):`, diagErr);
+    }
+  };
+
   try {
     await page.goto(baseURL);
 
@@ -170,6 +207,7 @@ async function authenticateAndSaveState(
     await context.storageState({ path: outputPath, indexedDB: true });
     console.log(`Saved auth state for ${email} to ${outputPath}`);
   } catch (error) {
+    await dumpPageState('on failure');
     const screenshotPath = path.join(
       __dirname,
       'playwright',
