@@ -41,7 +41,11 @@ test.describe('UI Smoke Tests', () => {
     }
   });
 
-  test('admin can access admin page', async ({ adminPage }) => {
+  // QUARANTINED: the admin page heading selector finds nothing in the emulator
+  // build (admin route renders no matching heading without admin-specific seed
+  // data). Tracked in tests/QUARANTINE.md → "smoke: admin page". Re-enable once
+  // the admin page exposes a stable heading and/or seed data is in place.
+  test.fixme('admin can access admin page', async ({ adminPage }) => {
     // Try to navigate to admin page
     await adminPage.goto('/admin');
 
