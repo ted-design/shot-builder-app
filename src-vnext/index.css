@@ -198,7 +198,7 @@
 
   .callsheet-accent-rule {
     height: 2px;
-    background: var(--doc-accent, var(--color-accent, #E31E24));
+    background: var(--doc-accent, var(--color-accent, #EB1400));
   }
 
   .callsheet-header-grid {
