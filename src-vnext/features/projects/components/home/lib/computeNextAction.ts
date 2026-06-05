@@ -64,7 +64,13 @@ export interface NextActionInput {
   readonly shootDate: Date | null
 }
 
-/** A single navigable choice: button copy + the absolute route it links to. */
+/**
+ * A single navigable choice: button copy + the absolute route it links to.
+ *
+ * NOTE: unlike `NextAction`, this has no machine-readable `label`. The bar is
+ * navigation-only today, so none is needed. If click-tracking is ever wired up,
+ * add a `label` here so an alternate-CTA click can emit a stable analytics key.
+ */
 export interface NextActionLink {
   /** Button / link copy. */
   readonly ctaText: string
