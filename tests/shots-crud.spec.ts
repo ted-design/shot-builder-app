@@ -99,7 +99,10 @@ test.describe('Shot CRUD Operations', () => {
     await titleEdit.click();
 
     const newTitle = `Edited Seed Shot ${Date.now()}`;
+    // After the click, InlineEdit swaps the display span for a focused input
+    // (same testId). Wait for focus so the fill targets the edit field, not the span.
     const input = producerPage.getByTestId('shot-title-edit');
+    await expect(input).toBeFocused();
     await input.fill(newTitle);
     await input.press('Enter');
 

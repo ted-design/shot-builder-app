@@ -94,7 +94,6 @@ export async function createTestProject(data: {
  */
 export async function createTestShot(projectId: string, data: {
   title?: string;
-  name?: string;
   /** Optional deterministic doc id so specs can deep-link to it. */
   id?: string;
   type?: string;
@@ -115,7 +114,7 @@ export async function createTestShot(projectId: string, data: {
   // `where('deleted','==',false)` and orders by `date` — a doc MISSING either
   // field is excluded from the list, so both are always set here.
   await shotRef.set({
-    title: data.title ?? data.name ?? 'Untitled Shot',
+    title: data.title ?? 'Untitled Shot',
     description: data.description ?? null,
     projectId,
     clientId: CLIENT_ID,
@@ -407,10 +406,17 @@ export async function clearShotsCrudData(): Promise<void> {
     .where('projectId', '==', SEED_PROJECT_ID)
     .get();
 
-  const batch = db.batch();
-  for (const doc of shotsSnap.docs) batch.delete(doc.ref);
-  batch.delete(db.collection(`clients/${CLIENT_ID}/projects`).doc(SEED_PROJECT_ID));
-  await batch.commit();
+  const refs = shotsSnap.docs.map((doc) => doc.ref);
+  refs.push(db.collection(`clients/${CLIENT_ID}/projects`).doc(SEED_PROJECT_ID));
+
+  // Delete in chunks — a Firestore batch is capped at 500 ops. A persisted local
+  // emulator can accumulate test-created shots across runs (CI is fresh each time).
+  const CHUNK = 250;
+  for (let i = 0; i < refs.length; i += CHUNK) {
+    const batch = db.batch();
+    for (const ref of refs.slice(i, i + CHUNK)) batch.delete(ref);
+    await batch.commit();
+  }
 }
 
 /**
