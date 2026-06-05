@@ -66,7 +66,7 @@ export function NextActionBar({ action }: NextActionBarProps) {
         </Link>
 
         {action.alternate && (
-          <p
+          <span
             className="text-sm whitespace-nowrap"
             style={{ color: "var(--color-text-subtle)" }}
           >
@@ -79,7 +79,7 @@ export function NextActionBar({ action }: NextActionBarProps) {
             >
               {action.alternate.ctaText}
             </Link>
-          </p>
+          </span>
         )}
       </div>
     </div>
