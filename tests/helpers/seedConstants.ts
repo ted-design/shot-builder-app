@@ -33,3 +33,27 @@ export const SEED_SHOT_EDITABLE = { id: 'e2e-shot-editable', title: 'Editable Se
 
 /** All seeded shots, in seed order. */
 export const SEED_SHOTS = [SEED_SHOT_AURORA, SEED_SHOT_BOREALIS, SEED_SHOT_EDITABLE] as const;
+
+/**
+ * Seeded pull sheet for the pulls-crud spec. Lives under the seed project at
+ * `clients/test-client/projects/e2e-seed-project/pulls/<SEED_PULL.id>`.
+ *
+ * The name uses a unique token ("Helios") so the create-pull test's freshly
+ * created sheet never collides with this seeded one in a list assertion. The
+ * fixed id lets a spec deep-link to `/projects/<project>/pulls/<SEED_PULL.id>`.
+ */
+export const SEED_PULL = { id: 'e2e-seed-pull', name: 'Helios Day 1 Pull' } as const;
+
+/**
+ * The single item the seeded pull carries. Distinct tokens ("Helios Jacket",
+ * size 'M') so the spec can assert the family name + size render on the detail
+ * page. Mirrors the app PullItem shape mapItem/mapSize read (familyId + size
+ * REQUIRED non-empty; British 'colourName').
+ */
+export const SEED_PULL_ITEM = {
+  familyId: 'e2e-pull-family',
+  familyName: 'Helios Jacket',
+  colourName: 'Black',
+  size: 'M',
+  quantity: 2,
+} as const;

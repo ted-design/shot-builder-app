@@ -4,7 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { seedShotsCrudScenario } from './helpers/seed';
+import { seedShotsCrudScenario, seedPullsCrudScenario } from './helpers/seed';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -42,6 +42,12 @@ export const TEST_USERS = {
     email: 'wardrobe@test.shotbuilder.app',
     password: 'test-password-wardrobe-123',
     role: 'wardrobe',
+    clientId: 'test-client',
+  },
+  warehouse: {
+    email: 'warehouse@test.shotbuilder.app',
+    password: 'test-password-warehouse-123',
+    role: 'warehouse',
     clientId: 'test-client',
   },
   crew: {
@@ -261,10 +267,16 @@ async function globalSetup(config: FullConfig) {
   // Create test users and authenticate each one
   console.log('Creating test users and authenticating...\n');
 
+  // Capture each role's uid — the pulls-crud fixture needs the warehouse uid to
+  // grant it project membership (see below); without a members doc the warehouse
+  // user satisfies neither producerCanAccessProject (global producer only) nor
+  // hasProjectRole, so firestore.rules would deny it read/write on the pull.
+  const roleUids: Record<string, string> = {};
+
   for (const [roleName, userData] of Object.entries(TEST_USERS)) {
     try {
       // Create/update user with custom claims
-      await createOrUpdateTestUser(
+      roleUids[roleName] = await createOrUpdateTestUser(
         userData.email,
         userData.password,
         userData.role,
@@ -290,6 +302,12 @@ async function globalSetup(config: FullConfig) {
   console.log('Seeding Firestore fixtures (shots-crud)...');
   try {
     await seedShotsCrudScenario();
+    // Seed the pulls-crud fixture AFTER shots-crud — seedPullsCrudScenario
+    // assumes the seed project (created by seedShotsCrudScenario) already exists.
+    // Pass the warehouse uid so the seed can grant it project membership: pull
+    // read/write under firestore.rules requires hasProjectRole(...,'warehouse')
+    // (warehouse's global role satisfies neither isAdmin nor producerCanAccessProject).
+    await seedPullsCrudScenario({ warehouseUid: roleUids.warehouse });
     console.log('✅ Firestore fixtures seeded\n');
   } catch (error) {
     console.error('❌ Failed to seed Firestore fixtures:', error);

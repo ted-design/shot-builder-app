@@ -35,9 +35,18 @@ the "merge past red" norm without silently dropping coverage.
   2026-06-05. Hard-asserts the real, project-scoped shot lifecycle against a
   seeded fixture: list (read), create, detail deep-link (read), search filter,
   inline rename (update), and create-then-delete (delete).
+- **`tests/pulls-crud.spec.ts`** (storageState auth) — chromium only. Un-quarantined
+  2026-06-05. Hard-asserts the real, project-scoped pull lifecycle against a
+  seeded fixture (`seedPullsCrudScenario`: one app-shaped pull + one item under
+  `e2e-seed-project`): list read (seeded pull card), create (new pull sheet),
+  detail deep-link (name + item family + "Items (1)"), status change (→
+  Published), share/unshare, and fulfillment from **both** RBAC sides — producer
+  toggle **disabled** (`canFulfillPulls` excludes producer) and warehouse live
+  Pending→Fulfilled (via the new `warehousePage` fixture). Sets an explicit
+  desktop viewport because `canEdit = canManagePulls && !isMobile`.
 
 This set exercises authenticated page loads + CRUD and so directly guards against
-the white-screen regression and the shot data path.
+the white-screen regression and the shot + pull data paths.
 
 ## Emulator seed (added 2026-06-05)
 
@@ -55,6 +64,34 @@ bugs were fixed so the seed is actually visible to the app:
    query filters `where('deleted','==',false)` and orders by `date`, so docs
    missing either field are excluded. Seed now mirrors `CreateShotDialog`'s write.
 
+## Pulls seed + warehouse fixture (added 2026-06-05)
+
+`tests/global.setup.ts` now also seeds a deterministic pull fixture
+(`seedPullsCrudScenario` in `tests/helpers/seed.ts`; constants `SEED_PULL` /
+`SEED_PULL_ITEM` in `tests/helpers/seedConstants.ts`) **after**
+`seedShotsCrudScenario` (which creates the `e2e-seed-project` doc the pull lives
+under). It writes ONE app-shaped pull at
+`clients/test-client/projects/e2e-seed-project/pulls/e2e-seed-pull` with one item
+(family `Helios Jacket`, size `M`), mirroring `createPullFromShots.ts` (the
+canonical app writer): Date values coerce to Firestore Timestamps; `familyId` +
+`size` are non-empty (mapItem/mapSize drop items/sizes missing them);
+`colourName` uses British spelling. The pulls subcollection is cleared first
+(`clearPullsCrudData`, CHUNK=250) so the dataset is identical each run and any
+pull the create-test makes is wiped on the next setup.
+
+A new **`warehouse`** role user was added to `TEST_USERS` (and `TEST_CREDENTIALS`)
+with the `warehousePage` fixture in `tests/fixtures/auth.ts` — warehouse is a
+distinct RBAC role from wardrobe (`canFulfillPulls` = admin|warehouse only), so
+the pulls spec can cover fulfillment from both the producer-disabled and the
+warehouse-live side. Because `firestore.rules` gates pull read/write on
+`hasProjectRole(...,'warehouse')` (the warehouse user's *global* role satisfies
+neither `isAdmin` nor `producerCanAccessProject`), `seedPullsCrudScenario` also
+writes a project **members** doc (`.../projects/e2e-seed-project/members/<warehouse-uid>`,
+role `warehouse`) using the uid captured from `createOrUpdateTestUser` in
+`global.setup.ts`. Without it the warehouse user cannot even read the seeded pull.
+Producer needs no member doc — its global role satisfies `producerCanAccessProject`
+on a team-visible project.
+
 ## Quarantined specs (excluded via `testIgnore` in `playwright.config.ts`)
 
 | Spec | Category | Failure | Fix needed |
@@ -62,7 +99,6 @@ bugs were fixed so the seed is actually visible to the app:
 | `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
 | `auth.spec.ts` | Test infra | `helpers/auth.ts` interactive login times out on the post-login `waitForURL` redirect | Make the helper rehydrate via the app's real modular-SDK persistence (or switch these specs to storageState fixtures) |
 | `sidebar-summary.spec.ts` | Test infra | Same interactive-login helper root cause | As above |
-| `pulls-crud.spec.ts` | Obsolete + fixtures | Navigates to a nonexistent top-level `/pulls` route (real route is `/projects/:id/pulls` → it lands on NotFoundPage); 7 of 9 tests wrap assertions in `if (await x.isVisible())` so they pass vacuously; several target UI that does not exist (Add-item dialog, PDF export, quantity editor, per-card delete — pull items are derived from shots, not hand-added); the fulfill test uses `producer` but only admin/warehouse can fulfill | **Deferred** (Ted, 2026-06-05): rewrite to project-scoped routes + real selectors and trim to flows that exist (create / view / status / share); revisit when pull-item editing UI exists. Do **not** un-quarantine as-is (the vacuous guards would give a false green). Seed already covers a project; extend with an app-shaped pull when rewriting |
 | `image-crop-editor.spec.js` | Obsolete | Targets a **removed legacy** UI: the `react-easy-crop` "Crop & Adjust Image" editor, an "Attachments" tab, an "Edit crop" button and `[data-testid=attachment-thumbnail]` live only in `archive/legacy-src-2026-04/`; `react-easy-crop` is not installed; the current app stores a single `heroImage` per shot (`HeroImageSection`). The spec also imports bare `@playwright/test` (no storageState → unauthenticated) | **Deferred** (Ted, 2026-06-05): seeding alone can never make it green. Rewrite against `HeroImageSection` on the shot detail page (use the producer storageState fixture) or delete the spec. Not just a seed task |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
@@ -101,8 +137,13 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
 1. ~~**Seed fixtures** — an emulator seed step so CRUD/image specs have data.~~
    **Done 2026-06-05** for shots (`seedShotsCrudScenario`), which un-quarantined
    `shots-crud`. The seed is reusable for the rewrites below.
-2. **Rewrite `pulls-crud`** — to project-scoped routes + real selectors, trimmed
-   to flows that exist; extend the seed with an app-shaped pull. (Deferred per Ted.)
+2. ~~**Rewrite `pulls-crud`** — to project-scoped routes + real selectors, trimmed
+   to flows that exist; extend the seed with an app-shaped pull.~~ **Done
+   2026-06-05**: rewritten to `/projects/:id/pulls(/:pid)` + real selectors
+   (list/create/detail/status/share/fulfillment), seed extended with an
+   app-shaped pull (`seedPullsCrudScenario`), and a `warehouse` user +
+   `warehousePage` fixture added so fulfillment is covered producer-disabled +
+   warehouse-live. Un-quarantined.
 3. **Rewrite or delete `image-crop-editor`** — against `HeroImageSection`, not the
    removed legacy crop editor. (Deferred per Ted.)
 4. **Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.

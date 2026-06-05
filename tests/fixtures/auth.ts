@@ -41,6 +41,7 @@ type AuthFixtures = {
   adminPage: Page;
   producerPage: Page;
   wardrobePage: Page;
+  warehousePage: Page;
   crewPage: Page;
   viewerPage: Page;
 };
@@ -67,7 +68,7 @@ function installFirebaseErrorFilter(page: Page): void {
 
 async function buildRoleFixture(
   browser: import('@playwright/test').Browser,
-  role: 'admin' | 'producer' | 'wardrobe' | 'crew' | 'viewer',
+  role: 'admin' | 'producer' | 'wardrobe' | 'warehouse' | 'crew' | 'viewer',
   use: (page: Page) => Promise<void>,
 ): Promise<void> {
   const context = await browser.newContext({ storageState: storageStatePath(role) });
@@ -97,6 +98,11 @@ export const test = base.extend<AuthFixtures>({
   /** Wardrobe — can manage products and view/edit shots. */
   wardrobePage: async ({ browser }, use) => {
     await buildRoleFixture(browser, 'wardrobe', use);
+  },
+
+  /** Warehouse — can manage + fulfill pulls (distinct RBAC role from wardrobe). */
+  warehousePage: async ({ browser }, use) => {
+    await buildRoleFixture(browser, 'warehouse', use);
   },
 
   /** Crew — view shots, limited edit. */
@@ -130,6 +136,11 @@ export const TEST_CREDENTIALS = {
     email: 'wardrobe@test.shotbuilder.app',
     password: 'test-password-wardrobe-123',
     role: 'wardrobe',
+  },
+  warehouse: {
+    email: 'warehouse@test.shotbuilder.app',
+    password: 'test-password-warehouse-123',
+    role: 'warehouse',
   },
   crew: {
     email: 'crew@test.shotbuilder.app',
