@@ -37,7 +37,7 @@ jobs:
 
       - name: Start Firebase Emulators
         run: |
-          firebase emulators:start --only auth,firestore --project demo-test &
+          firebase emulators:start --only auth,firestore,storage --project demo-test &
           EMULATOR_PID=$!
           # Wait for Auth emulator (port 9099) — fail if not ready in 60s
           echo "Waiting for Auth emulator on port 9099..."
@@ -47,6 +47,12 @@ jobs:
           echo "Waiting for Firestore emulator on port 8080..."
           timeout 60 bash -c 'until curl -sf http://localhost:8080/ > /dev/null 2>&1; do sleep 2; done'
           echo "Firestore emulator ready"
+          # Wait for Storage emulator (port 9199). NOTE: the Storage emulator has
+          # NO GET / route (it 404s), unlike auth/firestore which 200 at / — so
+          # probe the bucket-list route /b, which returns 200 once it's ready.
+          echo "Waiting for Storage emulator on port 9199..."
+          timeout 60 bash -c 'until curl -sf http://localhost:9199/b > /dev/null 2>&1; do sleep 2; done'
+          echo "Storage emulator ready"
           echo "Firebase emulators started (PID: $EMULATOR_PID)"
 
       - name: Build & Preview (Vite)

@@ -45,6 +45,16 @@ the "merge past red" norm without silently dropping coverage.
   Pending→Fulfilled (via the new `warehousePage` fixture). Sets an explicit
   desktop viewport because `canEdit = canManagePulls && !isMobile`.
 
+- **`tests/hero-image.spec.ts`** (storageState auth) — chromium only. Added
+  2026-06-05 to replace the deleted `image-crop-editor.spec.js`. Hard-asserts the
+  real Firebase Storage hero-upload flow on the shot detail page
+  (`HeroImageSection`) against a dedicated seeded shot (`SEED_SHOT_HERO`): empty
+  state → upload (`<img alt="Hero">` + Replace + Reset appear) → replace → reset
+  (back to "Add hero image"). Drives the hidden hero `input[type=file]` via its
+  `data-testid="hero-image-file-input"` (three file inputs exist on the page).
+  Requires the Storage emulator (see below) and a desktop viewport (`canEdit`
+  needs `!isMobile`). Runs serial — it mutates the shared seeded shot.
+
 This set exercises authenticated page loads + CRUD and so directly guards against
 the white-screen regression and the shot + pull data paths.
 
@@ -92,6 +102,21 @@ role `warehouse`) using the uid captured from `createOrUpdateTestUser` in
 Producer needs no member doc — its global role satisfies `producerCanAccessProject`
 on a team-visible project.
 
+## Storage emulator (added 2026-06-05)
+
+`hero-image.spec.ts` uploads to Firebase Storage, so the `ui-checks` "Start
+Firebase Emulators" step now launches it: `--only auth,firestore,storage` (was
+`auth,firestore`), with a readiness wait on **port 9199**. NOTE: unlike the
+auth/firestore emulators (which 200 at `GET /`), the Storage emulator has no `/`
+route and 404s there, so the probe hits the bucket-list route instead (`timeout
+60 bash -c 'until curl -sf http://localhost:9199/b ...'`). `firebase.json` already declares the storage
+emulator (port 9199) and points `storage` → `storage.rules` (auto-loaded);
+`VITE_FIREBASE_STORAGE_BUCKET=demo-test.appspot.com` and Java 21 were already
+set, so no new env/secret was needed. `storage.rules` permits the producer to
+write+read `clients/test-client/shots/<shotId>/hero.webp` purely on
+`role(producer) ∈ {producer,wardrobe,admin}` + `userClient() == clientId` +
+image contentType <10MB — no project-membership doc required (unlike pulls).
+
 ## Quarantined specs (excluded via `testIgnore` in `playwright.config.ts`)
 
 | Spec | Category | Failure | Fix needed |
@@ -99,7 +124,6 @@ on a team-visible project.
 | `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
 | `auth.spec.ts` | Test infra | `helpers/auth.ts` interactive login times out on the post-login `waitForURL` redirect | Make the helper rehydrate via the app's real modular-SDK persistence (or switch these specs to storageState fixtures) |
 | `sidebar-summary.spec.ts` | Test infra | Same interactive-login helper root cause | As above |
-| `image-crop-editor.spec.js` | Obsolete | Targets a **removed legacy** UI: the `react-easy-crop` "Crop & Adjust Image" editor, an "Attachments" tab, an "Edit crop" button and `[data-testid=attachment-thumbnail]` live only in `archive/legacy-src-2026-04/`; `react-easy-crop` is not installed; the current app stores a single `heroImage` per shot (`HeroImageSection`). The spec also imports bare `@playwright/test` (no storageState → unauthenticated) | **Deferred** (Ted, 2026-06-05): seeding alone can never make it green. Rewrite against `HeroImageSection` on the shot detail page (use the producer storageState fixture) or delete the spec. Not just a seed task |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
 | `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic that drives the broken interactive-login helper (1-min timeout) | Delete it, or convert to a real assertion once the login helper is fixed |
@@ -144,8 +168,12 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
    app-shaped pull (`seedPullsCrudScenario`), and a `warehouse` user +
    `warehousePage` fixture added so fulfillment is covered producer-disabled +
    warehouse-live. Un-quarantined.
-3. **Rewrite or delete `image-crop-editor`** — against `HeroImageSection`, not the
-   removed legacy crop editor. (Deferred per Ted.)
+3. ~~**Rewrite or delete `image-crop-editor`** — against `HeroImageSection`, not the
+   removed legacy crop editor.~~ **Done 2026-06-05**: the legacy spec was deleted
+   and replaced by `tests/hero-image.spec.ts`, a real `HeroImageSection`
+   Storage-upload E2E (empty → upload → replace → reset) using the producer
+   storageState fixture. The Storage emulator was wired into `ui-checks`
+   (`--only ...,storage` + a 9199 readiness wait). Un-quarantined.
 4. **Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.
 5. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
 6. **Visual baselines** — regenerate on the CI runner image; un-quarantines
