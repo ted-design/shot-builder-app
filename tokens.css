@@ -1,3 +1,14 @@
+/* Immediate display/wordmark face — self-hosted (Klim web licence). Adobe-kit
+   faces (Ivy Presto Headline, Neue Haas Grotesk Display) load via the Typekit
+   <link> in index.html; only Founders is self-hosted. */
+@font-face {
+  font-family: 'Founders Grotesk XCond';
+  src: url('/fonts/founders-grotesk-x-condensed-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /**
  * Shot Builder Design Tokens — Direction A (Near-Black Editorial)
  *
@@ -18,8 +29,9 @@
    * ============================================ */
 
   /* Font Families */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-serif: 'Lora', Georgia, Cambria, 'Times New Roman', serif;
+  --font-sans: 'neue-haas-grotesk-display', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: 'ivypresto-headline', 'Lora', Georgia, Cambria, 'Times New Roman', serif;
+  --font-display: 'Founders Grotesk XCond', 'Arial Narrow', ui-sans-serif, sans-serif; /* Immediate display / wordmark — condensed bold */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Font Sizes */
@@ -66,26 +78,26 @@
    * ============================================ */
 
   /* --- Surfaces --- */
-  --color-bg: #fafafa;               /* App background (zinc-50) */
-  --color-surface: #ffffff;           /* Cards, panels */
-  --color-surface-muted: #e4e4e7;     /* Layout panel background (zinc-200) */
-  --color-surface-subtle: #f4f4f5;    /* Subtle backgrounds (zinc-100) */
+  --color-bg: #eaeaea;               /* App background — light grey; deepened from #efefef so Immediate-White cards lift off it without shadows (brand: no drop shadows) */
+  --color-surface: #f5f5f5;           /* Cards, panels — Immediate White #F5F5F5 (top of ramp; no pure #fff) */
+  --color-surface-muted: #e0e0e0;     /* Layout panel background — ~Immediate Light Grey #E6E6E6 */
+  --color-surface-subtle: #ebebeb;    /* Subtle backgrounds (kept below surface for elevation) */
 
   /* --- Sidebar --- */
-  --color-sidebar: #09090b;           /* zinc-950 (true black) */
+  --color-sidebar: #0E0E0E;           /* Immediate Black #0E0E0E (no pure #000) */
   --color-sidebar-hover: #27272a;     /* zinc-800 */
   --color-sidebar-active: #3f3f46;    /* zinc-700 */
   --color-sidebar-text: #a1a1aa;      /* zinc-400 */
-  --color-sidebar-text-active: #ffffff;
+  --color-sidebar-text-active: #f5f5f5; /* Immediate White */
   --color-sidebar-border: #27272a;    /* zinc-800 */
-  --color-sidebar-indicator: #E31E24; /* Immediate Red — active bar */
+  --color-sidebar-indicator: #EB1400; /* Immediate Red #EB1400 — active bar */
 
   /* --- Text --- */
   --color-text: #18181b;              /* Primary text (zinc-900) */
   --color-text-secondary: #52525b;    /* Secondary (zinc-600) */
   --color-text-muted: #71717a;        /* Muted (zinc-500) */
   --color-text-subtle: #a1a1aa;       /* Subtle (zinc-400) */
-  --color-text-inverted: #ffffff;     /* On dark backgrounds */
+  --color-text-inverted: #f5f5f5;     /* Immediate White — on dark backgrounds */
 
   /* --- Print / Document --- */
   --color-doc-ink: #111111;           /* Near-black for print tables */
@@ -100,14 +112,14 @@
   /* --- Primary Action (Near-Black) --- */
   --color-primary: #18181b;           /* zinc-900 */
   --color-primary-hover: #27272a;     /* zinc-800 */
-  --color-primary-active: #09090b;    /* zinc-950 */
+  --color-primary-active: #0E0E0E;    /* Immediate Black #0E0E0E */
   --color-primary-light: #f4f4f5;     /* zinc-100 */
   --color-primary-subtle: #f4f4f5;    /* zinc-100 — selected/active bg tint */
-  --color-primary-text: #ffffff;
+  --color-primary-text: #f5f5f5;      /* Immediate White */
 
   /* --- Accent (Immediate Red — brand moments only) --- */
-  --color-accent: #E31E24;            /* Immediate Red */
-  --color-accent-hover: #c91920;      /* Darker red */
+  --color-accent: #EB1400;            /* Immediate Red #EB1400 (oklch 0.602 0.243 30.6) */
+  --color-accent-hover: #C81100;      /* Immediate Red, darker (hover/press) */
   --color-accent-light: #fee2e2;      /* red-100 tint */
 
   /* --- SetHero Blue (Legacy — call sheet document styles) --- */
@@ -115,13 +127,15 @@
   --color-sethero-blue-hover: #1a56b8;
   --color-sethero-blue-light: #b1c0d9;
 
-  /* --- Status Colors --- */
-  --color-success: #10b981;           /* emerald-500 */
-  --color-warning: #f59e0b;           /* amber-500 */
+  /* --- Status Colors ---
+     Muted, low-chroma OKLCH so the segmented bars sit WITH Immediate Red rather
+     than reading as generic-dashboard Tailwind-500s. (Was emerald/amber/blue-500.) */
+  --color-success: oklch(0.56 0.11 155); /* muted green */
+  --color-warning: oklch(0.70 0.13 70);  /* muted amber/gold */
   --color-warning-muted: #fde68a;     /* amber-200 — warning border/accent */
   --color-warning-subtle: #fffbeb;    /* amber-50 — warning background tint */
   --color-error: #ef4444;             /* red-500 */
-  --color-info: #3b82f6;              /* blue-500 */
+  --color-info: oklch(0.56 0.11 250);    /* muted blue */
 
   /* --- Schedule Entry Type Colors --- */
   /* Banner label "setup/prep" — amber */
@@ -299,10 +313,10 @@
   --doc-table-font-size: 11px;
   --doc-table-header-font-size: 9px;
   --doc-table-header-font-weight: var(--weight-semibold);
-  --doc-table-header-color: #ffffff;
+  --doc-table-header-color: #ffffff;  /* intentional pure white: print/PDF needs max contrast; brand no-pure-white rule applies to SCREEN surfaces only */
   --doc-table-text-color: var(--color-doc-ink);
   --doc-table-border: 1px solid var(--color-doc-ink);
-  --doc-table-header-fill: #000000;
+  --doc-table-header-fill: #000000;   /* intentional pure black: printed table-header fill (print exception) */
   --doc-table-row-height: 20px;
   --doc-table-cell-padding-x: 5px;
   --doc-table-cell-padding-y: 2px;
@@ -357,7 +371,7 @@
 
 .dark {
   /* --- Surfaces (zinc scale inverted) --- */
-  --color-bg: #09090b;               /* zinc-950 */
+  --color-bg: #0E0E0E;               /* Immediate Black #0E0E0E */
   --color-surface: #18181b;           /* zinc-900 */
   --color-surface-muted: #27272a;     /* zinc-800 */
   --color-surface-subtle: #1c1c1f;    /* between zinc-900/800 */

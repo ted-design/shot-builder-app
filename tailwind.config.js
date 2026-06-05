@@ -11,8 +11,8 @@ export default {
       // Direction A: Near-Black Editorial — zinc neutrals, near-black primary, red accent
       colors: {
         // Brand colors
-        'immediate-red': '#E31E24',
-        'immediate-red-dark': '#c91920',
+        'immediate-red': '#EB1400',
+        'immediate-red-dark': '#C81100',
 
         // Sidebar theme tokens (dark sidebar even in light mode)
         sidebar: '#09090b',           // zinc-950

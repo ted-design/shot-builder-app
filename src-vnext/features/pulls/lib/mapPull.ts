@@ -60,7 +60,6 @@ function mapItem(raw: Record<string, unknown>): PullItem | null {
     sizes,
     fulfillmentStatus,
     notes: asString(raw["notes"]),
-    changeOrders: Array.isArray(raw["changeOrders"]) ? (raw["changeOrders"] as Record<string, unknown>[]) : undefined,
   }
 }
 

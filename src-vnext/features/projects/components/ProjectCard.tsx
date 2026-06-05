@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import type { Project } from "@/shared/types"
 import { formatShootDateRange } from "@/features/projects/lib/shootDates"
+import { getBriefHost, getStatusColor, getStatusLabel, isSafeHttpUrl } from "@/features/projects/lib/projectStatus"
 import { ProjectActionsMenu } from "@/features/projects/components/ProjectActionsMenu"
 import { textPreview } from "@/shared/lib/textPreview"
 import { ExternalLink } from "lucide-react"
@@ -14,32 +15,15 @@ interface ProjectCardProps {
   readonly onEdit?: (project: Project) => void
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: "green",
-  completed: "blue",
-  archived: "gray",
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  completed: "Completed",
-  archived: "Archived",
-}
-
 export function ProjectCard({ project, showActions = false, onEdit }: ProjectCardProps) {
   const navigate = useNavigate()
   const suppressNavigateUntilRef = useRef(0)
 
-  const briefUrl = project.briefUrl?.trim() ?? ""
+  // Only link http(s) brief URLs — a stored `javascript:`/`data:` URL would
+  // otherwise execute on click (see isSafeHttpUrl).
+  const briefUrl = isSafeHttpUrl(project.briefUrl) ? project.briefUrl!.trim() : ""
   const notes = project.notes?.trim() ?? ""
-  const briefHost = useMemo(() => {
-    if (!briefUrl) return ""
-    try {
-      return new URL(briefUrl).hostname.replace(/^www\./, "")
-    } catch {
-      return ""
-    }
-  }, [briefUrl])
+  const briefHost = useMemo(() => getBriefHost(briefUrl), [briefUrl])
 
   const markActionInteraction = () => {
     suppressNavigateUntilRef.current = Date.now() + 800
@@ -47,7 +31,7 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
 
   const navigateToProject = () => {
     if (Date.now() < suppressNavigateUntilRef.current) return
-    navigate(`/projects/${project.id}/shots`)
+    navigate(`/projects/${project.id}`)
   }
 
   return (
@@ -62,8 +46,8 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
-              label={STATUS_LABELS[project.status] ?? project.status}
-              color={STATUS_COLORS[project.status] ?? "gray"}
+              label={getStatusLabel(project.status)}
+              color={getStatusColor(project.status)}
             />
             <span className="text-xs text-[var(--color-text-muted)]">
               {formatShootDateRange(project.shootDates)}
@@ -98,6 +82,16 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
             {textPreview(notes, 120)}
           </p>
         )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/projects/${project.id}/shots`)
+          }}
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+        >
+          Open shots <span aria-hidden="true">{"→"}</span>
+        </button>
       </CardContent>
     </Card>
   )

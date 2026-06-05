@@ -48,6 +48,11 @@ function libraryRoot(): BreadcrumbEntry {
 export const breadcrumbsConfig: Record<string, BreadcrumbResolver> = {
   "/projects": () => [],
 
+  "/projects/:id": (ctx) => [
+    { label: "Projects", to: "/projects" },
+    { label: ctx.projectName ?? "Project" },
+  ],
+
   "/projects/:id/shots": (ctx) => [
     { label: "Projects", to: "/projects" },
     { label: ctx.projectName ?? "Project" },
@@ -83,6 +88,10 @@ export const breadcrumbsConfig: Record<string, BreadcrumbResolver> = {
   "/projects/:id/links": (ctx) => [
     { label: "Projects", to: "/projects" },
     { label: ctx.projectName ?? "Project" },
+  ],
+  "/projects/:id/schedules": (ctx) => [
+    ...projectCrumbs(ctx),
+    { label: "Schedules" },
   ],
   "/projects/:id/callsheet": (ctx) => [
     ...projectCrumbs(ctx),

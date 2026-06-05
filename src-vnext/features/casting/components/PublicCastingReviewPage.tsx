@@ -302,9 +302,6 @@ export default function PublicCastingReviewPage() {
    * Vote handler.
    * Toggling the same decision writes 'withdrawn' to Firestore instead of null,
    * so the vote doc exists but is excluded from tallies.
-   *
-   * IMPORTANT: Firestore rules must allow 'withdrawn' as a decision value.
-   * See the TODO comment on TalentVoteState above.
    */
   const handleVote = useCallback(
     (talentId: string, decision: CastingVoteDecision | null) => {

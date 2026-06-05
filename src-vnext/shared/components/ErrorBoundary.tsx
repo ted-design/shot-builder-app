@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
+import * as Sentry from "@sentry/react"
 import { Button } from "@/ui/button"
 
 interface Props {
@@ -39,6 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("[ErrorBoundary]", error, errorInfo)
+    Sentry.captureException(error, { extra: { componentStack: errorInfo?.componentStack } })
   }
 
   handleReset = () => {

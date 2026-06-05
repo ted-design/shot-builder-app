@@ -12,6 +12,9 @@ const LoginPage = lazy(() => import("@/features/auth/components/LoginPage"))
 const ProjectDashboard = lazy(
   () => import("@/features/projects/components/ProjectDashboard"),
 )
+const ProjectHomePage = lazy(
+  () => import("@/features/projects/components/ProjectHomePage"),
+)
 const ShotListPage = lazy(
   () => import("@/features/shots/components/ShotListPage"),
 )
@@ -41,6 +44,9 @@ const WarehousePickGuidePage = lazy(
 )
 const CallSheetBuilderPage = lazy(
   () => import("@/features/schedules/components/CallSheetBuilderPage"),
+)
+const ScheduleListPage = lazy(
+  () => import("@/features/schedules/components/ScheduleListPage"),
 )
 const ExportBuilderPage = lazy(
   () => import("@/features/export/components/ExportBuilderPage"),
@@ -132,6 +138,16 @@ export function AppRoutes() {
             element={
               <RouteBoundary featureName="Projects">
                 <ProjectDashboard />
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="projects/:id"
+            element={
+              <RouteBoundary featureName="Overview">
+                <ProjectScopeProvider>
+                  <ProjectHomePage />
+                </ProjectScopeProvider>
               </RouteBoundary>
             }
           />
@@ -237,6 +253,16 @@ export function AppRoutes() {
                   <RequireDesktop label="Export builder">
                     <ExportBuilderPage />
                   </RequireDesktop>
+                </ProjectScopeProvider>
+              </RouteBoundary>
+            }
+          />
+          <Route
+            path="projects/:id/schedules"
+            element={
+              <RouteBoundary featureName="Schedules">
+                <ProjectScopeProvider>
+                  <ScheduleListPage />
                 </ProjectScopeProvider>
               </RouteBoundary>
             }

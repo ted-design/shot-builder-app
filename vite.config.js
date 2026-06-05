@@ -38,12 +38,23 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // CRITICAL: Check React FIRST before any other chunking logic
-          // Exclude React and ReactDOM from ALL chunks so they stay in entry chunk
-          // This ensures React is fully initialized before any components load
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
-            return; // Return undefined to keep in entry chunk
-          }
+          // CHUNKING STRATEGY (correctness over granularity):
+          //
+          // React core and ALL of its eager consumers (router, radix, lucide,
+          // zod, etc.) live together in a single `vendor` chunk. Rollup orders
+          // modules WITHIN a chunk by dependency, so React initializes before
+          // anything that uses it. Splitting React (or its eager consumers) into
+          // separate manual chunks creates cross-chunk init-order hazards — and,
+          // as seen here, circular chunk edges (`vendor <-> react-vendor`) — that
+          // leave React's CJS namespace undefined when `exports.Children = …`
+          // runs. That surfaced in production as a white screen with
+          // "Cannot set properties of undefined (setting 'Children')" and broke
+          // the Playwright `ui-checks` job for months. One eager vendor chunk is
+          // acyclic by construction.
+          //
+          // Only genuinely LAZY or very heavy dependencies are split out below.
+          // Each of these only ever imports INTO `vendor` (never the reverse),
+          // so the chunk graph stays a DAG.
 
           // PDF libraries - only loaded when exporting (defer large dependency).
           // @react-pdf/renderer and its internal sub-packages all use the @react-pdf scope.
@@ -70,56 +81,23 @@ export default defineConfig({
             return 'pdf-deps';
           }
 
-          // Firebase - separate chunk (large and rarely updated)
+          // Firebase - separate chunk (large and rarely updated). Does not import React.
           if (id.includes('firebase') || id.includes('@firebase')) {
             return 'firebase';
           }
 
-          // UI component libraries - shared across pages
-          if (id.includes('@radix-ui') || id.includes('lucide-react')) {
-            return 'ui-vendor';
-          }
-
-          // Drag and drop library - only used in planner
+          // Drag and drop library - only used in planner (lazy route).
           if (id.includes('@dnd-kit')) {
             return 'dnd';
           }
 
-          // React Router and Remix run-time - needed for every authenticated route
-          if (
-            id.includes('react-router') ||
-            id.includes('@remix-run')
-          ) {
-            return 'router-vendor';
-          }
-
-          // Rich text / panel libraries - only loaded in ShotDetailPage / CallSheetBuilderPage
+          // Rich text / panel libraries - only loaded in ShotDetailPage / CallSheetBuilderPage (lazy).
           if (id.includes('react-resizable-panels')) {
             return 'panels-vendor';
           }
 
-          // Validation, sanitisation, and search utilities
-          if (
-            id.includes('/zod/') ||
-            id.includes('/dompurify/') ||
-            id.includes('/fuse.js/') ||
-            id.includes('/fuse/')
-          ) {
-            return 'utils-vendor';
-          }
-
-          // UI utilities - toast, command palette, styling helpers
-          if (
-            id.includes('/sonner/') ||
-            id.includes('/cmdk/') ||
-            id.includes('class-variance-authority') ||
-            id.includes('/tailwind-merge/') ||
-            id.includes('/clsx/')
-          ) {
-            return 'ui-utils-vendor';
-          }
-
-          // Other node_modules - catch-all vendor chunk
+          // Everything else from node_modules — including React and all its eager
+          // consumers — shares ONE acyclic vendor chunk.
           if (id.includes('node_modules')) {
             return 'vendor';
           }

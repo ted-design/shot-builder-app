@@ -18,11 +18,8 @@ export function OnSetFloatingBar() {
       <div
         className="rounded-2xl border border-[var(--color-border)] px-2 py-2 flex items-center justify-around gap-1"
         style={{
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          /* Frosted glass effect — intentional static white for light-mode mobile surface */
-          background: "rgba(255,255,255,0.82)",
-          boxShadow: "0 -2px 20px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06)",
+          background: "var(--color-surface)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
         <button

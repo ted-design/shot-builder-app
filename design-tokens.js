@@ -19,17 +19,36 @@ module.exports = plugin(function({ addComponents, theme }) {
    * Colors use CSS vars (not Tailwind theme) for dark mode compatibility.
    */
   addComponents({
-    // Page-level heading — light weight, editorial tracking
-    // 24px mobile / 28px desktop, font-light 300, -0.02em
+    // Page-level heading ("Big Statement") — Immediate brand display face.
+    // Style guide §2: Founders Grotesk X-Condensed Bold, 0 tracking, tight
+    // leading. (Was editorial Neue Haas Light 300 / -0.02em; superseded by the
+    // brand guide per Ted, 2026-06-04.) Founders is only available at weight
+    // 700, so the bold weight is required for the face to render. Sizes bumped
+    // one step to compensate for the condensed face reading narrower.
     '.heading-page': {
-      fontSize: 'var(--text-2xl)',
-      fontWeight: 'var(--weight-light)',
-      letterSpacing: 'var(--tracking-heading)',
-      lineHeight: 'var(--leading-heading)',
+      fontFamily: 'var(--font-display)',
+      fontSize: 'var(--text-3xl)',
+      fontWeight: 'var(--weight-bold)',
+      letterSpacing: 'var(--tracking-normal)',
+      lineHeight: 'var(--leading-none)',
       color: 'var(--color-text)',
       '@media (min-width: 768px)': {
-        fontSize: 'var(--text-3xl)',
+        fontSize: 'var(--text-4xl)',
       },
+    },
+
+    // Iconic period — the brand's signature red dot after headings/statements.
+    // Style guide §2 "Iconic Period": the period is NOT the heading's own glyph
+    // (Founders' period is square) — it is set in IVY PRESTO HEADLINE BOLD,
+    // which has a round dot. Size = heading ÷ 1.2 → 0.833em (relative, so it
+    // scales to any heading). Default colour Red; the call site can override to
+    // the heading colour where red isn't legible. Apply to a <span> wrapping ".".
+    '.iconic-period': {
+      fontFamily: 'var(--font-serif)',
+      fontWeight: 'var(--weight-bold)',
+      fontStyle: 'normal',
+      fontSize: '0.833em',
+      color: 'var(--color-accent)',
     },
 
     // Section heading — semibold, subtle negative tracking
@@ -80,12 +99,25 @@ module.exports = plugin(function({ addComponents, theme }) {
     // Meta label — uppercase, tracked
     // 12px, font-semibold 600, uppercase, 0.05em tracking
     // Replaces repeated text-xs font-semibold uppercase tracking-widest pattern
+    //
+    // WCAG AA compliance (a11y H-2): color is --color-text-secondary (#52525b,
+    // zinc-600), not --color-text-subtle (#a1a1aa, zinc-400). At 12px semibold,
+    // `.label-meta` does NOT qualify as WCAG "large text" and must clear 4.5:1
+    // on every surface it renders on. `.label-meta` appears on both white
+    // (--color-surface) AND subtle (--color-surface-subtle / #f4f4f5) surfaces
+    // (e.g. table headers), so the foreground must clear 4.5:1 against the
+    // darker of the two — #f4f4f5:
+    //   - zinc-400 #a1a1aa on #f4f4f5: 2.33:1  (FAIL — original H-2 bug)
+    //   - zinc-500 #71717a on #f4f4f5: 4.40:1  (FAIL — still just below AA)
+    //   - zinc-600 #52525b on #f4f4f5: 7.03:1  (PASS AA, clears AAA)
+    // --color-text-subtle remains available for truly decorative uses (icons,
+    // large headings ≥18.66px bold / ≥24px regular) where 3:1 is sufficient.
     '.label-meta': {
       fontSize: 'var(--text-xs)',
       fontWeight: 'var(--weight-semibold)',
       textTransform: 'uppercase',
       letterSpacing: 'var(--tracking-wider)',
-      color: 'var(--color-text-subtle)',
+      color: 'var(--color-text-secondary)',
     },
   });
 
