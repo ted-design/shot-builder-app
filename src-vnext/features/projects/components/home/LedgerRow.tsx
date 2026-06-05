@@ -58,7 +58,7 @@ function ArrowIcon() {
 function StatusTag({ tag }: { readonly tag: LedgerRowTag }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium ${TAG_TONE_CLASSES[tag.tone]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xxs font-medium ${TAG_TONE_CLASSES[tag.tone]}`}
     >
       <span
         aria-hidden="true"
@@ -85,7 +85,7 @@ export function LedgerRow({
   linkLabel = "Open",
 }: LedgerRowViewModel) {
   const linkClasses =
-    "group inline-flex items-center gap-1.5 whitespace-nowrap text-[11.5px] no-underline transition-colors"
+    "group inline-flex items-center gap-1.5 whitespace-nowrap text-xxs no-underline transition-colors"
   const disabled = !row.enabled || !to
 
   return (
@@ -102,12 +102,12 @@ export function LedgerRow({
       {/* Name + meta */}
       <div className="flex flex-col gap-1">
         <span
-          className="flex items-baseline gap-2 text-[18px] font-semibold leading-none text-[var(--color-text)]"
+          className="flex items-baseline gap-2 text-xl font-semibold leading-none text-[var(--color-text)]"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {index && (
             <span
-              className="text-[13px] font-normal italic text-[var(--color-text-subtle)]"
+              className="text-sm font-normal italic text-[var(--color-text-subtle)]"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               {index}
@@ -115,7 +115,7 @@ export function LedgerRow({
           )}
           {row.label}
         </span>
-        <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
+        <span className="text-xxs tabular-nums text-[var(--color-text-muted)]">
           {row.detail}
         </span>
       </div>

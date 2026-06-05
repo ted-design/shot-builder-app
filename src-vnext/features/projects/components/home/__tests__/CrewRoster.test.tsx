@@ -8,21 +8,15 @@ vi.mock("@/features/library/hooks/useCrewLibrary", () => ({
   useCrewLibrary: vi.fn(),
 }))
 
-vi.mock("@/features/schedules/hooks/useSchedules", () => ({
-  useSchedules: vi.fn(),
-}))
-
 vi.mock("@/features/schedules/hooks/useScheduleCrewCalls", () => ({
   useScheduleCrewCalls: vi.fn(),
 }))
 
 import { useCrewLibrary } from "@/features/library/hooks/useCrewLibrary"
-import { useSchedules } from "@/features/schedules/hooks/useSchedules"
 import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
 import { CrewRoster } from "@/features/projects/components/home/CrewRoster"
 
 const mockCrew = useCrewLibrary as unknown as { mockReturnValue: (v: unknown) => void }
-const mockSchedules = useSchedules as unknown as { mockReturnValue: (v: unknown) => void }
 const mockCalls = useScheduleCrewCalls as unknown as { mockReturnValue: (v: unknown) => void }
 
 function crew(overrides: Partial<CrewRecord>): CrewRecord {
@@ -47,18 +41,11 @@ function call(crewMemberId: string): CrewCallSheet {
 function setHooks(opts: {
   crewData?: CrewRecord[]
   crewLoading?: boolean
-  schedulesData?: Schedule[]
-  schedulesLoading?: boolean
   callsData?: CrewCallSheet[]
 }) {
   mockCrew.mockReturnValue({
     data: opts.crewData ?? [],
     loading: opts.crewLoading ?? false,
-    error: null,
-  })
-  mockSchedules.mockReturnValue({
-    data: opts.schedulesData ?? [],
-    loading: opts.schedulesLoading ?? false,
     error: null,
   })
   mockCalls.mockReturnValue({
@@ -68,10 +55,19 @@ function setHooks(opts: {
   })
 }
 
-function renderRoster() {
+// Schedules are now passed in as a prop (fetched once by ProjectHomePage),
+// not via a hook subscription inside CrewRoster.
+function renderRoster(
+  opts: { schedules?: Schedule[]; schedulesLoading?: boolean } = {},
+) {
   return render(
     <MemoryRouter>
-      <CrewRoster clientId="c1" projectId="p1" />
+      <CrewRoster
+        clientId="c1"
+        projectId="p1"
+        schedules={opts.schedules ?? []}
+        schedulesLoading={opts.schedulesLoading ?? false}
+      />
     </MemoryRouter>,
   )
 }
@@ -117,10 +113,9 @@ describe("CrewRoster", () => {
         crew({ id: "a", name: "Sarah Kemp", position: "Producer" }),
         crew({ id: "b", name: "Devon Reyes", position: "Photographer" }),
       ],
-      schedulesData: [schedule("s1")],
       callsData: [call("a")],
     })
-    renderRoster()
+    renderRoster({ schedules: [schedule("s1")] })
     expect(screen.getByText("On call")).toBeInTheDocument()
     expect(screen.getByText("Not scheduled")).toBeInTheDocument()
     expect(screen.getByText(/1 on call/)).toBeInTheDocument()
@@ -129,9 +124,8 @@ describe("CrewRoster", () => {
   it("degrades to a plain roster (no call status) when there is no schedule", () => {
     setHooks({
       crewData: [crew({ id: "a", name: "Sarah Kemp", position: "Producer" })],
-      schedulesData: [],
     })
-    renderRoster()
+    renderRoster({ schedules: [] })
     expect(screen.getByText("Sarah Kemp")).toBeInTheDocument()
     expect(screen.queryByText("On call")).not.toBeInTheDocument()
     expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument()

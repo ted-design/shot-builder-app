@@ -30,7 +30,7 @@ export function NextActionBar({ action }: NextActionBarProps) {
     >
       <div className="min-w-0">
         <p
-          className="text-[9.5px] font-semibold uppercase tracking-[0.16em]"
+          className="text-3xs font-semibold uppercase tracking-[0.16em]"
           style={{ color: "var(--color-text-subtle)" }}
         >
           Do this next
@@ -47,7 +47,7 @@ export function NextActionBar({ action }: NextActionBarProps) {
         <Link
           to={action.ctaTo}
           data-testid="next-action-cta"
-          className="inline-flex items-center gap-2 whitespace-nowrap rounded-md px-[18px] py-[10px] text-[13px] font-semibold transition-colors"
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-md px-[18px] py-[10px] text-sm font-semibold transition-colors"
           style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}
         >
           {action.ctaText}

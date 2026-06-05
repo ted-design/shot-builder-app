@@ -107,12 +107,12 @@ export function ProductsInShoot({ shots }: ProductsInShootProps) {
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h3
           id="products-in-shoot-heading"
-          className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
+          className="text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
         >
           Products in shoot
         </h3>
         {products.length > 0 && (
-          <span className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+          <span className="text-2xs tabular-nums text-[var(--color-text-muted)]">
             {products.length}
           </span>
         )}

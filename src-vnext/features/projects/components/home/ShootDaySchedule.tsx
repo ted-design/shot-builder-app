@@ -1,5 +1,3 @@
-import { useSchedules } from "@/features/schedules/hooks/useSchedules"
-import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntries"
 import { useScheduleDayDetails } from "@/features/schedules/hooks/useScheduleDayDetails"
 import { formatHHMMTo12h, parseTimeToMinutes } from "@/features/schedules/lib/time"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
@@ -20,9 +18,12 @@ import type { Schedule, ScheduleEntry } from "@/shared/types"
  *  - loading                    → skeleton lines
  *  - schedule with no entries   → header + InlineEmpty for the block list
  *
- * The parent passes `projectId` + `clientId` (derive `clientId` from
- * `useProject(projectId).data?.clientId`). It is intentionally self-contained
- * so `ProjectHomePage` only forwards the two ids.
+ * Schedule data is fetched ONCE by `ProjectHomePage` and passed down as props
+ * (`schedules` + `scheduleEntries`), so this section no longer opens its own
+ * `useSchedules`/`useScheduleEntries` subscriptions — that duplicated the
+ * parent's listeners on the same paths (fan-out, prohibited by CLAUDE.md Rule 5).
+ * The per-day crew-call detail (`useScheduleDayDetails`) is unique to this
+ * section and stays local.
  */
 
 const MAX_BLOCKS = 6
@@ -30,8 +31,16 @@ const MAX_BLOCKS = 6
 export interface ShootDayScheduleProps {
   /** Project whose schedule to show. */
   readonly projectId: string
-  /** Client scope; null disables the subscription (degrades to empty). */
+  /** Client scope; null disables the day-detail subscription (degrades to empty). */
   readonly clientId: string | null
+  /** Schedules for this project, fetched once by the parent (ordered createdAt desc). */
+  readonly schedules: readonly Schedule[]
+  /** True while the parent's schedules subscription is loading. */
+  readonly schedulesLoading?: boolean
+  /** Entries for the primary schedule, fetched once by the parent. */
+  readonly scheduleEntries: readonly ScheduleEntry[]
+  /** True while the parent's schedule-entries subscription is loading. */
+  readonly entriesLoading?: boolean
 }
 
 /** A display block: a timed entry with an aggregated shot tally. */
@@ -110,22 +119,19 @@ function scheduleHeading(schedule: Schedule | undefined): string {
   }
 }
 
-export function ShootDaySchedule({ projectId, clientId }: ShootDayScheduleProps) {
-  const { data: schedules, loading: schedulesLoading } = useSchedules(
-    clientId,
-    projectId,
-  )
-
+export function ShootDaySchedule({
+  projectId,
+  clientId,
+  schedules,
+  schedulesLoading = false,
+  scheduleEntries,
+  entriesLoading = false,
+}: ShootDayScheduleProps) {
   // The mockup shows a single shoot-day mini schedule; surface the first
-  // schedule (useSchedules already orders by createdAt desc).
+  // schedule (the parent's useSchedules already orders by createdAt desc).
   const schedule = schedules[0]
   const scheduleId = schedule?.id ?? null
 
-  const { data: entries, loading: entriesLoading } = useScheduleEntries(
-    clientId,
-    projectId,
-    scheduleId,
-  )
   const { data: dayDetails } = useScheduleDayDetails(
     clientId,
     projectId,
@@ -159,7 +165,7 @@ export function ShootDaySchedule({ projectId, clientId }: ShootDayScheduleProps)
     )
   }
 
-  const blocks = buildBlocks(entries)
+  const blocks = buildBlocks(scheduleEntries)
   const crewCall = formatHHMMTo12h(dayDetails?.crewCallTime)
 
   return (
@@ -205,7 +211,7 @@ export function ShootDaySchedule({ projectId, clientId }: ShootDayScheduleProps)
 
 function MiniHeading({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="mb-1.5 text-[9.5px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
+    <div className="mb-1.5 text-3xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
       {children}
     </div>
   )
@@ -222,7 +228,7 @@ function ScheduleRow({ time, label, countLabel, muted }: ScheduleRowProps) {
   return (
     <div className="flex items-baseline gap-2.5 border-b border-[var(--color-border)] py-1.5 text-xs last:border-b-0">
       <span
-        className="w-16 flex-none text-[13px] text-[var(--color-text)]"
+        className="w-16 flex-none text-sm text-[var(--color-text)]"
         style={{ fontFamily: "var(--font-serif)" }}
       >
         {time || "—"}

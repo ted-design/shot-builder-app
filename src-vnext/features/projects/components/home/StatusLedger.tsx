@@ -25,14 +25,14 @@ export function StatusLedger({ rows, subline }: StatusLedgerProps) {
     <section className="mt-12">
       <div className="mb-1 flex items-baseline gap-3.5">
         <h2
-          className="text-[25px] leading-[0.92] tracking-[-0.01em] text-[var(--color-text)]"
-          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
+          className="leading-[0.92] tracking-[-0.01em] text-[var(--color-text)]"
+          style={{ fontSize: "25px", fontFamily: "var(--font-display)", fontWeight: 700 }}
         >
           Where the shoot stands
           <span className="iconic-period">.</span>
         </h2>
         {subline && (
-          <span className="ml-auto text-[11.5px] text-[var(--color-text-muted)]">
+          <span className="ml-auto text-xxs text-[var(--color-text-muted)]">
             {subline}
           </span>
         )}

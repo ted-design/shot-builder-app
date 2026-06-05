@@ -88,9 +88,17 @@ export default function ProjectHomePage() {
   const { data: lanes } = useLanes()
   const { entries: castingEntries } = useCastingBoard(projectId, clientId)
   const { data: pulls } = usePulls()
-  const { data: schedules } = useSchedules(clientId, projectId)
+  // Fetch schedules + entries ONCE here and pass them down to CrewRoster and
+  // ShootDaySchedule as props. Those sections used to open their own
+  // useSchedules/useScheduleEntries subscriptions on the same paths — duplicate
+  // listeners (fan-out) that CLAUDE.md Rule 5 prohibits.
+  const { data: schedules, loading: schedulesLoading } = useSchedules(clientId, projectId)
   const firstScheduleId = schedules[0]?.id ?? null
-  const { data: scheduleEntries } = useScheduleEntries(clientId, projectId, firstScheduleId)
+  const { data: scheduleEntries, loading: scheduleEntriesLoading } = useScheduleEntries(
+    clientId,
+    projectId,
+    firstScheduleId,
+  )
 
   const insights = useMemo(() => computeInsights(shots), [shots])
 
@@ -269,12 +277,26 @@ export default function ProjectHomePage() {
       */}
       <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-10">
-          <CrewRoster clientId={clientId} projectId={projectId} />
+          <CrewRoster
+            clientId={clientId}
+            projectId={projectId}
+            schedules={schedules}
+            schedulesLoading={schedulesLoading}
+          />
           <ProductsInShoot shots={shots} />
         </div>
         <div className="flex flex-col gap-8">
           <BriefCard briefUrl={project.briefUrl} notes={project.notes} />
-          <ShootDaySchedule projectId={projectId} clientId={project.clientId} />
+          {/* Use the auth-derived clientId throughout (not project.clientId) so an
+              admin viewing another org's project stays consistent with CrewRoster. */}
+          <ShootDaySchedule
+            projectId={projectId}
+            clientId={clientId}
+            schedules={schedules}
+            schedulesLoading={schedulesLoading}
+            scheduleEntries={scheduleEntries}
+            entriesLoading={scheduleEntriesLoading}
+          />
         </div>
       </div>
     </div>

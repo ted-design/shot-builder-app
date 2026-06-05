@@ -4,6 +4,7 @@ import {
   getStatusColor,
   getStatusLabel,
   getBriefHost,
+  isSafeHttpUrl,
 } from "@/features/projects/lib/projectStatus"
 import { textPreview } from "@/shared/lib/textPreview"
 
@@ -68,8 +69,11 @@ export function ProjectHero({
   countdown,
 }: ProjectHeroProps) {
   const resolvedTagline = tagline ?? textPreview(project.notes, 160)
-  const briefHost = getBriefHost(project.briefUrl)
-  const hasBrief = Boolean(project.briefUrl)
+  // Only link http(s) brief URLs — a stored `javascript:`/`data:` URL would
+  // otherwise execute on click (see isSafeHttpUrl).
+  const safeBriefUrl = isSafeHttpUrl(project.briefUrl) ? project.briefUrl!.trim() : ""
+  const briefHost = getBriefHost(safeBriefUrl)
+  const hasBrief = safeBriefUrl.length > 0
 
   return (
     <section
@@ -103,8 +107,8 @@ export function ProjectHero({
         )}
 
         <h1
-          className="mt-3 text-[62px] font-bold leading-[0.92] tracking-[-0.01em]"
-          style={{ fontFamily: "var(--font-display)", color: "var(--color-text)" }}
+          className="mt-3 font-bold leading-[0.92] tracking-[-0.01em]"
+          style={{ fontSize: "62px", fontFamily: "var(--font-display)", color: "var(--color-text)" }}
         >
           {project.name}
           <span className="iconic-period">.</span>
@@ -125,7 +129,7 @@ export function ProjectHero({
 
         {hasBrief ? (
           <a
-            href={project.briefUrl}
+            href={safeBriefUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium no-underline transition-colors"

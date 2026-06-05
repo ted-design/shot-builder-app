@@ -69,11 +69,22 @@ describe("BriefCard", () => {
     expect(screen.getByText(/no brief yet/i)).toBeInTheDocument()
   })
 
-  it("omits the host label when briefUrl is unparseable but still shows the link", () => {
+  it("does not render a link for an unparseable / scheme-less briefUrl", () => {
+    // Security hardening: only http(s) URLs are linked. A bare host / invalid
+    // string is no longer rendered as a link (it would only be a useless
+    // relative href anyway).
     renderCard({ briefUrl: "not-a-valid-url" })
 
-    expect(screen.getByRole("link", { name: /open brief/i })).toBeInTheDocument()
-    // getBriefHost returns "" for unparseable input → no host paragraph
+    expect(screen.queryByRole("link", { name: /open brief/i })).not.toBeInTheDocument()
     expect(screen.queryByText("not-a-valid-url")).not.toBeInTheDocument()
+  })
+
+  it("does not render a javascript: URL as a link (XSS guard)", () => {
+    renderCard({ briefUrl: "javascript:alert(document.cookie)" })
+
+    // The dangerous URL must never reach an href.
+    expect(screen.queryByRole("link", { name: /open brief/i })).not.toBeInTheDocument()
+    // With no notes either, it degrades to the empty state.
+    expect(screen.getByText(/no brief yet/i)).toBeInTheDocument()
   })
 })

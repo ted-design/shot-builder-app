@@ -1,11 +1,10 @@
 import { useMemo } from "react"
 import { useCrewLibrary } from "@/features/library/hooks/useCrewLibrary"
-import { useSchedules } from "@/features/schedules/hooks/useSchedules"
 import { useScheduleCrewCalls } from "@/features/schedules/hooks/useScheduleCrewCalls"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import { SkeletonLine } from "@/shared/components/Skeleton"
-import type { CrewRecord } from "@/shared/types"
+import type { CrewRecord, Schedule } from "@/shared/types"
 
 /**
  * Crew roster zone (mockup zone E) for the project-home ledger.
@@ -19,10 +18,14 @@ import type { CrewRecord } from "@/shared/types"
  * Never mutates: every hook here is a read-only subscription.
  */
 interface CrewRosterProps {
-  /** Active client scope. `useCrewLibrary` derives its own clientId from auth; this is used for the schedule lookups. */
+  /** Active client scope. `useCrewLibrary` derives its own clientId from auth; this is used for the crew-call lookup. */
   readonly clientId: string | null
   /** Project whose schedule determines who is on call. */
   readonly projectId: string
+  /** Schedules for this project, fetched once by the parent (ordered createdAt desc). */
+  readonly schedules: readonly Schedule[]
+  /** True while the parent's schedules subscription is loading. */
+  readonly schedulesLoading?: boolean
 }
 
 interface CrewRosterRow {
@@ -49,15 +52,11 @@ function roleFor(crew: CrewRecord): string {
   return crew.position || crew.department || "Crew"
 }
 
-export function CrewRoster({ clientId, projectId }: CrewRosterProps) {
+export function CrewRoster({ clientId, projectId, schedules, schedulesLoading = false }: CrewRosterProps) {
   const { data: crew, loading: crewLoading } = useCrewLibrary()
-  const { data: schedules, loading: schedulesLoading } = useSchedules(
-    clientId,
-    projectId,
-  )
 
-  // The project's primary (most recent) schedule, if any. `useSchedules` orders
-  // by createdAt desc, so the first entry is the latest.
+  // The project's primary (most recent) schedule, if any. The parent's
+  // useSchedules orders by createdAt desc, so the first entry is the latest.
   const scheduleId = schedules.length > 0 ? schedules[0]!.id : null
   const { data: crewCalls } = useScheduleCrewCalls(
     clientId,
@@ -112,8 +111,8 @@ export function CrewRoster({ clientId, projectId }: CrewRosterProps) {
     <section aria-label="Crew">
       <header className="mb-1 flex items-baseline justify-between">
         <h2
-          className="text-[21px] font-bold leading-[0.92] tracking-[-0.01em] text-[var(--color-text)]"
-          style={{ fontFamily: "var(--font-display)" }}
+          className="font-bold leading-[0.92] tracking-[-0.01em] text-[var(--color-text)]"
+          style={{ fontSize: "21px", fontFamily: "var(--font-display)" }}
         >
           Crew<span className="iconic-period">.</span>
         </h2>
@@ -137,7 +136,7 @@ export function CrewRoster({ clientId, projectId }: CrewRosterProps) {
             >
               {row.initials}
             </span>
-            <span className="w-28 flex-none text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+            <span className="w-28 flex-none text-2xs uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
               {row.role}
             </span>
             <span className="text-sm font-medium text-[var(--color-text)]">

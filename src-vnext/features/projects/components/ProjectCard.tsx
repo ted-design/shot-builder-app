@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
 import { StatusBadge } from "@/shared/components/StatusBadge"
 import type { Project } from "@/shared/types"
 import { formatShootDateRange } from "@/features/projects/lib/shootDates"
-import { getBriefHost, getStatusColor, getStatusLabel } from "@/features/projects/lib/projectStatus"
+import { getBriefHost, getStatusColor, getStatusLabel, isSafeHttpUrl } from "@/features/projects/lib/projectStatus"
 import { ProjectActionsMenu } from "@/features/projects/components/ProjectActionsMenu"
 import { textPreview } from "@/shared/lib/textPreview"
 import { ExternalLink } from "lucide-react"
@@ -19,7 +19,9 @@ export function ProjectCard({ project, showActions = false, onEdit }: ProjectCar
   const navigate = useNavigate()
   const suppressNavigateUntilRef = useRef(0)
 
-  const briefUrl = project.briefUrl?.trim() ?? ""
+  // Only link http(s) brief URLs — a stored `javascript:`/`data:` URL would
+  // otherwise execute on click (see isSafeHttpUrl).
+  const briefUrl = isSafeHttpUrl(project.briefUrl) ? project.briefUrl!.trim() : ""
   const notes = project.notes?.trim() ?? ""
   const briefHost = useMemo(() => getBriefHost(briefUrl), [briefUrl])
 

@@ -5,23 +5,15 @@ import { MemoryRouter } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { DayDetails, Schedule, ScheduleEntry } from "@/shared/types"
 
-vi.mock("@/features/schedules/hooks/useSchedules", () => ({
-  useSchedules: vi.fn(),
-}))
-vi.mock("@/features/schedules/hooks/useScheduleEntries", () => ({
-  useScheduleEntries: vi.fn(),
-}))
+// Schedules + entries are now passed in as props (fetched once by
+// ProjectHomePage); only the per-day crew-call detail stays a local hook.
 vi.mock("@/features/schedules/hooks/useScheduleDayDetails", () => ({
   useScheduleDayDetails: vi.fn(),
 }))
 
-import { useSchedules } from "@/features/schedules/hooks/useSchedules"
-import { useScheduleEntries } from "@/features/schedules/hooks/useScheduleEntries"
 import { useScheduleDayDetails } from "@/features/schedules/hooks/useScheduleDayDetails"
 import { ShootDaySchedule } from "@/features/projects/components/home/ShootDaySchedule"
 
-const mockSchedules = useSchedules as unknown as { mockReturnValue: (v: unknown) => void }
-const mockEntries = useScheduleEntries as unknown as { mockReturnValue: (v: unknown) => void }
 const mockDayDetails = useScheduleDayDetails as unknown as { mockReturnValue: (v: unknown) => void }
 
 const now = Timestamp.fromMillis(Date.now())
@@ -61,32 +53,29 @@ function makeDayDetails(overrides: Partial<DayDetails> = {}): DayDetails {
   }
 }
 
-function setHooks(opts: {
-  schedules?: { data: Schedule[]; loading?: boolean }
-  entries?: { data: ScheduleEntry[]; loading?: boolean }
-  dayDetails?: { data: DayDetails | null }
-}) {
-  mockSchedules.mockReturnValue({
-    data: opts.schedules?.data ?? [],
-    loading: opts.schedules?.loading ?? false,
-    error: null,
-  })
-  mockEntries.mockReturnValue({
-    data: opts.entries?.data ?? [],
-    loading: opts.entries?.loading ?? false,
-    error: null,
-  })
-  mockDayDetails.mockReturnValue({
-    data: opts.dayDetails?.data ?? null,
-    loading: false,
-    error: null,
-  })
+function setDayDetails(data: DayDetails | null = null) {
+  mockDayDetails.mockReturnValue({ data, loading: false, error: null })
 }
 
-function renderComp(clientId: string | null = "c1") {
+interface RenderOpts {
+  clientId?: string | null
+  schedules?: Schedule[]
+  schedulesLoading?: boolean
+  scheduleEntries?: ScheduleEntry[]
+  entriesLoading?: boolean
+}
+
+function renderComp(opts: RenderOpts = {}) {
   return render(
     <MemoryRouter>
-      <ShootDaySchedule projectId="p1" clientId={clientId} />
+      <ShootDaySchedule
+        projectId="p1"
+        clientId={opts.clientId === undefined ? "c1" : opts.clientId}
+        schedules={opts.schedules ?? []}
+        schedulesLoading={opts.schedulesLoading ?? false}
+        scheduleEntries={opts.scheduleEntries ?? []}
+        entriesLoading={opts.entriesLoading ?? false}
+      />
     </MemoryRouter>,
   )
 }
@@ -94,55 +83,46 @@ function renderComp(clientId: string | null = "c1") {
 describe("ShootDaySchedule", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setDayDetails(null)
   })
 
   it("degrades to empty state when there is no schedule", () => {
-    setHooks({ schedules: { data: [] } })
-    renderComp()
+    renderComp({ schedules: [] })
     expect(screen.getByText(/no schedule yet/i)).toBeInTheDocument()
   })
 
   it("degrades to empty state when clientId is null", () => {
-    setHooks({ schedules: { data: [makeSchedule()] } })
-    renderComp(null)
+    renderComp({ clientId: null, schedules: [makeSchedule()] })
     expect(screen.getByText(/no schedule yet/i)).toBeInTheDocument()
   })
 
   it("shows a loading skeleton while schedules load", () => {
-    setHooks({ schedules: { data: [], loading: true } })
-    const { container } = renderComp()
+    const { container } = renderComp({ schedules: [], schedulesLoading: true })
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0)
     expect(screen.queryByText(/no schedule yet/i)).not.toBeInTheDocument()
   })
 
   it("renders the shoot-day heading with the schedule date", () => {
-    setHooks({ schedules: { data: [makeSchedule()] } })
-    renderComp()
+    renderComp({ schedules: [makeSchedule()] })
     expect(screen.getByText(/shoot day · jun 9/i)).toBeInTheDocument()
   })
 
   it("renders the crew-call row from day details", () => {
-    setHooks({
-      schedules: { data: [makeSchedule()] },
-      dayDetails: { data: makeDayDetails({ crewCallTime: "07:30" }) },
-    })
-    renderComp()
+    setDayDetails(makeDayDetails({ crewCallTime: "07:30" }))
+    renderComp({ schedules: [makeSchedule()] })
     expect(screen.getByText("7:30 AM")).toBeInTheDocument()
     expect(screen.getByText(/crew call · setup/i)).toBeInTheDocument()
   })
 
   it("renders timed blocks with shot counts and collapses same-time/title shots", () => {
-    setHooks({
-      schedules: { data: [makeSchedule()] },
-      entries: {
-        data: [
-          makeEntry({ id: "a", type: "shot", title: "Flat-lay block", startTime: "08:30", order: 0 }),
-          makeEntry({ id: "b", type: "shot", title: "Flat-lay block", startTime: "08:30", order: 1 }),
-          makeEntry({ id: "c", type: "shot", title: "On-figure · studio", startTime: "11:00", order: 2 }),
-        ],
-      },
+    renderComp({
+      schedules: [makeSchedule()],
+      scheduleEntries: [
+        makeEntry({ id: "a", type: "shot", title: "Flat-lay block", startTime: "08:30", order: 0 }),
+        makeEntry({ id: "b", type: "shot", title: "Flat-lay block", startTime: "08:30", order: 1 }),
+        makeEntry({ id: "c", type: "shot", title: "On-figure · studio", startTime: "11:00", order: 2 }),
+      ],
     })
-    renderComp()
 
     expect(screen.getByText("Flat-lay block")).toBeInTheDocument()
     expect(screen.getByText("2 shots")).toBeInTheDocument()
@@ -153,27 +133,20 @@ describe("ShootDaySchedule", () => {
   })
 
   it("orders blocks by start time regardless of fetch order", () => {
-    setHooks({
-      schedules: { data: [makeSchedule()] },
-      entries: {
-        data: [
-          makeEntry({ id: "late", type: "shot", title: "Lifestyle", startTime: "14:30", order: 0 }),
-          makeEntry({ id: "early", type: "shot", title: "Flat-lay", startTime: "08:30", order: 1 }),
-        ],
-      },
+    renderComp({
+      schedules: [makeSchedule()],
+      scheduleEntries: [
+        makeEntry({ id: "late", type: "shot", title: "Lifestyle", startTime: "14:30", order: 0 }),
+        makeEntry({ id: "early", type: "shot", title: "Flat-lay", startTime: "08:30", order: 1 }),
+      ],
     })
-    renderComp()
 
     const labels = screen.getAllByText(/Lifestyle|Flat-lay/).map((n) => n.textContent)
     expect(labels).toEqual(["Flat-lay", "Lifestyle"])
   })
 
   it("shows a block-level empty state when the schedule has no entries", () => {
-    setHooks({
-      schedules: { data: [makeSchedule()] },
-      entries: { data: [] },
-    })
-    renderComp()
+    renderComp({ schedules: [makeSchedule()], scheduleEntries: [] })
     expect(screen.getByText(/shoot day · jun 9/i)).toBeInTheDocument()
     expect(screen.getByText(/no blocks scheduled/i)).toBeInTheDocument()
   })

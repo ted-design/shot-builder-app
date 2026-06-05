@@ -5,6 +5,7 @@ import {
   getStatusColor,
   getStatusLabel,
   getBriefHost,
+  isSafeHttpUrl,
 } from "@/features/projects/lib/projectStatus"
 
 describe("projectStatus maps", () => {
@@ -73,5 +74,29 @@ describe("getBriefHost", () => {
   it("returns an empty string for an unparseable url", () => {
     expect(getBriefHost("not a url")).toBe("")
     expect(getBriefHost("example.com")).toBe("")
+  })
+})
+
+describe("isSafeHttpUrl", () => {
+  it("accepts http and https URLs", () => {
+    expect(isSafeHttpUrl("https://example.com/brief")).toBe(true)
+    expect(isSafeHttpUrl("http://example.com")).toBe(true)
+    expect(isSafeHttpUrl("  https://example.com  ")).toBe(true)
+  })
+
+  it("rejects dangerous and non-http schemes", () => {
+    expect(isSafeHttpUrl("javascript:alert(document.cookie)")).toBe(false)
+    expect(isSafeHttpUrl("data:text/html,<script>alert(1)</script>")).toBe(false)
+    expect(isSafeHttpUrl("vbscript:msgbox(1)")).toBe(false)
+    expect(isSafeHttpUrl("file:///etc/passwd")).toBe(false)
+  })
+
+  it("rejects unparseable / scheme-less / empty input", () => {
+    expect(isSafeHttpUrl("not a url")).toBe(false)
+    expect(isSafeHttpUrl("example.com")).toBe(false)
+    expect(isSafeHttpUrl("")).toBe(false)
+    expect(isSafeHttpUrl("   ")).toBe(false)
+    expect(isSafeHttpUrl(null)).toBe(false)
+    expect(isSafeHttpUrl(undefined)).toBe(false)
   })
 })

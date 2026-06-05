@@ -44,7 +44,7 @@ export function SegmentedBar({ segments, ariaLabel }: SegmentedBarProps) {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[10.5px] text-[var(--color-text-muted)]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-2xs text-[var(--color-text-muted)]">
         {segments.map((seg) => (
           <span
             key={seg.key}

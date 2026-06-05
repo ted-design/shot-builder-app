@@ -46,3 +46,20 @@ export function getBriefHost(url: string | null | undefined): string {
     return ""
   }
 }
+
+/**
+ * True only for http(s) URLs. Used to guard user-supplied brief links before
+ * they are rendered as an `href`: `new URL("javascript:…")` parses successfully
+ * (its hostname is empty), so a stored `javascript:` / `data:` URL would
+ * otherwise execute on click. Render the brief link only when this returns true.
+ */
+export function isSafeHttpUrl(url: string | null | undefined): boolean {
+  const trimmed = url?.trim() ?? ""
+  if (!trimmed) return false
+  try {
+    const { protocol } = new URL(trimmed)
+    return protocol === "http:" || protocol === "https:"
+  } catch {
+    return false
+  }
+}

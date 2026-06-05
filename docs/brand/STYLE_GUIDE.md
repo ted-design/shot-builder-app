@@ -2,7 +2,7 @@
 
 > Structured extraction of `Immediate-Style-Guide-2026.pdf` (in this folder), for use by claude.ai/design and the design system. This is the brand TARGET; reconcile the app's current tokens toward it deliberately (see `docs/DESIGN_SYSTEM.md` for the current system).
 
-Source: `/Users/tedghanime/Library/CloudStorage/Dropbox/Claude/_ingest/Immediate-Style-Guide-2026.pdf` (28 pp.). Read-only audit; no app/source files were touched. OKLCH values are computed conversions from the published sRGB hex (rounded; L as 0–1, C to 3 decimals, H in degrees).
+Source: `Immediate-Style-Guide-2026.pdf` (28 pp.; internal brand asset). Read-only audit; no app/source files were touched. OKLCH values are computed conversions from the published sRGB hex (rounded; L as 0–1, C to 3 decimals, H in degrees).
 
 ## 1. Color Palette
 

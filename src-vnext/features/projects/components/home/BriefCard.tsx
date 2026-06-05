@@ -3,7 +3,7 @@ import { ExternalLink, FileText } from "lucide-react"
 import { Card } from "@/ui/card"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { textPreview } from "@/shared/lib/textPreview"
-import { getBriefHost } from "@/features/projects/lib/projectStatus"
+import { getBriefHost, isSafeHttpUrl } from "@/features/projects/lib/projectStatus"
 
 /**
  * BriefCard — the "The Brief" zone (mockup 01-A-ledger-desktop.html `.brief`).
@@ -28,11 +28,13 @@ export interface BriefCardProps {
 }
 
 export function BriefCard({ briefUrl, notes, notesMaxLength = 220 }: BriefCardProps) {
-  const trimmedUrl = briefUrl?.trim() ?? ""
-  const briefHost = useMemo(() => getBriefHost(trimmedUrl), [trimmedUrl])
+  // Only render the brief link for http(s) URLs — a stored `javascript:`/`data:`
+  // URL would otherwise execute on click (see isSafeHttpUrl).
+  const safeUrl = useMemo(() => (isSafeHttpUrl(briefUrl) ? briefUrl!.trim() : ""), [briefUrl])
+  const briefHost = useMemo(() => getBriefHost(safeUrl), [safeUrl])
   const notesPreview = useMemo(() => textPreview(notes, notesMaxLength), [notes, notesMaxLength])
 
-  const hasBrief = trimmedUrl.length > 0
+  const hasBrief = safeUrl.length > 0
   const hasNotes = notesPreview.length > 0
 
   if (!hasBrief && !hasNotes) {
@@ -43,7 +45,7 @@ export function BriefCard({ briefUrl, notes, notesMaxLength = 220 }: BriefCardPr
       >
         <p
           id="brief-card-label"
-          className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
+          className="text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
         >
           The Brief
         </p>
@@ -65,7 +67,7 @@ export function BriefCard({ briefUrl, notes, notesMaxLength = 220 }: BriefCardPr
     >
       <p
         id="brief-card-label"
-        className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
+        className="text-2xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]"
       >
         The Brief
       </p>
@@ -82,7 +84,7 @@ export function BriefCard({ briefUrl, notes, notesMaxLength = 220 }: BriefCardPr
       {hasBrief && (
         <div className="mt-4 space-y-2">
           <a
-            href={trimmedUrl}
+            href={safeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-text-secondary)]"

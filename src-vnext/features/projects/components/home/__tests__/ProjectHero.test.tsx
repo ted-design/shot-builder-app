@@ -92,6 +92,11 @@ describe("ProjectHero", () => {
     expect(screen.queryByTestId("project-hero-brief")).not.toBeInTheDocument()
   })
 
+  it("omits the brief chip for a javascript: URL (XSS guard)", () => {
+    renderHero({ project: makeProject({ briefUrl: "javascript:alert(1)" }) })
+    expect(screen.queryByTestId("project-hero-brief")).not.toBeInTheDocument()
+  })
+
   it("renders the countdown with days, label, date and call time", () => {
     renderHero({ countdown })
     const block = screen.getByTestId("project-hero-countdown")
