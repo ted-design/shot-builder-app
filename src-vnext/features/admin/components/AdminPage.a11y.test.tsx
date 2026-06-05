@@ -113,9 +113,9 @@ const TOKENS = {
   "color-text-secondary": "#52525b",  // zinc-600
   "color-text-muted": "#71717a",      // zinc-500
   "color-text-subtle": "#a1a1aa",     // zinc-400
-  "color-surface": "#ffffff",
-  "color-surface-subtle": "#f4f4f5",  // zinc-100
-  "color-bg": "#fafafa",              // zinc-50
+  "color-surface": "#f5f5f5",         // Immediate White (top of ramp; no pure #fff)
+  "color-surface-subtle": "#ebebeb",
+  "color-bg": "#eaeaea",              // App background — light grey
 } as const
 
 const AA_NORMAL = 4.5
@@ -125,16 +125,14 @@ const AA_LARGE = 3.0
 
 describe("WCAG contrast math sanity", () => {
   it("matches known zinc-on-white reference ratios within rounding", () => {
-    // Cross-checked against WebAIM calculator.
-    expect(
-      contrastRatio(TOKENS["color-text-subtle"], TOKENS["color-surface"]),
-    ).toBeCloseTo(2.56, 1)
-    expect(
-      contrastRatio(TOKENS["color-text-muted"], TOKENS["color-surface"]),
-    ).toBeCloseTo(4.83, 1)
-    expect(
-      contrastRatio(TOKENS["color-text-secondary"], TOKENS["color-surface"]),
-    ).toBeCloseTo(7.73, 1)
+    // Cross-checked against the WebAIM calculator. These reference ratios are
+    // for zinc text on pure WHITE (#ffffff), so they pin the contrastRatio math
+    // to a fixed reference — independent of the app's actual surface token
+    // (which is the off-white Immediate #f5f5f5, exercised by the H-2 tests).
+    const WHITE = "#ffffff"
+    expect(contrastRatio(TOKENS["color-text-subtle"], WHITE)).toBeCloseTo(2.56, 1)
+    expect(contrastRatio(TOKENS["color-text-muted"], WHITE)).toBeCloseTo(4.83, 1)
+    expect(contrastRatio(TOKENS["color-text-secondary"], WHITE)).toBeCloseTo(7.73, 1)
   })
 })
 

@@ -68,6 +68,15 @@ the white-screen regression.
    rendering but cannot run the full emulator suite locally.
 4. Confirm green before un-quarantining.
 
+## Sign-off (CLAUDE.md Rule 6b)
+
+The a11y quarantine covers genuine WCAG AA violations (HIGH). Per Rule 6b these
+require explicit user approval to defer rather than fix in-sprint. **Approved by
+Ted on 2026-06-04** as the "stabilize the gate now, fix the dormant backlog
+incrementally" path — the white-screen root cause (the months-long blocker) was
+fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
+(below), not a merge blocker.
+
 ## Follow-up backlog (separate work)
 
 1. **Seed fixtures** — an emulator seed step so CRUD/image specs have data. Highest
