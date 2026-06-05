@@ -53,4 +53,28 @@ describe("NextActionBar", () => {
     expect(cta).toHaveTextContent("Build Shot List")
     expect(cta).toHaveAttribute("href", "/projects/abc/shots")
   })
+
+  it("does NOT render an alternate link when the action has none", () => {
+    renderBar(sampleAction)
+    expect(screen.queryByTestId("next-action-alt")).not.toBeInTheDocument()
+  })
+
+  it("renders an equal-weight 'or {alternate}' link when the action has an alternate", () => {
+    renderBar({
+      label: "empty-project",
+      message:
+        "This project is empty. Build the shot list to plan the shoot, or start the call sheet for the day — whichever you want to tackle first.",
+      ctaText: "Build Shot List",
+      ctaTo: "/projects/abc/shots",
+      alternate: { ctaText: "Build Call Sheet", ctaTo: "/projects/abc/callsheet" },
+    })
+    // primary stays the shot list
+    const cta = screen.getByTestId("next-action-cta")
+    expect(cta).toHaveTextContent("Build Shot List")
+    expect(cta).toHaveAttribute("href", "/projects/abc/shots")
+    // alternate is a second router link to the call sheet
+    const alt = screen.getByTestId("next-action-alt")
+    expect(alt).toHaveTextContent("Build Call Sheet")
+    expect(alt).toHaveAttribute("href", "/projects/abc/callsheet")
+  })
 })
