@@ -115,13 +115,14 @@ describe("ProjectHomePage", () => {
     expect(screen.getByTestId("status-ledger")).toHaveAttribute("data-rows", "5")
   })
 
-  it("surfaces a next action for an empty project (no call sheet yet)", () => {
+  it("surfaces the choosable empty-project next action (both build steps apply)", () => {
     mockUseProject.mockReturnValue({ data: makeProject(), loading: false })
 
     render(<ProjectHomePage />)
 
-    // Priority order lands on the call-sheet gap before the shot-list gap.
-    expect(screen.getByTestId("next-action")).toHaveTextContent("unsent-callsheet")
+    // An empty project (no call sheet, no shots) offers BOTH the shot list and
+    // the call sheet so the user can choose, rather than forcing the call sheet.
+    expect(screen.getByTestId("next-action")).toHaveTextContent("empty-project")
   })
 
   it("shows the loading skeleton before the project loads", () => {

@@ -12,9 +12,13 @@ import type { ShotFirestoreStatus } from "@/shared/types"
  *      is the most time-critical gap as the shoot approaches.
  *   2. missing samples — product samples not yet arrived; nothing can be shot
  *      without them.
- *   3. unsent / no call sheet — the schedule is not ready to distribute.
- *   4. build shot list — the project has no shots yet, so the very first move is
- *      to draft the list.
+ *   3. empty project — no call sheet AND no shots, so BOTH first build steps
+ *      legitimately apply. There is no one right order ("it's different each
+ *      time"), so we don't force one: the action carries a primary CTA plus an
+ *      equal-weight `alternate`, and the bar lets the user choose.
+ *   4. unsent / no call sheet — the schedule is not ready to distribute.
+ *   5. build shot list — a call sheet exists but the project still has no shots,
+ *      so the next move is to draft the list.
  *
  * Returns null when nothing is actionable (everything below threshold).
  */
@@ -60,11 +64,20 @@ export interface NextActionInput {
   readonly shootDate: Date | null
 }
 
+/** A single navigable choice: button copy + the absolute route it links to. */
+export interface NextActionLink {
+  /** Button / link copy. */
+  readonly ctaText: string
+  /** Absolute route to navigate to. */
+  readonly ctaTo: string
+}
+
 export interface NextAction {
   /** Machine-readable branch key (stable for tests / analytics). */
   readonly label:
     | "unbooked-casting-near-shoot"
     | "missing-samples"
+    | "empty-project"
     | "unsent-callsheet"
     | "build-shot-list"
   /** Human-readable sentence describing the gap and why it matters. */
@@ -73,6 +86,12 @@ export interface NextAction {
   readonly ctaText: string
   /** Absolute route the primary button navigates to. */
   readonly ctaTo: string
+  /**
+   * Optional equal-weight second choice, rendered as "or {ctaText}" beside the
+   * primary CTA. Present only when two next steps apply at once and we want the
+   * user to pick rather than forcing one (today: the empty-project case).
+   */
+  readonly alternate?: NextActionLink
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -117,7 +136,32 @@ export function computeNextAction(
     }
   }
 
-  // 3. Call sheet missing or not yet sent.
+  const totalShots =
+    shotCounts.todo +
+    shotCounts.in_progress +
+    shotCounts.on_hold +
+    shotCounts.complete
+
+  // 3. Empty project: no call sheet AND no shots, so the shot list and the call
+  //    sheet are both valid first moves. There's no fixed right order, so offer
+  //    both and let the user choose (primary CTA + equal-weight alternate)
+  //    rather than forcing one. Shot list leads because it's the natural first
+  //    creative step, but the call sheet is one click away as the alternate.
+  if (!schedule.hasCallSheet && totalShots === 0) {
+    return {
+      label: "empty-project",
+      message:
+        "This project is empty. Build the shot list to plan the shoot, or start the call sheet for the day — whichever you want to tackle first.",
+      ctaText: "Build Shot List",
+      ctaTo: `/projects/${projectId}/shots`,
+      alternate: {
+        ctaText: "Build Call Sheet",
+        ctaTo: `/projects/${projectId}/callsheet`,
+      },
+    }
+  }
+
+  // 4. Call sheet missing or not yet sent.
   if (!schedule.hasCallSheet || !schedule.sent) {
     const message = schedule.hasCallSheet
       ? "The call sheet is still a draft. Review and send it so crew and talent get their details."
@@ -130,12 +174,7 @@ export function computeNextAction(
     }
   }
 
-  // 4. No shots drafted yet.
-  const totalShots =
-    shotCounts.todo +
-    shotCounts.in_progress +
-    shotCounts.on_hold +
-    shotCounts.complete
+  // 5. Call sheet exists but no shots drafted yet.
   if (totalShots === 0) {
     return {
       label: "build-shot-list",

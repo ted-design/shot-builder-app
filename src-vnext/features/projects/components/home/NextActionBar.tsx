@@ -8,7 +8,9 @@ import type { NextAction } from "@/features/projects/components/home/lib/compute
  *
  * Renders nothing when `action` is null (nothing actionable). The CTA is a
  * react-router `Link` to an absolute `/projects/:id/...` route owned by the
- * `NextAction` result.
+ * `NextAction` result. When the action carries an `alternate` (two next steps
+ * apply at once — e.g. an empty project), an equal-weight "or {alternate}" link
+ * is rendered beside the primary so the user picks rather than being forced.
  *
  * Tokens only — the bar uses the near-black ink token (`--color-text`) as its
  * fill to mirror the mockup's `--ink` band, with light text on top and the
@@ -43,7 +45,7 @@ export function NextActionBar({ action }: NextActionBarProps) {
         </p>
       </div>
 
-      <div className="sm:ml-auto sm:shrink-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:ml-auto sm:shrink-0">
         <Link
           to={action.ctaTo}
           data-testid="next-action-cta"
@@ -62,6 +64,23 @@ export function NextActionBar({ action }: NextActionBarProps) {
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </Link>
+
+        {action.alternate && (
+          <p
+            className="text-sm whitespace-nowrap"
+            style={{ color: "var(--color-text-subtle)" }}
+          >
+            or{" "}
+            <Link
+              to={action.alternate.ctaTo}
+              data-testid="next-action-alt"
+              className="font-semibold underline-offset-4 transition-colors hover:underline"
+              style={{ color: "var(--color-bg)" }}
+            >
+              {action.alternate.ctaText}
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )

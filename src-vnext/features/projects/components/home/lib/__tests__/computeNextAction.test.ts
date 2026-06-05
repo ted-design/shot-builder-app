@@ -166,6 +166,74 @@ describe("computeNextAction", () => {
     })
   })
 
+  describe("branch 3: empty-project (both build steps apply — choosable)", () => {
+    /** A brand-new project: no call sheet, no shots, nothing else pending. */
+    function emptyProject(): Partial<NextActionInput> {
+      return {
+        casting: { unbooked: 0 },
+        samples: { missing: 0 },
+        schedule: { hasCallSheet: false, sent: false },
+        shotCounts: shotCounts(),
+        shootDate: null,
+      }
+    }
+
+    it("offers BOTH shot list and call sheet when the project is empty", () => {
+      const result = computeNextAction(makeInput(emptyProject()), NOW)
+      expect(result?.label).toBe("empty-project")
+      // primary: build the shot list
+      expect(result?.ctaText).toBe("Build Shot List")
+      expect(result?.ctaTo).toBe(`/projects/${PROJECT_ID}/shots`)
+      // alternate: build the call sheet — equal-weight, user's choice
+      expect(result?.alternate).toEqual({
+        ctaText: "Build Call Sheet",
+        ctaTo: `/projects/${PROJECT_ID}/callsheet`,
+      })
+      expect(result?.message).toContain("whichever you want to tackle first")
+    })
+
+    it("takes precedence over the plain unsent/no-call-sheet branch", () => {
+      // Regression: before this feature, the unsent-callsheet branch (which
+      // always fires because `sent` is a hardcoded stub) made build-shot-list
+      // unreachable, so an empty project only ever showed "Build Call Sheet".
+      const result = computeNextAction(makeInput(emptyProject()), NOW)
+      expect(result?.label).not.toBe("unsent-callsheet")
+      expect(result?.label).toBe("empty-project")
+    })
+
+    it("yields to missing samples (higher priority) even when empty", () => {
+      const result = computeNextAction(
+        makeInput({ ...emptyProject(), samples: { missing: 3 } }),
+        NOW,
+      )
+      expect(result?.label).toBe("missing-samples")
+    })
+
+    it("does NOT fire once any shot exists — falls through to the call sheet", () => {
+      const result = computeNextAction(
+        makeInput({ ...emptyProject(), shotCounts: shotCounts({ todo: 1 }) }),
+        NOW,
+      )
+      expect(result?.label).toBe("unsent-callsheet")
+      expect(result?.ctaText).toBe("Build Call Sheet")
+      expect(result?.alternate).toBeUndefined()
+    })
+
+    it("does NOT fire once a call sheet exists — single build-shot-list action, no alternate", () => {
+      const result = computeNextAction(
+        makeInput({
+          casting: { unbooked: 0 },
+          samples: { missing: 0 },
+          schedule: { hasCallSheet: true, sent: true },
+          shotCounts: shotCounts(),
+        }),
+        NOW,
+      )
+      expect(result?.label).toBe("build-shot-list")
+      expect(result?.alternate).toBeUndefined()
+    })
+  })
+
   describe("null case", () => {
     it("returns null when nothing is actionable", () => {
       expect(computeNextAction(makeInput(), NOW)).toBeNull()
