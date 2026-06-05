@@ -4,6 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { seedShotsCrudScenario } from './helpers/seed';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -279,6 +280,20 @@ async function globalSetup(config: FullConfig) {
       console.error(`❌ Failed to set up ${roleName} user:`, error);
       throw error;
     }
+  }
+
+  // Seed the deterministic Firestore fixture the CRUD specs read (one
+  // team-visible project + app-shaped shots). Runs after users are created and
+  // before any spec, so all specs share one seeded dataset. Reuses the same
+  // firebase-admin app (projectId 'demo-test') initialized above — the seed
+  // helper guards against a double initializeApp.
+  console.log('Seeding Firestore fixtures (shots-crud)...');
+  try {
+    await seedShotsCrudScenario();
+    console.log('✅ Firestore fixtures seeded\n');
+  } catch (error) {
+    console.error('❌ Failed to seed Firestore fixtures:', error);
+    throw error;
   }
 
   console.log('========================================');

@@ -18,9 +18,11 @@ export default defineConfig({
     '**/a11y.spec.ts',            // real WCAG AA contrast violations in the app
     '**/auth.spec.ts',            // interactive-login helper times out on post-login redirect
     '**/sidebar-summary.spec.ts', // interactive-login helper (same root cause)
-    '**/shots-crud.spec.ts',      // needs seeded Firestore data + stable selectors
-    '**/pulls-crud.spec.ts',      // needs seeded Firestore data + stable selectors
-    '**/image-crop-editor.spec.js', // needs a seeded shot with an existing image
+    // shots-crud.spec.ts un-quarantined 2026-06-05: emulator seed step added
+    // (seedShotsCrudScenario) + spec rewritten to the real project-scoped routes
+    // and selectors. See tests/QUARANTINE.md.
+    '**/pulls-crud.spec.ts',      // targets nonexistent /pulls route + UI that doesn't exist (deferred — see QUARANTINE.md)
+    '**/image-crop-editor.spec.js', // targets removed legacy react-easy-crop UI (deferred — see QUARANTINE.md)
     '**/visual.spec.ts',          // snapshot baselines missing/mismatched
     '**/e2e/richtext-bubble.spec.ts', // snapshot/visual baselines
     '**/diagnose-sticky.spec.js', // ad-hoc diagnostic scratch test; interactive-login helper
