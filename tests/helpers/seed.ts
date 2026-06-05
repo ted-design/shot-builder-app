@@ -1,6 +1,12 @@
-import { initializeApp, type App } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import {
+  SEED_CLIENT_ID,
+  SEED_PROJECT_ID,
+  SEED_PROJECT_NAME,
+  SEED_SHOTS,
+} from './seedConstants';
 
 /**
  * Test data seeding utilities for Firebase emulator.
@@ -9,7 +15,7 @@ import { getAuth } from 'firebase-admin/auth';
  * All data is scoped to the 'test-client' clientId.
  */
 
-const CLIENT_ID = 'test-client';
+const CLIENT_ID = SEED_CLIENT_ID;
 
 let adminApp: App | null = null;
 let firestoreDb: Firestore | null = null;
@@ -20,13 +26,18 @@ let firestoreDb: Firestore | null = null;
 function getAdminApp(): App {
   if (adminApp) return adminApp;
 
-  // Set emulator environment variables
-  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
+  // Set emulator environment variables (only if not already set by the caller,
+  // e.g. global.setup.ts, which initializes the same admin app first).
+  process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || 'localhost:8080';
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || 'localhost:9099';
 
-  adminApp = initializeApp({
-    projectId: 'demo-test-project',
-  });
+  // Reuse the already-initialized default app when present (global.setup.ts
+  // initializes firebase-admin first). Initializing a second default app throws
+  // "default app already exists". The projectId MUST be 'demo-test' — the same
+  // emulator partition the app reads (VITE_FIREBASE_PROJECT_ID=demo-test) and
+  // that global.setup.ts uses. A mismatched projectId (the previous
+  // 'demo-test-project') writes to an isolated partition the app never reads.
+  adminApp = getApps().length ? getApp() : initializeApp({ projectId: 'demo-test' });
 
   return adminApp;
 }
@@ -48,16 +59,29 @@ function getDb(): Firestore {
  */
 export async function createTestProject(data: {
   name: string;
-  shootDate?: Date;
-  members?: Record<string, string>; // uid -> role
+  /** Optional deterministic doc id so specs can deep-link to it. */
+  id?: string;
+  shootDates?: Date[];
+  /**
+   * Firestore rules let a producer read a project only when visibility is
+   * 'team' (or absent). Default to 'team' so the producer fixture can see it.
+   */
+  visibility?: 'team' | 'private';
 }): Promise<string> {
   const db = getDb();
-  const projectRef = db.collection(`clients/${CLIENT_ID}/projects`).doc();
+  const col = db.collection(`clients/${CLIENT_ID}/projects`);
+  const projectRef = data.id ? col.doc(data.id) : col.doc();
 
   await projectRef.set({
     name: data.name,
-    shootDate: data.shootDate || new Date(),
-    members: data.members || {},
+    clientId: CLIENT_ID,
+    status: 'active',
+    visibility: data.visibility || 'team',
+    // App reads `shootDates` (plural, normalized) — the old singular `shootDate`
+    // was silently ignored by mapProject.
+    shootDates: data.shootDates ?? [],
+    notes: null,
+    createdBy: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -69,28 +93,48 @@ export async function createTestProject(data: {
  * Create a test shot
  */
 export async function createTestShot(projectId: string, data: {
-  title: string;
+  title?: string;
+  name?: string;
+  /** Optional deterministic doc id so specs can deep-link to it. */
+  id?: string;
   type?: string;
   status?: string;
-  description?: string;
+  description?: string | null;
   products?: string[];
   talent?: string[];
-  location?: string;
+  location?: string | null;
+  date?: Date | null;
+  sortOrder?: number;
+  shotNumber?: string | null;
 }): Promise<string> {
   const db = getDb();
-  const shotRef = db.collection(`clients/${CLIENT_ID}/shots`).doc();
+  const col = db.collection(`clients/${CLIENT_ID}/shots`);
+  const shotRef = data.id ? col.doc(data.id) : col.doc();
 
+  // Mirror CreateShotDialog's write contract. The shot-list query filters
+  // `where('deleted','==',false)` and orders by `date` — a doc MISSING either
+  // field is excluded from the list, so both are always set here.
   await shotRef.set({
+    title: data.title ?? data.name ?? 'Untitled Shot',
+    description: data.description ?? null,
     projectId,
-    title: data.title,
+    clientId: CLIENT_ID,
+    status: data.status || 'todo',
     type: data.type || 'On-Figure',
-    status: data.status || 'planned',
-    description: data.description || '',
+    deleted: false,
+    date: data.date ?? null,
+    sortOrder: data.sortOrder ?? Date.now(),
+    shotNumber: data.shotNumber ?? null,
+    products: data.products || [],
     productIds: data.products || [],
+    talent: data.talent || [],
     talentIds: data.talent || [],
-    locationId: data.location || null,
+    locationId: data.location ?? null,
+    notes: null,
+    referenceLinks: [],
     createdAt: new Date(),
     updatedAt: new Date(),
+    createdBy: '',
   });
 
   return shotRef.id;
@@ -264,7 +308,7 @@ export async function seedCompleteScenario(): Promise<{
   // Create project
   const projectId = await createTestProject({
     name: 'Fall 2024 Campaign',
-    shootDate: new Date('2024-11-15'),
+    shootDates: [new Date('2024-11-15')],
   });
 
   // Create locations
@@ -347,4 +391,51 @@ export async function seedCompleteScenario(): Promise<{
     talentIds: [model1Id, model2Id],
     locationIds: [studioId, outdoorId],
   };
+}
+
+/**
+ * Clear the shots-crud E2E fixture: every shot under the seed project (including
+ * ones created by the specs themselves) plus the project doc. Safe to call
+ * repeatedly; run before re-seeding so a persisted emulator does not accumulate
+ * duplicate shots across runs.
+ */
+export async function clearShotsCrudData(): Promise<void> {
+  const db = getDb();
+
+  const shotsSnap = await db
+    .collection(`clients/${CLIENT_ID}/shots`)
+    .where('projectId', '==', SEED_PROJECT_ID)
+    .get();
+
+  const batch = db.batch();
+  for (const doc of shotsSnap.docs) batch.delete(doc.ref);
+  batch.delete(db.collection(`clients/${CLIENT_ID}/projects`).doc(SEED_PROJECT_ID));
+  await batch.commit();
+}
+
+/**
+ * Seed the deterministic fixture the shots-crud spec reads: one team-visible
+ * project + the app-shaped shots declared in seedConstants.ts. Cleared first so
+ * the dataset is identical on every run (the emulator persists across a run).
+ */
+export async function seedShotsCrudScenario(): Promise<void> {
+  await clearShotsCrudData();
+
+  await createTestProject({
+    id: SEED_PROJECT_ID,
+    name: SEED_PROJECT_NAME,
+    visibility: 'team',
+  });
+
+  let order = 1;
+  for (const shot of SEED_SHOTS) {
+    await createTestShot(SEED_PROJECT_ID, {
+      id: shot.id,
+      title: shot.title,
+      status: 'todo',
+      sortOrder: order,
+      shotNumber: String(order),
+    });
+    order += 1;
+  }
 }

@@ -1,6 +1,6 @@
 # E2E (`ui-checks`) Quarantine & Backlog
 
-_Last updated: 2026-06-04_
+_Last updated: 2026-06-05_
 
 ## Why this file exists
 
@@ -31,9 +31,29 @@ the "merge past red" norm without silently dropping coverage.
   - ✅ `producer can navigate between pages`
   - ✅ `viewer has read-only access`
   - ⏸️ `admin can access admin page` — `test.fixme` (see below)
+- **`tests/shots-crud.spec.ts`** (storageState auth) — chromium only. Un-quarantined
+  2026-06-05. Hard-asserts the real, project-scoped shot lifecycle against a
+  seeded fixture: list (read), create, detail deep-link (read), search filter,
+  inline rename (update), and create-then-delete (delete).
 
-This smoke set exercises authenticated page loads and so directly guards against
-the white-screen regression.
+This set exercises authenticated page loads + CRUD and so directly guards against
+the white-screen regression and the shot data path.
+
+## Emulator seed (added 2026-06-05)
+
+`tests/global.setup.ts` now seeds a deterministic Firestore fixture after the
+role users are created and before any spec runs (`seedShotsCrudScenario` in
+`tests/helpers/seed.ts`; IDs/titles in `tests/helpers/seedConstants.ts`): one
+team-visible project (`e2e-seed-project`) plus three app-shaped shots. Two prior
+bugs were fixed so the seed is actually visible to the app:
+
+1. **Partition** — `seed.ts` initialized firebase-admin with `demo-test-project`;
+   the app/emulator/`global.setup.ts` use `demo-test`. Fixed to `demo-test`, and
+   the helper now reuses the already-initialized admin app (a second
+   `initializeApp` throws "default app already exists").
+2. **Shot shape** — seeded shots omitted `deleted` and `date`; the shot-list
+   query filters `where('deleted','==',false)` and orders by `date`, so docs
+   missing either field are excluded. Seed now mirrors `CreateShotDialog`'s write.
 
 ## Quarantined specs (excluded via `testIgnore` in `playwright.config.ts`)
 
@@ -42,9 +62,8 @@ the white-screen regression.
 | `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
 | `auth.spec.ts` | Test infra | `helpers/auth.ts` interactive login times out on the post-login `waitForURL` redirect | Make the helper rehydrate via the app's real modular-SDK persistence (or switch these specs to storageState fixtures) |
 | `sidebar-summary.spec.ts` | Test infra | Same interactive-login helper root cause | As above |
-| `shots-crud.spec.ts` | Fixtures | storageState auth works, but CRUD flows need seeded Firestore data + stable selectors | Add an emulator seed step (products/shots) and stabilize selectors |
-| `pulls-crud.spec.ts` | Fixtures | Same — needs seeded data | As above |
-| `image-crop-editor.spec.js` | Fixtures | Needs a seeded shot with an existing image | Seed a shot+image in the emulator |
+| `pulls-crud.spec.ts` | Obsolete + fixtures | Navigates to a nonexistent top-level `/pulls` route (real route is `/projects/:id/pulls` → it lands on NotFoundPage); 7 of 9 tests wrap assertions in `if (await x.isVisible())` so they pass vacuously; several target UI that does not exist (Add-item dialog, PDF export, quantity editor, per-card delete — pull items are derived from shots, not hand-added); the fulfill test uses `producer` but only admin/warehouse can fulfill | **Deferred** (Ted, 2026-06-05): rewrite to project-scoped routes + real selectors and trim to flows that exist (create / view / status / share); revisit when pull-item editing UI exists. Do **not** un-quarantine as-is (the vacuous guards would give a false green). Seed already covers a project; extend with an app-shaped pull when rewriting |
+| `image-crop-editor.spec.js` | Obsolete | Targets a **removed legacy** UI: the `react-easy-crop` "Crop & Adjust Image" editor, an "Attachments" tab, an "Edit crop" button and `[data-testid=attachment-thumbnail]` live only in `archive/legacy-src-2026-04/`; `react-easy-crop` is not installed; the current app stores a single `heroImage` per shot (`HeroImageSection`). The spec also imports bare `@playwright/test` (no storageState → unauthenticated) | **Deferred** (Ted, 2026-06-05): seeding alone can never make it green. Rewrite against `HeroImageSection` on the shot detail page (use the producer storageState fixture) or delete the spec. Not just a seed task |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
 | `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic that drives the broken interactive-login helper (1-min timeout) | Delete it, or convert to a real assertion once the login helper is fixed |
@@ -79,11 +98,16 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
 
 ## Follow-up backlog (separate work)
 
-1. **Seed fixtures** — an emulator seed step so CRUD/image specs have data. Highest
-   leverage: un-quarantines `shots-crud`, `pulls-crud`, `image-crop-editor`.
-2. **Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.
-3. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
-4. **Visual baselines** — regenerate on the CI runner image; un-quarantines
+1. ~~**Seed fixtures** — an emulator seed step so CRUD/image specs have data.~~
+   **Done 2026-06-05** for shots (`seedShotsCrudScenario`), which un-quarantined
+   `shots-crud`. The seed is reusable for the rewrites below.
+2. **Rewrite `pulls-crud`** — to project-scoped routes + real selectors, trimmed
+   to flows that exist; extend the seed with an app-shaped pull. (Deferred per Ted.)
+3. **Rewrite or delete `image-crop-editor`** — against `HeroImageSection`, not the
+   removed legacy crop editor. (Deferred per Ted.)
+4. **Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.
+5. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
+6. **Visual baselines** — regenerate on the CI runner image; un-quarantines
    `visual` + `richtext-bubble`.
-5. **Cross-browser job** — re-add firefox/webkit as a separate, non-blocking job
+7. **Cross-browser job** — re-add firefox/webkit as a separate, non-blocking job
    once the above land.

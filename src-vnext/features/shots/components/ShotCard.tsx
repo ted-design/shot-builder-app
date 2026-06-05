@@ -157,6 +157,8 @@ export function ShotCard({
 
   return (
     <Card
+      data-testid="shot-card"
+      data-shot-id={shot.id}
       className="cursor-pointer hover-lift"
       onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
     >

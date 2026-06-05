@@ -1,299 +1,147 @@
 import { test, expect } from './fixtures/auth';
+import {
+  SEED_PROJECT_ID,
+  SEED_SHOT_AURORA,
+  SEED_SHOT_BOREALIS,
+  SEED_SHOT_EDITABLE,
+} from './helpers/seedConstants';
 
 /**
- * Shot CRUD E2E Tests
- * Tests the complete lifecycle of shots: Create, Read, Update, Delete
+ * Shot CRUD E2E tests — exercises the real, project-scoped shot lifecycle
+ * against the Firestore emulator seed (see tests/helpers/seed.ts +
+ * tests/global.setup.ts → seedShotsCrudScenario).
+ *
+ * Every test hard-asserts against the actual app UI. There are intentionally no
+ * `if (await x.isVisible())` guards: a guarded assertion on a route/selector that
+ * no longer exists "passes" by doing nothing (a false green). If the seed or a
+ * selector regresses, these tests must fail loudly.
+ *
+ * Notes on the real app (verified against src-vnext):
+ * - Shots live at `/projects/:id/shots` (there is NO top-level `/shots` route).
+ * - Editing/deleting happen on the detail page (`/projects/:id/shots/:sid`) and
+ *   via the per-shot "Shot actions" menu — there is no "Edit shot" dialog.
+ * - The producer fixture runs at a 1280×720 (desktop) viewport.
  */
 
+const SHOTS_URL = `/projects/${SEED_PROJECT_ID}/shots`;
+
 test.describe('Shot CRUD Operations', () => {
-  // Use producer role for these tests (has permissions to create/edit/delete)
+  // ── READ (list) ──────────────────────────────────────────────────────────
+  // Keystone: proves the seed landed in the partition the app reads, the route
+  // resolves, the producer storageState is authenticated, and the shot-list
+  // query shape (deleted:false + date) surfaces the seeded shots.
+  test('producer sees seeded shots in the project shot list', async ({ producerPage }) => {
+    await producerPage.goto(SHOTS_URL);
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible' });
+
+    await expect(producerPage.getByText(SEED_SHOT_AURORA.title).first()).toBeVisible();
+    await expect(producerPage.getByText(SEED_SHOT_BOREALIS.title).first()).toBeVisible();
+  });
+
+  // ── CREATE ───────────────────────────────────────────────────────────────
   test('producer can create a new shot', async ({ producerPage }) => {
-    // Navigate to shots page
-    await producerPage.goto('/shots');
-    // Wait for shots page content
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
+    await producerPage.goto(SHOTS_URL);
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible' });
 
-    // Find and click create shot button
-    const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
-    await expect(createButton).toBeVisible({ timeout: 10000 });
-    await createButton.click();
+    // Card view so we can assert on the shot card (not the success toast, which
+    // also renders the title — asserting the card proves list membership).
+    await producerPage.getByRole('button', { name: 'Card view' }).click();
 
-    // Wait for modal/dialog to appear
+    const newShotButton = producerPage.getByRole('button', { name: 'New Shot' });
+    await expect(newShotButton).toBeVisible();
+    await newShotButton.click();
+
     const dialog = producerPage.getByRole('dialog');
-    await expect(dialog).toBeVisible({ timeout: 5000 });
+    await expect(dialog).toBeVisible();
 
-    // Fill in shot name
-    const nameInput = dialog.getByRole('textbox').first();
-    const shotName = `E2E Test Shot ${Date.now()}`;
-    await nameInput.fill(shotName);
+    const title = `E2E Create Shot ${Date.now()}`;
+    await dialog.getByTestId('shot-title-input').fill(title);
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 
-    // Submit the form
-    const submitButton = dialog.getByRole('button', { name: /create shot|create|save/i });
-    await submitButton.click();
-
-    // Wait for modal to close and success message
-    await expect(dialog).not.toBeVisible({ timeout: 5000 });
-
-    // Verify shot appears in the list or we're redirected to shot view
-    await producerPage.waitForTimeout(1000); // Give time for toast/navigation
-
-    // The shot should now be visible somewhere on the page
-    const shotElement = producerPage.getByText(shotName).first();
-    await expect(shotElement).toBeVisible({ timeout: 5000 });
+    await expect(dialog).not.toBeVisible();
+    await expect(
+      producerPage.locator('[data-testid="shot-card"]', { hasText: title }),
+    ).toBeVisible();
   });
 
-  test('producer can view shot details', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
+  // ── READ (detail, deep-link) ──────────────────────────────────────────────
+  test('producer can open a shot detail page', async ({ producerPage }) => {
+    await producerPage.goto(`${SHOTS_URL}/${SEED_SHOT_AURORA.id}`);
 
-    // Wait for shots to load
-    await producerPage.waitForTimeout(2000);
-
-    // Click on first shot card/row
-    const shotCards = producerPage.locator('[data-shot-card], [data-shot-id], .shot-card, [role="article"]');
-    const count = await shotCards.count();
-
-    if (count > 0) {
-      const firstShot = shotCards.first();
-      await firstShot.click();
-
-      // Should open edit modal or navigate to detail page
-      const dialog = producerPage.getByRole('dialog');
-
-      if (await dialog.isVisible()) {
-        // Modal opened - verify we can see shot details
-        await expect(dialog).toBeVisible();
-
-        // Should have input fields or shot information
-        const textboxes = dialog.getByRole('textbox');
-        expect(await textboxes.count()).toBeGreaterThan(0);
-      } else {
-        // Navigated to detail page - verify URL changed
-        const url = producerPage.url();
-        expect(url).toContain('/shot');
-      }
-    }
+    // "Back to Shots" only renders on the detail page — confirms we did not
+    // land on NotFoundPage.
+    await expect(producerPage.getByRole('button', { name: /back to shots/i })).toBeVisible();
+    await expect(producerPage.getByText(SEED_SHOT_AURORA.title).first()).toBeVisible();
   });
 
-  test('producer can update shot details', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
+  // ── FILTER ────────────────────────────────────────────────────────────────
+  test('producer can filter shots by search', async ({ producerPage }) => {
+    await producerPage.goto(SHOTS_URL);
+    await producerPage.getByText(SEED_SHOT_BOREALIS.title).first().waitFor({ state: 'visible' });
 
-    // Create a new shot first
-    const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
+    await producerPage.getByPlaceholder(/search shots/i).fill('Aurora');
 
-    if (await createButton.isVisible()) {
-      await createButton.click();
-
-      const dialog = producerPage.getByRole('dialog');
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-
-      const originalName = `Update Test ${Date.now()}`;
-      const nameInput = dialog.getByRole('textbox').first();
-      await nameInput.fill(originalName);
-
-      const submitButton = dialog.getByRole('button', { name: /create shot|create|save/i });
-      await submitButton.click();
-
-      await expect(dialog).not.toBeVisible({ timeout: 5000 });
-      await producerPage.waitForTimeout(1000);
-
-      // Now find and edit the shot we just created
-      const shotElement = producerPage.getByText(originalName).first();
-      await expect(shotElement).toBeVisible({ timeout: 5000 });
-      await shotElement.click();
-
-      // Edit modal should open
-      const editDialog = producerPage.getByRole('dialog');
-      await expect(editDialog).toBeVisible({ timeout: 5000 });
-
-      // Update the name
-      const updatedName = `${originalName} - Updated`;
-      const editNameInput = editDialog.getByRole('textbox').first();
-      await editNameInput.clear();
-      await editNameInput.fill(updatedName);
-
-      // Save changes
-      const saveButton = editDialog.getByRole('button', { name: /save|update/i });
-      await saveButton.click();
-
-      await expect(editDialog).not.toBeVisible({ timeout: 5000 });
-
-      // Verify updated name appears
-      await producerPage.waitForTimeout(1000);
-      const updatedElement = producerPage.getByText(updatedName).first();
-      await expect(updatedElement).toBeVisible({ timeout: 5000 });
-    }
+    // The matching shot stays; the non-matching one is removed from the list.
+    await expect(producerPage.getByText(SEED_SHOT_AURORA.title).first()).toBeVisible();
+    await expect(producerPage.getByText(SEED_SHOT_BOREALIS.title)).toHaveCount(0);
   });
 
-  test('producer can add products to a shot', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
+  // ── UPDATE (inline edit on the detail page) ───────────────────────────────
+  // Targets the dedicated editable seed shot (never read-asserted elsewhere) and
+  // renames it to a fresh unique value, so the test is safe under parallel runs
+  // and retries.
+  test('producer can rename a shot inline', async ({ producerPage }) => {
+    await producerPage.goto(`${SHOTS_URL}/${SEED_SHOT_EDITABLE.id}`);
+    await expect(producerPage.getByRole('button', { name: /back to shots/i })).toBeVisible();
 
-    // Click on first shot
-    await producerPage.waitForTimeout(2000);
-    const shotCards = producerPage.locator('[data-shot-card], [data-shot-id]');
-    const count = await shotCards.count();
+    const titleEdit = producerPage.getByTestId('shot-title-edit');
+    await expect(titleEdit).toBeVisible();
+    await titleEdit.click();
 
-    if (count > 0) {
-      await shotCards.first().click();
+    const newTitle = `Edited Seed Shot ${Date.now()}`;
+    const input = producerPage.getByTestId('shot-title-edit');
+    await input.fill(newTitle);
+    await input.press('Enter');
 
-      const dialog = producerPage.getByRole('dialog');
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-
-      // Look for "Add product" or "Products" section
-      const addProductButton = dialog.getByRole('button', { name: /add product/i });
-
-      if (await addProductButton.isVisible()) {
-        await addProductButton.click();
-
-        // Product selection modal should appear
-        await producerPage.waitForTimeout(1000);
-
-        // Look for product list or family selector
-        const productSelectors = dialog.locator('select, [role="combobox"], [role="listbox"]');
-
-        if (await productSelectors.count() > 0) {
-          // Found product selector - this confirms the add product flow works
-          const firstSelector = productSelectors.first();
-          await expect(firstSelector).toBeVisible();
-        }
-      }
-    }
+    await expect(producerPage.getByText(newTitle).first()).toBeVisible();
   });
 
+  // ── DELETE (create-then-delete via the per-shot actions menu) ──────────────
+  // Self-contained: creates its own uniquely-titled shot so it never removes a
+  // seeded shot other tests rely on. Forces card view so the per-card "Shot
+  // actions" kebab is present.
   test('producer can delete a shot', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
+    await producerPage.goto(SHOTS_URL);
+    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible' });
 
-    // Create a shot to delete
-    const createButton = producerPage.getByRole('button', { name: /create shot|new shot|new/i }).first();
+    // Ensure card view (the per-card actions menu lives on the ShotCard).
+    await producerPage.getByRole('button', { name: 'Card view' }).click();
 
-    if (await createButton.isVisible()) {
-      await createButton.click();
+    // Create the shot to delete.
+    await producerPage.getByRole('button', { name: 'New Shot' }).click();
+    const dialog = producerPage.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    const title = `E2E Delete Shot ${Date.now()}`;
+    await dialog.getByTestId('shot-title-input').fill(title);
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
 
-      const dialog = producerPage.getByRole('dialog');
-      await expect(dialog).toBeVisible({ timeout: 5000 });
+    const card = producerPage.locator('[data-testid="shot-card"]', { hasText: title });
+    await expect(card).toBeVisible();
 
-      const shotName = `Delete Test ${Date.now()}`;
-      const nameInput = dialog.getByRole('textbox').first();
-      await nameInput.fill(shotName);
+    // Open the per-shot actions menu and choose delete.
+    await card.getByRole('button', { name: /shot actions/i }).click();
+    await producerPage.getByRole('menuitem', { name: /delete shot/i }).click();
 
-      const submitButton = dialog.getByRole('button', { name: /create shot|create|save/i });
-      await submitButton.click();
+    // Confirm the destructive dialog (requires typing DELETE).
+    const confirm = producerPage.getByRole('dialog');
+    await expect(confirm).toBeVisible();
+    await confirm.getByPlaceholder(/type delete/i).fill('DELETE');
+    await confirm.getByRole('button', { name: 'Delete shot', exact: true }).click();
 
-      await expect(dialog).not.toBeVisible({ timeout: 5000 });
-      await producerPage.waitForTimeout(1000);
-
-      // Find and click on the shot
-      const shotElement = producerPage.getByText(shotName).first();
-      await expect(shotElement).toBeVisible({ timeout: 5000 });
-      await shotElement.click();
-
-      // Edit dialog should open
-      const editDialog = producerPage.getByRole('dialog');
-      await expect(editDialog).toBeVisible({ timeout: 5000 });
-
-      // Look for delete button
-      const deleteButton = editDialog.getByRole('button', { name: /delete/i });
-
-      if (await deleteButton.isVisible()) {
-        await deleteButton.click();
-
-        // May need to confirm deletion
-        await producerPage.waitForTimeout(500);
-
-        // Look for confirmation dialog or confirm button
-        const confirmButton = producerPage.getByRole('button', { name: /delete|confirm/i }).last();
-
-        if (await confirmButton.isVisible()) {
-          await confirmButton.click();
-        }
-
-        // Wait for dialog to close
-        await producerPage.waitForTimeout(2000);
-
-        // Verify shot is gone from the list
-        const deletedElement = producerPage.getByText(shotName);
-        await expect(deletedElement).not.toBeVisible();
-      }
-    }
-  });
-
-  test('producer can filter shots', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
-
-    // Look for filter controls
-    await producerPage.waitForTimeout(2000);
-
-    const filterControls = producerPage.locator('input[placeholder*="search" i], input[placeholder*="filter" i], [role="searchbox"]');
-
-    if (await filterControls.count() > 0) {
-      const searchInput = filterControls.first();
-      await searchInput.fill('test');
-
-      // Wait for filtering to occur
-      await producerPage.waitForTimeout(1000);
-
-      // Verify filtering works (results should change)
-      const visibleShots = producerPage.locator('[data-shot-card], [data-shot-id]');
-      expect(await visibleShots.count()).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  test('producer can navigate between shot views', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
-
-    // Look for view toggle buttons (grid/table/list)
-    await producerPage.waitForTimeout(2000);
-
-    const viewToggles = producerPage.getByRole('button', { name: /grid|table|list|view/i });
-    const toggleCount = await viewToggles.count();
-
-    if (toggleCount > 1) {
-      // Click between different views
-      const firstToggle = viewToggles.first();
-      await firstToggle.click();
-      await producerPage.waitForTimeout(500);
-
-      const secondToggle = viewToggles.nth(1);
-      await secondToggle.click();
-      await producerPage.waitForTimeout(500);
-
-      // Verify layout changed (hard to test visually, but verify no errors)
-      const currentUrl = producerPage.url();
-      expect(currentUrl).toContain('/shots');
-    }
-  });
-
-  test('producer can export shots', async ({ producerPage }) => {
-    await producerPage.goto('/shots');
-    await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
-
-    // Look for export button
-    await producerPage.waitForTimeout(2000);
-
-    const exportButton = producerPage.getByRole('button', { name: /export|download|pdf/i });
-
-    if (await exportButton.count() > 0) {
-      const firstExportButton = exportButton.first();
-
-      if (await firstExportButton.isVisible() && await firstExportButton.isEnabled()) {
-        await firstExportButton.click();
-
-        // Export modal or download should trigger
-        await producerPage.waitForTimeout(1000);
-
-        // Look for export options dialog
-        const exportDialog = producerPage.getByRole('dialog');
-
-        if (await exportDialog.isVisible()) {
-          // Export modal opened - verify it has export options
-          await expect(exportDialog).toBeVisible();
-        }
-      }
-    }
+    // Soft-deleted shots drop out of the active list.
+    await expect(
+      producerPage.locator('[data-testid="shot-card"]', { hasText: title }),
+    ).toHaveCount(0);
   });
 });

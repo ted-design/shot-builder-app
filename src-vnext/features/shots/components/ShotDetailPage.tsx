@@ -222,6 +222,7 @@ export default function ShotDetailPage() {
                 value={shot.title}
                 onSave={(title) => save({ title })}
                 className="heading-page"
+                testId="shot-title-edit"
               />
             ) : (
               <h1 className="heading-page">

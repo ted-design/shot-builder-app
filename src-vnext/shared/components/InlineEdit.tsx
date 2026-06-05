@@ -11,6 +11,8 @@ interface InlineEditProps {
   readonly disabled?: boolean
   /** When true, shows a pencil icon on hover to indicate the field is editable */
   readonly showEditIcon?: boolean
+  /** Optional stable hook for tests — applied to both the display and edit element. */
+  readonly testId?: string
 }
 
 export function InlineEdit({
@@ -20,6 +22,7 @@ export function InlineEdit({
   className,
   disabled = false,
   showEditIcon = false,
+  testId,
 }: InlineEditProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
@@ -49,6 +52,7 @@ export function InlineEdit({
     return (
       <Input
         ref={inputRef}
+        data-testid={testId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleSave}
@@ -68,6 +72,7 @@ export function InlineEdit({
 
   return (
     <span
+      data-testid={testId}
       className={cn(
         "group/edit inline-flex items-center gap-1 cursor-pointer rounded px-1 py-0.5 transition-colors hover:bg-[var(--color-surface-subtle)]",
         disabled && "cursor-default hover:bg-transparent",
