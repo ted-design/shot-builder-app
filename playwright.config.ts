@@ -26,7 +26,10 @@ export default defineConfig({
     // project-scoped routes (/projects/:id/pulls(/:pid)) and real selectors,
     // trimmed to flows that exist (list/create/detail/status/share/fulfillment).
     // See tests/QUARANTINE.md.
-    '**/image-crop-editor.spec.js', // targets removed legacy react-easy-crop UI (deferred — see QUARANTINE.md)
+    // image-crop-editor.spec.js DELETED 2026-06-05 — it targeted the removed
+    // legacy react-easy-crop crop editor + Attachments tab. Replaced by
+    // tests/hero-image.spec.ts (real HeroImageSection Storage-upload E2E), which
+    // is NOT quarantined and runs in the default gate. See tests/QUARANTINE.md.
     '**/visual.spec.ts',          // snapshot baselines missing/mismatched
     '**/e2e/richtext-bubble.spec.ts', // snapshot/visual baselines
     '**/diagnose-sticky.spec.js', // ad-hoc diagnostic scratch test; interactive-login helper

@@ -31,8 +31,22 @@ export const SEED_SHOT_AURORA = { id: 'e2e-shot-aurora', title: 'Aurora Hero Sho
 export const SEED_SHOT_BOREALIS = { id: 'e2e-shot-borealis', title: 'Borealis Detail Shot' } as const;
 export const SEED_SHOT_EDITABLE = { id: 'e2e-shot-editable', title: 'Editable Seed Shot' } as const;
 
+/**
+ * HERO — the DEDICATED hero-upload target for `hero-image.spec.ts`. That spec
+ * mutates this shot's doc (writes a `heroImage` on upload/replace, then clears
+ * it on reset, plus a version entry each write). It is NOT read-asserted by
+ * shots-crud (which uses per-title assertions and never checks an exact shot
+ * count), so mutating it in isolation is safe and won't break other specs.
+ */
+export const SEED_SHOT_HERO = { id: 'e2e-shot-hero', title: 'Hero Upload Shot' } as const;
+
 /** All seeded shots, in seed order. */
-export const SEED_SHOTS = [SEED_SHOT_AURORA, SEED_SHOT_BOREALIS, SEED_SHOT_EDITABLE] as const;
+export const SEED_SHOTS = [
+  SEED_SHOT_AURORA,
+  SEED_SHOT_BOREALIS,
+  SEED_SHOT_EDITABLE,
+  SEED_SHOT_HERO,
+] as const;
 
 /**
  * Seeded pull sheet for the pulls-crud spec. Lives under the seed project at

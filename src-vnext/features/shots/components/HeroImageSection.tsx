@@ -154,6 +154,7 @@ export function HeroImageSection({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
+          data-testid="hero-image-file-input"
           onChange={handleFileChange}
         />
       )}
