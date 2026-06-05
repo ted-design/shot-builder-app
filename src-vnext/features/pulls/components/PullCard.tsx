@@ -19,6 +19,7 @@ export function PullCard({ pull }: PullCardProps) {
 
   return (
     <Card
+      data-testid={`pull-card-${pull.id}`}
       className="cursor-pointer transition-shadow hover:shadow-md"
       onClick={() => navigate(`/projects/${projectId}/pulls/${pull.id}`)}
     >

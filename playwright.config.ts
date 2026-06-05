@@ -21,7 +21,11 @@ export default defineConfig({
     // shots-crud.spec.ts un-quarantined 2026-06-05: emulator seed step added
     // (seedShotsCrudScenario) + spec rewritten to the real project-scoped routes
     // and selectors. See tests/QUARANTINE.md.
-    '**/pulls-crud.spec.ts',      // targets nonexistent /pulls route + UI that doesn't exist (deferred — see QUARANTINE.md)
+    // pulls-crud.spec.ts un-quarantined 2026-06-05: emulator seed step added
+    // (seedPullsCrudScenario) + warehouse fixture + spec rewritten to the real
+    // project-scoped routes (/projects/:id/pulls(/:pid)) and real selectors,
+    // trimmed to flows that exist (list/create/detail/status/share/fulfillment).
+    // See tests/QUARANTINE.md.
     '**/image-crop-editor.spec.js', // targets removed legacy react-easy-crop UI (deferred — see QUARANTINE.md)
     '**/visual.spec.ts',          // snapshot baselines missing/mismatched
     '**/e2e/richtext-bubble.spec.ts', // snapshot/visual baselines

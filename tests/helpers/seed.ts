@@ -6,6 +6,8 @@ import {
   SEED_PROJECT_ID,
   SEED_PROJECT_NAME,
   SEED_SHOTS,
+  SEED_PULL,
+  SEED_PULL_ITEM,
 } from './seedConstants';
 
 /**
@@ -443,5 +445,113 @@ export async function seedShotsCrudScenario(): Promise<void> {
       shotNumber: String(order),
     });
     order += 1;
+  }
+}
+
+/**
+ * Clear every pull under the seed project (including ones the pulls-crud spec
+ * creates itself) at `clients/test-client/projects/e2e-seed-project/pulls`.
+ * Mirrors clearShotsCrudData's chunked delete. Does NOT touch the project doc
+ * or its shots — only the pulls subcollection.
+ */
+export async function clearPullsCrudData(): Promise<void> {
+  const db = getDb();
+
+  const pullsSnap = await db
+    .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/pulls`)
+    .get();
+
+  const refs = pullsSnap.docs.map((doc) => doc.ref);
+
+  // Delete in chunks — a Firestore batch is capped at 500 ops. A persisted local
+  // emulator can accumulate test-created pulls across runs (CI is fresh each time).
+  const CHUNK = 250;
+  for (let i = 0; i < refs.length; i += CHUNK) {
+    const batch = db.batch();
+    for (const ref of refs.slice(i, i + CHUNK)) batch.delete(ref);
+    await batch.commit();
+  }
+}
+
+/**
+ * Seed the deterministic fixture the pulls-crud spec reads: ONE app-shaped pull
+ * with ONE item, at `clients/test-client/projects/e2e-seed-project/pulls/<id>`.
+ * Cleared first so the dataset is identical on every run.
+ *
+ * ORDERING DEPENDENCY: assumes the seed PROJECT (e2e-seed-project) already
+ * exists — it is created by seedShotsCrudScenario(). global.setup.ts MUST call
+ * seedShotsCrudScenario() BEFORE seedPullsCrudScenario(). The pull doc shape
+ * mirrors createPullFromShots.ts (the canonical app writer) so usePulls/mapPull
+ * render it: Date values coerce to Firestore Timestamps; familyId + size are
+ * non-empty (mapItem/mapSize drop items/sizes missing them); 'colourName' uses
+ * British spelling.
+ *
+ * WAREHOUSE ACCESS: pass `warehouseUid` to grant the warehouse test user project
+ * membership (a doc at `.../projects/<id>/members/<uid>` with role 'warehouse').
+ * firestore.rules gates pull read on hasProjectRole(...,['producer','crew',
+ * 'warehouse','viewer']) and pull write on hasProjectRole(...,['producer',
+ * 'warehouse']); the warehouse user's GLOBAL role satisfies neither isAdmin nor
+ * producerCanAccessProject (producer-global only), so without this member doc the
+ * warehouse fulfillment test cannot even read the seeded pull. Producer needs no
+ * member doc — its global role satisfies producerCanAccessProject on a team project.
+ */
+export async function seedPullsCrudScenario(
+  opts: { warehouseUid?: string } = {},
+): Promise<void> {
+  await clearPullsCrudData();
+
+  const db = getDb();
+  const pullRef = db
+    .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/pulls`)
+    .doc(SEED_PULL.id);
+
+  const now = new Date();
+
+  await pullRef.set({
+    name: SEED_PULL.name,
+    title: null,
+    projectId: SEED_PROJECT_ID,
+    clientId: CLIENT_ID,
+    shotIds: [],
+    items: [
+      {
+        id: 'e2e-seed-pull-item',
+        familyId: SEED_PULL_ITEM.familyId,
+        familyName: SEED_PULL_ITEM.familyName,
+        colourId: null,
+        colourName: SEED_PULL_ITEM.colourName,
+        sizes: [
+          {
+            size: SEED_PULL_ITEM.size,
+            quantity: SEED_PULL_ITEM.quantity,
+            fulfilled: 0,
+            status: 'pending',
+          },
+        ],
+        fulfillmentStatus: 'pending',
+        notes: null,
+      },
+    ],
+    status: 'draft',
+    shareEnabled: false,
+    shareAllowResponses: false,
+    shareToken: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  // Grant the warehouse user project membership so firestore.rules permits it to
+  // read + fulfill the pull (see the WAREHOUSE ACCESS note above). Keyed by uid
+  // because hasProjectRole resolves the member doc at members/<request.auth.uid>.
+  if (opts.warehouseUid) {
+    await db
+      .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/members`)
+      .doc(opts.warehouseUid)
+      .set({
+        role: 'warehouse',
+        clientId: CLIENT_ID,
+        projectId: SEED_PROJECT_ID,
+        addedAt: now,
+      });
   }
 }
