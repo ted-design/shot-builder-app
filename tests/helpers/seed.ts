@@ -498,9 +498,23 @@ export async function clearPullsCrudData(): Promise<void> {
 export async function seedPullsCrudScenario(
   opts: { warehouseUid?: string } = {},
 ): Promise<void> {
+  const db = getDb();
+
+  // Fail loud, not silent: the ordering dependency above is only a comment. If
+  // global.setup ever reorders or skips seedShotsCrudScenario, the pull would be
+  // written into a nonexistent project (the admin SDK doesn't enforce parent
+  // existence) and the list test would see zero cards with no clue why.
+  const projectSnap = await db
+    .doc(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}`)
+    .get();
+  if (!projectSnap.exists) {
+    throw new Error(
+      `seedPullsCrudScenario: seed project ${SEED_PROJECT_ID} not found — run seedShotsCrudScenario() first`,
+    );
+  }
+
   await clearPullsCrudData();
 
-  const db = getDb();
   const pullRef = db
     .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/pulls`)
     .doc(SEED_PULL.id);
