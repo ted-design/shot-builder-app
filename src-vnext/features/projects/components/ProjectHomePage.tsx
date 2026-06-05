@@ -222,6 +222,10 @@ export default function ProjectHomePage() {
       shotCounts: insights.statusCounts,
       casting: { unbooked: countUnbooked(castingEntries) },
       samples: { missing: samplesMissing },
+      // TODO: `sent` is a stub — the schedule model has no "sent" field yet, so
+      // we hardcode false. Wire to real data when call-sheet send state exists;
+      // until then computeNextAction's build-shot-list branch only fires via the
+      // empty-project path.
       schedule: { hasCallSheet: schedules.length > 0, sent: false },
       shootDate: project ? earliestUpcomingShoot(project.shootDates, new Date()) : null,
     })

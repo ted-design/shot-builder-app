@@ -64,13 +64,7 @@ export interface NextActionInput {
   readonly shootDate: Date | null
 }
 
-/**
- * A single navigable choice: button copy + the absolute route it links to.
- *
- * NOTE: unlike `NextAction`, this has no machine-readable `label`. The bar is
- * navigation-only today, so none is needed. If click-tracking is ever wired up,
- * add a `label` here so an alternate-CTA click can emit a stable analytics key.
- */
+/** A single navigable choice: button copy + the absolute route it links to. */
 export interface NextActionLink {
   /** Button / link copy. */
   readonly ctaText: string
@@ -153,6 +147,8 @@ export function computeNextAction(
   //    both and let the user choose (primary CTA + equal-weight alternate)
   //    rather than forcing one. Shot list leads because it's the natural first
   //    creative step, but the call sheet is one click away as the alternate.
+  //    Intentionally ignores `sent` here: a call sheet can't be sent before it
+  //    exists, so `!hasCallSheet` already implies `!sent`.
   if (!schedule.hasCallSheet && totalShots === 0) {
     return {
       label: "empty-project",
