@@ -253,7 +253,7 @@ export default function LoginPage() {
 
             {/* Error message */}
             {error && (
-              <p className="text-xs text-red-400">{error}</p>
+              <p className="text-xs text-red-400" data-testid="login-error">{error}</p>
             )}
           </div>
         </div>

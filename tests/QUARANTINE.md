@@ -1,6 +1,6 @@
 # E2E (`ui-checks`) Quarantine & Backlog
 
-_Last updated: 2026-06-05_
+_Last updated: 2026-06-06_
 
 ## Why this file exists
 
@@ -55,8 +55,47 @@ the "merge past red" norm without silently dropping coverage.
   Requires the Storage emulator (see below) and a desktop viewport (`canEdit`
   needs `!isMobile`). Runs serial — it mutates the shared seeded shot.
 
+- **`tests/auth.spec.ts`** (interactive login, NO storageState) — chromium only.
+  Un-quarantined 2026-06-06. The ONLY suite that drives the real login form, so
+  it covers what storageState fixtures cannot: sign-in, sign-out, redirect when
+  unauthenticated, session persistence across reload, and the invalid-credential
+  error path (5 tests). See "Interactive-login helper fix" below.
+
 This set exercises authenticated page loads + CRUD and so directly guards against
 the white-screen regression and the shot + pull data paths.
+
+## Interactive-login helper fix (added 2026-06-06)
+
+`tests/helpers/auth.ts` (`authenticateTestUser`) timed out on its post-login
+`waitForURL` — NOT because of selectors or the URL regex (both matched the real
+`/projects` landing), but because:
+
+1. **`waitUntil: 'networkidle'`** on its `goto`/`reload` fought the Firebase
+   emulator's long-lived streaming connections (Firestore listeners,
+   Installations), which never go idle — the page could submit in an unsettled
+   state and the wait could hang until timeout. Changed to `'domcontentloaded'`.
+2. **It raced a single client-side redirect** (`waitForURL`). The redirect is
+   driven in-app (`onIdTokenChanged → claims → navigate('/projects')`) and can
+   lag. Replaced with a wait on concrete authed SIGNALS — the emulator login
+   form **detaches**, `location.pathname` leaves `/login`, and the app nav
+   renders. This mirrors the proven-stable shape `global.setup.ts` relies on.
+
+The `signOut` helper was also broken: it looked for `button[aria-label*="user"]`
+/ `button:has-text("Sign out")`, but the real control is an **icon-only** button
+in `SidebarUserSection` with `aria-label="Sign out"` (no visible text, no
+separate user-menu trigger). It now clicks `button[aria-label="Sign out"]`
+directly and waits for the genuine redirect to `/login`.
+
+The only app-source change is a behavior-free `data-testid="login-error"` on
+`LoginPage.tsx`'s error `<p>`, so the invalid-credential test can scope to the
+real error element instead of a page-wide text regex.
+
+`auth.spec.ts` was trimmed to the 5 genuine login-flow tests. The 3 prior
+role-access tests (non-admin/viewer/producer on `/products`) were dropped — two
+had vacuous `if (count > 0)` guards that silently passed (≈no coverage), and
+real RBAC coverage already lives in smoke + shots-crud via storageState. The
+`admin role can access admin page` test was dropped as a duplicate of
+smoke.spec.ts's `test.fixme` (same unresolved admin-heading gap, below).
 
 ## Emulator seed (added 2026-06-05)
 
@@ -122,11 +161,10 @@ image contentType <10MB — no project-membership doc required (unlike pulls).
 | Spec | Category | Failure | Fix needed |
 |---|---|---|---|
 | `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
-| `auth.spec.ts` | Test infra | `helpers/auth.ts` interactive login times out on the post-login `waitForURL` redirect | Make the helper rehydrate via the app's real modular-SDK persistence (or switch these specs to storageState fixtures) |
-| `sidebar-summary.spec.ts` | Test infra | Same interactive-login helper root cause | As above |
+| `sidebar-summary.spec.ts` | False premise / stale UI | Targets a shot **edit modal** (`role="dialog"`) with an `aside[data-testid="sidebar-summary"]` + Basics/Logistics tabs + "No date scheduled"/"No location" strings — **none of which exist** in current source. Editing now happens on the detail **page** (`ShotDetailPage.tsx`). Essentially every selector is stale. (NOT the interactive-login helper — that's fixed.) | Ground-up rewrite against `ShotDetailPage` (producerPage fixture + `SEED_SHOT_AURORA`/`SEED_SHOT_EDITABLE`): status select + autosave Saving/Saved, Date/Location "Not set" empty states, Tags. The seed currently lacks date/location/tags data, so assert empty states or extend the seed. |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
-| `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic that drives the broken interactive-login helper (1-min timeout) | Delete it, or convert to a real assertion once the login helper is fixed |
+| `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic (1-min timeout); pre-dates and is unrelated to the now-fixed login helper | Delete it, or convert to a real assertion |
 
 ### Single-test quarantine
 
@@ -174,9 +212,15 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
    Storage-upload E2E (empty → upload → replace → reset) using the producer
    storageState fixture. The Storage emulator was wired into `ui-checks`
    (`--only ...,storage` + a 9199 readiness wait). Un-quarantined.
-4. **Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.
-5. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
-6. **Visual baselines** — regenerate on the CI runner image; un-quarantines
+4. ~~**Robust interactive-login helper** — fixes `auth` + `sidebar-summary`.~~
+   **Partly done 2026-06-06**: the helper was fixed (authed-signal wait +
+   `domcontentloaded` + real `signOut` control) and `auth.spec.ts` un-quarantined.
+   Scouting revealed `sidebar-summary` was NEVER a login-helper victim — it is a
+   **false-premise spec** (targets a removed shot edit modal); it is now item 5.
+5. **Rewrite `sidebar-summary`** — ground-up against `ShotDetailPage` (it targets
+   a removed edit-modal sidebar; see the quarantine table for the real shape).
+6. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
+7. **Visual baselines** — regenerate on the CI runner image; un-quarantines
    `visual` + `richtext-bubble`.
-7. **Cross-browser job** — re-add firefox/webkit as a separate, non-blocking job
+8. **Cross-browser job** — re-add firefox/webkit as a separate, non-blocking job
    once the above land.
