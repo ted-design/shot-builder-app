@@ -79,6 +79,14 @@ the white-screen regression and the shot + pull data paths.
    lag. Replaced with a wait on concrete authed SIGNALS — the emulator login
    form **detaches**, `location.pathname` leaves `/login`, and the app nav
    renders. This mirrors the proven-stable shape `global.setup.ts` relies on.
+3. **Its submit selector clicked the wrong button.** The old selector listed
+   `..., button:has-text("Sign in"), ...` and `.first()` returns the DOM-first
+   match — which is the Google OAuth button ("Sign in **with Google**" contains
+   "Sign in" and renders before the emulator form), opening a popup so the form
+   never submitted. Narrowed to `[data-testid="emulator-login-form"]
+   button[type="submit"], button[type="submit"]` (the Google button is
+   `type="button"`, so it's excluded), matching `global.setup.ts`. This was the
+   first-CI-run failure on the two helper-driven tests.
 
 The `signOut` helper was also broken: it looked for `button[aria-label*="user"]`
 / `button:has-text("Sign out")`, but the real control is an **icon-only** button

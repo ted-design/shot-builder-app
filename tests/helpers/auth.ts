@@ -76,12 +76,15 @@ export async function authenticateTestUser(
       // Small delay to ensure form is ready
       await page.waitForTimeout(500);
 
-      // Click sign in button — emulator form first, then generic fallbacks.
-      // Without the emulator-form-scoped selector, `.first()` would pick the
-      // Google OAuth button because "Sign in with Google" matches :has-text("Sign in")
-      // and it's rendered earlier in the DOM.
+      // Click the emulator form's submit button. Match ONLY type="submit"
+      // buttons — NEVER a :has-text("Sign in") selector: the Google OAuth button
+      // ("Sign in with Google") contains the text "Sign in" AND is rendered
+      // earlier in the DOM, so `.first()` across a :has-text list would click
+      // Google (opening a popup) and the form would never submit. The Google
+      // button is type="button", so a type="submit" filter excludes it. This is
+      // the proven-safe selector global.setup.ts uses.
       const signInButton = page.locator(
-        '[data-testid="emulator-login-form"] button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]'
+        '[data-testid="emulator-login-form"] button[type="submit"], button[type="submit"]'
       ).first();
       await signInButton.click();
 

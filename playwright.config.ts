@@ -16,13 +16,9 @@ export default defineConfig({
   // regression. DO NOT add specs here without a tracking entry in QUARANTINE.md.
   testIgnore: [
     '**/a11y.spec.ts',            // real WCAG AA contrast violations in the app
-    // auth.spec.ts un-quarantined 2026-06-06: helpers/auth.ts now waits on authed
-    // SIGNALS (emulator form detaches + we leave /login + nav renders) instead of
-    // the brittle post-login waitForURL race, the goto/reload use 'domcontentloaded'
-    // (emulator sockets never go idle), and signOut() clicks the real
-    // aria-label="Sign out" control. The spec is trimmed to the 5 genuine
-    // login-flow tests (sign-in/out, unauth redirect, session persist, invalid
-    // creds); RBAC/admin coverage stays in smoke + shots-crud. See QUARANTINE.md.
+    // auth.spec.ts un-quarantined 2026-06-06: interactive-login helper fixed
+    // (authed-signal wait + domcontentloaded + real sign-out + emulator-only
+    // submit selector). See QUARANTINE.md "Interactive-login helper fix".
     '**/sidebar-summary.spec.ts', // FALSE-PREMISE (not the login helper): targets a
                                   // removed shot edit MODAL (role="dialog") + an
                                   // aside[data-testid="sidebar-summary"] + Basics/
