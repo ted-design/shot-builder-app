@@ -16,8 +16,15 @@ export default defineConfig({
   // regression. DO NOT add specs here without a tracking entry in QUARANTINE.md.
   testIgnore: [
     '**/a11y.spec.ts',            // real WCAG AA contrast violations in the app
-    '**/auth.spec.ts',            // interactive-login helper times out on post-login redirect
-    '**/sidebar-summary.spec.ts', // interactive-login helper (same root cause)
+    // auth.spec.ts un-quarantined 2026-06-06: interactive-login helper fixed
+    // (authed-signal wait + domcontentloaded + real sign-out + emulator-only
+    // submit selector). See QUARANTINE.md "Interactive-login helper fix".
+    '**/sidebar-summary.spec.ts', // FALSE-PREMISE (not the login helper): targets a
+                                  // removed shot edit MODAL (role="dialog") + an
+                                  // aside[data-testid="sidebar-summary"] + Basics/
+                                  // Logistics tabs that no longer exist — editing is
+                                  // on ShotDetailPage now. Needs a ground-up rewrite
+                                  // against the detail page. See QUARANTINE.md.
     // shots-crud.spec.ts un-quarantined 2026-06-05: emulator seed step added
     // (seedShotsCrudScenario) + spec rewritten to the real project-scoped routes
     // and selectors. See tests/QUARANTINE.md.

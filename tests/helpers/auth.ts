@@ -37,9 +37,12 @@ export async function authenticateTestUser(
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Navigate to the app with increased timeout for CI
+      // Navigate to the app with increased timeout for CI.
+      // Use 'domcontentloaded', NOT 'networkidle': against the Firebase emulator
+      // the app opens long-lived streaming connections (Firestore listeners,
+      // Installations) that never go idle, so 'networkidle' can hang until timeout.
       await page.goto(`${baseURL}/`, {
-        waitUntil: 'networkidle',
+        waitUntil: 'domcontentloaded',
         timeout: 30000
       });
 
@@ -73,22 +76,35 @@ export async function authenticateTestUser(
       // Small delay to ensure form is ready
       await page.waitForTimeout(500);
 
-      // Click sign in button — emulator form first, then generic fallbacks.
-      // Without the emulator-form-scoped selector, `.first()` would pick the
-      // Google OAuth button because "Sign in with Google" matches :has-text("Sign in")
-      // and it's rendered earlier in the DOM.
+      // Click the emulator form's submit button. Match ONLY type="submit"
+      // buttons — NEVER a :has-text("Sign in") selector: the Google OAuth button
+      // ("Sign in with Google") contains the text "Sign in" AND is rendered
+      // earlier in the DOM, so `.first()` across a :has-text list would click
+      // Google (opening a popup) and the form would never submit. The Google
+      // button is type="button", so a type="submit" filter excludes it. This is
+      // the proven-safe selector global.setup.ts uses.
       const signInButton = page.locator(
-        '[data-testid="emulator-login-form"] button[type="submit"], button:has-text("Sign in"), button:has-text("Sign In"), button[type="submit"]'
+        '[data-testid="emulator-login-form"] button[type="submit"], button[type="submit"]'
       ).first();
       await signInButton.click();
 
-      // Wait for authentication to complete and redirect with increased timeout
-      await page.waitForURL(/\/(shots|dashboard|projects|planner)/, {
-        timeout: 20000
+      // Wait for authed SIGNALS rather than racing a single client-side redirect.
+      // The post-login redirect is driven in-app (onIdTokenChanged → claims →
+      // navigate('/projects')); waiting on page.waitForURL alone is flaky because
+      // that chain can lag behind the emulator's never-idle connections. Instead
+      // wait for concrete evidence the session took hold: (1) the emulator login
+      // form unmounts, (2) we are no longer on /login, (3) the app nav renders.
+      // This is an authed-signal variant of global.setup.ts's waitForURL + nav
+      // check, hardened against the redirect race rather than relying on the URL.
+      await page.locator('[data-testid="emulator-login-form"]').waitFor({
+        state: 'detached',
+        timeout: 30000
       });
-
-      // Wait for DOM to be ready (don't use networkidle with Firebase real-time listeners)
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+      await page.waitForFunction(
+        () => !window.location.pathname.startsWith('/login'),
+        undefined,
+        { timeout: 30000 }
+      );
 
       // Wait for authenticated UI to appear (ensures Firebase auth state is loaded)
       await page.locator('nav, header, [role="navigation"]').first().waitFor({
@@ -107,9 +123,10 @@ export async function authenticateTestUser(
         console.log(`Retrying authentication in 2 seconds...`);
         await page.waitForTimeout(2000);
 
-        // Try to reload the page for next attempt
+        // Try to reload the page for next attempt (domcontentloaded, not
+        // networkidle — see the goto note above re: never-idle emulator sockets)
         try {
-          await page.reload({ waitUntil: 'networkidle', timeout: 10000 });
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 });
         } catch (reloadError) {
           // If reload fails, continue to next attempt anyway
           console.log('Page reload failed, continuing with next attempt');
@@ -136,30 +153,33 @@ export async function setupFirebaseEmulators(page: Page): Promise<void> {
 }
 
 /**
- * Clear authentication state.
+ * Sign the current user out through the real app control and wait until the
+ * session is actually cleared.
+ *
+ * The sign-out control lives in the sidebar user section (SidebarUserSection)
+ * as an icon-only button with aria-label="Sign out" — there is NO separate
+ * user-menu trigger to open first, and it has no visible text (so a
+ * :has-text("Sign out") selector would not match it). It renders on desktop
+ * when the sidebar is expanded, which is the default state.
  *
  * @param page - Playwright page instance
  */
 export async function signOut(page: Page): Promise<void> {
-  // Look for sign out button or user menu
-  const userMenu = page.locator('button[aria-label*="user" i], button:has-text("Sign out")').first();
-  const userMenuExists = await userMenu.count() > 0;
+  const signOutButton = page.locator('button[aria-label="Sign out"]').first();
+  await signOutButton.waitFor({ state: 'visible', timeout: 10000 });
+  await signOutButton.click();
 
-  if (userMenuExists) {
-    await userMenu.click();
-
-    const signOutButton = page.locator('button:has-text("Sign out"), a:has-text("Sign out")').first();
-    const signOutExists = await signOutButton.count() > 0;
-
-    if (signOutExists) {
-      await signOutButton.click();
-      await page.waitForURL(/\/(login|signin|auth)/, { timeout: 5000 });
-    }
-  }
-
-  // Clear all storage
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+  // App signOut() → auth.signOut() → onIdTokenChanged(null) → RequireAuth
+  // redirects to /login. Wait for that redirect and the login form to reappear,
+  // proving the session is genuinely gone (the modular SDK stores auth in
+  // IndexedDB, so observing the real redirect is the reliable signal).
+  await page.waitForFunction(
+    () => window.location.pathname.startsWith('/login'),
+    undefined,
+    { timeout: 10000 }
+  );
+  await page.locator('input[type="email"]').first().waitFor({
+    state: 'visible',
+    timeout: 10000
   });
 }
