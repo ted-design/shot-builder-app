@@ -30,7 +30,7 @@ the "merge past red" norm without silently dropping coverage.
   - ✅ `producer can access dashboard and create shot`
   - ✅ `producer can navigate between pages`
   - ✅ `viewer has read-only access`
-  - ⏸️ `admin can access admin page` — `test.fixme` (see below)
+  - ✅ `admin can access admin page` — un-`fixme`'d 2026-06-06 (see below)
 - **`tests/shots-crud.spec.ts`** (storageState auth) — chromium only. Un-quarantined
   2026-06-05. Hard-asserts the real, project-scoped shot lifecycle against a
   seeded fixture: list (read), create, detail deep-link (read), search filter,
@@ -172,14 +172,19 @@ image contentType <10MB — no project-membership doc required (unlike pulls).
 | `sidebar-summary.spec.ts` | False premise / stale UI | Targets a shot **edit modal** (`role="dialog"`) with an `aside[data-testid="sidebar-summary"]` + Basics/Logistics tabs + "No date scheduled"/"No location" strings — **none of which exist** in current source. Editing now happens on the detail **page** (`ShotDetailPage.tsx`). Essentially every selector is stale. (NOT the interactive-login helper — that's fixed.) | Ground-up rewrite against `ShotDetailPage` (producerPage fixture + `SEED_SHOT_AURORA`/`SEED_SHOT_EDITABLE`): status select + autosave Saving/Saved, Date/Location "Not set" empty states, Tags. The seed currently lacks date/location/tags data, so assert empty states or extend the seed. |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
-| `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic (1-min timeout); pre-dates and is unrelated to the now-fixed login helper | Delete it, or convert to a real assertion |
+
+(`diagnose-sticky.spec.js` was a scratch ad-hoc diagnostic with no assertions —
+**deleted 2026-06-06** rather than quarantined; nothing of value lost.)
 
 ### Single-test quarantine
 
-- `smoke.spec.ts › admin can access admin page` — `test.fixme`. The admin page
-  renders no heading matching `/admin|user management|settings/i` in the emulator
-  build (no admin-specific seed data / selector drift). Re-enable once the admin
-  page exposes a stable heading or seed data is added.
+- ~~`smoke.spec.ts › admin can access admin page` — `test.fixme`.~~ **Resolved
+  2026-06-06.** The skip was a stale selector, not a seed/data gap: `AdminPage`
+  renders fine for the emulator admin (users read rule is `clientMatches &&
+  isAuthed`; the admin user carries `clientId='test-client'`), but its heading is
+  `<h1>Team</h1>` (`PageHeader title="Team"`), not `/admin|user management|
+  settings/`. The test now asserts the real admin surface (the "Team" heading +
+  the admin-only "Invite User" action) and is un-`fixme`'d.
 
 ## How to re-enable a quarantined spec
 

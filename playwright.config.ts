@@ -39,7 +39,8 @@ export default defineConfig({
     // is NOT quarantined and runs in the default gate. See tests/QUARANTINE.md.
     '**/visual.spec.ts',          // snapshot baselines missing/mismatched
     '**/e2e/richtext-bubble.spec.ts', // snapshot/visual baselines
-    '**/diagnose-sticky.spec.js', // ad-hoc diagnostic scratch test; interactive-login helper
+    // diagnose-sticky.spec.js DELETED 2026-06-06 — dead ad-hoc diagnostic scratch
+    // (no assertions); removed rather than quarantined. See tests/QUARANTINE.md.
   ],
 
   // Global setup to seed test users in Firebase emulator (required for CI)
