@@ -301,7 +301,12 @@ async function globalSetup(config: FullConfig) {
   // helper guards against a double initializeApp.
   console.log('Seeding Firestore fixtures (shots-crud)...');
   try {
-    await seedShotsCrudScenario();
+    // Pass the viewer uid so the seed grants it project membership: the shot
+    // detail page subscribes to the project's lanes, whose read rule requires
+    // hasProjectRole(...,'viewer') (a viewer's global role satisfies neither
+    // isAdmin nor producerCanAccessProject), so without it the detail page
+    // errors out for a viewer (sidebar-summary's read-only group).
+    await seedShotsCrudScenario({ viewerUid: roleUids.viewer });
     // Seed the pulls-crud fixture AFTER shots-crud — seedPullsCrudScenario
     // assumes the seed project (created by seedShotsCrudScenario) already exists.
     // Pass the warehouse uid so the seed can grant it project membership: pull

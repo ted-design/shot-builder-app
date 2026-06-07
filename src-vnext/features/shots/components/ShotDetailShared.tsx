@@ -22,12 +22,17 @@ export function SectionLabel({ children }: { readonly children: React.ReactNode 
 export function MetaEditorCard({
   label,
   children,
+  testId,
 }: {
   readonly label: string
   readonly children: React.ReactNode
+  readonly testId?: string
 }) {
   return (
-    <div className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+    <div
+      className="rounded-md border border-[var(--color-border)] px-2 py-1.5"
+      data-testid={testId}
+    >
       <p className="text-3xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
         {label}
       </p>

@@ -61,6 +61,18 @@ the "merge past red" norm without silently dropping coverage.
   unauthenticated, session persistence across reload, and the invalid-credential
   error path (5 tests). See "Interactive-login helper fix" below.
 
+- **`tests/sidebar-summary.spec.ts`** (storageState auth) — chromium only.
+  Un-quarantined 2026-06-06. Was a false-premise spec (a removed shot edit
+  modal); rewritten ground-up against the shot DETAIL PAGE (`ShotDetailPage` at
+  `/projects/:id/shots/:sid`). Hard-asserts the real summary surfaces against the
+  seed: a **read-only** group (`viewerPage` + `SEED_SHOT_AURORA`, `canEdit=false`)
+  asserting the status badge ("Draft"), empty meta cells (`meta-date`/
+  `meta-location` "Not set", `meta-talent` "0 assigned"), and the empty Tags
+  editor ("Add tags…"); and an **editing** group (serial, `producerPage` +
+  `SEED_SHOT_EDITABLE`) that changes status via the Radix Select and proves
+  persistence across reload (then resets to `todo`), plus the Notes autosave
+  indicator reaching "Saved". See "Sidebar-summary rewrite" below.
+
 This set exercises authenticated page loads + CRUD and so directly guards against
 the white-screen regression and the shot + pull data paths.
 
@@ -104,6 +116,64 @@ had vacuous `if (count > 0)` guards that silently passed (≈no coverage), and
 real RBAC coverage already lives in smoke + shots-crud via storageState. The
 `admin role can access admin page` test was dropped as a duplicate of
 smoke.spec.ts's `test.fixme` (same unresolved admin-heading gap, below).
+
+## Sidebar-summary rewrite (added 2026-06-06)
+
+`tests/sidebar-summary.spec.ts` was a **false-premise** spec, not a login-helper
+victim: it drove a shot **edit modal** (`role="dialog"`) with an
+`aside[data-testid="sidebar-summary"]`, a native `<select>` status control,
+Status/Schedule/Tags sections, and Basics/Logistics `role="tab"` tabs — none of
+which exist. The shot summary/edit experience is the detail **page**
+(`ShotDetailPage`, `/projects/:id/shots/:sid`). It was rewritten ground-up
+against the real page and the existing emulator seed, following the
+`shots-crud.spec.ts` storageState pattern.
+
+Selectors verified against `src-vnext` (the rewrite corrects three stale
+assumptions in the original handoff):
+
+1. **Status is a Radix Select, not a native `<select>`** — the trigger renders
+   as a `role="combobox"` button (now `data-testid="shot-status-select-trigger"`)
+   and options render in a portal `role="listbox"`. The test opens the trigger
+   and clicks `getByRole('option', { name: ... })`; `selectOption`/`inputValue`
+   would not work. Status labels: `todo`→"Draft", `in_progress`→"In Progress",
+   `complete`→"Shot", `on_hold`→"On Hold".
+2. **Autosave "Saving…/Saved" is per-editor, not page-level** — status/Date/
+   Location/Talent/Tags save silently (status is optimistic; only a toast on
+   failure). The `Saving…`/`Saved` indicator only renders inside the
+   Description/Notes editors while they are mounted. The status test therefore
+   proves persistence by **reloading**; the autosave indicator is covered via the
+   already-instrumented Notes editor (`notes-read-mode`/`notes-input`/
+   `notes-save-indicator`).
+3. **`canEdit = canManageShots(role) && !isMobile`** — at desktop (the fixtures
+   set 1280×720) a producer is an editor (cells show edit affordances) while a
+   viewer is read-only (`ReadOnlyMetaValue`: "Not set"/"0 assigned"). The
+   read-only summary group uses `viewerPage`; the editing group uses
+   `producerPage`.
+
+RBAC: shots are a **flat** `clients/{clientId}/shots/{id}` collection gated by
+`clientMatches + isAuthed` only, so the producer needs no project members doc.
+The viewer (also `clientId: 'test-client'`) can read the shot, BUT
+`ShotDetailPage` → `useShotDetailBundle` also subscribes to the project's
+**`lanes`** subcollection, whose read rule requires
+`hasProjectRole(...,['producer','crew','warehouse','viewer'])` or
+`producerCanAccessProject` (producer-global only). A viewer's global role
+satisfies neither, and `useShotDetailBundle` folds the resulting `lanes.error`
+into a **fatal** page error — so the detail page would blank out for a viewer.
+(Adversarial verify caught this; `useShotDetailBundle.test.ts` documents the
+lanes-error-is-fatal behavior.) Fix mirrors the warehouse-on-pulls pattern:
+`seedShotsCrudScenario` now accepts a `viewerUid` and writes a project
+`members/<uid>` doc (role `viewer`), wired from `global.setup.ts`. Membership
+does NOT make the viewer an editor — the UI's `canEdit`/`canManageShots` keys off
+the user's GLOBAL role (`rbac.ts`), so the viewer still renders the read-only
+path. (Latent product note: a non-member viewer cannot open a shot detail page in
+production for the same reason — out of scope for this E2E PR, tracked separately.)
+
+App-source changes are behavior-free testability hooks only:
+`data-testid="shot-status-select-trigger"` on `ShotStatusSelect`'s trigger, a
+`testId` prop on `MetaEditorCard` (passed as `meta-date`/`meta-location`/
+`meta-talent` in `ShotDetailPage`), and `data-testid="tags-section"` on the Tags
+wrapper. The only seed change is the additive viewer member doc above — no shot
+data was modified.
 
 ## Emulator seed (added 2026-06-05)
 
@@ -169,7 +239,6 @@ image contentType <10MB — no project-membership doc required (unlike pulls).
 | Spec | Category | Failure | Fix needed |
 |---|---|---|---|
 | `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
-| `sidebar-summary.spec.ts` | False premise / stale UI | Targets a shot **edit modal** (`role="dialog"`) with an `aside[data-testid="sidebar-summary"]` + Basics/Logistics tabs + "No date scheduled"/"No location" strings — **none of which exist** in current source. Editing now happens on the detail **page** (`ShotDetailPage.tsx`). Essentially every selector is stale. (NOT the interactive-login helper — that's fixed.) | Ground-up rewrite against `ShotDetailPage` (producerPage fixture + `SEED_SHOT_AURORA`/`SEED_SHOT_EDITABLE`): status select + autosave Saving/Saved, Date/Location "Not set" empty states, Tags. The seed currently lacks date/location/tags data, so assert empty states or extend the seed. |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
 | `diagnose-sticky.spec.js` | Scratch | Ad-hoc sticky-toolbar diagnostic (1-min timeout); pre-dates and is unrelated to the now-fixed login helper | Delete it, or convert to a real assertion |
@@ -225,8 +294,12 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
    `domcontentloaded` + real `signOut` control) and `auth.spec.ts` un-quarantined.
    Scouting revealed `sidebar-summary` was NEVER a login-helper victim — it is a
    **false-premise spec** (targets a removed shot edit modal); it is now item 5.
-5. **Rewrite `sidebar-summary`** — ground-up against `ShotDetailPage` (it targets
-   a removed edit-modal sidebar; see the quarantine table for the real shape).
+5. ~~**Rewrite `sidebar-summary`** — ground-up against `ShotDetailPage` (it targets
+   a removed edit-modal sidebar).~~ **Done 2026-06-06**: rewritten against
+   `ShotDetailPage` using the storageState viewer/producer fixtures + the existing
+   seed (read-only summary on `SEED_SHOT_AURORA`; status mutation + reload
+   persistence + Notes autosave on `SEED_SHOT_EDITABLE`). Un-quarantined. See
+   "Sidebar-summary rewrite" above.
 6. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
 7. **Visual baselines** — regenerate on the CI runner image; un-quarantines
    `visual` + `richtext-bubble`.
