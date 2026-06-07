@@ -68,7 +68,10 @@ export function ShotStatusSelect({
       onValueChange={handleChange}
       disabled={disabled}
     >
-      <SelectTrigger className={compact ? "h-7 w-[108px] px-2 text-xs" : "h-8 w-[128px]"}>
+      <SelectTrigger
+        data-testid="shot-status-select-trigger"
+        className={compact ? "h-7 w-[108px] px-2 text-xs" : "h-8 w-[128px]"}
+      >
         <SelectValue>
           <StatusBadge
             label={getShotStatusLabel(displayStatus)}

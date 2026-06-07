@@ -307,7 +307,7 @@ export default function ShotDetailPage() {
                 <ActiveLookCoverReferencesPanel shot={shot} canEdit={canEdit} />
               </div>
               <div className="mt-2 grid grid-cols-1 gap-1.5 md:grid-cols-3">
-                <MetaEditorCard label="Date">
+                <MetaEditorCard label="Date" testId="meta-date">
                   {canEdit ? (
                     <DateEditor
                       value={formatDateOnly(shot.date)}
@@ -329,7 +329,7 @@ export default function ShotDetailPage() {
                   )}
                 </MetaEditorCard>
 
-                <MetaEditorCard label="Location">
+                <MetaEditorCard label="Location" testId="meta-location">
                   {canEdit ? (
                     <LocationPicker
                       selectedId={shot.locationId}
@@ -346,7 +346,7 @@ export default function ShotDetailPage() {
                   )}
                 </MetaEditorCard>
 
-                <MetaEditorCard label="Talent">
+                <MetaEditorCard label="Talent" testId="meta-talent">
                   {canEdit ? (
                     <TalentPicker
                       selectedIds={shot.talentIds ?? shot.talent}
@@ -387,7 +387,7 @@ export default function ShotDetailPage() {
                 }}
               />
 
-              <div>
+              <div data-testid="tags-section">
                 <SectionLabel>Tags</SectionLabel>
                 <TagEditor
                   tags={shot.tags ?? []}

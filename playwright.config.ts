@@ -19,12 +19,12 @@ export default defineConfig({
     // auth.spec.ts un-quarantined 2026-06-06: interactive-login helper fixed
     // (authed-signal wait + domcontentloaded + real sign-out + emulator-only
     // submit selector). See QUARANTINE.md "Interactive-login helper fix".
-    '**/sidebar-summary.spec.ts', // FALSE-PREMISE (not the login helper): targets a
-                                  // removed shot edit MODAL (role="dialog") + an
-                                  // aside[data-testid="sidebar-summary"] + Basics/
-                                  // Logistics tabs that no longer exist — editing is
-                                  // on ShotDetailPage now. Needs a ground-up rewrite
-                                  // against the detail page. See QUARANTINE.md.
+    // sidebar-summary.spec.ts un-quarantined 2026-06-06: it was a FALSE-PREMISE
+    // spec (removed shot edit MODAL + aside[data-testid="sidebar-summary"] +
+    // Basics/Logistics tabs). Rewritten ground-up against ShotDetailPage
+    // (/projects/:id/shots/:sid) using the storageState viewer/producer fixtures
+    // + emulator seed (read-only summary on SEED_SHOT_AURORA, status mutation +
+    // autosave on SEED_SHOT_EDITABLE). See tests/QUARANTINE.md.
     // shots-crud.spec.ts un-quarantined 2026-06-05: emulator seed step added
     // (seedShotsCrudScenario) + spec rewritten to the real project-scoped routes
     // and selectors. See tests/QUARANTINE.md.

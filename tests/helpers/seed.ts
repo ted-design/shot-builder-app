@@ -425,8 +425,23 @@ export async function clearShotsCrudData(): Promise<void> {
  * Seed the deterministic fixture the shots-crud spec reads: one team-visible
  * project + the app-shaped shots declared in seedConstants.ts. Cleared first so
  * the dataset is identical on every run (the emulator persists across a run).
+ *
+ * VIEWER ACCESS: pass `viewerUid` to grant the viewer test user project
+ * membership (a doc at `.../projects/<id>/members/<uid>` with role 'viewer').
+ * The shot detail page (ShotDetailPage → useShotDetailBundle) subscribes to the
+ * project's `lanes` subcollection, whose firestore.rules read gate is
+ * `hasProjectRole(...,['producer','crew','warehouse','viewer'])` OR
+ * producerCanAccessProject (producer-global only). A viewer's GLOBAL role
+ * satisfies neither, so without this member doc the lanes read is denied,
+ * useShotDetailBundle folds that into a fatal page error, and the detail page
+ * never renders for a viewer. Producer needs no member doc — its global role
+ * satisfies producerCanAccessProject on a team project. Granting membership does
+ * NOT make the viewer an editor: the UI's canEdit/canManageShots uses the
+ * user's GLOBAL role (rbac.ts), so the viewer still renders the read-only path.
  */
-export async function seedShotsCrudScenario(): Promise<void> {
+export async function seedShotsCrudScenario(
+  opts: { viewerUid?: string } = {},
+): Promise<void> {
   await clearShotsCrudData();
 
   await createTestProject({
@@ -445,6 +460,21 @@ export async function seedShotsCrudScenario(): Promise<void> {
       shotNumber: String(order),
     });
     order += 1;
+  }
+
+  // Grant the viewer user project membership so firestore.rules permits it to
+  // read the project's lanes (and project doc) — see the VIEWER ACCESS note
+  // above. Keyed by uid because hasProjectRole resolves members/<request.auth.uid>.
+  if (opts.viewerUid) {
+    await getDb()
+      .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/members`)
+      .doc(opts.viewerUid)
+      .set({
+        role: 'viewer',
+        clientId: CLIENT_ID,
+        projectId: SEED_PROJECT_ID,
+        addedAt: new Date(),
+      });
   }
 }
 
