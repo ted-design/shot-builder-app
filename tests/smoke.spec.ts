@@ -58,11 +58,15 @@ test.describe('UI Smoke Tests', () => {
     expect(adminPage.url()).toContain('/admin');
 
     // The admin page header ("Team") + the admin-only "Invite User" action.
+    // Two "Invite User" buttons render (the PageHeader action + the TeamRosterTab
+    // empty-state CTA when the roster is empty, as it is in the emulator), so
+    // scope to the first to avoid a strict-mode match — either one proves the
+    // admin surface rendered.
     await expect(
       adminPage.getByRole('heading', { name: /team/i }).first(),
     ).toBeVisible();
     await expect(
-      adminPage.getByRole('button', { name: /invite user/i }),
+      adminPage.getByRole('button', { name: /invite user/i }).first(),
     ).toBeVisible();
   });
 
