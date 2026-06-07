@@ -41,23 +41,33 @@ test.describe('UI Smoke Tests', () => {
     }
   });
 
-  // QUARANTINED: the admin page heading selector finds nothing in the emulator
-  // build (admin route renders no matching heading without admin-specific seed
-  // data). Tracked in tests/QUARANTINE.md → "smoke: admin page". Re-enable once
-  // the admin page exposes a stable heading and/or seed data is in place.
-  test.fixme('admin can access admin page', async ({ adminPage }) => {
-    // Try to navigate to admin page
+  // Un-fixme'd 2026-06-06: the prior assertion was a stale selector, not a
+  // seed/data gap. AdminPage renders fine for the emulator admin (the users read
+  // rule is `clientMatches && isAuthed`, and the admin user carries
+  // clientId='test-client'), but its heading is `<h1>Team</h1>` (PageHeader
+  // title="Team"), not /admin|user management|settings/. Assert the real admin
+  // surface instead. RequireRole(['admin']) gates /admin, so reaching it + seeing
+  // the admin-only "Invite User" action proves admin access (not just any page).
+  test('admin can access admin page', async ({ adminPage }) => {
     await adminPage.goto('/admin');
 
-    // Wait for admin content to be visible
+    // Wait for admin content to be visible.
     await adminPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
-    // Should be on admin page (not redirected away)
+    // Should be on the admin page (a non-admin would be redirected by RequireRole).
     expect(adminPage.url()).toContain('/admin');
 
-    // Look for admin-specific elements
-    const heading = adminPage.getByRole('heading', { name: /admin|user management|settings/i }).first();
-    await expect(heading).toBeVisible();
+    // The admin page header ("Team") + the admin-only "Invite User" action.
+    // Two "Invite User" buttons render (the PageHeader action + the TeamRosterTab
+    // empty-state CTA when the roster is empty, as it is in the emulator), so
+    // scope to the first to avoid a strict-mode match — either one proves the
+    // admin surface rendered.
+    await expect(
+      adminPage.getByRole('heading', { name: /team/i }).first(),
+    ).toBeVisible();
+    await expect(
+      adminPage.getByRole('button', { name: /invite user/i }).first(),
+    ).toBeVisible();
   });
 
   test('producer can navigate between pages', async ({ producerPage }) => {
