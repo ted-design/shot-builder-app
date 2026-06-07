@@ -115,19 +115,22 @@ test.describe('Shot detail editing', () => {
     const trigger = producerPage.getByTestId('shot-status-select-trigger');
     await trigger.click();
     await producerPage.getByRole('option', { name: 'In Progress' }).click();
-    await expect(trigger).toHaveText(/In Progress/);
+    await expect(trigger).toHaveText(/In Progress/); // optimistic UI updated
 
-    // Reload proves the write reached Firestore (not just optimistic UI).
-    await producerPage.reload();
-    await expect(
-      producerPage.getByTestId('shot-status-select-trigger'),
-    ).toHaveText(/In Progress/);
+    // Prove the write actually reached Firestore — not just the optimistic label,
+    // which ShotStatusSelect sets BEFORE it awaits updateShotWithVersion. Reload
+    // until the committed value reads back, so a slow emulator commit can't lose
+    // the race against a single reload fired while the write is still in flight.
+    // (`trigger` is a lazy locator — it re-resolves against the reloaded page.)
+    await expect(async () => {
+      await producerPage.reload();
+      await expect(trigger).toHaveText(/In Progress/, { timeout: 5000 });
+    }).toPass({ timeout: 20000 });
 
     // Reset to the seeded baseline so reruns / other readers see status:'todo'.
-    const triggerAfter = producerPage.getByTestId('shot-status-select-trigger');
-    await triggerAfter.click();
+    await trigger.click();
     await producerPage.getByRole('option', { name: 'Draft' }).click();
-    await expect(triggerAfter).toHaveText(/Draft/);
+    await expect(trigger).toHaveText(/Draft/);
   });
 
   test('producer sees the autosave indicator reach "Saved" when editing notes', async ({
