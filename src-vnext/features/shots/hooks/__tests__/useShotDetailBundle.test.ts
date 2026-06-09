@@ -108,6 +108,35 @@ describe("useShotDetailBundle", () => {
     expect(result.laneById.size).toBe(0) // empty → banner returns null
   })
 
+  it("clears stale lane maps when swallowing a permission-denied", () => {
+    // useFirestoreCollection retains its previous `data` on a snapshot error,
+    // so on an in-app navigation from a lanes-readable project to a non-member
+    // one, useLanes can still expose the PRIOR project's lanes alongside the
+    // permission-denied. The bundle must force the empty maps so no stale
+    // scene context leaks through to a non-member.
+    const shot = { id: "shot-abc", title: "Hero", laneId: "stale-lane" }
+    const staleById = new Map([["stale-lane", { id: "stale-lane", name: "Old Scene" }]])
+    const staleNameById = new Map([["stale-lane", "Old Scene"]])
+    mockUseShot.mockReturnValue({ data: shot, loading: false, error: null })
+    mockUseLanes.mockReturnValue({
+      data: [{ id: "stale-lane", name: "Old Scene" }],
+      laneById: staleById,
+      laneNameById: staleNameById,
+      loading: false,
+      error: {
+        message: "Missing or insufficient permissions.",
+        isMissingIndex: false,
+        code: "permission-denied",
+      },
+    })
+
+    const result = useShotDetailBundle("shot-abc")
+    expect(result.error).toBe(null)
+    expect(result.lanesUnavailable).toBe(true)
+    expect(result.laneById.size).toBe(0) // stale maps forced empty
+    expect(result.laneNameById.size).toBe(0)
+  })
+
   it("keeps a shot.error fatal even when lanes are permission-denied", () => {
     mockUseShot.mockReturnValue({
       data: null,
