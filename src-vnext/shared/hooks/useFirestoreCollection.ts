@@ -15,6 +15,15 @@ export interface FirestoreCollectionError {
   readonly message: string
   readonly isMissingIndex: boolean
   readonly indexUrl?: string
+  /**
+   * The raw Firestore error code (e.g. "permission-denied",
+   * "failed-precondition"). Carried through so callers can discriminate a
+   * rules-denied read (which some surfaces choose to degrade gracefully)
+   * from a genuine error that must stay visible. Backward-compatible /
+   * additive — existing consumers that read only message/isMissingIndex are
+   * unaffected.
+   */
+  readonly code?: string
 }
 
 interface FirestoreCollectionResult<T> {
@@ -74,6 +83,7 @@ export function useFirestoreCollection<T>(
             : fireErr.message ?? "Unknown error",
           isMissingIndex,
           indexUrl: urlMatch?.[0],
+          code: fireErr.code,
         })
         setLoading(false)
       },
