@@ -105,7 +105,7 @@ export function ShotListFilterContent({
           onClick={onClearFilters}
           disabled={!hasActiveFilters}
         >
-          Clear filters
+          Clear all filters
         </Button>
         {canRepair && (
           <Button
@@ -120,7 +120,7 @@ export function ShotListFilterContent({
           </Button>
         )}
         {onClose && (
-          <Button size="sm" className="ml-auto" onClick={onClose}>
+          <Button size="sm" className="ml-auto" data-testid="filter-more-done" onClick={onClose}>
             Done
           </Button>
         )}

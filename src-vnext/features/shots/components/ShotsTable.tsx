@@ -529,7 +529,7 @@ export function ShotsTable({
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
       <div className="flex flex-col gap-2">
         {/* Column settings toolbar */}
       <div className="flex justify-end">

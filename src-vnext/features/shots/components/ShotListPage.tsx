@@ -501,6 +501,19 @@ export default function ShotListPage() {
               </span>
             </div>
           )}
+
+          {/* Large-project reorder limit — the only reason not surfaced by a
+              drag-handle tooltip (mobile) or the banners above. Shown in all
+              views so the >REORDER_SHOT_LIMIT case always has a "why" + path. */}
+          {reorderDisabledReason === "limit" && (
+            <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+              <Info className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                Reordering is disabled for large projects. Use Sort, then
+                Renumber to set the order.
+              </span>
+            </div>
+          )}
         </>
       )}
 

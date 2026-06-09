@@ -103,7 +103,7 @@ export function DraggableShotList({
     // drag-handle tooltips have a provider ancestor in isolated component tests
     // too (the app shell also provides one at the root).
     return (
-      <TooltipProvider>
+      <TooltipProvider delayDuration={200}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayShots.map((shot) => (
             <ShotCard
