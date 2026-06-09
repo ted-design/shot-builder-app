@@ -35,7 +35,9 @@ import {
  *   (`data-testid` notes-save-indicator / save-indicator). Status persistence is
  *   therefore proven by reloading the page, not by a "Saved" indicator.
  * - Seed: every SEED_SHOT is created with only {title, status:'todo'} — no date,
- *   location, or tags — so the summary asserts EMPTY states. The read-only group
+ *   location, or tags — so the summary asserts EMPTY states. (The Spectra filter
+ *   fixtures in SEED_FILTER_SHOTS are separate and never deep-linked here.) The
+ *   read-only group
  *   uses `viewerPage` + SEED_SHOT_AURORA (never mutated). The editing group uses
  *   `producerPage` + SEED_SHOT_EDITABLE, whose STATUS field is owned only by this
  *   spec (shots-crud only renames EDITABLE's title); it resets status afterward.

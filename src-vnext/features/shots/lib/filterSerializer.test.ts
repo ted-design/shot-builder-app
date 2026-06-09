@@ -4,7 +4,8 @@ import {
   deserializeFilters,
   migrateLegacyParams,
 } from "./filterSerializer"
-import type { FilterCondition } from "./filterConditions"
+import type { FilterCondition, FilterOperator, FilterValue } from "./filterConditions"
+import { FILTER_FIELD_META } from "./filterConditions"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -200,6 +201,63 @@ describe("serialize/deserialize round-trip", () => {
     ]
     const serialized = serializeFilters(original)
     const deserialized = deserializeFilters(serialized)
+    expect(stripIds(deserialized)).toEqual(stripIds(original))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Exhaustive field x operator coverage — proves NO field/operator pair is
+// dropped by the serialize -> deserialize round-trip. Drives directly off the
+// canonical FILTER_FIELD_META so a new field or operator is automatically
+// covered (and a regression that silently drops one fails here).
+// ---------------------------------------------------------------------------
+
+/** A representative value for a given field/operator pair. */
+function sampleValue(type: "set" | "boolean" | "date", operator: FilterOperator): FilterValue {
+  if (type === "set") return ["alpha", "beta"]
+  if (type === "boolean") return true
+  // date
+  if (operator === "between") return { from: "2026-04-01", to: "2026-05-10" }
+  if (operator === "empty") return null
+  return "2026-05-10"
+}
+
+describe("every field x its allowed operators survive round-trip", () => {
+  for (const meta of FILTER_FIELD_META) {
+    for (const operator of meta.operators) {
+      it(`${meta.field}.${operator} round-trips with no operator dropped`, () => {
+        const value = sampleValue(meta.type, operator)
+        const original: FilterCondition[] = [
+          { id: "x", field: meta.field, operator, value },
+        ]
+        const serialized = serializeFilters(original)
+        const deserialized = deserializeFilters(serialized)
+
+        // The pair survived: exactly one condition, same field + operator + value.
+        expect(deserialized).toHaveLength(1)
+        expect(deserialized[0]!.field).toBe(meta.field)
+        expect(deserialized[0]!.operator).toBe(operator)
+        expect(stripIds(deserialized)).toEqual(stripIds(original))
+      })
+    }
+  }
+
+  it("a single payload carrying one condition per field x operator survives intact", () => {
+    const original: FilterCondition[] = FILTER_FIELD_META.flatMap((meta) =>
+      meta.operators.map((operator, idx): FilterCondition => ({
+        id: `${meta.field}-${idx}`,
+        field: meta.field,
+        operator,
+        value: sampleValue(meta.type, operator),
+      })),
+    )
+
+    const serialized = serializeFilters(original)
+    const deserialized = deserializeFilters(serialized)
+
+    // Count of (field, operator) pairs must match — nothing dropped.
+    const expectedPairCount = FILTER_FIELD_META.reduce((n, m) => n + m.operators.length, 0)
+    expect(deserialized).toHaveLength(expectedPairCount)
     expect(stripIds(deserialized)).toEqual(stripIds(original))
   })
 })

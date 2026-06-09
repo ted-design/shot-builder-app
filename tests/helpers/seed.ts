@@ -6,6 +6,11 @@ import {
   SEED_PROJECT_ID,
   SEED_PROJECT_NAME,
   SEED_SHOTS,
+  SEED_FILTER_SHOTS,
+  SEED_SHOT_SPECTRA_TODO,
+  SEED_SHOT_SPECTRA_INPROGRESS,
+  SEED_SHOT_SPECTRA_ONHOLD,
+  SEED_SHOT_SPECTRA_COMPLETE,
   SEED_PULL,
   SEED_PULL_ITEM,
 } from './seedConstants';
@@ -458,6 +463,53 @@ export async function seedShotsCrudScenario(
       status: 'todo',
       sortOrder: order,
       shotNumber: String(order),
+    });
+    order += 1;
+  }
+
+  // FILTER FIXTURE SHOTS — asymmetric status + field presence so the inline
+  // Status & Missing toolbar filters discriminate (the base SEED_SHOTS above
+  // are all status=todo and uniformly missing everything). See seedConstants.ts
+  // for the presence matrix. Placeholder product/talent/location IDs are
+  // sufficient: the Missing predicate keys off array length / locationId
+  // presence, not on a matching family/talent/location doc existing.
+  const filterShotFields: Record<
+    (typeof SEED_FILTER_SHOTS)[number]['id'],
+    { products: string[]; talent: string[]; location: string | null }
+  > = {
+    // missing: products, talent, location, image (everything)
+    [SEED_SHOT_SPECTRA_TODO.id]: { products: [], talent: [], location: null },
+    // has products + talent + location; missing: image only
+    [SEED_SHOT_SPECTRA_INPROGRESS.id]: {
+      products: ['e2e-spectra-family'],
+      talent: ['e2e-spectra-talent'],
+      location: 'e2e-spectra-location',
+    },
+    // has location; missing: products, talent, image
+    [SEED_SHOT_SPECTRA_ONHOLD.id]: {
+      products: [],
+      talent: [],
+      location: 'e2e-spectra-location',
+    },
+    // has products + talent; missing: location, image
+    [SEED_SHOT_SPECTRA_COMPLETE.id]: {
+      products: ['e2e-spectra-family'],
+      talent: ['e2e-spectra-talent'],
+      location: null,
+    },
+  };
+
+  for (const shot of SEED_FILTER_SHOTS) {
+    const fields = filterShotFields[shot.id];
+    await createTestShot(SEED_PROJECT_ID, {
+      id: shot.id,
+      title: shot.title,
+      status: shot.status,
+      sortOrder: order,
+      shotNumber: String(order),
+      products: fields.products,
+      talent: fields.talent,
+      location: fields.location,
     });
     order += 1;
   }
