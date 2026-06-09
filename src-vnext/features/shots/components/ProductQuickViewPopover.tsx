@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover"
 import { Button } from "@/ui/button"
-import { useProductFamilyDoc } from "@/features/shots/hooks/usePickerData"
+import { useProductFamilyDoc, useProductSkuDoc } from "@/features/shots/hooks/usePickerData"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { ExternalLink } from "lucide-react"
@@ -40,6 +40,10 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
     needsLookup && assignment.familyId ? assignment.familyId : assignment.familyId
 
   const { data: family } = useProductFamilyDoc(familyIdForLookup ?? null)
+  const { data: sku } = useProductSkuDoc(
+    assignment.familyId ?? null,
+    assignment.skuId ?? null,
+  )
 
   const imageSrc =
     assignment.thumbUrl ??
@@ -52,7 +56,12 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
   const colourName = assignment.colourName ?? assignment.skuName
   const styleNumber = family?.styleNumbers?.[0] ?? family?.styleNumber
 
-  const launchDate = formatDateOnly(family?.earliestLaunchDate ?? family?.launchDate)
+  // Per-SKU launch date wins; otherwise fall back to the family date and mark
+  // the value as inherited so the UI can show a quiet badge.
+  const familyLaunch = family?.earliestLaunchDate ?? family?.launchDate ?? null
+  const resolvedLaunch = sku?.launchDate ?? familyLaunch
+  const launchInherited = !sku?.launchDate && !!familyLaunch
+  const launchDate = formatDateOnly(resolvedLaunch)
 
   const sampleCount = family?.sampleCount
 
@@ -75,7 +84,17 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
           {launchDate && (
             <div className="flex items-center justify-between gap-2">
               <span className="text-2xs text-[var(--color-text-subtle)]">Launch</span>
-              <span className="text-2xs text-[var(--color-text-secondary)]">{launchDate}</span>
+              <span className="flex items-center gap-1 text-2xs text-[var(--color-text-secondary)]">
+                {launchDate}
+                {launchInherited && (
+                  <span
+                    className="rounded-sm bg-[var(--color-surface-subtle)] px-1 text-2xs text-[var(--color-text-subtle)]"
+                    title="Inherited from the product family"
+                  >
+                    inherited
+                  </span>
+                )}
+              </span>
             </div>
           )}
           {sampleCount != null && (
