@@ -92,6 +92,7 @@ function mapSku(id: string, data: Record<string, unknown>): ProductSku {
     skuCode: asString(data["skuCode"]) ?? asString(data["sku"]),
     imagePath: asString(data["imagePath"]),
     colorKey: asString(data["colorKey"]),
+    launchDate: (data["launchDate"] as ProductSku["launchDate"]) ?? null,
     deleted: asBoolean(data["deleted"]),
   }
 }
