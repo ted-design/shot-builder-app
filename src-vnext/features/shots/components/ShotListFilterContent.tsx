@@ -63,7 +63,7 @@ export function ShotListFilterContent({
 }: ShotListFilterContentProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
           Advanced filters
         </p>

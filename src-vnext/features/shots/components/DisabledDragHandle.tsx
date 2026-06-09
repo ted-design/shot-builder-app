@@ -1,10 +1,5 @@
 import { GripVertical } from "lucide-react"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip"
 
 // ---------------------------------------------------------------------------
 // Reasons reorder can be gated OFF while the user otherwise has permission.
@@ -59,23 +54,21 @@ type DisabledDragHandleProps = {
  */
 export function DisabledDragHandle({ reason, shotId, className }: DisabledDragHandleProps) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            data-testid={shotId ? `shot-drag-handle-${shotId}` : "shot-drag-handle"}
-            data-reorder-disabled-reason={reason}
-            aria-disabled="true"
-            className={`inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-[var(--radius-sm)] border border-transparent text-[var(--color-text-subtle)] opacity-40 ${className ?? ""}`}
-          >
-            <GripVertical className="h-4 w-4" />
-            <span className="sr-only">Reordering disabled</span>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="max-w-[220px]">
-          {REASON_TEXT[reason]}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          data-testid={shotId ? `shot-drag-handle-${shotId}` : "shot-drag-handle"}
+          data-reorder-disabled-reason={reason}
+          role="img"
+          aria-label={REASON_TEXT[reason]}
+          className={`inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-[var(--radius-sm)] border border-transparent text-[var(--color-text-subtle)] opacity-40 ${className ?? ""}`}
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-[220px]">
+        {REASON_TEXT[reason]}
+      </TooltipContent>
+    </Tooltip>
   )
 }

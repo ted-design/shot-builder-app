@@ -448,7 +448,7 @@ export default function ShotListPage() {
 
           {/* Active filter pill row (removable chips) — only when filters are
               active. Leads with a "Filtered:" label and trails with "Clear all". */}
-          {hasActiveFilters && activeFilterBadges.length > 0 && (
+          {activeFilterBadges.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center gap-1.5" data-testid="active-filter-pills">
               <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
                 Filtered:

@@ -279,7 +279,10 @@ export function ShotListToolbar({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-3">
+        <PopoverContent
+          align="start"
+          className="w-80 p-3 max-h-[min(600px,calc(100vh-8rem))] overflow-y-auto"
+        >
           <ShotListFilterContent
             conditions={conditions}
             onAddCondition={onAddCondition}
