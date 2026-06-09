@@ -20,12 +20,20 @@ import { ShotCard, type ShotCardVisibleFields } from "@/features/shots/component
 import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { GripVertical } from "lucide-react"
+import { DisabledDragHandle, type ReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
+import { TooltipProvider } from "@/ui/tooltip"
 import { toast } from "sonner"
 import type { Shot, ProductFamily, ProductSku, ProductSample } from "@/shared/types"
 
 interface DraggableShotListProps {
   readonly shots: ReadonlyArray<Shot>
   readonly disabled?: boolean
+  /**
+   * When reorder is gated OFF but the user otherwise has permission, this carries
+   * the specific reason so each card shows a disabled drag handle + tooltip
+   * (the "why" + path back). Omit when the user simply lacks reorder permission.
+   */
+  readonly disabledReason?: ReorderDisabledReason | null
   readonly visibleFields?: Partial<ShotCardVisibleFields>
   readonly actionControl?: (shot: Shot) => ReactNode
   readonly onOpenShot?: (shotId: string) => void
@@ -44,6 +52,7 @@ interface DraggableShotListProps {
 export function DraggableShotList({
   shots,
   disabled,
+  disabledReason,
   visibleFields,
   actionControl,
   onOpenShot,
@@ -86,26 +95,40 @@ export function DraggableShotList({
   }
 
   if (disabled || selectionEnabled) {
+    // When reorder is gated OFF (not a permission gap) and we're not in selection
+    // mode, surface a disabled drag handle + tooltip so the user gets the "why"
+    // + path back. Selection mode replaces the leading control with the checkbox.
+    const showDisabledHandle = disabled && !selectionEnabled && disabledReason != null
+    // One TooltipProvider for the whole list (not one per row) so the disabled
+    // drag-handle tooltips have a provider ancestor in isolated component tests
+    // too (the app shell also provides one at the root).
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {displayShots.map((shot) => (
-          <ShotCard
-            key={shot.id}
-            shot={shot}
-            selectable={selectionEnabled}
-            selected={selection?.selectedIds.has(shot.id) ?? false}
-            onSelectedChange={() => selection?.onToggle(shot.id)}
-            onOpenShot={onOpenShot}
-            visibleFields={visibleFields}
-            actionControl={actionControl?.(shot)}
-            talentNameById={talentNameById}
-            locationNameById={locationNameById}
-            familyById={familyById}
-            skuById={skuById}
-            samplesByFamily={samplesByFamily}
-          />
-        ))}
-      </div>
+      <TooltipProvider delayDuration={200}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {displayShots.map((shot) => (
+            <ShotCard
+              key={shot.id}
+              shot={shot}
+              selectable={selectionEnabled}
+              selected={selection?.selectedIds.has(shot.id) ?? false}
+              onSelectedChange={() => selection?.onToggle(shot.id)}
+              leadingControl={
+                showDisabledHandle ? (
+                  <DisabledDragHandle reason={disabledReason} shotId={shot.id} />
+                ) : undefined
+              }
+              onOpenShot={onOpenShot}
+              visibleFields={visibleFields}
+              actionControl={actionControl?.(shot)}
+              talentNameById={talentNameById}
+              locationNameById={locationNameById}
+              familyById={familyById}
+              skuById={skuById}
+              samplesByFamily={samplesByFamily}
+            />
+          ))}
+        </div>
+      </TooltipProvider>
     )
   }
 

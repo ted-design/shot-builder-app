@@ -36,6 +36,8 @@ import {
   isInteractiveCell,
 } from "@/features/shots/lib/shotColumnRenderers"
 import { SceneAssignPopover } from "@/features/shots/components/SceneAssignPopover"
+import { DisabledDragHandle, type ReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
+import { TooltipProvider } from "@/ui/tooltip"
 import type { TableColumnConfig } from "@/shared/types/table"
 import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
@@ -90,6 +92,13 @@ type ShotsTableProps = {
   readonly skuById?: ReadonlyMap<string, ProductSku>
   readonly samplesByFamily?: ReadonlyMap<string, ReadonlyArray<ProductSample>>
   readonly reorderEnabled?: boolean
+  /**
+   * When reorder is gated OFF but the user otherwise has permission, this carries
+   * the specific reason so the leading column renders a disabled drag handle +
+   * tooltip (the "why" + path back). Omit when the user lacks reorder permission.
+   * Also covers the >REORDER_SHOT_LIMIT case (caller passes "limit").
+   */
+  readonly reorderDisabledReason?: ReorderDisabledReason | null
   readonly onReorder?: (reordered: ReadonlyArray<Shot>, affectedRange: { from: number; to: number }) => void
   readonly groups?: ReadonlyArray<ShotGroup> | null
   readonly collapsedScenes?: ReadonlySet<string>
@@ -397,6 +406,7 @@ export function ShotsTable({
   skuById,
   samplesByFamily,
   reorderEnabled: reorderEnabledProp = false,
+  reorderDisabledReason = null,
   onReorder,
   groups,
   collapsedScenes,
@@ -415,6 +425,25 @@ export function ShotsTable({
   // becomes noticeable past this threshold. Users can still reorder via the
   // custom sort + renumber flow.
   const reorderEnabled = reorderEnabledProp && shots.length <= REORDER_SHOT_LIMIT
+
+  // When the caller WANTED reorder (reorderEnabledProp) but the >500 limit blocked
+  // it, the user still needs a "why" — force the "limit" reason. Otherwise use the
+  // caller-supplied reason (filters/grouping/sort). null => no disabled handle.
+  const effectiveDisabledReason: ReorderDisabledReason | null =
+    reorderEnabled
+      ? null
+      : reorderEnabledProp && shots.length > REORDER_SHOT_LIMIT
+        ? "limit"
+        : reorderDisabledReason
+
+  // The leading drag column is present when reorder is live OR when we're showing
+  // the disabled-handle explainer. colgroup / thead / colSpan / rows all key off
+  // this so the table layout stays consistent. Suppressed in GROUPED view: grouped
+  // data rows render through GroupRows (no per-row handle slot), so adding the
+  // column there would misalign cells. Grouped view's "why + path back" is carried
+  // by the page-level grouping recovery affordance instead.
+  const groupsPresent = groups != null && groups.length > 0
+  const showDragColumn = !groupsPresent && (reorderEnabled || effectiveDisabledReason != null)
 
   const allSelected =
     selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))
@@ -489,19 +518,20 @@ export function ShotsTable({
   // `visibleColumns` (it's always rendered at the end of every row).
   const sceneColSpan = useMemo(() => {
     let count = visibleColumns.length + 1 // visibleColumns + pinned status column
-    if (reorderEnabled) count += 1 // drag handle column
+    if (showDragColumn) count += 1 // drag handle column (live OR disabled-explainer)
     if (selectionEnabled) count += 1 // selection checkbox column
     if (showLifecycleActions) count += 1 // lifecycle actions column
     return count
-  }, [visibleColumns.length, reorderEnabled, selectionEnabled, showLifecycleActions])
+  }, [visibleColumns.length, showDragColumn, selectionEnabled, showLifecycleActions])
 
   const hasGroups = groups != null && groups.length > 0
 
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Column settings toolbar */}
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-col gap-2">
+        {/* Column settings toolbar */}
       <div className="flex justify-end">
         <ColumnSettingsPopover
           columns={columns}
@@ -536,7 +566,7 @@ export function ShotsTable({
             className="w-full text-sm outline-none"
           >
             <colgroup>
-              {reorderEnabled && <col style={{ width: 36 }} />}
+              {showDragColumn && <col style={{ width: 36 }} />}
               {selectionEnabled && <col style={{ width: 40 }} />}
               {visibleColumns.map((c) => (
                 <col key={c.key} style={{ width: c.width }} />
@@ -547,7 +577,7 @@ export function ShotsTable({
 
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
               <tr>
-                {reorderEnabled && <th className="w-9" />}
+                {showDragColumn && <th className="w-9" />}
                 {selectionEnabled && (
                   <th className="w-10 px-3 py-2 text-left">
                     <Checkbox
@@ -655,7 +685,14 @@ export function ShotsTable({
                       className="border-b border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)] data-[active-row]:bg-[var(--color-primary)]/5"
                       onClick={() => onOpenShot(shot.id)}
                     >
-                      <RowCells {...commonCellProps} />
+                      <RowCells
+                        {...commonCellProps}
+                        reorderDragHandle={
+                          effectiveDisabledReason ? (
+                            <DisabledDragHandle reason={effectiveDisabledReason} shotId={shot.id} />
+                          ) : undefined
+                        }
+                      />
                     </tr>
                   )
                 })
@@ -664,6 +701,7 @@ export function ShotsTable({
           </table>
         </div>
       </DndWrapper>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

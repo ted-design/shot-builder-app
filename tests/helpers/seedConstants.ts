@@ -40,6 +40,56 @@ export const SEED_SHOT_EDITABLE = { id: 'e2e-shot-editable', title: 'Editable Se
  */
 export const SEED_SHOT_HERO = { id: 'e2e-shot-hero', title: 'Hero Upload Shot' } as const;
 
+/**
+ * FILTER FIXTURE SHOTS — dedicated, asymmetric shots so the inline Status &
+ * Missing toolbar filters are MEANINGFULLY testable (the original four seed
+ * shots are ALL status=todo and uniformly missing everything, so a status or
+ * missing filter could not discriminate). These are NET-NEW shots, never
+ * mutated or read-asserted by shots-crud / sidebar-summary / hero-image:
+ *
+ * - Titles use the unique token "Spectra" (never "Aurora"/"Borealis"), so the
+ *   shots-crud search test (search "Aurora" -> Borealis count 0) is unaffected.
+ * - Each carries a distinct status so a single-status filter isolates exactly one.
+ * - Field presence is asymmetric so a single-missing-key filter discriminates:
+ *     SPECTRA_TODO        status=todo         missing: products, talent, location, image
+ *     SPECTRA_INPROGRESS  status=in_progress  has products+talent+location  (missing: image)
+ *     SPECTRA_ONHOLD      status=on_hold      has location                  (missing: products, talent, image)
+ *     SPECTRA_COMPLETE    status=complete     has products+talent           (missing: location, image)
+ *   (No fixture uploads a heroImage, so every Spectra shot is "missing image".)
+ *
+ * Placeholder ID strings for products/talent/location are sufficient: the
+ * Missing predicate + counts key off array length / locationId presence, not on
+ * a matching family/talent/location doc existing.
+ */
+export const SEED_SHOT_SPECTRA_TODO = {
+  id: 'e2e-shot-spectra-todo',
+  title: 'Spectra Todo Shot',
+  status: 'todo',
+} as const;
+export const SEED_SHOT_SPECTRA_INPROGRESS = {
+  id: 'e2e-shot-spectra-inprogress',
+  title: 'Spectra In Progress Shot',
+  status: 'in_progress',
+} as const;
+export const SEED_SHOT_SPECTRA_ONHOLD = {
+  id: 'e2e-shot-spectra-onhold',
+  title: 'Spectra On Hold Shot',
+  status: 'on_hold',
+} as const;
+export const SEED_SHOT_SPECTRA_COMPLETE = {
+  id: 'e2e-shot-spectra-complete',
+  title: 'Spectra Complete Shot',
+  status: 'complete',
+} as const;
+
+/** All FILTER fixture shots, in seed order. */
+export const SEED_FILTER_SHOTS = [
+  SEED_SHOT_SPECTRA_TODO,
+  SEED_SHOT_SPECTRA_INPROGRESS,
+  SEED_SHOT_SPECTRA_ONHOLD,
+  SEED_SHOT_SPECTRA_COMPLETE,
+] as const;
+
 /** All seeded shots, in seed order. */
 export const SEED_SHOTS = [
   SEED_SHOT_AURORA,

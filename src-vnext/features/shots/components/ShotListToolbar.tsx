@@ -1,8 +1,9 @@
 import { useState } from "react"
-import type { SortKey, ViewMode, GroupKey } from "@/features/shots/lib/shotListFilters"
-import { SORT_LABELS, STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
+import type { SortKey, ViewMode, GroupKey, MissingKey } from "@/features/shots/lib/shotListFilters"
+import { SORT_LABELS } from "@/features/shots/lib/shotListFilters"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import type { computeInsights } from "@/features/shots/lib/shotListFilters"
+import type { FilterCondition } from "@/features/shots/lib/filterConditions"
 import {
   Select,
   SelectContent,
@@ -13,21 +14,24 @@ import {
 } from "@/ui/select"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
-import { Checkbox } from "@/ui/checkbox"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/popover"
+import { ShotStatusFilter } from "@/features/shots/components/ShotStatusFilter"
+import { ShotMissingFilter } from "@/features/shots/components/ShotMissingFilter"
+import { ShotListFilterContent } from "@/features/shots/components/ShotListFilterContent"
 import {
   Search,
   X,
   ArrowUpDown,
   LayoutGrid,
   Table2,
-  CircleDot,
   Hash,
   Layers,
+  RotateCcw,
+  SlidersHorizontal,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -52,14 +56,27 @@ type ShotListToolbarProps = {
   readonly insights: Insights
   readonly statusFilter: ReadonlySet<ShotFirestoreStatus>
   readonly toggleStatus: (status: ShotFirestoreStatus) => void
+  readonly clearStatusFilter: () => void
+  readonly missingFilter: ReadonlySet<MissingKey>
+  readonly toggleMissing: (key: MissingKey) => void
+  readonly clearMissingFilter: () => void
   // Renumber
   readonly canReorder: boolean
   readonly hasActiveFilters: boolean
   readonly onRenumberOpen: () => void
-  readonly clearStatusFilter: () => void
-  // More filters (advanced conditions beyond status/missing)
+  // Advanced (More) filter conditions — rendered in a toolbar-anchored popover
   readonly extraFilterCount: number
-  readonly onMoreFiltersOpen: () => void
+  readonly conditions: readonly FilterCondition[]
+  readonly onAddCondition: (condition: Omit<FilterCondition, "id">) => void
+  readonly onUpdateCondition: (conditionId: string, updates: Partial<Omit<FilterCondition, "id">>) => void
+  readonly onRemoveCondition: (conditionId: string) => void
+  readonly tagOptions: readonly { id: string; label: string }[]
+  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly locationRecords: readonly { id: string; name: string }[]
+  readonly productFamilies: readonly { id: string; styleName: string }[]
+  readonly onClearFilters: () => void
+  readonly canRepair: boolean
+  readonly onRepairOpen: () => void
   // Scene grouping
   readonly groupKey?: GroupKey
   readonly onGroupKeyChange?: (key: GroupKey) => void
@@ -70,15 +87,11 @@ type ShotListToolbarProps = {
 }
 
 // ---------------------------------------------------------------------------
-// Status badge helper
+// Sort sentinels (non-SortKey actions surfaced inside the Sort <Select>)
 // ---------------------------------------------------------------------------
 
-const STATUS_DOT_CLASS: Record<ShotFirestoreStatus, string> = {
-  todo: "bg-[var(--color-text-subtle)]",
-  in_progress: "bg-blue-500",
-  on_hold: "bg-amber-500",
-  complete: "bg-green-600",
-}
+const SORT_RESTORE = "__restore_custom__"
+const SORT_RENUMBER = "__renumber__"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -100,24 +113,39 @@ export function ShotListToolbar({
   statusFilter,
   toggleStatus,
   clearStatusFilter,
+  missingFilter,
+  toggleMissing,
+  clearMissingFilter,
   canReorder,
   hasActiveFilters,
   onRenumberOpen,
   extraFilterCount,
-  onMoreFiltersOpen,
+  conditions,
+  onAddCondition,
+  onUpdateCondition,
+  onRemoveCondition,
+  tagOptions,
+  talentRecords,
+  locationRecords,
+  productFamilies,
+  onClearFilters,
+  canRepair,
+  onRepairOpen,
   groupKey,
   onGroupKeyChange,
   hasScenes,
   displayCount,
   totalCount,
 }: ShotListToolbarProps) {
-  const [statusOpen, setStatusOpen] = useState(false)
-
-  const statusActiveCount = statusFilter.size
+  const [moreOpen, setMoreOpen] = useState(false)
 
   const handleSortChange = (value: string) => {
-    if (value === "__renumber__") {
+    if (value === SORT_RENUMBER) {
       onRenumberOpen()
+      return
+    }
+    if (value === SORT_RESTORE) {
+      onSortKeyChange("custom")
       return
     }
     onSortKeyChange(value as SortKey)
@@ -149,9 +177,9 @@ export function ShotListToolbar({
         )}
       </div>
 
-      {/* Sort (with Renumber action at bottom) */}
+      {/* Sort (with Restore custom order + destructive Renumber actions) */}
       <Select value={sortKey} onValueChange={handleSortChange}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[160px]" data-testid="sort-select-trigger">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -160,12 +188,27 @@ export function ShotListToolbar({
               {SORT_LABELS[key]}
             </SelectItem>
           ))}
+          {/* Explicit recovery affordance — survives the inline-banner collapse.
+              Only meaningful when a non-custom sort is currently active. */}
+          {!isCustomSort && (
+            <>
+              <SelectSeparator />
+              <SelectItem value={SORT_RESTORE}>
+                <span className="flex items-center gap-1.5">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restore custom order
+                </span>
+              </SelectItem>
+            </>
+          )}
           {canReorder && (
             <>
               <SelectSeparator />
+              {/* DESTRUCTIVE action — styled with the app's destructive token
+                  (mirrors BulkActionBar's Delete variant), NOT raw red. */}
               <SelectItem
-                value="__renumber__"
-                className="text-[var(--color-text-muted)]"
+                value={SORT_RENUMBER}
+                className="text-destructive focus:text-destructive"
               >
                 <span className="flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
@@ -189,93 +232,11 @@ export function ShotListToolbar({
         <ArrowUpDown className="h-4 w-4" />
       </Button>
 
-      {/* Status filter popover */}
-      <Popover open={statusOpen} onOpenChange={setStatusOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={`gap-1.5 ${statusActiveCount > 0 ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]" : ""}`}
-          >
-            <CircleDot className="h-3.5 w-3.5" />
-            Status
-            {statusActiveCount > 0 && (
-              <span className="ml-0.5 flex h-4.5 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)]/15 px-1 text-2xs font-semibold tabular-nums">
-                {statusActiveCount}
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-56 p-0">
-          <div className="px-3 pt-2.5 pb-1">
-            <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Filter by Status
-            </p>
-          </div>
-          <div className="py-1">
-            {(["todo", "in_progress", "on_hold", "complete"] as const).map((s) => {
-              const count = insights.statusCounts[s] ?? 0
-              const active = statusFilter.has(s)
-              return (
-                <label
-                  key={s}
-                  className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-[var(--color-surface-subtle)]"
-                >
-                  <Checkbox
-                    checked={active}
-                    onCheckedChange={() => toggleStatus(s)}
-                    className="pointer-events-none"
-                  />
-                  <span className="flex items-center gap-1.5 flex-1">
-                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT_CLASS[s]}`} />
-                    <span className="text-[var(--color-text)]">{STATUS_LABELS[s]}</span>
-                  </span>
-                  <span className="text-2xs font-medium text-[var(--color-text-subtle)] tabular-nums">
-                    {count}
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-          {statusActiveCount > 0 && (
-            <>
-              <div className="h-px bg-[var(--color-border)]" />
-              <div className="px-3 py-1.5">
-                <button
-                  type="button"
-                  className="text-2xs text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
-                  onClick={clearStatusFilter}
-                >
-                  Clear status filter
-                </button>
-              </div>
-            </>
-          )}
-        </PopoverContent>
-      </Popover>
-
-      {/* More filters button (advanced conditions: tag, talent, location, product, missing, etc.) */}
-      {extraFilterCount > 0 && (
-        <Button
-          variant="outline"
-          className="gap-1.5 border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]"
-          onClick={onMoreFiltersOpen}
-        >
-          More filters
-          <span className="ml-0.5 flex h-4.5 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)]/15 px-1 text-2xs font-semibold tabular-nums">
-            {extraFilterCount}
-          </span>
-        </Button>
-      )}
-      {extraFilterCount === 0 && (
-        <Button variant="ghost" size="sm" className="text-[var(--color-text-subtle)] text-xs h-9" onClick={onMoreFiltersOpen}>
-          More filters
-        </Button>
-      )}
-
       {/* Scene grouping toggle */}
       {hasScenes && onGroupKeyChange && (
         <Button
           variant="outline"
+          data-testid="group-by-toggle"
           className={`gap-1.5 ${groupKey === "scene" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]" : ""}`}
           onClick={() => onGroupKeyChange(groupKey === "scene" ? "none" : "scene")}
         >
@@ -283,6 +244,62 @@ export function ShotListToolbar({
           Scenes
         </Button>
       )}
+
+      {/* Inline Status filter */}
+      <ShotStatusFilter
+        insights={insights}
+        statusFilter={statusFilter}
+        toggleStatus={toggleStatus}
+        clearStatusFilter={clearStatusFilter}
+      />
+
+      {/* Inline Missing filter */}
+      <ShotMissingFilter
+        insights={insights}
+        missingFilter={missingFilter}
+        toggleMissing={toggleMissing}
+        clearMissingFilter={clearMissingFilter}
+      />
+
+      {/* More (advanced) filters — toolbar-anchored popover, progressive
+          disclosure in the SAME toolbar (no slide-over sheet). */}
+      <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            data-testid="filter-more-trigger"
+            className={`gap-1.5 ${extraFilterCount > 0 ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 text-[var(--color-primary)]" : ""}`}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            More
+            {extraFilterCount > 0 && (
+              <span className="ml-0.5 flex h-4.5 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)]/15 px-1 text-2xs font-semibold tabular-nums">
+                {extraFilterCount}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-80 p-3 max-h-[min(600px,calc(100vh-8rem))] overflow-y-auto"
+        >
+          <ShotListFilterContent
+            conditions={conditions}
+            onAddCondition={onAddCondition}
+            onUpdateCondition={onUpdateCondition}
+            onRemoveCondition={onRemoveCondition}
+            tagOptions={tagOptions}
+            talentRecords={talentRecords}
+            locationRecords={locationRecords}
+            productFamilies={productFamilies}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={onClearFilters}
+            canRepair={canRepair}
+            onRepairOpen={onRepairOpen}
+            onClose={() => setMoreOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
 
       {/* Spacer */}
       <div className="flex-1" />

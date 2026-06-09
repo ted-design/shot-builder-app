@@ -11,9 +11,9 @@ import { CreateShotDialog } from "@/features/shots/components/CreateShotDialog"
 import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePullFromShotsDialog"
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { ShotListToolbar } from "@/features/shots/components/ShotListToolbar"
-import { ShotListFilterSheet } from "@/features/shots/components/ShotListFilterSheet"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
-import { ShotsTable } from "@/features/shots/components/ShotsTable"
+import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
+import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
@@ -90,7 +90,6 @@ export default function ShotListPage() {
   const [createPullOpen, setCreatePullOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -146,7 +145,7 @@ export default function ShotListPage() {
     conditions, addCondition, removeCondition, updateCondition,
     queryDraft, setQueryDraft,
     setSortKey, setSortDir, setViewMode, setGroupKey,
-    toggleStatus, clearStatusFilter, toggleMissing, toggleTag,
+    toggleStatus, clearStatusFilter, toggleMissing, clearMissingFilter, toggleTag,
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
@@ -161,6 +160,22 @@ export default function ShotListPage() {
   const extraFilterCount = useMemo(
     () => conditions.filter((c) => c.field !== "status" && c.field !== "missing").length,
     [conditions],
+  )
+
+  // -- Reorder-disabled reason (for the inline drag-handle explainer). Only
+  // meaningful when the user otherwise HAS reorder permission (canReorder). When
+  // null, reorder is live. Covers all four gate reasons including >REORDER_SHOT_LIMIT. --
+  const reorderDisabledReason = useMemo(
+    () =>
+      canReorder
+        ? resolveReorderDisabledReason({
+            hasActiveFilters,
+            hasActiveGrouping,
+            isCustomSort,
+            overLimit: displayShots.length > REORDER_SHOT_LIMIT,
+          })
+        : null,
+    [canReorder, hasActiveFilters, hasActiveGrouping, isCustomSort, displayShots.length],
   )
 
   // -- Cmd+K scene navigation: ?scene=<laneId> switches to scene-grouped view
@@ -401,23 +416,13 @@ export default function ShotListPage() {
             statusFilter={statusFilter}
             toggleStatus={toggleStatus}
             clearStatusFilter={clearStatusFilter}
+            missingFilter={missingFilter}
+            toggleMissing={toggleMissing}
+            clearMissingFilter={clearMissingFilter}
             canReorder={canReorder}
             hasActiveFilters={hasActiveFilters}
             onRenumberOpen={() => setRenumberOpen(true)}
             extraFilterCount={extraFilterCount}
-            onMoreFiltersOpen={() => setFiltersOpen(true)}
-            groupKey={groupKey}
-            onGroupKeyChange={setGroupKey}
-            hasScenes={lanes.length > 0}
-            displayCount={displayShots.length}
-            totalCount={shots.length}
-          />
-
-          {/* Advanced filters sheet (tag, talent, location, product, date range, etc.) */}
-          <ShotListFilterSheet
-            open={filtersOpen}
-            onOpenChange={setFiltersOpen}
-            isMobile={isMobile}
             conditions={conditions}
             onAddCondition={addCondition}
             onUpdateCondition={updateCondition}
@@ -426,10 +431,14 @@ export default function ShotListPage() {
             talentRecords={talentRecords}
             locationRecords={locationRecords}
             productFamilies={productFamilies}
-            hasActiveFilters={hasActiveFilters}
             onClearFilters={clearFilters}
             canRepair={canRepair}
             onRepairOpen={() => setRepairOpen(true)}
+            groupKey={groupKey}
+            onGroupKeyChange={setGroupKey}
+            hasScenes={lanes.length > 0}
+            displayCount={displayShots.length}
+            totalCount={shots.length}
           />
 
           <KeyboardShortcutsDialog
@@ -437,9 +446,13 @@ export default function ShotListPage() {
             onOpenChange={setShortcutsOpen}
           />
 
-          {/* Active filter badges (removable chips) */}
+          {/* Active filter pill row (removable chips) — only when filters are
+              active. Leads with a "Filtered:" label and trails with "Clear all". */}
           {activeFilterBadges.length > 0 && (
-            <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <div className="mb-4 flex flex-wrap items-center gap-1.5" data-testid="active-filter-pills">
+              <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
+                Filtered:
+              </span>
               {activeFilterBadges.map((b) => (
                 <Badge
                   key={b.key}
@@ -451,6 +464,14 @@ export default function ShotListPage() {
                   {b.label} &times;
                 </Badge>
               ))}
+              <button
+                type="button"
+                data-testid="active-filter-clear-all"
+                className="ml-1 text-2xs text-[var(--color-text-subtle)] underline hover:text-[var(--color-text)] transition-colors"
+                onClick={clearFilters}
+              >
+                Clear all
+              </button>
             </div>
           )}
 
@@ -477,6 +498,19 @@ export default function ShotListPage() {
                     Clear grouping
                   </button>
                 )}
+              </span>
+            </div>
+          )}
+
+          {/* Large-project reorder limit — the only reason not surfaced by a
+              drag-handle tooltip (mobile) or the banners above. Shown in all
+              views so the >REORDER_SHOT_LIMIT case always has a "why" + path. */}
+          {reorderDisabledReason === "limit" && (
+            <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
+              <Info className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                Reordering is disabled for large projects. Use Sort, then
+                Renumber to set the order.
               </span>
             </div>
           )}
@@ -554,7 +588,7 @@ export default function ShotListPage() {
         <div className="grid gap-4">
           {displayShots.map((shot, index) => (
             <div key={shot.id} className="flex items-start gap-2">
-              {isCustomSort && canReorder && !hasActiveFilters && (
+              {isCustomSort && canReorder && !hasActiveFilters && displayShots.length <= REORDER_SHOT_LIMIT && (
                 <ShotReorderControls
                   shot={shot}
                   shots={displayShots}
@@ -598,6 +632,7 @@ export default function ShotListPage() {
             skuById={skuById}
             samplesByFamily={samplesByFamily}
             reorderEnabled={isCustomSort && canReorder && !hasActiveFilters && !hasActiveGrouping}
+            reorderDisabledReason={reorderDisabledReason}
             onReorder={(reordered, range) => {
               setMobileOptimistic(reordered)
               persistShotOrder(reordered, clientId!, range)
@@ -708,7 +743,8 @@ export default function ShotListPage() {
           /* Desktop: draggable when custom sort, plain grid otherwise */
           <DraggableShotList
             shots={displayShots}
-            disabled={!isCustomSort || !canReorder || hasActiveFilters || hasActiveGrouping}
+            disabled={!isCustomSort || !canReorder || hasActiveFilters || hasActiveGrouping || displayShots.length > REORDER_SHOT_LIMIT}
+            disabledReason={reorderDisabledReason}
             visibleFields={fields}
             actionControl={renderLifecycleAction}
             onOpenShot={handleShotClick}
