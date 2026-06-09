@@ -37,6 +37,7 @@ import {
 } from "@/features/shots/lib/shotColumnRenderers"
 import { SceneAssignPopover } from "@/features/shots/components/SceneAssignPopover"
 import { DisabledDragHandle, type ReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
+import { TooltipProvider } from "@/ui/tooltip"
 import type { TableColumnConfig } from "@/shared/types/table"
 import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
@@ -528,8 +529,9 @@ export function ShotsTable({
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Column settings toolbar */}
+    <TooltipProvider>
+      <div className="flex flex-col gap-2">
+        {/* Column settings toolbar */}
       <div className="flex justify-end">
         <ColumnSettingsPopover
           columns={columns}
@@ -699,6 +701,7 @@ export function ShotsTable({
           </table>
         </div>
       </DndWrapper>
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }
