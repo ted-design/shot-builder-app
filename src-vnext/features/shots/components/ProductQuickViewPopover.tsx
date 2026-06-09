@@ -40,9 +40,12 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
     needsLookup && assignment.familyId ? assignment.familyId : assignment.familyId
 
   const { data: family } = useProductFamilyDoc(familyIdForLookup ?? null)
+  // Legacy/colour-keyed assignments carry the SKU doc id in colourId, not
+  // skuId (mirrors ProductAssignmentPicker's lookup) — fall back so the
+  // per-SKU launch date still resolves for them.
   const { data: sku } = useProductSkuDoc(
     assignment.familyId ?? null,
-    assignment.skuId ?? null,
+    assignment.skuId ?? assignment.colourId ?? null,
   )
 
   const imageSrc =

@@ -12,10 +12,14 @@ import type { ProductAssignment, ProductFamily, ProductSku } from "@/shared/type
 
 let mockFamily: Partial<ProductFamily> | null = null
 let mockSku: Partial<ProductSku> | null = null
+let lastSkuLookupId: string | null = null
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilyDoc: () => ({ data: mockFamily, loading: false }),
-  useProductSkuDoc: () => ({ data: mockSku, loading: false }),
+  useProductSkuDoc: (_familyId: string | null, skuId: string | null) => {
+    lastSkuLookupId = skuId
+    return { data: mockSku, loading: false }
+  },
 }))
 
 vi.mock("@/shared/hooks/useStorageUrl", () => ({
@@ -45,11 +49,11 @@ function assignment(skuId: string): ProductAssignment {
   } as ProductAssignment
 }
 
-async function renderPopover() {
+async function renderPopover(a: ProductAssignment = assignment("sku-black")) {
   const user = userEvent.setup()
   render(
     <MemoryRouter>
-      <ProductQuickViewPopover assignment={assignment("sku-black")}>
+      <ProductQuickViewPopover assignment={a}>
         <button type="button">trigger</button>
       </ProductQuickViewPopover>
     </MemoryRouter>,
@@ -64,6 +68,7 @@ describe("ProductQuickViewPopover launch date resolution", () => {
   beforeEach(() => {
     mockFamily = null
     mockSku = null
+    lastSkuLookupId = null
   })
 
   it("(a) shows the per-SKU launch date when the SKU has its own, with no inherited badge", async () => {
@@ -113,6 +118,19 @@ describe("ProductQuickViewPopover launch date resolution", () => {
 
     await renderPopover()
 
+    expect(screen.getByText(SKU_LAUNCH)).toBeInTheDocument()
+    expect(screen.queryByText("inherited")).not.toBeInTheDocument()
+  })
+
+  it("(e) resolves the SKU via legacy colourId when skuId is absent", async () => {
+    mockFamily = { id: "fam1", styleName: "Bralette", earliestLaunchDate: ts(FAMILY_LAUNCH) }
+    mockSku = { id: "colour-black", name: "Black", launchDate: ts(SKU_LAUNCH) }
+    // Legacy assignment: SKU doc id lives in colourId, no skuId.
+    const legacy = { familyId: "fam1", familyName: "Women's Merino Scoop Bralette", colourId: "colour-black", colourName: "Black" } as ProductAssignment
+
+    await renderPopover(legacy)
+
+    expect(lastSkuLookupId).toBe("colour-black")
     expect(screen.getByText(SKU_LAUNCH)).toBeInTheDocument()
     expect(screen.queryByText("inherited")).not.toBeInTheDocument()
   })
