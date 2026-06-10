@@ -4,6 +4,9 @@ import * as Sentry from "@sentry/react"
 import "../tokens.css"
 import "./index.css"
 import { App } from "@/app/App"
+import { installChunkReloadHandler } from "@/shared/lib/chunkReload"
+
+installChunkReloadHandler()
 
 interface BootError {
   readonly type?: string
