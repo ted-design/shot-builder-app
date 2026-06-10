@@ -173,8 +173,15 @@ vi.mock("@/features/shots/components/ActiveEditorsBar", () => ({
   ActiveEditorsBar: () => null,
 }))
 
+// Stubbed: the real component mounts the project shots subscription. The
+// page-level gate (canDoOperational) is the subject here.
+vi.mock("@/features/shots/components/ShotDetailQuickAdd", () => ({
+  ShotDetailQuickAdd: () => <div data-testid="quick-add-stub">QuickAdd</div>,
+}))
+
 import { useShot } from "@/features/shots/hooks/useShot"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
+import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import ShotDetailPage from "@/features/shots/components/ShotDetailPage"
 
 function makeShot(overrides: Partial<Shot>): Shot {
@@ -238,6 +245,7 @@ function expectDocumentOrder(elements: ReadonlyArray<HTMLElement>) {
 describe("ShotDetailPageUnified", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
     authState.role = "producer"
     effectiveState.role = null
     effectiveState.resolving = false
@@ -634,5 +642,74 @@ describe("ShotDetailPageUnified", () => {
 
     expect(screen.getByTestId("scene-context-banner")).toBeInTheDocument()
     expect(screen.getByText("Terrace Scene")).toBeInTheDocument()
+  })
+
+  // -- [ / ] prev-next over the list-order snapshot --
+
+  it("[ and ] navigate to the previous/next shot in the list-order snapshot", () => {
+    writeShotListNavOrder("c1", "p1", ["s0", "s1", "s2"])
+    mockShot()
+
+    renderPage()
+
+    fireEvent.keyDown(document.body, { key: "[" })
+    expect(navigateSpy).toHaveBeenLastCalledWith("/projects/p1/shots/s0")
+
+    fireEvent.keyDown(document.body, { key: "]" })
+    expect(navigateSpy).toHaveBeenLastCalledWith("/projects/p1/shots/s2")
+  })
+
+  it("[ and ] clamp at the snapshot ends (no wrap-around)", () => {
+    writeShotListNavOrder("c1", "p1", ["s1"])
+    mockShot()
+
+    renderPage()
+
+    fireEvent.keyDown(document.body, { key: "[" })
+    fireEvent.keyDown(document.body, { key: "]" })
+    expect(navigateSpy).not.toHaveBeenCalled()
+  })
+
+  it("[ and ] no-op without a snapshot (deep link / new tab) or when the shot left the visible order", () => {
+    sessionStorage.clear()
+    mockShot()
+
+    renderPage()
+    fireEvent.keyDown(document.body, { key: "]" })
+    expect(navigateSpy).not.toHaveBeenCalled()
+
+    writeShotListNavOrder("c1", "p1", ["other1", "other2"])
+    fireEvent.keyDown(document.body, { key: "]" })
+    expect(navigateSpy).not.toHaveBeenCalled()
+  })
+
+  // -- in-editor quick-add gating (bottom of the right rail) --
+
+  it("producer: quick-add renders at the bottom of the rail", () => {
+    mockShot()
+
+    renderPage()
+
+    const rail = screen.getByTestId("shot-detail-sidebar")
+    const quickAdd = screen.getByTestId("quick-add-stub")
+    expect(rail.contains(quickAdd)).toBe(true)
+  })
+
+  it("viewer: quick-add does not mount", () => {
+    authState.role = "viewer"
+    mockShot()
+
+    renderPage()
+
+    expect(screen.queryByTestId("quick-add-stub")).not.toBeInTheDocument()
+  })
+
+  it("role resolving: quick-add does not mount (no write affordance during the gap)", () => {
+    effectiveState.resolving = true
+    mockShot()
+
+    renderPage()
+
+    expect(screen.queryByTestId("quick-add-stub")).not.toBeInTheDocument()
   })
 })
