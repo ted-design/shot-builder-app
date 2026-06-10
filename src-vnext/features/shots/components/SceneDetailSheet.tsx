@@ -24,11 +24,10 @@ interface SceneDetailSheetProps {
   readonly projectId: string
   readonly clientId: string | null
   readonly shotCount?: number
-  /**
-   * All other lanes in the project — used to validate that the user doesn't
-   * enter a duplicate sceneNumber. Excludes the currently-edited lane.
-   */
+  /** Other lanes in the project, for duplicate-sceneNumber validation (excludes the edited lane). */
   readonly siblingLanes?: ReadonlyArray<Lane>
+  /** Required capability gate mirroring the /lanes write rule; when false the fields render as read-only display values. */
+  readonly canEditScene: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +50,7 @@ export function SceneDetailSheet({
   clientId,
   shotCount,
   siblingLanes,
+  canEditScene,
 }: SceneDetailSheetProps) {
   // Local state for form fields
   const [name, setName] = useState("")
@@ -242,15 +242,24 @@ export function SceneDetailSheet({
             >
               Scene Name
             </label>
-            <Input
-              id="scene-detail-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={handleNameBlur}
-              onKeyDown={handleNameKeyDown}
-              placeholder="e.g., Beach Lifestyle"
-              data-testid="scene-name-input"
-            />
+            {canEditScene ? (
+              <Input
+                id="scene-detail-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                placeholder="e.g., Beach Lifestyle"
+                data-testid="scene-name-input"
+              />
+            ) : (
+              <p
+                className="text-sm text-[var(--color-text-secondary)]"
+                data-testid="scene-name-readonly"
+              >
+                {lane.name}
+              </p>
+            )}
           </div>
 
           {/* Scene Number */}
@@ -261,18 +270,27 @@ export function SceneDetailSheet({
             >
               Scene Number
             </label>
-            <Input
-              id="scene-detail-number"
-              type="number"
-              value={sceneNumber}
-              onChange={(e) => setSceneNumber(e.target.value)}
-              onBlur={handleSceneNumberBlur}
-              onKeyDown={handleSceneNumberKeyDown}
-              placeholder="e.g., 1"
-              min={1}
-              max={MAX_SCENE_NUMBER}
-              data-testid="scene-number-input"
-            />
+            {canEditScene ? (
+              <Input
+                id="scene-detail-number"
+                type="number"
+                value={sceneNumber}
+                onChange={(e) => setSceneNumber(e.target.value)}
+                onBlur={handleSceneNumberBlur}
+                onKeyDown={handleSceneNumberKeyDown}
+                placeholder="e.g., 1"
+                min={1}
+                max={MAX_SCENE_NUMBER}
+                data-testid="scene-number-input"
+              />
+            ) : (
+              <p
+                className="text-sm text-[var(--color-text-secondary)]"
+                data-testid="scene-number-readonly"
+              >
+                {lane.sceneNumber != null ? String(lane.sceneNumber) : "Not set"}
+              </p>
+            )}
           </div>
 
           {/* Color Picker — fieldset/legend for an accessible group label */}
@@ -280,24 +298,32 @@ export function SceneDetailSheet({
             <legend className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
               Color
             </legend>
-            <div className="flex gap-2" data-testid="scene-color-picker">
-              {SCENE_COLORS.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => handleColorSelect(c.key)}
-                  className={`h-7 w-7 rounded-full transition-all ${
-                    lane.color === c.key
-                      ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--color-surface)]"
-                      : "hover:scale-110"
-                  }`}
-                  style={{ background: c.hex }}
-                  aria-label={`Color ${c.key}`}
-                  aria-pressed={lane.color === c.key}
-                  data-testid={`scene-color-${c.key}`}
-                />
-              ))}
-            </div>
+            {canEditScene ? (
+              <div className="flex gap-2" data-testid="scene-color-picker">
+                {SCENE_COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => handleColorSelect(c.key)}
+                    className={`h-7 w-7 rounded-full transition-all ${
+                      lane.color === c.key
+                        ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--color-surface)]"
+                        : "hover:scale-110"
+                    }`}
+                    style={{ background: c.hex }}
+                    aria-label={`Color ${c.key}`}
+                    aria-pressed={lane.color === c.key}
+                    data-testid={`scene-color-${c.key}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <span
+                className="block h-7 w-7 rounded-full"
+                style={{ background: resolvedColor }}
+                data-testid="scene-color-readonly"
+              />
+            )}
           </fieldset>
 
           {/* Creative Direction */}
@@ -309,21 +335,32 @@ export function SceneDetailSheet({
               >
                 Creative Direction
               </label>
-              <span className="text-3xs text-[var(--color-text-subtle)]">
-                {direction.length}/{MAX_DIRECTION_CHARS}
-              </span>
+              {canEditScene && (
+                <span className="text-3xs text-[var(--color-text-subtle)]">
+                  {direction.length}/{MAX_DIRECTION_CHARS}
+                </span>
+              )}
             </div>
-            <Textarea
-              id="scene-detail-direction"
-              value={direction}
-              onChange={handleDirectionChange}
-              onBlur={handleDirectionBlur}
-              rows={3}
-              maxLength={MAX_DIRECTION_CHARS}
-              placeholder="Mood, lighting, style notes..."
-              className="resize-none text-sm"
-              data-testid="scene-direction-textarea"
-            />
+            {canEditScene ? (
+              <Textarea
+                id="scene-detail-direction"
+                value={direction}
+                onChange={handleDirectionChange}
+                onBlur={handleDirectionBlur}
+                rows={3}
+                maxLength={MAX_DIRECTION_CHARS}
+                placeholder="Mood, lighting, style notes..."
+                className="resize-none text-sm"
+                data-testid="scene-direction-textarea"
+              />
+            ) : (
+              <p
+                className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]"
+                data-testid="scene-direction-readonly"
+              >
+                {lane.direction || "Not set"}
+              </p>
+            )}
           </div>
 
           {/* Production Notes */}
@@ -335,21 +372,32 @@ export function SceneDetailSheet({
               >
                 Production Notes
               </label>
-              <span className="text-3xs text-[var(--color-text-subtle)]">
-                {notes.length}/{MAX_NOTES_CHARS}
-              </span>
+              {canEditScene && (
+                <span className="text-3xs text-[var(--color-text-subtle)]">
+                  {notes.length}/{MAX_NOTES_CHARS}
+                </span>
+              )}
             </div>
-            <Textarea
-              id="scene-detail-notes"
-              value={notes}
-              onChange={handleNotesChange}
-              onBlur={handleNotesBlur}
-              rows={5}
-              maxLength={MAX_NOTES_CHARS}
-              placeholder="Setup, timing, special requirements..."
-              className="resize-none text-sm"
-              data-testid="scene-notes-textarea"
-            />
+            {canEditScene ? (
+              <Textarea
+                id="scene-detail-notes"
+                value={notes}
+                onChange={handleNotesChange}
+                onBlur={handleNotesBlur}
+                rows={5}
+                maxLength={MAX_NOTES_CHARS}
+                placeholder="Setup, timing, special requirements..."
+                className="resize-none text-sm"
+                data-testid="scene-notes-textarea"
+              />
+            ) : (
+              <p
+                className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]"
+                data-testid="scene-notes-readonly"
+              >
+                {lane.notes || "Not set"}
+              </p>
+            )}
           </div>
 
           {/* Shot count */}

@@ -46,6 +46,7 @@ describe("SceneDetailSheet", () => {
         lane={null}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
     expect(container.firstChild).toBeNull()
@@ -60,6 +61,7 @@ describe("SceneDetailSheet", () => {
         projectId="p1"
         clientId="c1"
         shotCount={4}
+        canEditScene
       />,
     )
 
@@ -81,6 +83,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
     expect(screen.getByTestId("scene-color-teal")).toBeInTheDocument()
@@ -99,6 +102,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -124,6 +128,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -143,6 +148,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -168,6 +174,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -191,6 +198,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -216,6 +224,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -238,6 +247,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -256,6 +266,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId={null}
+        canEditScene
       />,
     )
 
@@ -274,6 +285,7 @@ describe("SceneDetailSheet", () => {
         projectId="p1"
         clientId="c1"
         shotCount={1}
+        canEditScene
       />,
     )
     expect(screen.getByText("shot in this scene")).toBeInTheDocument()
@@ -289,6 +301,7 @@ describe("SceneDetailSheet", () => {
         lane={baseLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -306,6 +319,7 @@ describe("SceneDetailSheet", () => {
         lane={echoedLane}
         projectId="p1"
         clientId="c1"
+        canEditScene
       />,
     )
 
@@ -321,7 +335,7 @@ describe("SceneDetailSheet", () => {
 
     const onOpenChange = vi.fn()
     const { rerender } = render(
-      <SceneDetailSheet open onOpenChange={onOpenChange} lane={laneA} projectId="p1" clientId="c1" />,
+      <SceneDetailSheet open onOpenChange={onOpenChange} lane={laneA} projectId="p1" clientId="c1" canEditScene />,
     )
     expect((screen.getByTestId("scene-direction-textarea") as HTMLTextAreaElement).value).toBe(
       "direction A",
@@ -329,16 +343,87 @@ describe("SceneDetailSheet", () => {
 
     // Close the sheet
     rerender(
-      <SceneDetailSheet open={false} onOpenChange={onOpenChange} lane={laneA} projectId="p1" clientId="c1" />,
+      <SceneDetailSheet open={false} onOpenChange={onOpenChange} lane={laneA} projectId="p1" clientId="c1" canEditScene />,
     )
 
     // Re-open for a different lane
     rerender(
-      <SceneDetailSheet open onOpenChange={onOpenChange} lane={laneB} projectId="p1" clientId="c1" />,
+      <SceneDetailSheet open onOpenChange={onOpenChange} lane={laneB} projectId="p1" clientId="c1" canEditScene />,
     )
 
     expect((screen.getByTestId("scene-direction-textarea") as HTMLTextAreaElement).value).toBe(
       "direction B",
     )
+  })
+
+  describe("canEditScene={false} (read-only, flag-independent 5a fix)", () => {
+    it("renders the four fields as display values with no inputs", () => {
+      render(
+        <SceneDetailSheet
+          open
+          onOpenChange={vi.fn()}
+          lane={baseLane}
+          projectId="p1"
+          clientId="c1"
+          shotCount={4}
+          canEditScene={false}
+        />,
+      )
+
+      // Display values...
+      expect(screen.getByTestId("scene-name-readonly")).toHaveTextContent("Beach Lifestyle")
+      expect(screen.getByTestId("scene-number-readonly")).toHaveTextContent("3")
+      expect(screen.getByTestId("scene-direction-readonly")).toHaveTextContent(
+        "Golden hour, warm tones",
+      )
+      expect(screen.getByTestId("scene-notes-readonly")).toHaveTextContent("Bring reflector")
+
+      // ...and ZERO write affordances: no inputs, no textareas, no color buttons.
+      expect(screen.queryByTestId("scene-name-input")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("scene-number-input")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("scene-direction-textarea")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("scene-notes-textarea")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("scene-color-picker")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("scene-color-teal")).not.toBeInTheDocument()
+      expect(screen.getByTestId("scene-color-readonly")).toBeInTheDocument()
+
+      // Shot count footer still renders.
+      expect(screen.getByText("shots in this scene")).toBeInTheDocument()
+    })
+
+    it("shows 'Not set' for empty direction and notes", () => {
+      const bareLane: Lane = { ...baseLane, direction: undefined, notes: undefined }
+      render(
+        <SceneDetailSheet
+          open
+          onOpenChange={vi.fn()}
+          lane={bareLane}
+          projectId="p1"
+          clientId="c1"
+          canEditScene={false}
+        />,
+      )
+      expect(screen.getByTestId("scene-direction-readonly")).toHaveTextContent("Not set")
+      expect(screen.getByTestId("scene-notes-readonly")).toHaveTextContent("Not set")
+    })
+
+    it("never calls updateLane in read-only mode", async () => {
+      render(
+        <SceneDetailSheet
+          open
+          onOpenChange={vi.fn()}
+          lane={baseLane}
+          projectId="p1"
+          clientId="c1"
+          canEditScene={false}
+        />,
+      )
+
+      // Nothing to type into or click; assert no save path fired on mount or
+      // via the static color swatch.
+      fireEvent.click(screen.getByTestId("scene-color-readonly"))
+      await Promise.resolve()
+      expect(updateLane).not.toHaveBeenCalled()
+    })
   })
 })

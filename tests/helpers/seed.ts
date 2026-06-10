@@ -11,6 +11,8 @@ import {
   SEED_SHOT_SPECTRA_INPROGRESS,
   SEED_SHOT_SPECTRA_ONHOLD,
   SEED_SHOT_SPECTRA_COMPLETE,
+  SEED_SHOT_RICH,
+  SEED_RICH_SHOT_FIELDS,
   SEED_PULL,
   SEED_PULL_ITEM,
 } from './seedConstants';
@@ -112,6 +114,16 @@ export async function createTestShot(projectId: string, data: {
   date?: Date | null;
   sortOrder?: number;
   shotNumber?: string | null;
+  /**
+   * RICH display fields (Phase 5a). Written ONLY when provided, so every
+   * pre-existing seeded shot's doc shape stays byte-identical. Shapes must
+   * mirror mapShot's normalizers (see SEED_RICH_SHOT_FIELDS).
+   */
+  notes?: string | null;
+  tags?: ReadonlyArray<{ id: string; label: string; color: string }>;
+  looks?: ReadonlyArray<Record<string, unknown>>;
+  activeLookId?: string | null;
+  heroImage?: { path: string; downloadURL: string };
 }): Promise<string> {
   const db = getDb();
   const col = db.collection(`clients/${CLIENT_ID}/shots`);
@@ -136,11 +148,17 @@ export async function createTestShot(projectId: string, data: {
     talent: data.talent || [],
     talentIds: data.talent || [],
     locationId: data.location ?? null,
-    notes: null,
+    notes: data.notes ?? null,
     referenceLinks: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     createdBy: '',
+    // Conditional spreads: absent unless the caller provides them, so the
+    // base seed shots keep their original doc shape exactly.
+    ...(data.tags !== undefined ? { tags: data.tags } : {}),
+    ...(data.looks !== undefined ? { looks: data.looks } : {}),
+    ...(data.activeLookId !== undefined ? { activeLookId: data.activeLookId } : {}),
+    ...(data.heroImage !== undefined ? { heroImage: data.heroImage } : {}),
   });
 
   return shotRef.id;
@@ -513,6 +531,25 @@ export async function seedShotsCrudScenario(
     });
     order += 1;
   }
+
+  // RICH display shot (Phase 5a) — description, legacy notes HTML, tags, a
+  // data:-URI hero, and 2 looks with products/colorways/SKUs, so the unified
+  // editor's colorway strip is E2E-assertable post-flip. READ-ONLY: no spec
+  // may ever mutate it (see the ownership note on SEED_SHOT_RICH).
+  await createTestShot(SEED_PROJECT_ID, {
+    id: SEED_SHOT_RICH.id,
+    title: SEED_SHOT_RICH.title,
+    status: 'todo',
+    sortOrder: order,
+    shotNumber: String(order),
+    description: SEED_RICH_SHOT_FIELDS.description,
+    notes: SEED_RICH_SHOT_FIELDS.notes,
+    tags: SEED_RICH_SHOT_FIELDS.tags,
+    looks: SEED_RICH_SHOT_FIELDS.looks,
+    activeLookId: SEED_RICH_SHOT_FIELDS.activeLookId,
+    heroImage: SEED_RICH_SHOT_FIELDS.heroImage,
+  });
+  order += 1;
 
   // Grant the viewer user project membership so firestore.rules permits it to
   // read the project's lanes (and project doc) — see the VIEWER ACCESS note

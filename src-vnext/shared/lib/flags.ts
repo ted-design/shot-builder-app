@@ -23,11 +23,22 @@ export interface FeatureFlags {
    * CI build env must never define it. No URL/localStorage override layer.
    */
   readonly featureSurfaceResolver: boolean
+  /**
+   * Phase 5a — unified two-column shot editor (ShotListPage fork A +
+   * ShotDetailPage fork B). Default OFF (flag-off path is byte-identical to
+   * pre-Phase-5a trunk). Enabled ONLY via `VITE_UNIFIED_SHOT_EDITOR=1` (or
+   * `true`) at build/dev time — e.g. the :5174 eyeball runs
+   * `VITE_UNIFIED_SHOT_EDITOR=1 npm run dev -- --port 5174`.
+   * CI build env must never define it. No URL/localStorage override layer.
+   * Independent of featureSurfaceResolver — never coupled (separate rollbacks).
+   */
+  readonly featureUnifiedShotEditor: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
   featurePublishing: false,
   featureSurfaceResolver: false,
+  featureUnifiedShotEditor: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -50,6 +61,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureSurfaceResolver:
       DEFAULT_FLAGS.featureSurfaceResolver ||
       parseEnvFlag(import.meta.env.VITE_SURFACE_RESOLVER),
+    featureUnifiedShotEditor:
+      DEFAULT_FLAGS.featureUnifiedShotEditor ||
+      parseEnvFlag(import.meta.env.VITE_UNIFIED_SHOT_EDITOR),
   }
 }
 

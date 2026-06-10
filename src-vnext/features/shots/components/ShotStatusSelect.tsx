@@ -23,6 +23,8 @@ interface ShotStatusSelectProps {
   readonly shot: Shot
   readonly disabled?: boolean
   readonly compact?: boolean
+  /** "badge" restyles the trigger as a status-token badge; same testid, optimistic update, and labels. */
+  readonly variant?: "default" | "badge"
 }
 
 export function ShotStatusSelect({
@@ -31,6 +33,7 @@ export function ShotStatusSelect({
   shot,
   disabled = false,
   compact = false,
+  variant = "default",
 }: ShotStatusSelectProps) {
   const { clientId, user } = useAuth()
   const [optimisticStatus, setOptimisticStatus] = useState<ShotFirestoreStatus | null>(null)
@@ -70,7 +73,13 @@ export function ShotStatusSelect({
     >
       <SelectTrigger
         data-testid="shot-status-select-trigger"
-        className={compact ? "h-7 w-[108px] px-2 text-xs" : "h-8 w-[128px]"}
+        className={
+          variant === "badge"
+            ? "h-7 w-auto gap-1 rounded-md border-0 bg-transparent px-1 shadow-none hover:bg-[var(--color-surface-subtle)]"
+            : compact
+              ? "h-7 w-[108px] px-2 text-xs"
+              : "h-8 w-[128px]"
+        }
       >
         <SelectValue>
           <StatusBadge

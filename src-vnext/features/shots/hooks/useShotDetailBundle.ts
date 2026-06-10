@@ -27,9 +27,16 @@ function normaliseError(err: ErrorLike): string | null {
 // project's lanes — these constants force the degraded empty state instead.
 const EMPTY_LANE_BY_ID: ReadonlyMap<string, Lane> = new Map()
 const EMPTY_LANE_NAME_BY_ID: ReadonlyMap<string, string> = new Map()
+const EMPTY_LANES: ReadonlyArray<Lane> = []
 
 export interface ShotDetailBundle {
   readonly shot: Shot | null
+  /**
+   * Ordered project lanes (sortOrder asc) — SceneDetailSheet's siblingLanes
+   * input for duplicate scene-number detection (5a unified editor). Empty on
+   * a swallowed permission-denied, same as laneById.
+   */
+  readonly lanes: ReadonlyArray<Lane>
   readonly laneById: ReadonlyMap<string, Lane>
   readonly laneNameById: ReadonlyMap<string, string>
   readonly loading: boolean
@@ -68,6 +75,7 @@ export function useShotDetailBundle(shotId: string | undefined): ShotDetailBundl
     // On a swallowed permission-denied, force the empty maps — useLanes may
     // still hold the previous project's lanes (the hook retains data on error),
     // and we must not surface stale scene context to a non-member.
+    lanes: lanesPermissionDenied ? EMPTY_LANES : lanes.data,
     laneById: lanesPermissionDenied ? EMPTY_LANE_BY_ID : lanes.laneById,
     laneNameById: lanesPermissionDenied ? EMPTY_LANE_NAME_BY_ID : lanes.laneNameById,
     loading: shot.loading || lanes.loading,
