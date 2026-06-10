@@ -63,6 +63,19 @@ describe("HeroImageSection frame variants", () => {
     expect(img.parentElement?.parentElement).toHaveClass("w-fit")
   })
 
+  it('"natural" frame keeps the Replace/Reset upload affordances when canUpload is true', () => {
+    render(
+      <HeroImageSection
+        heroImage={heroImage}
+        shot={baseShot}
+        shotId="shot-1"
+        canUpload={true}
+        frame="natural"
+      />,
+    )
+    expect(screen.getByRole("button", { name: /Replace/ })).toBeInTheDocument()
+  })
+
   it('"natural" frame does not change the empty state or upload gating', () => {
     render(
       <HeroImageSection

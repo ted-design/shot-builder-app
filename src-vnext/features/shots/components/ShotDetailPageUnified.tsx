@@ -1,5 +1,5 @@
 // Unified two-column shot editor — rendered by ShotDetailPage when `featureUnifiedShotEditor` is on.
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
 import {
   collection,
@@ -211,8 +211,10 @@ export function ShotDetailPageUnified() {
     undefined,
   )
 
+  const { search: locationSearch } = useLocation()
+
   // -- FAB integration: ?status_picker=1 (consume-only) and ?focus=notes --
-  const [searchParams, setSearchParamsFab] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const notesRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -229,14 +231,14 @@ export function ShotDetailPageUnified() {
       consumed = true
     }
     if (consumed) {
-      setSearchParamsFab((prev) => {
+      setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete("status_picker")
         next.delete("focus")
         return next
       }, { replace: true })
     }
-  }, [searchParams, setSearchParamsFab])
+  }, [searchParams, setSearchParams])
 
   // Lazy one-shot count for SceneDetailSheet's "N shots in this scene" label.
   useEffect(() => {
@@ -331,12 +333,14 @@ export function ShotDetailPageUnified() {
     )
   }
 
+  // Legacy-parity guard; moves into a useEffect when the legacy branch retires.
   if (shot.deleted === true) {
     navigate(`/projects/${shot.projectId}/shots`, { replace: true })
     toast.info("This shot has been archived.")
     return null
   }
 
+  // Strips HTML; Infinity means sanitize without truncating (same call as the legacy page).
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)
   const talentCount = (shot.talentIds ?? shot.talent ?? []).length
 
@@ -358,7 +362,7 @@ export function ShotDetailPageUnified() {
             },
             {
               label: "Shots",
-              to: `/projects/${shot.projectId}/shots${window.location.search}`,
+              to: `/projects/${shot.projectId}/shots${locationSearch}`,
             },
             { label: shot.shotNumber ? `#${shot.shotNumber}` : "Shot" },
           ]}
@@ -437,6 +441,7 @@ export function ShotDetailPageUnified() {
                 {shot.title || "Untitled Shot"}
               </h1>
             )}
+            {/* Editorial serif masthead per docs/DESIGN.md — intentionally not .heading-page. */}
             {/* The iconic period — the single red accent on this surface. */}
             <span className="iconic-period" aria-hidden="true">
               .
@@ -480,7 +485,7 @@ export function ShotDetailPageUnified() {
               <SectionLabel>Hero + References</SectionLabel>
               <div className="mt-1.5 grid items-start gap-3 lg:grid-cols-[minmax(0,420px)_minmax(220px,1fr)]">
                 {/* Hero renders at the image's native ratio — no forced widescreen crop. */}
-                <div className="w-full max-w-[400px]">
+                <div className="w-full max-w-sm">
                   <HeroImageSection
                     heroImage={shot.heroImage}
                     shot={shot}

@@ -272,6 +272,29 @@ describe("ShotDetailPageUnified (flag-on)", () => {
     ).toBeInTheDocument()
   })
 
+  it("falls back to the first sorted look as Active when activeLookId is stale", () => {
+    mockShot({
+      looks: [
+        { id: "l2", label: "Alt", order: 1, products: [] },
+        { id: "l1", label: "Primary", order: 0, products: [] },
+      ],
+      activeLookId: "gone",
+    })
+
+    renderPage()
+
+    const strip = screen.getByTestId("product-colorway-strip")
+    const headers = Array.from(strip.querySelectorAll("p")).map((p) => p.textContent ?? "")
+    const primaryHeader = headers.find((t) => t.startsWith("Primary"))
+    const altHeader = headers.find((t) => t.startsWith("Alt"))
+    expect(primaryHeader).toContain("Active")
+    expect(altHeader).toBeDefined()
+    expect(altHeader).not.toContain("Active")
+    expect(headers.findIndex((t) => t.startsWith("Primary"))).toBeLessThan(
+      headers.findIndex((t) => t.startsWith("Alt")),
+    )
+  })
+
   it("viewer mounts zero enabled write affordances", () => {
     authState.role = "viewer"
     mockShot()
