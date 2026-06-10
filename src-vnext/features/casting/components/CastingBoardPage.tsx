@@ -8,10 +8,12 @@ import { EmptyState } from "@/shared/components/EmptyState"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { useCastingBoard } from "@/features/casting/hooks/useCastingBoard"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
-import { canManageCasting } from "@/shared/lib/rbac"
+import { canManageCasting, ROLE } from "@/shared/lib/rbac"
 import {
   addTalentToCastingBoard,
   updateCastingEntry,
@@ -41,13 +43,41 @@ type SortKey = "name" | "agency" | "status"
 
 export default function CastingBoardPage() {
   const { projectId, projectName } = useProjectScope()
-  const { clientId, role, user } = useAuth()
+  const { clientId, role: globalRole, user } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). Board-edit affordances render NOTHING while the first
+  // uncached member read for this project is in flight (resolving) — never
+  // the global-role guess.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const isMobile = useIsMobile()
 
   const { entries, loading, error } = useCastingBoard(projectId, clientId)
   const { data: talentLibrary, loading: talentLoading } = useTalentLibrary()
 
-  const canEdit = canManageCasting(role) && !isMobile
+  // -- Role-based flags (5b-II: effective role + resolving gate) --
+  // Board-edit affordances (Add Talent, status/book/remove, bulk bar, card
+  // edits). Backing rule: the castingBoard subcollection has no explicit
+  // match, so writes fall to the project wildcard (firestore.rules:921-929):
+  // isAdmin || producerCanAccessProject || hasProjectRole(['producer',
+  // 'warehouse']).
+  const canEdit = !roleResolving && canManageCasting(role) && !isMobile
+  // PINNED to the GLOBAL claim: /castingShares create requires a global
+  // admin/producer claim (firestore.rules:227-231) — the backend cannot see
+  // a project promotion, so the UI must not advertise Share from the
+  // effective role.
+  const canShare =
+    (globalRole === ROLE.ADMIN || globalRole === ROLE.PRODUCER) && !isMobile
+  // PINNED to the GLOBAL claim: Book also backlinks
+  // /clients/{clientId}/talent/{talentId}.projectIds, whose rule is
+  // global-claim only (firestore.rules:363-365, isAdmin || isProducer —
+  // admin/producer/warehouse). The Book batch is atomic, so a
+  // project-promoted member (global viewer/crew + member-doc producer) must
+  // skip the backlink — the board status update alone goes through the
+  // project wildcard (firestore.rules:921-929).
+  const canWriteTalentBacklink =
+    globalRole === ROLE.ADMIN ||
+    globalRole === ROLE.PRODUCER ||
+    globalRole === ROLE.WAREHOUSE
 
   // Local UI state
   const [search, setSearch] = useState("")
@@ -169,6 +199,7 @@ export default function CastingBoardPage() {
         projectId,
         userId: user.uid,
         talentId,
+        includeTalentBacklink: canWriteTalentBacklink,
       })
       toast.success("Talent booked")
     } catch (err) {
@@ -273,18 +304,23 @@ export default function CastingBoardPage() {
     )
   }
 
-  const actions = canEdit ? (
+  const actions = (
     <>
-      <Button variant="outline" size="sm" onClick={handleShare}>
-        <Share2 className="mr-1.5 h-3.5 w-3.5" />
-        Share
-      </Button>
-      <Button size="sm" onClick={() => setAddDialogOpen(true)}>
-        <Plus className="mr-1.5 h-3.5 w-3.5" />
-        Add Talent
-      </Button>
+      <EffectiveRoleChip />
+      {canShare && (
+        <Button variant="outline" size="sm" onClick={handleShare}>
+          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+          Share
+        </Button>
+      )}
+      {canEdit && (
+        <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Add Talent
+        </Button>
+      )}
     </>
-  ) : undefined
+  )
 
   return (
     <ErrorBoundary>

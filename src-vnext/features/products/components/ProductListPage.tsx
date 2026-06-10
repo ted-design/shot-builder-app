@@ -61,8 +61,18 @@ export default function ProductListPage() {
   const { data: families, loading, error } = useProductFamilies()
   const { role, user: currentUser, clientId } = useAuth()
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): org-scope products page, no project
+  // context — useEffectiveRole has no ProjectScopeProvider here and would
+  // return the global claim anyway. Backing rules are global-role checks:
+  // productFamilies create/update firestore.rules:568 (admin|producer),
+  // delete :569 (admin — backs showMerge, which deletes merged families).
   const canCreate = canManageProducts(role)
   const canEdit = !isMobile && canCreate
+  // PINNED to the GLOBAL claim (5b): bulk-add creates SHOTS in a project
+  // chosen inside the dialog (bulkCreateShotsFromProducts) — backed by the
+  // /shots create rule's global lanes (firestore.rules:446-449:
+  // hasGlobalRole(['producer']) or isAdmin() via shotProjectRole). No
+  // project scope exists on this org page to resolve an effective role.
   const canBulkAdd = canManageProjects(role)
   const showMerge = isAdmin(role) && !isMobile
   const [searchParams, setSearchParams] = useSearchParams()

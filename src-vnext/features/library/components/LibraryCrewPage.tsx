@@ -27,6 +27,10 @@ export default function LibraryCrewPage() {
   const { role } = useAuth()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
+  // PINNED to the GLOBAL claim (5b): the crew library is an org-scope
+  // surface (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/crew writes require a global admin/producer claim
+  // (firestore.rules:402-405) — a project promotion never unlocks these.
   const canCreate = canManageCrew(role)
   const canEdit = !isMobile && canCreate
 

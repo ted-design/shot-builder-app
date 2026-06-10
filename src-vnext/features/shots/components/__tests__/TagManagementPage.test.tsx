@@ -6,8 +6,24 @@ import { MemoryRouter } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 
+// 5b test convention: hoisted mutable state — effectiveState.role null means
+// "mirror the global claim" (default matrix), a string overrides it
+// (downgrade rows), resolving=true pins the first-read gap.
+const authState = vi.hoisted(() => ({ role: "producer" }))
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
 vi.mock("@/app/providers/AuthProvider", () => ({
-  useAuth: () => ({ clientId: "c1", role: "producer" }),
+  useAuth: () => ({ clientId: "c1", role: authState.role }),
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? authState.role,
+    resolving: effectiveState.resolving,
+  }),
 }))
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
@@ -73,9 +89,26 @@ function renderPage() {
   )
 }
 
+function setShots(shots: readonly Shot[]) {
+  ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: shots,
+    loading: false,
+    error: null,
+  })
+}
+
+const taggedShot = () =>
+  makeShot({
+    id: "s1",
+    tags: [{ id: "tag-1", label: "Outdoor", color: "blue" }],
+  })
+
 describe("TagManagementPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.role = "producer"
+    effectiveState.role = null
+    effectiveState.resolving = false
   })
 
   it("renames a tag across shots from the Details panel", async () => {
@@ -120,4 +153,70 @@ describe("TagManagementPage", () => {
     })
   })
 
+  it("renders tag-write affordances when the effective role mirrors the global producer claim", async () => {
+    const user = userEvent.setup()
+    setShots([taggedShot()])
+
+    renderPage()
+
+    // Merge checkboxes render only for canEdit roles.
+    expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0)
+
+    await user.click(screen.getAllByText("Outdoor")[0]!)
+    expect(screen.getByRole("button", { name: /delete/i })).toBeEnabled()
+
+    // No per-project downgrade → the chip renders nothing.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
+
+  it("renders no tag-write affordances while the effective role is resolving", async () => {
+    const user = userEvent.setup()
+    effectiveState.resolving = true
+    setShots([taggedShot()])
+
+    renderPage()
+
+    // The first uncached member read is in flight: never show the
+    // global-role guess.
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0)
+
+    await user.click(screen.getAllByText("Outdoor")[0]!)
+    expect(screen.getByRole("button", { name: /delete/i })).toBeDisabled()
+
+    // The chip is also quiet while resolving.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
+
+  it("hides tag-write affordances when the project member doc downgrades a global producer to viewer", async () => {
+    const user = userEvent.setup()
+    effectiveState.role = "viewer"
+    setShots([taggedShot()])
+
+    renderPage()
+
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0)
+
+    await user.click(screen.getAllByText("Outdoor")[0]!)
+    expect(screen.getByRole("button", { name: /delete/i })).toBeDisabled()
+
+    // The downgrade is surfaced quietly in the header.
+    expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
+      "Viewer on this project",
+    )
+  })
+
+  it("keeps tag-write affordances when the member doc promotes a global viewer to producer", () => {
+    authState.role = "viewer"
+    effectiveState.role = "producer"
+    setShots([taggedShot()])
+
+    renderPage()
+
+    // Project role WINS over the global claim, including upgrades (locked
+    // Q5/Q6) — the /shots update arm is project-scoped, so the affordance
+    // is honest here (unlike the pinned global-rule surfaces).
+    expect(screen.getAllByRole("checkbox").length).toBeGreaterThan(0)
+    // Upgrades render no chip (downgrade-only indicator).
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
 })

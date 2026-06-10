@@ -87,6 +87,12 @@ export default function ProjectDashboard() {
     }
   }, [])
 
+  // PINNED to the GLOBAL claim (5b): the dashboard is org-chrome — no
+  // ProjectScopeProvider is mounted, so there is no project to resolve an
+  // effective role against. Backing rule: projects create requires a global
+  // admin/producer claim (firestore.rules:688). The same pin covers the
+  // empty-state "Create Your First Project" action below (isAdmin(role) ||
+  // canManage).
   const canManage = canManageProjects(role)
   const showCreate = canManage
   const showActions = canManage && !isMobile

@@ -135,6 +135,10 @@ export default function CrewDetailPage() {
   const [deleting, setDeleting] = useState(false)
 
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): crew detail is an org-scope surface
+  // (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/crew writes require a global admin/producer claim
+  // (firestore.rules:402-405) — a project promotion never unlocks these.
   const canEdit = !isMobile && canManageCrew(role as Role)
 
   const handleFieldSave = async (field: string, value: string) => {

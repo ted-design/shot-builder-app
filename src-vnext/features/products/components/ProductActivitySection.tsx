@@ -160,6 +160,11 @@ export function ProductActivitySection({
                         {deleted ? "Deleted" : comment.body}
                       </div>
                     </div>
+                    {/* PINNED to the GLOBAL claim (5b): removing someone
+                        else's comment is a soft-delete update allowed for
+                        author-or-ADMIN, where admin is the GLOBAL claim
+                        (productFamilies/comments firestore.rules:598-604);
+                        org backend, no project context. */}
                     {canEdit && !deleted && (mine || isAdmin(role)) && (
                       <Button
                         type="button"

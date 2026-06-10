@@ -34,6 +34,8 @@ import { isTagColorKey, type TagColorKey } from "@/shared/lib/tagColors"
 import { findCanonicalTag, normalizeTagLabel } from "@/shared/lib/tagDedup"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { canManageShots } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -128,10 +130,19 @@ function buildTagLibrary(shots: readonly Shot[]): readonly TagEntry[] {
 }
 
 export default function TagManagementPage() {
-  const { clientId, role } = useAuth()
+  const { clientId } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). `resolving` is true only during the first uncached member
+  // read for this project.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId, projectName } = useProjectScope()
   const isMobile = useIsMobile()
-  const canEdit = canManageShots(role) && !isMobile
+  // Tag rename/merge/recolor/delete batch-update shot docs
+  // (tagManagementWrites.ts) → hardened /shots update arm
+  // (firestore.rules:457-466, project-scoped ['producer','crew']). Write
+  // affordances render NOTHING while the first member read is in flight
+  // (roleResolving) — never the global-role guess.
+  const canEdit = !roleResolving && canManageShots(role) && !isMobile
   const navigate = useNavigate()
 
   const { data: shots, loading, error } = useShots()
@@ -341,12 +352,15 @@ export default function TagManagementPage() {
       <PageHeader
         title="Tags"
         actions={
-          canEdit && mergeIds.length >= 2 ? (
-            <Button variant="outline" onClick={() => setMergeOpen(true)} className="gap-2">
-              <Merge className="h-4 w-4" />
-              Merge ({mergeIds.length})
-            </Button>
-          ) : null
+          <div className="flex items-center gap-2">
+            <EffectiveRoleChip />
+            {canEdit && mergeIds.length >= 2 ? (
+              <Button variant="outline" onClick={() => setMergeOpen(true)} className="gap-2">
+                <Merge className="h-4 w-4" />
+                Merge ({mergeIds.length})
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

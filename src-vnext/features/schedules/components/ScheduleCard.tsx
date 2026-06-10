@@ -28,6 +28,9 @@ function formatDate(date: Schedule["date"]): string {
 interface ScheduleCardProps {
   readonly schedule: Schedule
   readonly canManage: boolean
+  // Delete is rules-stricter than edit: /schedules delete arm is admin-only
+  // (firestore.rules:801).
+  readonly canDelete: boolean
   readonly onDelete: (schedule: Schedule) => void
   readonly onEdit: (schedule: Schedule) => void
 }
@@ -35,6 +38,7 @@ interface ScheduleCardProps {
 export function ScheduleCard({
   schedule,
   canManage,
+  canDelete,
   onDelete,
   onEdit,
 }: ScheduleCardProps) {
@@ -83,16 +87,18 @@ export function ScheduleCard({
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-[var(--color-error)]"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(schedule)
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {canDelete && (
+                <DropdownMenuItem
+                  className="text-[var(--color-error)]"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(schedule)
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

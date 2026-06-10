@@ -124,6 +124,10 @@ export default function ShotListPage() {
   // claim (firestore.rules:193-204) — the backend cannot see a project
   // promotion, so the UI must not advertise Share from the effective role.
   const canShare = globalRole === "admin" || globalRole === "producer"
+  // NO role gate, by locked decision: export is device-only. The export
+  // backend rules (exportTemplates firestore.rules:641-651, exportReports
+  // :868-877) don't gate this affordance; the per-share export toggle is 5f.
+  // Do not add an effective-role (or any role) source here.
   const canExport = !isMobile
   const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && !isMobile
   // Scene/lane writes (edit, delete, ungroup) consolidate on canEditScene

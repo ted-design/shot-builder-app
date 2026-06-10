@@ -14,18 +14,35 @@ import { CreateScheduleDialog } from "@/features/schedules/components/CreateSche
 import { EditScheduleDialog } from "@/features/schedules/components/EditScheduleDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { canManageSchedules } from "@/shared/lib/rbac"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
+import { canManageSchedules, isAdmin } from "@/shared/lib/rbac"
 import { Button } from "@/ui/button"
 import { CalendarDays, Plus } from "lucide-react"
 import type { Schedule } from "@/shared/types"
 
 export default function ScheduleListPage() {
-  const { clientId, role } = useAuth()
+  const { clientId } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). `resolving` is true only during the first uncached
+  // member read for this project.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId } = useProjectScope()
   const { data: schedules, loading, error } = useSchedules(clientId, projectId)
   const navigate = useNavigate()
 
-  const canManage = canManageSchedules(role)
+  // Write affordances render NOTHING while the first member read is in
+  // flight (roleResolving) — never the global-role guess. Backing rule:
+  // /schedules create/update (firestore.rules:796-799, isAdmin ||
+  // producerCanAccessProject || hasProjectRole(['producer','warehouse'])).
+  const canManage = !roleResolving && canManageSchedules(role)
+  // Delete is rules-stricter than create/update: the /schedules delete arm
+  // is admin-only (firestore.rules:801), so Delete gates on admin separately
+  // or a non-admin manager would hit permission-denied. isAdmin on the
+  // EFFECTIVE role is safe: admin is never downgraded (the hook's admin
+  // exception) and a member doc can never mint 'admin', so this matches the
+  // rule's global-claim isAdmin() exactly.
+  const canDelete = !roleResolving && isAdmin(role)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null)
@@ -36,7 +53,7 @@ export default function ScheduleListPage() {
   }
 
   const handleDelete = async () => {
-    if (!deleteTarget || !clientId || !canManage) return
+    if (!deleteTarget || !clientId || !canDelete) return
     try {
       await deleteSchedule(clientId, projectId, deleteTarget.id)
       toast.success(`"${deleteTarget.name}" deleted`)
@@ -62,12 +79,15 @@ export default function ScheduleListPage() {
       <PageHeader
         title="Call Sheet"
         actions={
-          canManage ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Call Sheet
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <EffectiveRoleChip />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Call Sheet
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -86,6 +106,7 @@ export default function ScheduleListPage() {
               key={schedule.id}
               schedule={schedule}
               canManage={canManage}
+              canDelete={canDelete}
               onDelete={setDeleteTarget}
               onEdit={setEditTarget}
             />

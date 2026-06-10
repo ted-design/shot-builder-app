@@ -67,6 +67,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       { type: "item", item: { label: "Dashboard", to: "/projects", iconName: "layout-grid" } },
     ]
 
+    // PINNED to the GLOBAL claim (5b): this branch only renders on org-scope
+    // routes (no projectId, no ProjectScopeProvider), so `role` here is the
+    // global claim by construction. Backing rule: /shotRequests read requires a
+    // global admin/producer claim (firestore.rules:410-412).
     if (role === ROLE.ADMIN || role === ROLE.PRODUCER) {
       entries.push({
         type: "item",
@@ -86,6 +90,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       },
     )
 
+    // PINNED to the GLOBAL claim (5b): Admin nav is org-scope chrome — the
+    // /admin surface reads /users (firestore.rules:539-543) and
+    // /pendingInvitations (firestore.rules:547-549), both gated on the global
+    // admin claim; a project-level role can never grant or revoke it.
     if (role === ROLE.ADMIN) {
       entries.push(
         { type: "divider" },

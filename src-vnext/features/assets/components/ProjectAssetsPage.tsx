@@ -6,6 +6,8 @@ import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { useTalent, useLocations, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { useCrew } from "@/features/schedules/hooks/useCrew"
@@ -70,7 +72,12 @@ function countHeroImages(shots: readonly Shot[]): number {
 
 export default function ProjectAssetsPage() {
   const { projectId, projectName } = useProjectScope()
-  const { clientId, role } = useAuth()
+  const { clientId, role: globalRole } = useAuth()
+  // 5b-II effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). Write affordances stay disabled while the first uncached
+  // member read for this project is in flight (resolving) — never the
+  // global-role guess.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const isMobile = useIsMobile()
   const { data: shots, loading: shotsLoading, error: shotsError } = useShots()
   const { data: talent, loading: talentLoading, error: talentError } = useTalent()
@@ -87,7 +94,22 @@ export default function ProjectAssetsPage() {
   const error =
     shotsError || talentError || locationsError || familiesError || crewError
 
-  const canEdit = canManageProjects(role) && !isMobile && !!clientId
+  // -- Role-based flags (5b-II: effective role + resolving gate) --
+  // Effective-AND-global by design. These writes (projectAssetsWrites.ts)
+  // arrayUnion/arrayRemove projectIds on CLIENT-scoped library docs —
+  // /clients/{clientId}/talent (firestore.rules:363-365), /locations
+  // (:382-384), /crew (:402-408) — all GLOBAL admin||producer rules, NOT
+  // project-scoped. The effective arm handles project downgrades (locked Q6);
+  // the global arm mirrors the backend's isAdmin||isProducer check so a
+  // project-PROMOTED member (e.g. global crew with a producer members doc)
+  // never sees affordances the rules deny. UI excluding warehouse stays
+  // stricter-than-rule (pre-existing, fail-toward-fewer).
+  const canEdit =
+    !roleResolving &&
+    canManageProjects(role) &&
+    canManageProjects(globalRole) &&
+    !isMobile &&
+    !!clientId
 
   const heroCount = useMemo(() => countHeroImages(shots), [shots])
 
@@ -195,7 +217,7 @@ export default function ProjectAssetsPage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader title="Assets" />
+      <PageHeader title="Assets" actions={<EffectiveRoleChip />} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ProjectScopedAssetCard

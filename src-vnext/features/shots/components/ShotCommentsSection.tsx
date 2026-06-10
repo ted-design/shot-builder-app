@@ -52,6 +52,12 @@ export function ShotCommentsSection({
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // The comments create rule is isAuthed + createdBy-self (firestore.rules
+  // comments block), so this double gate (effective-role canComment prop AND
+  // global-claim canManageShots) is UI-stricter than the backend — safe
+  // (fail-toward-fewer). Collapsing onto the effective-role prop alone is a
+  // 5f decision (Q4 viewer commenting) — tracked in the 5b spec deferred
+  // register; do not rewire here.
   const writeEnabled = useMemo(() => {
     if (!canComment) return false
     if (!clientId) return false

@@ -82,20 +82,8 @@ export function canManageLocations(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
 
-export function isViewer(role: Role): boolean {
-  return role === ROLE.VIEWER
-}
-
 export function isAdmin(role: Role): boolean {
   return role === ROLE.ADMIN
-}
-
-export function canSubmitShotRequest(role: Role): boolean {
-  return role === ROLE.ADMIN || role === ROLE.PRODUCER
-}
-
-export function canTriageShotRequests(role: Role): boolean {
-  return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
 
 export function canManageCasting(role: Role): boolean {
@@ -112,6 +100,19 @@ export function canManageCasting(role: Role): boolean {
 // 'warehouse' from this helper AND from the lanes rule role lists.
 export function canEditScene(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER || role === ROLE.WAREHOUSE
+}
+
+// Version-history restore (shot + product detail History sections). Backing
+// rules differ per surface: shot restore = shot update (firestore.rules:457-472)
+// + version create (:511-516), both project-scoped via shotProjectRole
+// (['producer','crew'] arms); product restore = productFamilies update (:568)
+// + version create (:614-616), GLOBAL isAdmin || isProducer. The shot section
+// feeds this the EFFECTIVE role; the product section stays PINNED to the
+// global claim (org-backend rule). UI is intentionally narrower than the shot
+// rules (crew excluded) — behavior-preserving consolidation of the 5a twins;
+// widening to crew is a 5e/5f decision, not a cleanup.
+export function canRestoreVersions(role: Role): boolean {
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
 
 // Total order over roles for "is this a downgrade" comparisons (the 5b

@@ -39,6 +39,12 @@ export default function SharedLinksPage() {
   const { clientId, role } = useAuth()
 
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): share links live in the top-level
+  // /castingShares collection, whose management rules check only the global
+  // admin/producer claim — get/list (firestore.rules:223-225), create
+  // (:227-231), update/delete (:233-235). The backend cannot see a project
+  // promotion, so this page must not advertise edit affordances from the
+  // effective role.
   const canEdit = canManageCasting(role)
 
   const { links, loading, error } = useShareLinks(projectId, clientId)

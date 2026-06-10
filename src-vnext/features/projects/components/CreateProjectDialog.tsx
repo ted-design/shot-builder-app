@@ -81,7 +81,12 @@ export function CreateProjectDialog({
         updatedAt: serverTimestamp(),
       })
 
-      // Auto-membership: non-admin creators get a member doc atomically
+      // Auto-membership: non-admin creators get a member doc atomically.
+      // PINNED to the GLOBAL claim (5b): create runs from org-chrome (no
+      // project exists yet, so no effective role). Backing rules: projects
+      // create (firestore.rules:688, global admin/producer) + the members
+      // creation-time self-add carve-out (firestore.rules:713-735, getAfter
+      // createdBy arm). Behavior branch, not an affordance gate.
       if (!isAdmin(role) && user) {
         const memberPath = projectMembersPath(projectRef.id, clientId)
         const memberRef = doc(db, memberPath[0]!, ...memberPath.slice(1), user.uid)

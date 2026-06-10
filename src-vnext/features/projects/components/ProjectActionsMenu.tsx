@@ -23,6 +23,11 @@ interface ProjectActionsMenuProps {
 
 export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: ProjectActionsMenuProps) {
   const { role, clientId } = useAuth()
+  // PINNED to the GLOBAL claim (5b): this menu renders on the org dashboard's
+  // ProjectCard with no ProjectScopeProvider mounted, so there is no effective
+  // role to consult. Backing rules: projects update (firestore.rules:691-702)
+  // and delete (firestore.rules:703-711) — global producer team-visible arm,
+  // private-creator arm, and explicit-member arm enforced server-side.
   const canManage = canManageProjects(role)
   const canDelete = canManage
 

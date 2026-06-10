@@ -85,6 +85,13 @@ export function ShotLooksSection({
   readonly showReferencesSection?: boolean
 }) {
   const { clientId, user, role } = useAuth()
+  // PINNED to the GLOBAL claim (the canManageProducts(role) half): catalog
+  // writes hit the org-scoped products backend — productFamilies
+  // (firestore.rules:566-574) and skus (:571-574) require a global
+  // isAdmin()||isProducer(), so a project promotion cannot grant catalog
+  // writes and the UI must not advertise them from the effective role. The
+  // canEdit prop half IS effective-role-driven by the parent
+  // (ShotDetailPageUnified → ShotDetailSidebar).
   const canManageCatalog = canEdit && canManageProducts(role)
   const looks = useMemo(
     () => (shot.looks ? [...shot.looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : []),

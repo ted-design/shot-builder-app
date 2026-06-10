@@ -42,6 +42,13 @@ export function RecipientPicker({ clientId, value, onChange }: RecipientPickerPr
     usersPath(clientId),
   )
 
+  // PINNED to GLOBAL role data (5b: not an effective-role gate). This filters
+  // OTHER users' /users-doc role fields to build the recipient list — it never
+  // reads the caller's role, so useEffectiveRole does not apply. Notifications
+  // target global team leads; a per-project member-doc promotion has no users-doc
+  // footprint for this filter to see. Caller capability is gated at the route:
+  // RequireRole(["admin","producer"]) wraps the request centre
+  // (src-vnext/app/routes/index.tsx:282), itself a global-claim (org-scope) gate.
   const eligibleUsers = useMemo(
     () => allUsers.filter((u) => u.role === "admin" || u.role === "producer"),
     [allUsers],
