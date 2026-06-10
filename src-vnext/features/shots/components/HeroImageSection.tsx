@@ -26,6 +26,13 @@ interface HeroImageSectionProps {
   readonly shot: Shot
   readonly shotId: string
   readonly canUpload: boolean
+  /**
+   * Visual-only container variant. "natural" renders the hero at the image's
+   * NATIVE aspect ratio (portrait-friendly, height-capped, never a forced
+   * widescreen crop) for the 5a unified editor — Ted's approval condition,
+   * 2026-06-09. Default "fixed" keeps the legacy container byte-identical.
+   */
+  readonly frame?: "fixed" | "natural"
 }
 
 export function HeroImageSection({
@@ -33,6 +40,7 @@ export function HeroImageSection({
   shot,
   shotId,
   canUpload,
+  frame = "fixed",
 }: HeroImageSectionProps) {
   const { clientId, user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -77,12 +85,22 @@ export function HeroImageSection({
   return (
     <div className="flex flex-col gap-2">
       {resolvedHeroUrl ? (
-        <div className="relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
-          <div className="h-[clamp(210px,30vh,320px)] w-full">
+        <div
+          className={
+            frame === "natural"
+              ? "relative w-fit max-w-full overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
+              : "relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)]"
+          }
+        >
+          <div className={frame === "natural" ? "max-h-[460px]" : "h-[clamp(210px,30vh,320px)] w-full"}>
             <img
               src={resolvedHeroUrl}
               alt="Hero"
-              className="h-full w-full object-contain"
+              className={
+                frame === "natural"
+                  ? "block h-auto max-h-[460px] w-auto max-w-full object-contain"
+                  : "h-full w-full object-contain"
+              }
             />
           </div>
           {canUpload && !uploading && (

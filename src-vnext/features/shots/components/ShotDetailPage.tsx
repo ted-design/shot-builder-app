@@ -52,8 +52,20 @@ import { useEffect, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
+import { isFeatureEnabled } from "@/shared/lib/flags"
+import { ShotDetailPageUnified } from "@/features/shots/components/ShotDetailPageUnified"
 
 export default function ShotDetailPage() {
+  // Phase 5a fork B: flag-on renders the unified two-column composition;
+  // flag-off keeps the legacy render below byte-identical.
+  // Legacy branch is gated, NOT deleted; retirement at 5c.
+  if (isFeatureEnabled("featureUnifiedShotEditor")) {
+    return <ShotDetailPageUnified />
+  }
+  return <ShotDetailPageLegacy />
+}
+
+function ShotDetailPageLegacy() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { shot, laneById, loading, error } = useShotDetailBundle(sid)

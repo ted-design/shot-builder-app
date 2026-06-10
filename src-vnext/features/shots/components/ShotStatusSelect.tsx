@@ -23,6 +23,12 @@ interface ShotStatusSelectProps {
   readonly shot: Shot
   readonly disabled?: boolean
   readonly compact?: boolean
+  /**
+   * Visual-only variant. "badge" restyles the trigger as a status-token badge
+   * for the 5a unified editor masthead — same testid, same optimistic update
+   * + revert toast, same labels. Default keeps every legacy call site as-is.
+   */
+  readonly variant?: "default" | "badge"
 }
 
 export function ShotStatusSelect({
@@ -31,6 +37,7 @@ export function ShotStatusSelect({
   shot,
   disabled = false,
   compact = false,
+  variant = "default",
 }: ShotStatusSelectProps) {
   const { clientId, user } = useAuth()
   const [optimisticStatus, setOptimisticStatus] = useState<ShotFirestoreStatus | null>(null)
@@ -70,7 +77,13 @@ export function ShotStatusSelect({
     >
       <SelectTrigger
         data-testid="shot-status-select-trigger"
-        className={compact ? "h-7 w-[108px] px-2 text-xs" : "h-8 w-[128px]"}
+        className={
+          variant === "badge"
+            ? "h-7 w-auto gap-1 rounded-md border-0 bg-transparent px-1 shadow-none hover:bg-[var(--color-surface-subtle)]"
+            : compact
+              ? "h-7 w-[108px] px-2 text-xs"
+              : "h-8 w-[128px]"
+        }
       >
         <SelectValue>
           <StatusBadge
