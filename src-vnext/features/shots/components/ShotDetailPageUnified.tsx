@@ -132,7 +132,7 @@ function ProductColorwayStrip({
       ) : (
         sorted.map((look) => (
           <div key={look.id} className="mt-3 first-of-type:mt-2">
-            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">
+            <p className="label-meta">
               {look.label || "Look"}
               {look.id === resolvedActiveId ? <> &middot; Active</> : null}
             </p>
