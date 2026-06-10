@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest"
 import {
   ROLE,
   normalizeRole,
-  resolveEffectiveRole,
   roleLabel,
   canManageProjects,
   canManageShots,
@@ -43,28 +42,6 @@ describe("normalizeRole", () => {
     expect(normalizeRole(undefined)).toBe("viewer")
     expect(normalizeRole(42)).toBe("viewer")
     expect(normalizeRole({})).toBe("viewer")
-  })
-})
-
-describe("resolveEffectiveRole", () => {
-  it("uses project-scoped role when available", () => {
-    expect(
-      resolveEffectiveRole("viewer", { "proj-1": "admin" }, "proj-1"),
-    ).toBe("admin")
-  })
-
-  it("falls back to global role when no project role", () => {
-    expect(
-      resolveEffectiveRole("producer", { "proj-1": "admin" }, "proj-2"),
-    ).toBe("producer")
-  })
-
-  it("falls back to global when no projectRoles", () => {
-    expect(resolveEffectiveRole("crew")).toBe("crew")
-  })
-
-  it("falls back to viewer when no roles at all", () => {
-    expect(resolveEffectiveRole(undefined)).toBe("viewer")
   })
 })
 

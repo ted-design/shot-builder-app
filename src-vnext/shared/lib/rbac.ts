@@ -27,30 +27,7 @@ export function normalizeRole(role: unknown): Role {
   return ROLE.VIEWER
 }
 
-/**
- * QUARANTINED — dead function; do NOT consume or extend (Phase 5b / Q5).
- *
- * No production call site. Its claims-map signature (projectRoles record off
- * the auth token) would ossify the effective-role source, and Ted decided
- * Q5 differently on 2026-06-09: the effective role comes from a LIVE project
- * members read at 5b (Q6: project role wins, admin excepted). Phase 4's
- * resolveSurface deliberately takes an opaque, already-resolved `effectiveRole`
- * instead of this. Retire or rewrite this at 5b.
- */
-export function resolveEffectiveRole(
-  globalRole: unknown,
-  projectRoles?: Record<string, unknown>,
-  projectId?: string | null,
-): Role {
-  if (projectId && projectRoles) {
-    const projectRole = projectRoles[projectId]
-    if (typeof projectRole === "string" && projectRole.trim().length > 0) {
-      return normalizeRole(projectRole)
-    }
-  }
-  return normalizeRole(globalRole)
-}
-
+// resolveEffectiveRole was deleted 2026-06-09 (dead code) — 5b rebuilds it on a live members read
 export function roleLabel(role: Role): string {
   switch (role) {
     case ROLE.ADMIN:

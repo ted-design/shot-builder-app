@@ -112,24 +112,14 @@ export type ShotListState = {
   readonly tagOptions: ReadonlyArray<{ readonly id: string; readonly label: string }>
   // Persistence key
   readonly storageKeyBase: string | null
-  // Phase 4 (flag-gated, ADDITIVE-ONLY): resolved surface metadata.
-  // `undefined` whenever featureSurfaceResolver is off, no surfaceContext was
-  // provided, or resolution is gated (auth still loading).
+  // undefined when the resolver flag is off, surfaceContext is absent, or auth is still loading
   readonly surface?: SurfaceKind
   readonly viewSource?: ViewSource
 }
 
-/**
- * Phase 4 (flag-gated) resolver inputs, provided by the page. `null` while
- * auth is loading — resolution is GATED on auth.loading (AuthProvider falls
- * back to 'viewer' while claims load; resolving then would flash the viewer
- * surface — spec security invariant 8). `undefined` = caller predates the
- * resolver; legacy resolution applies.
- */
+/** null while auth loads (viewer-flash guard); undefined = caller predates the resolver. */
 export type ShotListSurfaceContext = {
-  /** normalizeRole(globalClaim) — already normalized by AuthProvider. */
   readonly role: Role
-  /** Real device, from the existing media hooks (incl. tablet). */
   readonly device: SurfaceDevice
 }
 

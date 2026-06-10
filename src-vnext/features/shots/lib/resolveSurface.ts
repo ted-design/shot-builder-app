@@ -9,59 +9,26 @@ import {
   canManageShots,
 } from "@/shared/lib/rbac"
 
-// ---------------------------------------------------------------------------
-// resolveSurface — Phase 4 (build spec 2026-06-09, §The API).
-//
-// PURE function. No hook, no hidden reads (auth / URL / localStorage / media
-// queries), no writes. Every input is explicit so the resolution is fully
-// testable as a (role × device × url × stored) matrix.
-//
-// `effectiveRole` is OPAQUE to this module — it is already resolved by the
-// caller. Phase 4 feeds `normalizeRole(globalClaim)` (via AuthProvider).
-// Phase 5b upgrades the SOURCE to a live members-doc read (Ted, 2026-06-09 —
-// Q5/Q6: project wins, admin excepted) without touching this signature.
-// That injection point is also the typed PREVIEW SLOT: a future View-as
-// control (deferred to 4b/5e) feeds a simulated role here — presentation
-// only, never into can*/write handlers.
-//
-// Security invariants (spec §Security):
-// - Output is presentation-only BY CONSTRUCTION. No write handler may consume
-//   it. `affordances` derive ONLY from existing rbac.ts helpers + the REAL
-//   device, and drive nothing in Phase 4 (typed slot for 5e/5f).
-// - Zero URL writes: resolution is a derivation. Mobile forcing is
-//   override-without-erase — latent ?view/?group params are never erased.
-// - Do NOT import or call rbac.ts `resolveEffectiveRole` (quarantined → 5b).
-// ---------------------------------------------------------------------------
+// PURE function, all inputs explicit — output is presentation-only by construction; no write
+// handler may consume it. `effectiveRole` is the typed preview slot: callers pass an already-
+// resolved role (5b upgrades the source; a future View-as feeds a simulated role here).
 
 export type SurfaceDevice = "mobile" | "tablet" | "desktop"
 
-/**
- * Distinct review variants NOW: Phase 5f splits client vs warehouse review;
- * a single 'review' enum value would force a breaking change later.
- */
+/** Distinct review variants now — 5f splits client vs warehouse without an enum break. */
 export type SurfaceKind = "plan-build" | "shoot" | "review-client" | "review-warehouse"
 
-/** Provenance of the resolved viewMode/groupKey — testability hook. */
+/** Provenance of the resolved viewMode/groupKey. */
 export type ViewSource = "url" | "stored" | "surface-default" | "device-forced"
 
-/**
- * Capability-shaped presentation hints. Derived ONLY from existing rbac.ts
- * helpers + the real device. Typed but DRIVES NOTHING in Phase 4 — the
- * `role && !isMobile` capability flags in ShotListPage stay the owners until
- * 5e. All fields are required booleans (never optional-default-true; see
- * spec invariant 6 re: the ShotsTable `canManageLanes = true` fail-open).
- */
+/** Derived only from rbac helpers + the REAL device; drives nothing until 5e. */
 export interface SurfaceAffordances {
   readonly canCreateShots: boolean
   readonly canReorderShots: boolean
   readonly canBulkPull: boolean
   readonly canShare: boolean
-  /** Lane/scene writes — admin|producer|warehouse, matching the /lanes rule. */
   readonly canManageLanes: boolean
-  /**
-   * Ported verbatim from ShotListPage: canExport has NO role factor today
-   * (device-only). Flagged to Ted — 5e decides whether a role gate is added.
-   */
+  // canExport has no role factor today (device-only, ported verbatim) — 5e decides
   readonly canExport: boolean
 }
 

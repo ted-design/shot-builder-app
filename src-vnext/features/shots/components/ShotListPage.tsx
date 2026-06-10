@@ -138,12 +138,7 @@ export default function ShotListPage() {
   const { data: lanes, laneNameById, laneById } = useLanes()
   const laneOrder = useMemo(() => new Map(lanes.map((l) => [l.id, l.sortOrder])), [lanes])
 
-  // -- Phase 4 (flag-gated) surface resolution inputs. GATED on auth loading:
-  // AuthProvider falls back to 'viewer' while claims load, so resolving then
-  // would flash the viewer surface — pass null until claims settle (the hook
-  // runs its legacy flag-off derivation in the meantime). `role` is already
-  // normalizeRole(globalClaim). Device is three-valued (incl. tablet) from
-  // the existing media hooks. Inert while featureSurfaceResolver is off. --
+  // null until claims settle: AuthProvider falls back to 'viewer' while loading (viewer-flash guard)
   const surfaceDevice: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
   const surfaceContext = useMemo(
     () => (authLoading ? null : { role, device: surfaceDevice }),
