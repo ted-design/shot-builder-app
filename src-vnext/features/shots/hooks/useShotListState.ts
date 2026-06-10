@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
-import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane } from "@/shared/types"
+import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane, Role } from "@/shared/types"
+import { isFeatureEnabled } from "@/shared/lib/flags"
+import {
+  resolveSurface,
+  type SurfaceDevice,
+  type SurfaceKind,
+  type ViewSource,
+} from "@/features/shots/lib/resolveSurface"
 import {
   type SortKey,
   type SortDir,
@@ -105,6 +112,15 @@ export type ShotListState = {
   readonly tagOptions: ReadonlyArray<{ readonly id: string; readonly label: string }>
   // Persistence key
   readonly storageKeyBase: string | null
+  // undefined when the resolver flag is off, surfaceContext is absent, or auth is still loading
+  readonly surface?: SurfaceKind
+  readonly viewSource?: ViewSource
+}
+
+/** null while auth loads (viewer-flash guard); undefined = caller predates the resolver. */
+export type ShotListSurfaceContext = {
+  readonly role: Role
+  readonly device: SurfaceDevice
 }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +140,10 @@ export function useShotListState(params: {
   readonly laneNameById?: ReadonlyMap<string, string>
   readonly laneOrder?: ReadonlyMap<string, number>
   readonly laneById?: ReadonlyMap<string, Lane>
+  /** Phase 4 — see ShotListSurfaceContext. Optional + additive. */
+  readonly surfaceContext?: ShotListSurfaceContext | null
 }): ShotListState {
-  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById } = params
+  const { shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById, surfaceContext } = params
 
   const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -265,8 +283,43 @@ export function useShotListState(params: {
     }
   }, [storageKeyBase])
 
+  // -- Phase 4 (flag-gated): resolveSurface --
+  const surfaceResolverEnabled = isFeatureEnabled("featureSurfaceResolver")
+
+  // The stored EXPLICIT choice (null when never set) — distinct from
+  // storedDefaultView, which collapses "never set" into 'card'. The resolver
+  // needs the distinction so only never-customized users get the new
+  // surface default. Read flag-on only.
+  const storedExplicitView = useMemo((): ViewMode | null => {
+    if (!surfaceResolverEnabled || !storageKeyBase) return null
+    try {
+      const raw = window.localStorage.getItem(`${storageKeyBase}:view:v1`)
+      // Backward compat: "gallery" and "visual" both migrate to "card"
+      if (raw === "card" || raw === "gallery" || raw === "visual") return "card"
+      return raw === "table" ? "table" : null
+    } catch {
+      return null
+    }
+  }, [surfaceResolverEnabled, storageKeyBase])
+
+  // Resolution is a pure derivation — zero setSearchParams / localStorage
+  // writes. Gated on surfaceContext (null while auth loads — no viewer-flash).
+  const resolved = useMemo(() => {
+    if (!surfaceResolverEnabled || !surfaceContext) return null
+    return resolveSurface({
+      effectiveRole: surfaceContext.role,
+      device: surfaceContext.device,
+      urlView: viewParam,
+      urlGroup: groupParam,
+      storedView: storedExplicitView,
+    })
+  }, [surfaceResolverEnabled, surfaceContext, viewParam, groupParam, storedExplicitView])
+
   // -- Derived view/group --
-  const viewMode: ViewMode = isMobile
+  // Legacy (flag-off) resolution. Byte-identical to pre-Phase-4 trunk —
+  // gated, NOT deleted; full retirement happens at featureSurfaceResolver
+  // flag removal (see build-spec §Flag-removal checklist).
+  const legacyViewMode: ViewMode = isMobile
     ? "card"
     : viewParam === "table"
       ? "table"
@@ -275,11 +328,14 @@ export function useShotListState(params: {
         ? "card"
         : storedDefaultView
 
-  const groupKey: GroupKey = isMobile
+  const legacyGroupKey: GroupKey = isMobile
     ? "none"
     : groupParam === "status" || groupParam === "date" || groupParam === "talent" || groupParam === "location" || groupParam === "scene"
       ? groupParam
       : "none"
+
+  const viewMode: ViewMode = resolved ? resolved.viewMode : legacyViewMode
+  const groupKey: GroupKey = resolved ? resolved.groupKey : legacyGroupKey
 
   const isCustomSort = sortKey === "custom"
 
@@ -573,5 +629,7 @@ export function useShotListState(params: {
     displayShots, insights, hasActiveFilters, hasActiveGrouping,
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
+    surface: resolved?.surface,
+    viewSource: resolved?.viewSource,
   }
 }

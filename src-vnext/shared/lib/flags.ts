@@ -14,10 +14,26 @@
 export interface FeatureFlags {
   /** Phase 3 — Publishing & Crew Delivery Loop. See plan §10. */
   readonly featurePublishing: boolean
+  /**
+   * Phase 4 — resolveSurface job-default resolution in useShotListState.
+   * Default OFF (flag-off path is byte-identical to pre-Phase-4 trunk).
+   * Enabled ONLY via `VITE_SURFACE_RESOLVER=1` (or `true`) at build/dev time
+   * (LoginPage VITE_USE_FIREBASE_EMULATORS precedent) — e.g. the :5174
+   * eyeball runs `VITE_SURFACE_RESOLVER=1 npm run dev -- --port 5174`.
+   * CI build env must never define it. No URL/localStorage override layer.
+   */
+  readonly featureSurfaceResolver: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
   featurePublishing: false,
+  featureSurfaceResolver: false,
+}
+
+/** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
+function parseEnvFlag(raw: unknown): boolean {
+  const value = (raw ?? "").toString().toLowerCase()
+  return value === "1" || value === "true"
 }
 
 /**
@@ -29,7 +45,12 @@ const DEFAULT_FLAGS: FeatureFlags = {
  * so the override plumbing can be threaded through without a type-break.
  */
 export function getFeatureFlags(): FeatureFlags {
-  return DEFAULT_FLAGS
+  return {
+    ...DEFAULT_FLAGS,
+    featureSurfaceResolver:
+      DEFAULT_FLAGS.featureSurfaceResolver ||
+      parseEnvFlag(import.meta.env.VITE_SURFACE_RESOLVER),
+  }
 }
 
 /**

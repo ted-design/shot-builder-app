@@ -11,6 +11,10 @@ export const ROLE = {
 export function normalizeRole(role: unknown): Role {
   if (typeof role !== "string") return ROLE.VIEWER
   const lower = role.trim().toLowerCase()
+  // Legacy alias: firestore.rules (normalizedRole, :43-56) maps 'wardrobe' →
+  // warehouse. Mirror it here so legacy-wardrobe users land on the same JOB
+  // the rules grant writes for (Phase 4 spec, security invariant 5).
+  if (lower === "wardrobe") return ROLE.WAREHOUSE
   if (
     lower === ROLE.ADMIN ||
     lower === ROLE.PRODUCER ||
@@ -21,20 +25,6 @@ export function normalizeRole(role: unknown): Role {
     return lower
   }
   return ROLE.VIEWER
-}
-
-export function resolveEffectiveRole(
-  globalRole: unknown,
-  projectRoles?: Record<string, unknown>,
-  projectId?: string | null,
-): Role {
-  if (projectId && projectRoles) {
-    const projectRole = projectRoles[projectId]
-    if (typeof projectRole === "string" && projectRole.trim().length > 0) {
-      return normalizeRole(projectRole)
-    }
-  }
-  return normalizeRole(globalRole)
 }
 
 export function roleLabel(role: Role): string {
