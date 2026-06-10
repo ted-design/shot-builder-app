@@ -90,6 +90,94 @@ export const SEED_FILTER_SHOTS = [
   SEED_SHOT_SPECTRA_COMPLETE,
 ] as const;
 
+/**
+ * RICH — the dedicated DISPLAY shot for the 5a unified editor (Phase 5a build
+ * spec §Test plan item 3). READ-ONLY by contract: NO spec may EVER mutate this
+ * shot (shot-ownership map: AURORA read-only, EDITABLE status/notes/title,
+ * HERO hero-only, RICH display-only). It exists so the flag-on unified
+ * editor's typographic centerpiece (product + colorway names as text),
+ * legacy-notes render, tags, and hero are E2E-assertable after the default
+ * flip — and it is harmless flag-off:
+ *
+ * - Title token "Cascade" is unique (never "Aurora"/"Borealis"/"Spectra"/
+ *   "Helios"), so the shots-crud search test and the toolbar filter tests'
+ *   per-title assertions are unaffected.
+ * - status=todo adds one more todo shot; no spec asserts shot counts.
+ * - The hero downloadURL is a data: URI — resolveStoragePath passes URLs
+ *   through synchronously, so the <img> renders with zero Storage-emulator
+ *   coupling. The path deliberately does NOT include "/hero.webp", so the
+ *   manual "Reset" affordance never appears on this shot.
+ * - Tag labels avoid DEFAULT_SHOT_TAGS labels (e.g. "Men"), so mapShot's
+ *   canonicalizeTag leaves ids/colors exactly as seeded.
+ */
+export const SEED_SHOT_RICH = { id: 'e2e-shot-rich', title: 'Cascade Display Shot' } as const;
+
+/**
+ * The RICH shot's display fields, exported so post-flip specs can assert the
+ * exact tokens (colorway strip text, SKU names, tag labels, notes copy).
+ * Shapes mirror mapShot's normalizers: looks[].products use the app's
+ * ProductAssignment fields (British 'colourName'); tags need id+label+color.
+ */
+export const SEED_RICH_SHOT_FIELDS = {
+  description:
+    'Cascade hero look on the terrace at golden hour. Full-length, soft key from camera left.',
+  // Legacy notes are stored HTML (NotesSection renders them read-only).
+  notes: '<p>Steam the hoodie before the take. Cuff the trousers once.</p>',
+  tags: [
+    { id: 'e2e-rich-tag-editorial', label: 'Editorial', color: '#2563eb' },
+    { id: 'e2e-rich-tag-exterior', label: 'Exterior', color: '#16a34a' },
+  ],
+  heroImage: {
+    path: 'e2e/rich-hero.png',
+    downloadURL:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAyCAIAAACh0Q7HAAAANElEQVR42u3NMQ0AAAgDsDnhRgH+nSGDgyb9m+o5EbFYLBaLxWKxWCwWi8VisVgsFos/xwsiZOBegqip8gAAAABJRU5ErkJggg==',
+  },
+  activeLookId: 'e2e-rich-look-1',
+  looks: [
+    {
+      id: 'e2e-rich-look-1',
+      label: 'Terrace Look',
+      order: 0,
+      products: [
+        {
+          familyId: 'e2e-rich-family-hoodie',
+          familyName: 'Cascade Merino Hoodie',
+          colourId: 'e2e-rich-colour-glacier',
+          colourName: 'Glacier Blue',
+          skuId: 'e2e-rich-sku-hoodie-glacier-m',
+          skuName: 'CMH-GLB-M',
+          size: 'M',
+        },
+        {
+          familyId: 'e2e-rich-family-trouser',
+          familyName: 'Cascade Wool Trouser',
+          colourId: 'e2e-rich-colour-charcoal',
+          colourName: 'Charcoal',
+          skuId: 'e2e-rich-sku-trouser-charcoal-32',
+          skuName: 'CWT-CHR-32',
+          size: '32',
+        },
+      ],
+    },
+    {
+      id: 'e2e-rich-look-2',
+      label: 'Dusk Look',
+      order: 1,
+      products: [
+        {
+          familyId: 'e2e-rich-family-overshirt',
+          familyName: 'Cascade Overshirt',
+          colourId: 'e2e-rich-colour-ember',
+          colourName: 'Ember',
+          skuId: 'e2e-rich-sku-overshirt-ember-l',
+          skuName: 'COS-EMB-L',
+          size: 'L',
+        },
+      ],
+    },
+  ],
+} as const;
+
 /** All seeded shots, in seed order. */
 export const SEED_SHOTS = [
   SEED_SHOT_AURORA,

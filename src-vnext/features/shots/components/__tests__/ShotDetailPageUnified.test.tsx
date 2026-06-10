@@ -19,6 +19,13 @@ import type { Shot } from "@/shared/types"
 
 const authState = vi.hoisted(() => ({ role: "producer" }))
 
+// Per-test lane state so the scene-banner member/non-member pair can flip
+// between a readable lane map and the non-member empty degrade.
+const laneState = vi.hoisted(() => ({
+  lanes: [] as unknown[],
+  laneById: new Map<string, unknown>(),
+}))
+
 // Flag ON — fork B renders the unified composition.
 vi.mock("@/shared/lib/flags", () => ({
   isFeatureEnabled: (flag: string) => flag === "featureUnifiedShotEditor",
@@ -34,8 +41,8 @@ vi.mock("@/features/shots/hooks/useShot", () => ({
 
 vi.mock("@/features/shots/hooks/useLanes", () => ({
   useLanes: () => ({
-    data: [],
-    laneById: new Map(),
+    data: laneState.lanes,
+    laneById: laneState.laneById,
     laneNameById: new Map(),
     loading: false,
     error: null,
@@ -209,6 +216,8 @@ describe("ShotDetailPageUnified (flag-on)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authState.role = "producer"
+    laneState.lanes = []
+    laneState.laneById = new Map()
   })
 
   it("renders the scan-path order: description, hero, products, meta, notes, links, tags, comments, history, rail", () => {
@@ -308,6 +317,10 @@ describe("ShotDetailPageUnified (flag-on)", () => {
     expect(screen.getByTestId("looks-stub")).toHaveAttribute("data-can-edit", "true")
     expect(screen.getByTestId("notes-stub")).toHaveAttribute("data-can-edit", "true")
     expect(screen.getByTestId("comments-stub")).toHaveAttribute("data-can-comment", "true")
+    expect(screen.getByTestId("reference-links-stub")).toHaveAttribute(
+      "data-can-edit",
+      "true",
+    )
     expect(screen.getByTestId("tag-editor-stub")).toHaveAttribute("data-disabled", "false")
   })
 
@@ -349,5 +362,116 @@ describe("ShotDetailPageUnified (flag-on)", () => {
     fireEvent.keyDown(document.body, { key: "1" })
 
     expect(updateShotWithVersion).not.toHaveBeenCalled()
+  })
+
+  // ── Per-role affordance matrix (build spec §Test plan item 2) ─────────────
+  // viewer/warehouse: ZERO enabled write affordances. crew: status + fields +
+  // comments yes; uploads/lifecycle/share no. producer/admin: all.
+
+  /** Every write affordance enabled — the admin/producer row of the matrix. */
+  function expectAllWriteAffordances() {
+    expect(screen.getByTestId("shot-title-edit")).toBeInTheDocument()
+    expect(screen.getByTestId("shot-status-select-trigger")).not.toBeDisabled()
+    expect(screen.getByTestId("lifecycle-actions-stub")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "true")
+    expect(screen.getByTestId("cover-refs-stub")).toHaveAttribute("data-can-edit", "true")
+    expect(screen.getByTestId("looks-stub")).toHaveAttribute("data-can-edit", "true")
+    expect(screen.getByTestId("notes-stub")).toHaveAttribute("data-can-edit", "true")
+    expect(screen.getByTestId("comments-stub")).toHaveAttribute("data-can-comment", "true")
+    expect(screen.getByTestId("reference-links-stub")).toHaveAttribute(
+      "data-can-edit",
+      "true",
+    )
+    expect(screen.getByTestId("tag-editor-stub")).toHaveAttribute("data-disabled", "false")
+    expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
+  }
+
+  /** Zero enabled write affordances — the viewer/warehouse row of the matrix. */
+  function expectZeroWriteAffordances() {
+    expect(screen.queryByTestId("shot-title-edit")).not.toBeInTheDocument()
+    expect(screen.getByTestId("shot-status-select-trigger")).toBeDisabled()
+    expect(screen.queryByTestId("lifecycle-actions-stub")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "false")
+    expect(screen.getByTestId("cover-refs-stub")).toHaveAttribute("data-can-edit", "false")
+    expect(screen.getByTestId("looks-stub")).toHaveAttribute("data-can-edit", "false")
+    expect(screen.getByTestId("notes-stub")).toHaveAttribute("data-can-edit", "false")
+    expect(screen.getByTestId("comments-stub")).toHaveAttribute("data-can-comment", "false")
+    expect(screen.getByTestId("reference-links-stub")).toHaveAttribute(
+      "data-can-edit",
+      "false",
+    )
+    expect(screen.getByTestId("tag-editor-stub")).toHaveAttribute("data-disabled", "true")
+    // Export stays visible — device-gated only, deliberate (spec invariant 10).
+    expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
+  }
+
+  it("admin mounts every write affordance enabled", () => {
+    authState.role = "admin"
+    mockShot()
+
+    renderPage()
+
+    expectAllWriteAffordances()
+  })
+
+  it("producer mounts every write affordance enabled", () => {
+    authState.role = "producer"
+    mockShot()
+
+    renderPage()
+
+    expectAllWriteAffordances()
+  })
+
+  it("warehouse mounts zero enabled write affordances and the 1-4 keys no-op", () => {
+    authState.role = "warehouse"
+    mockShot({ status: "todo" })
+
+    renderPage()
+
+    expectZeroWriteAffordances()
+
+    // canManageShots(warehouse)=false — the status keys early-return too.
+    fireEvent.keyDown(document.body, { key: "2" })
+    fireEvent.keyDown(document.body, { key: "4" })
+    expect(updateShotWithVersion).not.toHaveBeenCalled()
+  })
+
+  // ── Member vs non-member — only where lanes matter (scene banner) ─────────
+
+  it("non-member degrade: scene banner absent when laneById is empty even with a laneId", () => {
+    // useShotDetailBundle forces empty lane maps on a permission-denied lanes
+    // read (the non-member case) — the banner must simply not render.
+    mockShot({ laneId: "lane1" })
+
+    renderPage()
+
+    expect(screen.queryByTestId("scene-context-banner")).not.toBeInTheDocument()
+  })
+
+  it("member: scene banner renders when the shot's lane is readable", () => {
+    const now = Timestamp.fromMillis(Date.now())
+    const lane = {
+      id: "lane1",
+      name: "Terrace Scene",
+      projectId: "p1",
+      clientId: "c1",
+      sortOrder: 0,
+      color: "#7c3aed",
+      sceneNumber: 3,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: "u1",
+    }
+    laneState.lanes = [lane]
+    laneState.laneById = new Map([["lane1", lane]])
+    mockShot({ laneId: "lane1" })
+
+    renderPage()
+
+    expect(screen.getByTestId("scene-context-banner")).toBeInTheDocument()
+    expect(screen.getByText("Terrace Scene")).toBeInTheDocument()
   })
 })
