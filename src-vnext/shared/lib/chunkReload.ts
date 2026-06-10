@@ -1,4 +1,4 @@
-const RELOAD_GUARD_KEY = "sb:chunk-reload-at"
+export const RELOAD_GUARD_KEY = "sb:chunk-reload-at"
 const RELOAD_LOOP_WINDOW_MS = 60_000
 
 function readLastReloadAt(): number {
@@ -18,15 +18,7 @@ function writeLastReloadAt(value: number): void {
   }
 }
 
-/**
- * Stale-chunk recovery: after a deploy, an already-open tab requesting a
- * lazy route chunk gets the SPA-rewritten index.html instead of the old
- * hashed file and throws (e.g. "Unexpected token '<'"). One automatic
- * reload picks up the new build. The sessionStorage timestamp guard keeps
- * a genuinely broken deploy from reload-looping — within the window the
- * error propagates to ErrorBoundary, which already renders the
- * chunk-aware "Reload required" fallback and reports to Sentry.
- */
+// Stale-chunk recovery: reload once to pick up the new build; within the guard window the error propagates to ErrorBoundary instead (no reload loop on a broken deploy).
 export function handlePreloadError(event: Event): void {
   const now = Date.now()
   if (now - readLastReloadAt() < RELOAD_LOOP_WINDOW_MS) return

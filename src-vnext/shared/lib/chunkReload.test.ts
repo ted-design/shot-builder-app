@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { handlePreloadError, installChunkReloadHandler } from "./chunkReload"
-
-const GUARD_KEY = "sb:chunk-reload-at"
+import {
+  RELOAD_GUARD_KEY as GUARD_KEY,
+  handlePreloadError,
+  installChunkReloadHandler,
+} from "./chunkReload"
 
 function makeEvent(): Event {
   const event = new Event("vite:preloadError", { cancelable: true })
