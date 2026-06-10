@@ -6,6 +6,7 @@ import {
   getShotStatusLabel,
 } from "@/shared/lib/statusMappings"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
+import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { toast } from "sonner"
 
 interface ShotStatusTapRowProps {
@@ -52,10 +53,13 @@ export function ShotStatusTapRow({ shot, disabled = false }: ShotStatusTapRowPro
         source: "ShotStatusTapRow",
       })
       setOptimistic(null)
-    } catch {
+    } catch (err) {
       setOptimistic(null)
       toast.error("Failed to update status", {
-        description: `Reverted to ${getShotStatusLabel(prev)}`,
+        description: shotWriteErrorDescription(
+          err,
+          `Reverted to ${getShotStatusLabel(prev)}`,
+        ),
       })
     }
   }

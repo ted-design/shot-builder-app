@@ -194,9 +194,12 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
       crewPage.getByText(SEED_SHOT_AURORA.title).first(),
     ).toBeVisible();
 
-    // (d) Crew KEEPS its create affordance: canManageShots(crew)=true today.
-    // Flag-off must not revoke it (any crew revocation is a 5e/5f decision,
-    // not Phase 4).
+    // (d) Crew KEEPS its create affordance. Under 5b the mechanism changed
+    // but the pin holds: the non-member's own members-doc read is
+    // permission-denied, useEffectiveRole silently falls back to the GLOBAL
+    // claim ('crew'), and canManageShots(crew)=true. (The hardened /shots
+    // rule would deny the actual write for a non-member crew — the UI-side
+    // non-member revoke is sequenced with 5b-II/5c, rules backstop first.)
     await expect(
       crewPage.getByRole('button', { name: /new shot/i }).first(),
     ).toBeVisible();
@@ -314,5 +317,68 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
     const url = new URL(wardrobePage.url());
     expect(url.searchParams.get('view')).toBeNull();
     expect(url.searchParams.get('group')).toBeNull();
+  });
+});
+
+/**
+ * Phase 5b — effective-role member path + the hardened /shots ALLOW arm.
+ *
+ * crew-member@test.shotbuilder.app carries the SAME global claim as the
+ * non-member crew fixture ('crew') but ALSO holds a seed-project members doc
+ * with role 'crew' (seedShotsCrudScenario memberCrewUid — a SEPARATE
+ * identity; the original crew fixture's members-doc ABSENCE is load-bearing
+ * for the non-member repro at the top of this file).
+ *
+ * CI's emulator loads the repo's HARDENED firestore.rules, so the create
+ * below passes ONLY via the project-role arm: clientMatches && hasProjectRole
+ * (projectId, ['producer','crew']) (firestore.rules /shots create). A
+ * non-member crew claim satisfies no arm — this test is the end-to-end proof
+ * that the UI affordance and the rule now read the same source (the members
+ * doc), per the rules-vs-UI adversarial check.
+ */
+test.describe('Shots — member crew (5b effective role, hardened-rule allow arm)', () => {
+  test('member-crew creates a shot end-to-end through the UI', async ({
+    memberCrewPage,
+  }) => {
+    await memberCrewPage.goto(SHOTS_URL);
+    await memberCrewPage
+      .locator('main, [role="main"]')
+      .first()
+      .waitFor({ state: 'visible' });
+
+    // Member lanes/members reads are permitted (hasProjectRole includes
+    // crew on the read lists) — no permissions error anywhere on the page.
+    await expect(
+      memberCrewPage.getByText(/Missing or insufficient permissions/i),
+    ).toHaveCount(0);
+
+    // Card view so the created CARD (not just the success toast, which also
+    // renders the title) proves list membership — shots-crud precedent.
+    await memberCrewPage.getByRole('button', { name: 'Card view' }).click();
+
+    // The effective role resolves from the members doc ('crew') — the create
+    // affordance renders after the resolving gate settles.
+    const newShotButton = memberCrewPage.getByRole('button', { name: 'New Shot' });
+    await expect(newShotButton).toBeVisible();
+    await newShotButton.click();
+
+    const dialog = memberCrewPage.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    const title = `E2E Member Crew Shot ${Date.now()}`;
+    await dialog.getByTestId('shot-title-input').fill(title);
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+
+    // The write PASSED the hardened rule (hasProjectRole allow arm): the
+    // dialog closes and the card lands in the list. A rules denial would
+    // keep the dialog open / surface the permission toast instead.
+    await expect(dialog).not.toBeVisible();
+    await expect(
+      memberCrewPage.locator('[data-testid="shot-card"]', { hasText: title }),
+    ).toBeVisible();
+
+    // member role == global role (crew): the quiet downgrade chip must NOT
+    // render — it is downgrade-only.
+    await expect(memberCrewPage.getByTestId('effective-role-chip')).toHaveCount(0);
   });
 });

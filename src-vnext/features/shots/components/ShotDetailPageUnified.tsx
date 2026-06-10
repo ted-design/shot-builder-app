@@ -33,7 +33,10 @@ import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersio
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { canManageShots } from "@/shared/lib/rbac"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
+import { canEditScene as canEditSceneForRole, canManageShots } from "@/shared/lib/rbac"
+import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { textPreview } from "@/shared/lib/textPreview"
 import {
@@ -185,25 +188,36 @@ export function ShotDetailPageUnified() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { shot, lanes, laneById, loading, error } = useShotDetailBundle(sid)
-  const { role, clientId, user } = useAuth()
+  const { role: globalRole, clientId, user } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). Write affordances render NOTHING while the first uncached
+  // member read for this project is in flight (resolving) — never the
+  // global-role guess.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectName } = useProjectScope()
 
   // ONE device-authority read feeding named capability booleans. Mobile edit
   // enablement requires the rules backstop first — do NOT remove !isMobile here.
+  // Backing rule for the shot writes below: hardened /shots
+  // (firestore.rules:435-472, ['producer','crew'] arms).
   const isMobile = useIsMobile()
-  const canEdit = canManageShots(role) && !isMobile
-  const canDoOperational = canManageShots(role)
-  const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
-  // Uploads are admin/producer only — storage.rules denies crew writes.
-  const canUploadShotImages = (role === "admin" || role === "producer") && !isMobile
+  const canEdit = !roleResolving && canManageShots(role) && !isMobile
+  const canDoOperational = !roleResolving && canManageShots(role)
+  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  // PINNED to the GLOBAL claim: storage.rules sees only the auth token
+  // (isProducerOrWardrobe, storage.rules:15-25 — no cross-service
+  // firestore.get()), so a project-promoted crew still cannot upload and the
+  // UI must not advertise it from the effective role.
+  const canUploadShotImages = (globalRole === "admin" || globalRole === "producer") && !isMobile
   const canExport = !isMobile
-  const canShare = role === "admin" || role === "producer"
+  // PINNED to the GLOBAL claim: /shotShares create requires a global producer
+  // claim (firestore.rules:193-204) — backend can't see a project promotion.
+  const canShare = globalRole === "admin" || globalRole === "producer"
   const canComment = canDoOperational
-  // Scene/lane writes are gated to admin/producer/warehouse to match the
-  // Firestore rule on /lanes (warehouse keeps lane-write until 5f per locked
-  // Q3). Project-level roles are not resolvable client-side today, so this
-  // gates on the global claim role (ShotListPage canManageLanes parity).
-  const canEditScene = role === "admin" || role === "producer" || role === "warehouse"
+  // Scene/lane writes consolidate on rbac.canEditScene, which mirrors the
+  // /lanes rule (firestore.rules:880-882, :901-904 — already project-aware;
+  // warehouse keeps lane-write until 5f per locked Q3).
+  const canEditScene = !roleResolving && canEditSceneForRole(role)
 
   const [shareOpen, setShareOpen] = useState(false)
   const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
@@ -273,7 +287,8 @@ export function ShotDetailPageUnified() {
   // useKeyboardShortcuts already skips input/textarea/contentEditable targets.
   const handleStatusKey = (index: number) => {
     // Early-return unless canManageShots(role) — viewers no-op (build spec
-    // security invariant 2).
+    // security invariant 2). canDoOperational is false while roleResolving,
+    // so no write can fire during the effective-role gap.
     if (!canDoOperational) return
     if (!shot || !clientId) return
     const newStatus = STATUS_CYCLE[index]
@@ -285,8 +300,10 @@ export function ShotDetailPageUnified() {
       shot,
       user,
       source: "ShotDetailPageUnified:keyboard",
-    }).catch(() => {
-      toast.error("Failed to update status")
+    }).catch((err) => {
+      toast.error("Failed to update status", {
+        description: shotWriteErrorDescription(err),
+      })
     })
   }
 
@@ -300,6 +317,10 @@ export function ShotDetailPageUnified() {
   ])
 
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
+    // Reachable only from canEdit/canDoOperational affordances, which render
+    // nothing while roleResolving — the explicit guard keeps the invariant
+    // even if a future affordance forgets its gate.
+    if (roleResolving) return false
     if (!shot || !clientId) return false
     try {
       await updateShotWithVersion({
@@ -311,8 +332,10 @@ export function ShotDetailPageUnified() {
         source: "ShotDetailPageUnified",
       })
       return true
-    } catch {
-      toast.error("Failed to save changes")
+    } catch (err) {
+      toast.error("Failed to save changes", {
+        description: shotWriteErrorDescription(err),
+      })
       return false
     }
   }
@@ -379,6 +402,7 @@ export function ShotDetailPageUnified() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to Shots
           </Button>
+          <EffectiveRoleChip />
           <div className="ml-auto flex items-center gap-2">
             {canExport && (
               <Button

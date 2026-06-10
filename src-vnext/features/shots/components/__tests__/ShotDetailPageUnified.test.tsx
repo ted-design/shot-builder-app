@@ -19,6 +19,14 @@ import type { Shot } from "@/shared/types"
 
 const authState = vi.hoisted(() => ({ role: "producer" }))
 
+// 5b effective-role state. role=null mirrors the global claim (the default
+// matrix shape: member role == global role), a string overrides it (project
+// downgrade/promotion rows), resolving=true pins the first-read gap.
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
 // Per-test lane state so the scene-banner member/non-member pair can flip
 // between a readable lane map and the non-member empty degrade.
 const laneState = vi.hoisted(() => ({
@@ -56,6 +64,13 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
   useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? authState.role,
+    resolving: effectiveState.resolving,
+  }),
 }))
 
 // Desktop mode.
@@ -216,6 +231,8 @@ describe("ShotDetailPageUnified (flag-on)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authState.role = "producer"
+    effectiveState.role = null
+    effectiveState.resolving = false
     laneState.lanes = []
     laneState.laneById = new Map()
   })
@@ -460,6 +477,79 @@ describe("ShotDetailPageUnified (flag-on)", () => {
     fireEvent.keyDown(document.body, { key: "2" })
     fireEvent.keyDown(document.body, { key: "4" })
     expect(updateShotWithVersion).not.toHaveBeenCalled()
+  })
+
+  // ── 5b effective-role gates (resolving gap, downgrade, promotion) ─────────
+
+  it("renders no shot-write affordances while the effective role is resolving; global pins stay", () => {
+    effectiveState.resolving = true
+    mockShot({ status: "todo" })
+
+    renderPage()
+
+    // Shot writes render NOTHING during the first-read gap — never the
+    // global-role guess.
+    expect(screen.queryByTestId("shot-title-edit")).not.toBeInTheDocument()
+    expect(screen.getByTestId("shot-status-select-trigger")).toBeDisabled()
+    expect(screen.queryByTestId("lifecycle-actions-stub")).not.toBeInTheDocument()
+    expect(screen.getByTestId("notes-stub")).toHaveAttribute("data-can-edit", "false")
+
+    // 1-4 keys must not write during the gap.
+    fireEvent.keyDown(document.body, { key: "2" })
+    expect(updateShotWithVersion).not.toHaveBeenCalled()
+
+    // PINNED gates read the GLOBAL claim (producer) and are unaffected:
+    // Share (/shotShares rule) + uploads (storage.rules sees only the claim).
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "true")
+  })
+
+  it("project downgrade (global producer, member viewer): shot writes collapse, global pins stay, quiet chip shows", () => {
+    effectiveState.role = "viewer"
+    mockShot({ status: "todo" })
+
+    renderPage()
+
+    // Effective-role gates collapse to the member role.
+    expect(screen.queryByTestId("shot-title-edit")).not.toBeInTheDocument()
+    expect(screen.getByTestId("shot-status-select-trigger")).toBeDisabled()
+    expect(screen.queryByTestId("lifecycle-actions-stub")).not.toBeInTheDocument()
+    expect(screen.getByTestId("notes-stub")).toHaveAttribute("data-can-edit", "false")
+    fireEvent.keyDown(document.body, { key: "2" })
+    expect(updateShotWithVersion).not.toHaveBeenCalled()
+
+    // PINNED to the global claim by their backing rules (UI-only downgrade —
+    // accepted shape, Ted 2026-06-10): Share + uploads stay for a global
+    // producer.
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "true")
+
+    // The quiet chip names the downgrade.
+    expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
+      "Viewer on this project",
+    )
+  })
+
+  it("project promotion (global crew, member producer): shot writes enabled, pinned gates stay off, no chip", () => {
+    authState.role = "crew"
+    effectiveState.role = "producer"
+    mockShot({ status: "todo" })
+
+    renderPage()
+
+    // Effective producer: full shot-write affordances incl. lifecycle.
+    expect(screen.getByTestId("shot-title-edit")).toBeInTheDocument()
+    expect(screen.getByTestId("shot-status-select-trigger")).not.toBeDisabled()
+    expect(screen.getByTestId("lifecycle-actions-stub")).toBeInTheDocument()
+
+    // PINNED gates still read the GLOBAL crew claim: no Share (/shotShares
+    // requires a global producer claim), no uploads (storage.rules cannot
+    // see the members doc).
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "false")
+
+    // Chip shows downgrades only — a promotion renders nothing.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
   })
 
   // ── Member vs non-member — only where lanes matter (scene banner) ─────────

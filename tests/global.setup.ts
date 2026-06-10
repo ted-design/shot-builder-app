@@ -56,6 +56,17 @@ export const TEST_USERS = {
     role: 'crew',
     clientId: 'test-client',
   },
+  // 5b: SEPARATE crew identity that IS a seed-project member (members doc
+  // role 'crew' — see seedShotsCrudScenario). Exercises the hardened /shots
+  // rule's hasProjectRole allow arm end-to-end. The original `crew` fixture
+  // above stays a NON-member by contract (role-matrix.spec.ts repro) — never
+  // grant it a members doc.
+  memberCrew: {
+    email: 'crew-member@test.shotbuilder.app',
+    password: 'test-password-crew-member-123',
+    role: 'crew',
+    clientId: 'test-client',
+  },
   viewer: {
     email: 'viewer@test.shotbuilder.app',
     password: 'test-password-viewer-123',
@@ -306,7 +317,13 @@ async function globalSetup(config: FullConfig) {
     // hasProjectRole(...,'viewer') (a viewer's global role satisfies neither
     // isAdmin nor producerCanAccessProject), so without it the detail page
     // errors out for a viewer (sidebar-summary's read-only group).
-    await seedShotsCrudScenario({ viewerUid: roleUids.viewer });
+    // memberCrewUid: the 5b member-crew identity gets a 'crew' members doc so
+    // the hardened /shots rule's hasProjectRole arm is E2E-exercised. The
+    // plain crew uid is intentionally NOT passed (non-member by contract).
+    await seedShotsCrudScenario({
+      viewerUid: roleUids.viewer,
+      memberCrewUid: roleUids.memberCrew,
+    });
     // Seed the pulls-crud fixture AFTER shots-crud — seedPullsCrudScenario
     // assumes the seed project (created by seedShotsCrudScenario) already exists.
     // Pass the warehouse uid so the seed can grant it project membership: pull

@@ -459,11 +459,25 @@ export async function clearShotsCrudData(): Promise<void> {
  * useShotDetailBundle folds that into a fatal page error, and the detail page
  * never renders for a viewer. Producer needs no member doc — its global role
  * satisfies producerCanAccessProject on a team project. Granting membership does
- * NOT make the viewer an editor: the UI's canEdit/canManageShots uses the
- * user's GLOBAL role (rbac.ts), so the viewer still renders the read-only path.
+ * NOT make the viewer an editor: the member doc's 'viewer' role IS the
+ * effective role under 5b (project role wins), which still renders the
+ * read-only path — same outcome as the pre-5b global-role gate.
+ *
+ * MEMBER-CREW ACCESS (5b): pass `memberCrewUid` to grant the DEDICATED
+ * crew-member test user (crew-member@test.shotbuilder.app, global claim
+ * 'crew') a members doc with role 'crew'. This identity exercises the
+ * hardened /shots rule's hasProjectRole ALLOW arm end-to-end (member crew
+ * creates a shot through the UI). It is a SEPARATE identity from the
+ * original crew fixture, whose members-doc ABSENCE is load-bearing
+ * (role-matrix.spec.ts non-member repro) — never grant that one a doc.
+ *
+ * Member docs use the APP shape ({role, addedAt, addedBy} —
+ * adminWrites.addProjectMember / CreateProjectDialog), not the legacy seed
+ * shape ({role, clientId, projectId, addedAt}): rules don't validate member
+ * fields on these paths, but the seed should mirror what production writes.
  */
 export async function seedShotsCrudScenario(
-  opts: { viewerUid?: string } = {},
+  opts: { viewerUid?: string; memberCrewUid?: string } = {},
 ): Promise<void> {
   await clearShotsCrudData();
 
@@ -554,15 +568,30 @@ export async function seedShotsCrudScenario(
   // Grant the viewer user project membership so firestore.rules permits it to
   // read the project's lanes (and project doc) — see the VIEWER ACCESS note
   // above. Keyed by uid because hasProjectRole resolves members/<request.auth.uid>.
+  // App-shaped doc ({role, addedAt, addedBy}); 'e2e-seed' marks the admin-SDK
+  // writer (production writes the adder's uid).
   if (opts.viewerUid) {
     await getDb()
       .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/members`)
       .doc(opts.viewerUid)
       .set({
         role: 'viewer',
-        clientId: CLIENT_ID,
-        projectId: SEED_PROJECT_ID,
         addedAt: new Date(),
+        addedBy: 'e2e-seed',
+      });
+  }
+
+  // 5b: the member-crew identity's members doc — the hasProjectRole ALLOW arm
+  // of the hardened /shots rule, exercised end-to-end (see MEMBER-CREW ACCESS
+  // note above). Do NOT add one for the original crew fixture.
+  if (opts.memberCrewUid) {
+    await getDb()
+      .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/members`)
+      .doc(opts.memberCrewUid)
+      .set({
+        role: 'crew',
+        addedAt: new Date(),
+        addedBy: 'e2e-seed',
       });
   }
 }
@@ -676,15 +705,16 @@ export async function seedPullsCrudScenario(
   // Grant the warehouse user project membership so firestore.rules permits it to
   // read + fulfill the pull (see the WAREHOUSE ACCESS note above). Keyed by uid
   // because hasProjectRole resolves the member doc at members/<request.auth.uid>.
+  // App-shaped doc ({role, addedAt, addedBy}) — see the member-doc shape note
+  // on seedShotsCrudScenario.
   if (opts.warehouseUid) {
     await db
       .collection(`clients/${CLIENT_ID}/projects/${SEED_PROJECT_ID}/members`)
       .doc(opts.warehouseUid)
       .set({
         role: 'warehouse',
-        clientId: CLIENT_ID,
-        projectId: SEED_PROJECT_ID,
         addedAt: now,
+        addedBy: 'e2e-seed',
       });
   }
 }

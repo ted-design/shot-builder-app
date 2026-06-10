@@ -13,7 +13,15 @@ service firebase.storage {
       return request.auth != null && request.auth.token.role == 'admin';
     }
     function isProducerOrWardrobe() {
-      return request.auth != null && (request.auth.token.role == 'producer' || request.auth.token.role == 'wardrobe' || request.auth.token.role == 'admin');
+      // Accepts canonical 'warehouse' alongside legacy 'wardrobe' — backend
+      // invites mint 'warehouse' claims (functions/index.js). Lower-cased
+      // compare mirrors firestore.rules normalizedRole case folding.
+      return request.auth != null &&
+        request.auth.token.role is string &&
+        (request.auth.token.role.lower() == 'producer' ||
+         request.auth.token.role.lower() == 'wardrobe' ||
+         request.auth.token.role.lower() == 'warehouse' ||
+         request.auth.token.role.lower() == 'admin');
     }
 
     // Validation functions for file uploads

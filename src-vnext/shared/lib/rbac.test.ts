@@ -12,6 +12,8 @@ import {
   isViewer,
   canSubmitShotRequest,
   canTriageShotRequests,
+  canEditScene,
+  roleRank,
 } from "./rbac"
 
 describe("normalizeRole", () => {
@@ -232,6 +234,45 @@ describe("permission checks", () => {
     it("viewer cannot triage shot requests", () => {
       expect(canTriageShotRequests("viewer")).toBe(false)
     })
+  })
+})
+
+describe("canEditScene", () => {
+  // Mirrors the /lanes rule role list (firestore.rules:880-882 create/update,
+  // :901-904 delete): admin || producer || warehouse. 5f's warehouse revoke
+  // edits this helper + the lanes rule lists together (two-line edit).
+  it("admin can edit scenes", () => {
+    expect(canEditScene("admin")).toBe(true)
+  })
+
+  it("producer can edit scenes", () => {
+    expect(canEditScene("producer")).toBe(true)
+  })
+
+  it("warehouse keeps lane-write until the 5f revoke (locked Q3)", () => {
+    expect(canEditScene("warehouse")).toBe(true)
+  })
+
+  it("crew cannot edit scenes (crew writes shots, not lanes)", () => {
+    expect(canEditScene("crew")).toBe(false)
+  })
+
+  it("viewer cannot edit scenes", () => {
+    expect(canEditScene("viewer")).toBe(false)
+  })
+})
+
+describe("roleRank", () => {
+  it("orders admin > producer > crew/warehouse > viewer", () => {
+    expect(roleRank("admin")).toBeGreaterThan(roleRank("producer"))
+    expect(roleRank("producer")).toBeGreaterThan(roleRank("crew"))
+    expect(roleRank("producer")).toBeGreaterThan(roleRank("warehouse"))
+    expect(roleRank("crew")).toBeGreaterThan(roleRank("viewer"))
+    expect(roleRank("warehouse")).toBeGreaterThan(roleRank("viewer"))
+  })
+
+  it("treats crew and warehouse as lateral (equal rank, no downgrade either way)", () => {
+    expect(roleRank("crew")).toBe(roleRank("warehouse"))
   })
 })
 

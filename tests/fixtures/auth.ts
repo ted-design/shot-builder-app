@@ -43,6 +43,7 @@ type AuthFixtures = {
   wardrobePage: Page;
   warehousePage: Page;
   crewPage: Page;
+  memberCrewPage: Page;
   viewerPage: Page;
 };
 
@@ -68,7 +69,7 @@ function installFirebaseErrorFilter(page: Page): void {
 
 async function buildRoleFixture(
   browser: import('@playwright/test').Browser,
-  role: 'admin' | 'producer' | 'wardrobe' | 'warehouse' | 'crew' | 'viewer',
+  role: 'admin' | 'producer' | 'wardrobe' | 'warehouse' | 'crew' | 'memberCrew' | 'viewer',
   use: (page: Page) => Promise<void>,
 ): Promise<void> {
   const context = await browser.newContext({ storageState: storageStatePath(role) });
@@ -111,9 +112,21 @@ export const test = base.extend<AuthFixtures>({
     await buildRoleFixture(browser, 'warehouse', use);
   },
 
-  /** Crew — view shots, limited edit. */
+  /** Crew — view shots, limited edit. NON-member of the seed project by
+   * contract (role-matrix.spec.ts non-member repro — do not seed a members
+   * doc for it). */
   crewPage: async ({ browser }, use) => {
     await buildRoleFixture(browser, 'crew', use);
+  },
+
+  /**
+   * Member crew (5b) — global claim 'crew' PLUS a members doc role 'crew' on
+   * the seed project (seedShotsCrudScenario memberCrewUid). The identity that
+   * exercises the hardened /shots rule's hasProjectRole ALLOW arm and the
+   * effective-role member path end-to-end.
+   */
+  memberCrewPage: async ({ browser }, use) => {
+    await buildRoleFixture(browser, 'memberCrew', use);
   },
 
   /** Viewer — read-only access. */
@@ -151,6 +164,11 @@ export const TEST_CREDENTIALS = {
   crew: {
     email: 'crew@test.shotbuilder.app',
     password: 'test-password-crew-123',
+    role: 'crew',
+  },
+  memberCrew: {
+    email: 'crew-member@test.shotbuilder.app',
+    password: 'test-password-crew-member-123',
     role: 'crew',
   },
   viewer: {

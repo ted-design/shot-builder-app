@@ -18,7 +18,10 @@ import { useShotListState } from "@/features/shots/hooks/useShotListState"
 import type { SurfaceDevice } from "@/features/shots/lib/resolveSurface"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
-import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
+import { canEditScene, canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
+import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
@@ -49,7 +52,11 @@ import { isFeatureEnabled } from "@/shared/lib/flags"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
-  const { role, clientId, user, loading: authLoading } = useAuth()
+  const { role: globalRole, clientId, user, loading: authLoading } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6) for the shots-surface write affordances below. `resolving`
+  // is true only during the first uncached member read for this project.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -127,18 +134,26 @@ export default function ShotListPage() {
     })
   }, [])
 
-  // -- Role-based flags --
-  const showCreate = canManageShots(role)
-  const canReorder = canManageShots(role)
-  const canBulkPull = canGeneratePulls(role) && !isMobile
-  const canRepair = (role === "admin" || role === "producer") && !isMobile
-  const canShare = role === "admin" || role === "producer"
+  // -- Role-based flags (5b: effective role + resolving gate) --
+  // Write affordances render NOTHING while the first member read is in
+  // flight (roleResolving) — never the global-role guess (the surfaceContext
+  // null-while-authLoading idiom). Backing rule for the shot writes:
+  // hardened /shots (firestore.rules:435-472, ['producer','crew'] arms).
+  const showCreate = !roleResolving && canManageShots(role)
+  const canReorder = !roleResolving && canManageShots(role)
+  const canBulkPull = !roleResolving && canGeneratePulls(role) && !isMobile
+  const canRepair = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  // PINNED to the GLOBAL claim: /shotShares create requires a global producer
+  // claim (firestore.rules:193-204) — the backend cannot see a project
+  // promotion, so the UI must not advertise Share from the effective role.
+  const canShare = globalRole === "admin" || globalRole === "producer"
   const canExport = !isMobile
-  const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
-  // Scene/lane writes (edit, delete, ungroup) are gated to admin/producer/warehouse
-  // to match the Firestore rule on /lanes. Crew users see the scene grouping UI
+  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  // Scene/lane writes (edit, delete, ungroup) consolidate on canEditScene
+  // (rbac.ts), which mirrors the /lanes rule (firestore.rules:880-882,
+  // :901-904 — already project-aware). Crew users see the scene grouping UI
   // read-only — no kebab menu, no edit sheet access from the table header.
-  const canManageLanes = role === "admin" || role === "producer" || role === "warehouse"
+  const canManageLanes = !roleResolving && canEditScene(role)
 
   // -- Lookup maps (computed from picker data, passed to list state hook) --
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
@@ -149,11 +164,16 @@ export default function ShotListPage() {
   const { data: lanes, laneNameById, laneById } = useLanes()
   const laneOrder = useMemo(() => new Map(lanes.map((l) => [l.id, l.sortOrder])), [lanes])
 
-  // null until claims settle: AuthProvider falls back to 'viewer' while loading (viewer-flash guard)
+  // null until claims settle: AuthProvider falls back to 'viewer' while loading
+  // (viewer-flash guard). 5b extends the same gate to the first uncached
+  // member-doc read (roleResolving) so resolveSurface never consumes the
+  // global-role guess; once settled, surfaceContext.role carries the
+  // EFFECTIVE role — resolveSurface's input contract is byte-unchanged (the
+  // opaque effectiveRole param is 5e's View-as interposition seam).
   const surfaceDevice: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
   const surfaceContext = useMemo(
-    () => (authLoading ? null : { role, device: surfaceDevice }),
-    [authLoading, role, surfaceDevice],
+    () => (authLoading || roleResolving ? null : { role, device: surfaceDevice }),
+    [authLoading, roleResolving, role, surfaceDevice],
   )
 
   // -- All filter / sort / view state --
@@ -359,6 +379,7 @@ export default function ShotListPage() {
         title="Shots"
         actions={
           <div className="flex items-center gap-2">
+            <EffectiveRoleChip />
             {canExport && (
               <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
                 Export
@@ -655,7 +676,11 @@ export default function ShotListPage() {
             onReorder={(reordered, range) => {
               setMobileOptimistic(reordered)
               persistShotOrder(reordered, clientId!, range)
-                .catch(() => toast.error("Failed to save shot order."))
+                .catch((err) =>
+                  toast.error("Failed to save shot order.", {
+                    description: shotWriteErrorDescription(err),
+                  }),
+                )
                 .finally(() => setMobileOptimistic(null))
             }}
             laneById={laneById}
@@ -671,7 +696,11 @@ export default function ShotListPage() {
                     toast.success("Shot removed from scene")
                   }
                 })
-                .catch(() => toast.error("Failed to assign scene"))
+                .catch((err) =>
+                  toast.error("Failed to assign scene", {
+                    description: shotWriteErrorDescription(err),
+                  }),
+                )
             }}
             groups={hasActiveGrouping ? shotGroups : null}
             collapsedScenes={collapsedScenes}
@@ -685,7 +714,11 @@ export default function ShotListPage() {
               if (clientId) {
                 void ungroupAllShotsFromLane({ shots, laneId: key, projectId, clientId })
                   .then((n) => toast.success(`${n} shots ungrouped`))
-                  .catch(() => toast.error("Failed to ungroup scene"))
+                  .catch((err) =>
+                    toast.error("Failed to ungroup scene", {
+                      description: shotWriteErrorDescription(err),
+                    }),
+                  )
               }
             } : undefined}
           />
@@ -715,7 +748,11 @@ export default function ShotListPage() {
                         if (clientId) {
                           void ungroupAllShotsFromLane({ shots, laneId: group.key, projectId, clientId })
                             .then((n) => toast.success(`${n} shots ungrouped`))
-                            .catch(() => toast.error("Failed to ungroup scene"))
+                            .catch((err) =>
+                              toast.error("Failed to ungroup scene", {
+                                description: shotWriteErrorDescription(err),
+                              }),
+                            )
                         }
                       } : undefined}
                       onDelete={canManageLanes ? () => {

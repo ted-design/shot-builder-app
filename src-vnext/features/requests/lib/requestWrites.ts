@@ -169,6 +169,10 @@ export async function createProjectFromRequest(
       clientId: params.clientId,
       status: "active",
       shootDates: params.shootDates ?? [],
+      // Required by the members self-create carve-out (firestore.rules): the
+      // same-transaction member doc below is only allowed when the project's
+      // createdBy is the caller. CreateProjectDialog already writes it.
+      createdBy: params.createdBy,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })

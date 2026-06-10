@@ -93,6 +93,26 @@ service cloud.firestore {
         roles.hasAny([normalizedRole]);
     }
 
+    // Shots are CLIENT-scoped — projectId is a doc FIELD (mapShot.ts, '' fallback),
+    // not a path segment. Normalizes a missing/non-string projectId to '' so no
+    // get()/exists() ever sees a malformed path; '' routes to the legacy arm in
+    // shotProjectRole() below.
+    function shotProjectId(data) {
+      return ('projectId' in data && data.projectId is string) ? data.projectId : '';
+    }
+
+    // Project-scoped write arm for /shots and shot sub-resources. Callers pass
+    // the per-verb projectId source through shotProjectId():
+    // request.resource.data on create, resource.data on update/delete.
+    // Empty projectId (legacy shots): admin / global producer only — there is
+    // no project doc to scope against.
+    function shotProjectRole(clientId, projectId, roles) {
+      return isAdmin() ||
+        (projectId != ''
+          ? (producerCanAccessProject(clientId, projectId) || hasProjectRole(projectId, roles))
+          : hasGlobalRole(['producer']));
+    }
+
     function isSystemAdmin() {
       return request.auth != null &&
         exists(/databases/$(database)/documents/systemAdmins/$(request.auth.token.email)) &&
@@ -168,12 +188,21 @@ service cloud.firestore {
         (isAdmin() || isProducer()) &&
         resource.data.clientId == userClient();
 
+      // Create is project-scoped: a non-admin must hold producer access on the
+      // share's projectId (team-visible via producerCanAccessProject, or an
+      // explicit producer members doc) — a global claim alone cannot mint an
+      // enabled public share for an arbitrary project. Only the admin arm may
+      // create a share with an empty projectId (legacy/unscoped shares).
       allow create: if isAuthed() &&
-        (isAdmin() || isProducer()) &&
         request.resource.data.clientId == userClient() &&
         request.resource.data.projectId is string &&
         (request.resource.data.shotIds == null || request.resource.data.shotIds is list) &&
-        request.resource.data.enabled is bool;
+        request.resource.data.enabled is bool &&
+        (isAdmin() ||
+          (isProducer() &&
+           request.resource.data.projectId != '' &&
+           (producerCanAccessProject(userClient(), request.resource.data.projectId) ||
+            hasProjectRole(request.resource.data.projectId, ['producer']))));
 
       allow update, delete: if isAuthed() &&
         (isAdmin() || isProducer()) &&
@@ -406,7 +435,46 @@ service cloud.firestore {
 
 	    match /clients/{clientId}/shots/{docId} {
 	      allow read: if clientMatches(clientId);
-	      allow create, update, delete: if clientMatches(clientId) && isAuthed();
+
+	      // Create: project role on the incoming projectId, plus a global-producer
+	      // lane — createProjectFromRequest writes project + member + shot in ONE
+	      // transaction and rules get()/exists() see pre-transaction state, so the
+	      // membership arms cannot pass there (mirrors the projects create rule).
+	      // Role list ['producer','crew'] diverges from lanes (:806) intentionally:
+	      // crew writes shots (5e); warehouse shot-write was never UI-granted and
+	      // is revoked at 5f.
+	      allow create: if clientMatches(clientId) && (
+	        hasGlobalRole(['producer']) ||
+	        shotProjectRole(clientId, shotProjectId(request.resource.data), ['producer', 'crew'])
+	      );
+
+	      // Update: project role against the pre-image projectId; projectId is
+	      // immutable here — moves go through the arm below.
+	      // Batch budget: isAdmin() short-circuits before any get(), so the
+	      // admin-only client-wide batches (productMergeWrites.updateShotReferences,
+	      // spanning many projects per chunk) stay within the 20-access limit.
+	      // Single-project batches (BATCH_CHUNK_SIZE=250) touch 2 unique docs.
+	      allow update: if clientMatches(clientId) &&
+	        shotProjectId(request.resource.data) == shotProjectId(resource.data) &&
+	        shotProjectRole(clientId, shotProjectId(resource.data), ['producer', 'crew']);
+
+	      // Project-move (shotLifecycleActions.ts moveShotToProject): admins, or
+	      // global producers holding a project-scoped role on the TARGET projectId.
+	      // The arm checks the TARGET only — a producer can move a shot OUT of a
+	      // private project (accepted: shot reads are client-wide regardless of
+	      // project visibility). It also matches non-move updates; that is
+	      // intentional — its access requirement is equal or stricter than the
+	      // arm above, never wider.
+	      allow update: if clientMatches(clientId) && (
+	        isAdmin() ||
+	        (hasGlobalRole(['producer']) &&
+	         shotProjectRole(clientId, shotProjectId(request.resource.data), ['producer']))
+	      );
+
+	      // Delete: pre-image projectId only — request.resource.data does not
+	      // exist on delete.
+	      allow delete: if clientMatches(clientId) &&
+	        shotProjectRole(clientId, shotProjectId(resource.data), ['producer', 'crew']);
 
       // Comments - subcollection of shots for collaboration
       match /comments/{commentId} {
@@ -431,11 +499,21 @@ service cloud.firestore {
           resource.data.createdBy == request.auth.uid;
       }
 
-      // Versions - immutable document snapshots for version history
+      // Versions - immutable document snapshots for version history.
+      // Create carries the same project arm as the parent shot: snapshots copy
+      // full shot data, so a denied shot-writer must not mint them. projectId
+      // comes from the parent shot doc (get is cached per request; version
+      // writes never ride in batches with shot writes).
+      // isAuthed() is belt-and-suspenders: createdBy compares against
+      // request.auth.uid and must never evaluate it on null auth.
       match /versions/{versionId} {
         allow read: if clientMatches(clientId);
         allow create: if clientMatches(clientId) && isAuthed() &&
-          request.resource.data.createdBy == request.auth.uid;
+          request.resource.data.createdBy == request.auth.uid &&
+          shotProjectRole(
+            clientId,
+            shotProjectId(get(/databases/$(database)/documents/clients/$(clientId)/shots/$(docId)).data),
+            ['producer', 'crew']);
         allow update, delete: if false; // Versions are immutable
       }
 
@@ -642,12 +720,17 @@ service cloud.firestore {
           // Self-membership: allow producers to add themselves when creating a project.
           // Validates: own UID only, must set addedBy to self, role must be 'producer',
           // and only the expected fields are written (no extra data injection).
+          // Creation-time only: getAfter sees the same-transaction project write
+          // (CreateProjectDialog.tsx, requestWrites.ts createProjectFromRequest),
+          // so the project's createdBy must be the caller — a producer cannot
+          // self-mint membership on someone else's project.
           allow create: if clientMatches(clientId)
             && isProducer()
             && memberId == request.auth.uid
             && request.resource.data.addedBy == request.auth.uid
             && request.resource.data.role == 'producer'
-            && request.resource.data.keys().hasOnly(['role', 'addedAt', 'addedBy']);
+            && request.resource.data.keys().hasOnly(['role', 'addedAt', 'addedBy'])
+            && getAfter(/databases/$(database)/documents/clients/$(clientId)/projects/$(projectId)).data.createdBy == request.auth.uid;
         }
 
 	      // Project departments and positions (project-scoped role taxonomy)
@@ -831,11 +914,16 @@ service cloud.firestore {
 
       // Wildcard catch-all for any other project sub-collections
       // Includes 'crew' for consistency with explicit sub-resource rules above.
+      // members is excluded from the write arm: overlapping matches OR
+      // together, so without the exclusion any team-visible-project producer
+      // could write arbitrary members docs through this rule, bypassing the
+      // explicit members rules (admin-only management + creation-time self-add).
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
         allow create, update, delete: if clientMatches(clientId) &&
+          collectionId != 'members' &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'warehouse']));
       }
