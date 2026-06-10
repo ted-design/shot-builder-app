@@ -1,10 +1,12 @@
 /// <reference types="@testing-library/jest-dom" />
 // Phase 5a characterization pin (build spec, Test plan 1a).
 //
-// Pins TODAY's desktop click behavior on ShotListPage, against unchanged
-// source: on desktop (useIsDesktop=true), clicking a shot SELECTS it into the
-// three-panel layout (ShotListPage.tsx handleShotClick desktop branch +
-// threePanelActive early return) and does NOT navigate to the detail route.
+// Pins the flag-OFF ROLLBACK path on ShotListPage: with
+// featureUnifiedShotEditor forced off (the real default is ON since the
+// default-flip PR), a desktop shot click (useIsDesktop=true) SELECTS into the
+// three-panel layout (handleShotClick desktop branch + threePanelActive early
+// return) and does NOT navigate to the detail route. Stays alive until 5c
+// deletes the fallback. Flag-ON counterpart: ShotListPage.unifiedEditorFork.
 // Nothing pinned this before — ShotListPage.test.tsx forces useIsDesktop=false.
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
@@ -41,6 +43,18 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
   useIsTablet: () => false,
   useIsDesktop: () => true,
+}))
+
+// Flag mock: featureUnifiedShotEditor OFF, everything else default-off.
+// The real default flipped ON in the default-flip PR; this pin forces it off
+// explicitly so the ThreePanel rollback path stays covered until 5c.
+vi.mock("@/shared/lib/flags", () => ({
+  isFeatureEnabled: () => false,
+  getFeatureFlags: () => ({
+    featurePublishing: false,
+    featureSurfaceResolver: false,
+    featureUnifiedShotEditor: false,
+  }),
 }))
 
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
