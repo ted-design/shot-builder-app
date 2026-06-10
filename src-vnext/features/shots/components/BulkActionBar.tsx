@@ -21,6 +21,7 @@ import {
   SHOT_STATUSES,
 } from "@/shared/lib/statusMappings"
 import { canManageShots } from "@/shared/lib/rbac"
+import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { useAvailableTags } from "@/features/shots/hooks/useAvailableTags"
 import {
   bulkUpdateShotStatus,
@@ -90,7 +91,9 @@ export function BulkActionBar({
       const count = await bulkUpdateShotStatus(clientId, Array.from(selectedIds), status, user)
       toast.success(`Updated status on ${count} shot${count === 1 ? "" : "s"}`)
     } catch (err) {
-      toast.error("Failed to update status", { description: err instanceof Error ? err.message : "Unknown error" })
+      toast.error("Failed to update status", {
+        description: shotWriteErrorDescription(err, err instanceof Error ? err.message : "Unknown error"),
+      })
     }
   }
 
@@ -101,7 +104,9 @@ export function BulkActionBar({
       toast.success(`Applied "${tag.label}" to ${count} shot${count === 1 ? "" : "s"}`)
       setTagPopoverOpen(false)
     } catch (err) {
-      toast.error("Failed to apply tag", { description: err instanceof Error ? err.message : "Unknown error" })
+      toast.error("Failed to apply tag", {
+        description: shotWriteErrorDescription(err, err instanceof Error ? err.message : "Unknown error"),
+      })
     }
   }
 
@@ -112,7 +117,9 @@ export function BulkActionBar({
       toast.success(`Set location on ${count} shot${count === 1 ? "" : "s"}`)
       setLocationPopoverOpen(false)
     } catch (err) {
-      toast.error("Failed to set location", { description: err instanceof Error ? err.message : "Unknown error" })
+      toast.error("Failed to set location", {
+        description: shotWriteErrorDescription(err, err instanceof Error ? err.message : "Unknown error"),
+      })
     }
   }
 
@@ -123,7 +130,9 @@ export function BulkActionBar({
       toast.success(`Added talent to ${count} shot${count === 1 ? "" : "s"}`)
       setTalentPopoverOpen(false)
     } catch (err) {
-      toast.error("Failed to add talent", { description: err instanceof Error ? err.message : "Unknown error" })
+      toast.error("Failed to add talent", {
+        description: shotWriteErrorDescription(err, err instanceof Error ? err.message : "Unknown error"),
+      })
     }
   }
 

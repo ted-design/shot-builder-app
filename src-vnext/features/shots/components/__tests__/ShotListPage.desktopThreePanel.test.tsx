@@ -32,6 +32,12 @@ vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "producer", clientId: "c1" }),
 }))
 
+// 5b: pin the effective role to the global producer claim (member == global)
+// so the pre-5b affordance expectations in this file stay byte-identical.
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({ role: "producer", resolving: false }),
+}))
+
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
   useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),

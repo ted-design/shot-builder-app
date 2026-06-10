@@ -23,6 +23,21 @@ vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "producer", clientId: "c1" }),
 }))
 
+// 5b effective-role state. role=null mirrors the global claim (member ==
+// global, the default matrix shape); a string overrides it (downgrade rows);
+// resolving=true pins the first-read affordance gap.
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? "producer",
+    resolving: effectiveState.resolving,
+  }),
+}))
+
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
   useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
@@ -95,6 +110,8 @@ describe("ShotListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    effectiveState.role = null
+    effectiveState.resolving = false
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -605,6 +622,42 @@ describe("ShotListPage", () => {
     const finalParams = new URLSearchParams(capturedSearch!)
     expect(finalParams.get("scene")).toBeNull()
     expect(finalParams.get("group")).toBe("scene")
+  })
+
+  // ── 5b effective-role gates ────────────────────────────────────────────────
+
+  it("renders no write affordances while the effective role is resolving; Share (global pin) stays", () => {
+    effectiveState.resolving = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    // Shot-write affordances render NOTHING during the first-read gap.
+    expect(screen.queryByRole("button", { name: /new shot/i })).not.toBeInTheDocument()
+    // canShare is PINNED to the global producer claim (/shotShares rule) —
+    // unaffected by the gap.
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+  })
+
+  it("project downgrade (global producer, member viewer): New Shot collapses, Share (global pin) stays, chip shows", () => {
+    effectiveState.role = "viewer"
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.queryByRole("button", { name: /new shot/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+    expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
+      "Viewer on this project",
+    )
   })
 
   it("renders note URLs as clickable links", () => {
