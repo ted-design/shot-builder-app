@@ -23,22 +23,11 @@ export interface FeatureFlags {
    * CI build env must never define it. No URL/localStorage override layer.
    */
   readonly featureSurfaceResolver: boolean
-  /**
-   * Phase 5a — unified two-column shot editor (ShotListPage fork A +
-   * ShotDetailPage fork B). Default ON since the default-flip PR (the 5c
-   * entry gate): desktop list clicks navigate to the unified editor route.
-   * ThreePanel stays in code as the instant rollback — flip this default
-   * back to false to restore it (the env override then re-applies; it is a
-   * no-op while the default is ON). Legacy paths are deleted at 5c.
-   * Independent of featureSurfaceResolver — never coupled (separate rollbacks).
-   */
-  readonly featureUnifiedShotEditor: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
   featurePublishing: false,
   featureSurfaceResolver: false,
-  featureUnifiedShotEditor: true,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -61,9 +50,6 @@ export function getFeatureFlags(): FeatureFlags {
     featureSurfaceResolver:
       DEFAULT_FLAGS.featureSurfaceResolver ||
       parseEnvFlag(import.meta.env.VITE_SURFACE_RESOLVER),
-    featureUnifiedShotEditor:
-      DEFAULT_FLAGS.featureUnifiedShotEditor ||
-      parseEnvFlag(import.meta.env.VITE_UNIFIED_SHOT_EDITOR),
   }
 }
 

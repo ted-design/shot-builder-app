@@ -1,4 +1,4 @@
-// Unified two-column shot editor — rendered by ShotDetailPage when `featureUnifiedShotEditor` is on.
+// Unified two-column shot editor — the only shot detail surface (rendered unconditionally by ShotDetailPage since Phase 5c).
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
 import {
@@ -52,15 +52,8 @@ import { useEffect, useRef, useState } from "react"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
-import type { ShotFirestoreStatus, ShotLook } from "@/shared/types"
-
-// Local copy — no import from ThreePanelLayout.
-const STATUS_CYCLE: ReadonlyArray<ShotFirestoreStatus> = [
-  "todo",
-  "in_progress",
-  "on_hold",
-  "complete",
-]
+import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
+import type { ShotLook } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Meta line segment (one editorial line replacing the three MetaEditorCards)
@@ -254,6 +247,17 @@ export function ShotDetailPageUnified() {
     }
   }, [searchParams, setSearchParams])
 
+  // Deleted-shot guard — effect-based since 5c (was a render-time legacy-parity
+  // check). The ref keeps the navigate+toast one-shot under StrictMode's
+  // double effect invoke.
+  const deletedHandledRef = useRef(false)
+  useEffect(() => {
+    if (shot?.deleted !== true || deletedHandledRef.current) return
+    deletedHandledRef.current = true
+    navigate(`/projects/${shot.projectId}/shots`, { replace: true })
+    toast.info("This shot has been archived.")
+  }, [shot?.deleted, shot?.projectId, navigate])
+
   // Lazy one-shot count for SceneDetailSheet's "N shots in this scene" label.
   useEffect(() => {
     if (!sceneSheetOpen || !clientId || !shot?.laneId) {
@@ -291,7 +295,7 @@ export function ShotDetailPageUnified() {
     // so no write can fire during the effective-role gap.
     if (!canDoOperational) return
     if (!shot || !clientId) return
-    const newStatus = STATUS_CYCLE[index]
+    const newStatus = SHOT_STATUS_CYCLE[index]
     if (!newStatus || shot.status === newStatus) return
     void updateShotWithVersion({
       clientId,
@@ -356,12 +360,8 @@ export function ShotDetailPageUnified() {
     )
   }
 
-  // Legacy-parity guard; moves into a useEffect when the legacy branch retires.
-  if (shot.deleted === true) {
-    navigate(`/projects/${shot.projectId}/shots`, { replace: true })
-    toast.info("This shot has been archived.")
-    return null
-  }
+  // Archived: the deleted-shot effect above navigates away; render nothing.
+  if (shot.deleted === true) return null
 
   // Strips HTML; Infinity means sanitize without truncating (same call as the legacy page).
   const safeDescription = textPreview(shot.description, Number.POSITIVE_INFINITY)

@@ -227,7 +227,6 @@
 
   /* Top Bar / Header */
   --topbar-height: 52px;             /* Reduced from 65px */
-  --header-height: 52px;             /* Alias for ThreePanelLayout calc */
   --action-bar-height: 44px;
 
   /* Preview Area */

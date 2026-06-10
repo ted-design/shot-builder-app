@@ -18,18 +18,16 @@ function initials(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Stacked avatars (shared between full + compact)
+// Stacked avatars
 // ---------------------------------------------------------------------------
 
 function StackedAvatars({
   editors,
-  size = "sm",
 }: {
   readonly editors: readonly ActiveEditor[]
-  readonly size?: "sm" | "xs"
 }) {
-  const dim = size === "sm" ? "h-6 w-6" : "h-5 w-5"
-  const overlap = size === "sm" ? "-space-x-2" : "-space-x-1.5"
+  const dim = "h-6 w-6"
+  const overlap = "-space-x-2"
 
   return (
     <div className={`flex ${overlap}`}>
@@ -145,52 +143,6 @@ export function ActiveEditorsBar({
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// CompactActiveEditors (avatar dots + ping indicator)
-// ---------------------------------------------------------------------------
-
-interface CompactActiveEditorsProps {
-  readonly clientId: string | null
-  readonly entityType: string
-  readonly entityId: string | undefined
-  readonly enabled?: boolean
-}
-
-export function CompactActiveEditors({
-  clientId,
-  entityType,
-  entityId,
-  enabled = true,
-}: CompactActiveEditorsProps) {
-  const { activeEditors, hasActiveEditors } = useEntityPresence(
-    clientId,
-    entityType,
-    entityId,
-    { enabled, excludeSelf: true },
-  )
-
-  if (!hasActiveEditors) return null
-
-  const summary =
-    activeEditors.length === 1
-      ? `${activeEditors[0].userName} is editing ${formatFieldNames(activeEditors[0].fields)}`
-      : `${activeEditors.length} people are editing`
-
-  return (
-    <div
-      className="inline-flex items-center gap-1"
-      title={summary}
-      data-testid="compact-active-editors"
-    >
-      <StackedAvatars editors={activeEditors} size="xs" />
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-      </span>
     </div>
   )
 }
