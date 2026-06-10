@@ -38,7 +38,10 @@ export default function ScheduleListPage() {
   const canManage = !roleResolving && canManageSchedules(role)
   // Delete is rules-stricter than create/update: the /schedules delete arm
   // is admin-only (firestore.rules:801), so Delete gates on admin separately
-  // or a non-admin manager would hit permission-denied.
+  // or a non-admin manager would hit permission-denied. isAdmin on the
+  // EFFECTIVE role is safe: admin is never downgraded (the hook's admin
+  // exception) and a member doc can never mint 'admin', so this matches the
+  // rule's global-claim isAdmin() exactly.
   const canDelete = !roleResolving && isAdmin(role)
 
   const [createOpen, setCreateOpen] = useState(false)

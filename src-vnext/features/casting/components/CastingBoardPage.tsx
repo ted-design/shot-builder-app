@@ -13,7 +13,7 @@ import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { useCastingBoard } from "@/features/casting/hooks/useCastingBoard"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
-import { canManageCasting } from "@/shared/lib/rbac"
+import { canManageCasting, ROLE } from "@/shared/lib/rbac"
 import {
   addTalentToCastingBoard,
   updateCastingEntry,
@@ -66,7 +66,7 @@ export default function CastingBoardPage() {
   // a project promotion, so the UI must not advertise Share from the
   // effective role.
   const canShare =
-    (globalRole === "admin" || globalRole === "producer") && !isMobile
+    (globalRole === ROLE.ADMIN || globalRole === ROLE.PRODUCER) && !isMobile
   // PINNED to the GLOBAL claim: Book also backlinks
   // /clients/{clientId}/talent/{talentId}.projectIds, whose rule is
   // global-claim only (firestore.rules:363-365, isAdmin || isProducer —
@@ -75,9 +75,9 @@ export default function CastingBoardPage() {
   // skip the backlink — the board status update alone goes through the
   // project wildcard (firestore.rules:921-929).
   const canWriteTalentBacklink =
-    globalRole === "admin" ||
-    globalRole === "producer" ||
-    globalRole === "warehouse"
+    globalRole === ROLE.ADMIN ||
+    globalRole === ROLE.PRODUCER ||
+    globalRole === ROLE.WAREHOUSE
 
   // Local UI state
   const [search, setSearch] = useState("")
