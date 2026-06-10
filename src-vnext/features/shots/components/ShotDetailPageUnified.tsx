@@ -29,6 +29,8 @@ import { ShotReferenceLinksSection } from "@/features/shots/components/ShotRefer
 import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { ShotDetailSidebar } from "@/features/shots/components/ShotDetailSidebar"
+import { ShotDetailQuickAdd } from "@/features/shots/components/ShotDetailQuickAdd"
+import { readShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -311,6 +313,21 @@ export function ShotDetailPageUnified() {
     })
   }
 
+  // -- [ / ] prev-next over the list page's visible order (ported from
+  // ThreePanel with list-ordering context). Clamps at the ends, no wrap —
+  // navigation-only, so no role gate (parity with the retired panel). Deep
+  // links and new tabs have no order snapshot and the keys no-op.
+  const handlePrevNext = (delta: -1 | 1) => {
+    if (!shot || !clientId) return
+    const orderIds = readShotListNavOrder(clientId, shot.projectId)
+    if (!orderIds) return
+    const currentIndex = orderIds.indexOf(shot.id)
+    if (currentIndex === -1) return
+    const targetId = orderIds[currentIndex + delta]
+    if (!targetId) return
+    navigate(`/projects/${shot.projectId}/shots/${targetId}`)
+  }
+
   useKeyboardShortcuts([
     { key: "Escape", handler: () => navigate(-1) },
     { key: "s", meta: true, handler: () => { /* auto-save flushes on blur; this just prevents browser save dialog */ } },
@@ -318,6 +335,8 @@ export function ShotDetailPageUnified() {
     { key: "2", handler: () => handleStatusKey(1) },
     { key: "3", handler: () => handleStatusKey(2) },
     { key: "4", handler: () => handleStatusKey(3) },
+    { key: "[", handler: () => handlePrevNext(-1) },
+    { key: "]", handler: () => handlePrevNext(1) },
   ])
 
   const save = async (fields: Record<string, unknown>): Promise<boolean> => {
@@ -638,7 +657,11 @@ export function ShotDetailPageUnified() {
           </div>
 
           {/* ── Right sticky rail ── */}
-          <ShotDetailSidebar shot={shot} canEditLooks={canEdit} />
+          <ShotDetailSidebar
+            shot={shot}
+            canEditLooks={canEdit}
+            footer={canDoOperational ? <ShotDetailQuickAdd /> : undefined}
+          />
         </div>
 
         {canShare && (

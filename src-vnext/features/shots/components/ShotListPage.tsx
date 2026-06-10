@@ -45,6 +45,7 @@ import { SceneHeader } from "@/features/shots/components/SceneHeader"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
 import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
+import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 
@@ -62,12 +63,6 @@ export default function ShotListPage() {
   const { data: talentRecords } = useTalent()
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
-
-  // Shot clicks always navigate to the unified editor route (Phase 5c —
-  // the ThreePanel selection fork is retired).
-  const handleShotClick = useCallback((shotId: string) => {
-    navigate(`/projects/${projectId}/shots/${shotId}`)
-  }, [navigate, projectId])
 
   // -- FAB integration: ?create=1 opens the dialog --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -176,6 +171,16 @@ export default function ShotListPage() {
   } = useShotListState({
     shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById, surfaceContext,
   })
+
+  // Shot clicks navigate to the unified editor route (Phase 5c retired the
+  // ThreePanel selection fork), snapshotting the visible order so the
+  // editor's [ / ] keys walk the list exactly as the user saw it.
+  const handleShotClick = useCallback((shotId: string) => {
+    if (clientId) {
+      writeShotListNavOrder(clientId, projectId, displayShots.map((s) => s.id))
+    }
+    navigate(`/projects/${projectId}/shots/${shotId}`)
+  }, [navigate, projectId, clientId, displayShots])
 
   // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
   const extraFilterCount = useMemo(
