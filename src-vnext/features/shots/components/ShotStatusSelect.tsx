@@ -23,11 +23,7 @@ interface ShotStatusSelectProps {
   readonly shot: Shot
   readonly disabled?: boolean
   readonly compact?: boolean
-  /**
-   * Visual-only variant. "badge" restyles the trigger as a status-token badge
-   * for the 5a unified editor masthead — same testid, same optimistic update
-   * + revert toast, same labels. Default keeps every legacy call site as-is.
-   */
+  /** "badge" restyles the trigger as a status-token badge; same testid, optimistic update, and labels. */
   readonly variant?: "default" | "badge"
 }
 

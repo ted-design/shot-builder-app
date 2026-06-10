@@ -158,7 +158,7 @@ export function ThreePanelLayout({
   // -- Status change via 1-4 keys --
   const handleStatusKey = useCallback(
     (index: number) => {
-      // Flag-independent 5a fix: status keys are role-gated (viewers no-op).
+      // Status keys are role-gated — viewers no-op.
       if (!canDoOperational) return
       if (!shot || !clientId) return
       const newStatus = STATUS_CYCLE[index]

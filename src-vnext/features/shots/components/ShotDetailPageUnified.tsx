@@ -1,15 +1,4 @@
-// Phase 5a — unified two-column shot editor (flag-on composition).
-//
-// Rendered by the ShotDetailPage fork B when `featureUnifiedShotEditor` is on.
-// This is a RE-COMPOSITION of the existing section components to DESIGN.md law
-// (scan-path order, de-carded left column, editorial meta line, typographic
-// colorway centerpiece, Ivy Presto shot name + iconic period) — all writes go
-// through the same save() -> updateShotWithVersion closure the legacy page
-// uses. Approved comp: mockups/s26-5a-unified-editor-comp.html.
-//
-// Dependency law: this file imports NOTHING from ThreePanel* (5c deletes those
-// files independently). STATUS_CYCLE is re-defined locally by design.
-// Capability props are REQUIRED and default-deny on every section.
+// Unified two-column shot editor — rendered by ShotDetailPage when `featureUnifiedShotEditor` is on.
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { Breadcrumbs } from "@/shared/components/Breadcrumbs"
 import {
@@ -62,8 +51,7 @@ import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
 import type { ShotFirestoreStatus, ShotLook } from "@/shared/types"
 
-// Re-defined locally — NEVER imported from ThreePanelLayout (build spec
-// security invariant 2; the ThreePanel files are deleted at 5c).
+// Local copy — no import from ThreePanelLayout.
 const STATUS_CYCLE: ReadonlyArray<ShotFirestoreStatus> = [
   "todo",
   "in_progress",
@@ -103,8 +91,7 @@ function MetaDot() {
 }
 
 // ---------------------------------------------------------------------------
-// Product colorway strip — pure-text typographic centerpiece (Ted's pick at
-// comp: PURE TEXT, read-only; writes stay in the right rail).
+// Product colorway strip — pure-text typographic centerpiece (read-only; writes stay in the right rail).
 // ---------------------------------------------------------------------------
 
 function ProductColorwayStrip({
@@ -201,16 +188,13 @@ export function ShotDetailPageUnified() {
   const { role, clientId, user } = useAuth()
   const { projectName } = useProjectScope()
 
-  // ONE device-authority read feeding named capability booleans with today's
-  // exact semantics (discharges the Phase-4 "OUT -> 5a" item). Mobile-crew
-  // edit is 5e — do NOT remove !isMobile here.
+  // ONE device-authority read feeding named capability booleans. Mobile edit
+  // enablement requires the rules backstop first — do NOT remove !isMobile here.
   const isMobile = useIsMobile()
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
   const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
-  // NEW 5a gate (Ted, 2026-06-09 — strict): uploads are admin/producer only;
-  // crew keep Firestore field edits but see NO upload buttons
-  // (storage.rules:72-75 denies crew writes — this aligns UI to rules).
+  // Uploads are admin/producer only — storage.rules denies crew writes.
   const canUploadShotImages = (role === "admin" || role === "producer") && !isMobile
   const canExport = !isMobile
   const canShare = role === "admin" || role === "producer"
@@ -227,7 +211,7 @@ export function ShotDetailPageUnified() {
     undefined,
   )
 
-  // -- FAB integration: ?status_picker=1 (consume-only, 5i) and ?focus=notes --
+  // -- FAB integration: ?status_picker=1 (consume-only) and ?focus=notes --
   const [searchParams, setSearchParamsFab] = useSearchParams()
   const notesRef = useRef<HTMLDivElement>(null)
 
@@ -453,7 +437,7 @@ export function ShotDetailPageUnified() {
                 {shot.title || "Untitled Shot"}
               </h1>
             )}
-            {/* The iconic period — the ONLY red on this surface (Ted's pick at comp). */}
+            {/* The iconic period — the single red accent on this surface. */}
             <span className="iconic-period" aria-hidden="true">
               .
             </span>
@@ -495,9 +479,7 @@ export function ShotDetailPageUnified() {
             <section>
               <SectionLabel>Hero + References</SectionLabel>
               <div className="mt-1.5 grid items-start gap-3 lg:grid-cols-[minmax(0,420px)_minmax(220px,1fr)]">
-                {/* Aspect-ratio flexible hero (Ted's approval condition):
-                    native image ratio, width-capped, height-capped — never a
-                    forced widescreen crop. */}
+                {/* Hero renders at the image's native ratio — no forced widescreen crop. */}
                 <div className="w-full max-w-[400px]">
                   <HeroImageSection
                     heroImage={shot.heroImage}
@@ -599,7 +581,7 @@ export function ShotDetailPageUnified() {
                 </div>
               </section>
 
-              {/* Reference links live with Notes (Ted's pick at comp). */}
+              {/* Reference links live with Notes. */}
               <ShotReferenceLinksSection
                 shotId={shot.id}
                 referenceLinks={shot.referenceLinks}

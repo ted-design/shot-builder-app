@@ -26,12 +26,7 @@ interface HeroImageSectionProps {
   readonly shot: Shot
   readonly shotId: string
   readonly canUpload: boolean
-  /**
-   * Visual-only container variant. "natural" renders the hero at the image's
-   * NATIVE aspect ratio (portrait-friendly, height-capped, never a forced
-   * widescreen crop) for the 5a unified editor — Ted's approval condition,
-   * 2026-06-09. Default "fixed" keeps the legacy container byte-identical.
-   */
+  /** "natural" renders the hero at the image's native aspect ratio (height-capped); default "fixed" keeps the legacy container. */
   readonly frame?: "fixed" | "natural"
 }
 

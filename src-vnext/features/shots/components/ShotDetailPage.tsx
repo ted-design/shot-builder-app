@@ -56,9 +56,8 @@ import { isFeatureEnabled } from "@/shared/lib/flags"
 import { ShotDetailPageUnified } from "@/features/shots/components/ShotDetailPageUnified"
 
 export default function ShotDetailPage() {
-  // Phase 5a fork B: flag-on renders the unified two-column composition;
-  // flag-off keeps the legacy render below byte-identical.
-  // Legacy branch is gated, NOT deleted; retirement at 5c.
+  // featureUnifiedShotEditor fork: flag-on renders the unified composition.
+  // Legacy branch is gated, NOT deleted; full retirement happens at flag removal.
   if (isFeatureEnabled("featureUnifiedShotEditor")) {
     return <ShotDetailPageUnified />
   }

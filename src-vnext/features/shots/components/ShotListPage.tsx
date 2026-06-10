@@ -58,7 +58,7 @@ export default function ShotListPage() {
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
 
-  // -- Phase 5a fork A: unified editor flag --
+  // -- featureUnifiedShotEditor fork --
   // Flag-on, desktop clicks NAVIGATE to the detail route (same as the
   // non-desktop branch) and threePanelActive folds the flag into the single
   // derived boolean so the three-panel early return is permanently false
@@ -67,7 +67,7 @@ export default function ShotListPage() {
   const unifiedEditorEnabled = isFeatureEnabled("featureUnifiedShotEditor")
 
   // -- Three-panel state (desktop only) --
-  // Flag-off branch byte-identical — gated, NOT deleted; retirement at 5c
+  // Flag-off branch byte-identical — gated, NOT deleted; full retirement happens at flag removal
   // (useShotListState.ts legacy-resolution precedent).
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
   const threePanelActive = !unifiedEditorEnabled && isDesktop && selectedShotId !== null

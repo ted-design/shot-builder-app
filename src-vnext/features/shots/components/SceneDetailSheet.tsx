@@ -24,20 +24,9 @@ interface SceneDetailSheetProps {
   readonly projectId: string
   readonly clientId: string | null
   readonly shotCount?: number
-  /**
-   * All other lanes in the project — used to validate that the user doesn't
-   * enter a duplicate sceneNumber. Excludes the currently-edited lane.
-   */
+  /** Other lanes in the project, for duplicate-sceneNumber validation (excludes the edited lane). */
   readonly siblingLanes?: ReadonlyArray<Lane>
-  /**
-   * REQUIRED capability prop (default-deny — no `= true` fallback). Mirrors
-   * the /lanes write rule (firestore.rules: admin || producer || warehouse;
-   * warehouse keeps lane-write until 5f per locked Q3). The app resolves
-   * roles from the GLOBAL claim today (no per-project role is resolvable
-   * client-side), so callers gate on the global role. When false, the four
-   * fields render as read-only display values — no inputs, no saves, no
-   * color picker.
-   */
+  /** Required capability gate mirroring the /lanes write rule; when false the fields render as read-only display values. */
   readonly canEditScene: boolean
 }
 
