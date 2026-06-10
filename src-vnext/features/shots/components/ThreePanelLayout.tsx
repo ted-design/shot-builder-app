@@ -98,6 +98,11 @@ export function ThreePanelLayout({
   const canEdit = canManageShots(role) && !isMobile
   const canDoOperational = canManageShots(role)
   const canShare = role === "admin" || role === "producer"
+  // Scene/lane writes are gated to admin/producer/warehouse to match the
+  // Firestore rule on /lanes (warehouse keeps lane-write until 5f per locked
+  // Q3). Project-level roles are not resolvable client-side today, so this
+  // gates on the global claim role (ShotListPage canManageLanes parity).
+  const canEditScene = role === "admin" || role === "producer" || role === "warehouse"
   const [shareOpen, setShareOpen] = useState(false)
 
   // -- Scene sheet state (lifted from canvas + properties panels to avoid duplicates) --
@@ -153,6 +158,8 @@ export function ThreePanelLayout({
   // -- Status change via 1-4 keys --
   const handleStatusKey = useCallback(
     (index: number) => {
+      // Flag-independent 5a fix: status keys are role-gated (viewers no-op).
+      if (!canDoOperational) return
       if (!shot || !clientId) return
       const newStatus = STATUS_CYCLE[index]
       if (!newStatus || shot.status === newStatus) return
@@ -167,7 +174,7 @@ export function ThreePanelLayout({
         toast.error("Failed to update status")
       })
     },
-    [shot, clientId, user],
+    [canDoOperational, shot, clientId, user],
   )
 
   // -- Toggle-deselect: clicking the selected shot deselects --
@@ -334,6 +341,7 @@ export function ThreePanelLayout({
         clientId={clientId}
         shotCount={sceneSheetShotCount}
         siblingLanes={lanes}
+        canEditScene={canEditScene}
       />
     </div>
     </ErrorBoundary>

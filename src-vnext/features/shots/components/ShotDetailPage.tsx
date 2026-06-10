@@ -64,6 +64,11 @@ export default function ShotDetailPage() {
   const canDoOperational = canManageShots(role)
   const canManageLifecycle = (role === "admin" || role === "producer") && !isMobile
   const canShare = role === "admin" || role === "producer"
+  // Scene/lane writes are gated to admin/producer/warehouse to match the
+  // Firestore rule on /lanes (warehouse keeps lane-write until 5f per locked
+  // Q3). Project-level roles are not resolvable client-side today, so this
+  // gates on the global claim role (ShotListPage canManageLanes parity).
+  const canEditScene = role === "admin" || role === "producer" || role === "warehouse"
   const [shareOpen, setShareOpen] = useState(false)
   const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
   const [sceneSheetShotCount, setSceneSheetShotCount] = useState<number | undefined>(
@@ -427,6 +432,7 @@ export default function ShotDetailPage() {
           projectId={shot.projectId}
           clientId={clientId}
           shotCount={sceneSheetShotCount}
+          canEditScene={canEditScene}
         />
 
       </div>

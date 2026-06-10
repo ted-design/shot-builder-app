@@ -45,6 +45,7 @@ import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } fr
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
@@ -57,17 +58,27 @@ export default function ShotListPage() {
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
 
+  // -- Phase 5a fork A: unified editor flag --
+  // Flag-on, desktop clicks NAVIGATE to the detail route (same as the
+  // non-desktop branch) and threePanelActive folds the flag into the single
+  // derived boolean so the three-panel early return is permanently false
+  // (gating only the early return would strand selection state and silently
+  // disable the 1/2 view shortcuts below).
+  const unifiedEditorEnabled = isFeatureEnabled("featureUnifiedShotEditor")
+
   // -- Three-panel state (desktop only) --
+  // Flag-off branch byte-identical — gated, NOT deleted; retirement at 5c
+  // (useShotListState.ts legacy-resolution precedent).
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
-  const threePanelActive = isDesktop && selectedShotId !== null
+  const threePanelActive = !unifiedEditorEnabled && isDesktop && selectedShotId !== null
 
   const handleShotClick = useCallback((shotId: string) => {
-    if (isDesktop) {
+    if (!unifiedEditorEnabled && isDesktop) {
       setSelectedShotId(shotId)
     } else {
       navigate(`/projects/${projectId}/shots/${shotId}`)
     }
-  }, [isDesktop, navigate, projectId])
+  }, [unifiedEditorEnabled, isDesktop, navigate, projectId])
 
   // -- FAB integration: ?create=1 opens the dialog --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -949,6 +960,7 @@ export default function ShotListPage() {
         clientId={clientId}
         shotCount={editSceneShotCount}
         siblingLanes={lanes}
+        canEditScene={canManageLanes}
       />
 
     </ErrorBoundary>

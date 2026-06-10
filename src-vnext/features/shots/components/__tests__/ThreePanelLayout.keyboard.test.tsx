@@ -1,13 +1,13 @@
 /// <reference types="@testing-library/jest-dom" />
 // Phase 5a characterization pin (build spec, Test plan 1c).
 //
-// Pins TODAY's ThreePanelLayout keyboard behavior EXACTLY, against unchanged
-// source:
+// Pins ThreePanelLayout keyboard behavior:
 //   - 1-4 keys write the matching STATUS_CYCLE status via updateShotWithVersion
-//     (source "ThreePanelLayout:keyboard"), EVEN for a viewer role. Yes, the
-//     hole: handleStatusKey has no role gate today. The Core phase adds the
-//     canDoOperational gate (flag-independent fix, spec invariant 3) and will
-//     flip the viewer pin below red→green.
+//     (source "ThreePanelLayout:keyboard") for roles with canDoOperational
+//     (canManageShots: admin/producer/crew). Viewers NO-OP — the Core 5a phase
+//     closed the previously-pinned ungated hole with the canDoOperational
+//     early return (flag-independent fix, spec invariant 3); the viewer pin
+//     below was flipped red→green to the new behavior in the same commit.
 //   - [ / ] move selection through the `shots` prop order via onSelectShot.
 //   - Escape calls onDeselect.
 //   - Deleted-shot guard: a soft-deleted selected shot deselects with a toast.
@@ -186,23 +186,20 @@ describe("ThreePanelLayout keyboard (pre-5a pin)", () => {
     expect(updateShotWithVersion).toHaveBeenCalledTimes(3)
   })
 
-  it("writes status for a VIEWER role too (today's ungated hole — 5a closes it)", () => {
+  it("NO-OPs all of 1-4 for a VIEWER role (canDoOperational gate, flag-independent 5a fix)", () => {
     authState.role = "viewer"
     mockSelectedShot({ status: "todo" })
     renderLayout()
 
+    pressKey("1")
     pressKey("2")
+    pressKey("3")
+    pressKey("4")
 
-    // Pin of REALITY, not intent: handleStatusKey has no role gate today, so
-    // a viewer keypress writes status. The 5a Core phase gates this on
-    // canDoOperational and updates this pin to assert the no-op.
-    expect(updateShotWithVersion).toHaveBeenCalledTimes(1)
-    expect(updateShotWithVersion).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        patch: { status: "in_progress" },
-        source: "ThreePanelLayout:keyboard",
-      }),
-    )
+    // handleStatusKey early-returns unless canDoOperational (canManageShots:
+    // admin/producer/crew). A viewer keypress must never reach
+    // updateShotWithVersion.
+    expect(updateShotWithVersion).not.toHaveBeenCalled()
   })
 
   it("moves selection through the shots prop order with ] and [", () => {
