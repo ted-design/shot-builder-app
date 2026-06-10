@@ -21,15 +21,13 @@ interface ShotQuickAddProps {
   readonly shots: ReadonlyArray<Shot>
   /** Called after a shot is successfully created. */
   readonly onCreated?: (shotId: string, title: string) => void
-  /** When true, reduces padding and hides keyboard hints for narrow containers. */
-  readonly compact?: boolean
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function ShotQuickAdd({ shots, onCreated, compact = false }: ShotQuickAddProps) {
+export function ShotQuickAdd({ shots, onCreated }: ShotQuickAddProps) {
   const { clientId, user } = useAuth()
   const { projectId } = useProjectScope()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -184,7 +182,7 @@ export function ShotQuickAdd({ shots, onCreated, compact = false }: ShotQuickAdd
   }
 
   return (
-    <div className={compact ? "relative" : "relative mb-4"}>
+    <div className="relative mb-4">
       <ShotBatchCreate
         open={batchOpen}
         onOpenChange={setBatchOpen}
@@ -193,16 +191,12 @@ export function ShotQuickAdd({ shots, onCreated, compact = false }: ShotQuickAdd
       >
         <div
           className={
-            compact
-              ? "flex items-center gap-1.5 rounded-md border bg-[var(--color-surface)] px-2 py-1.5 " +
-                "border-[var(--color-border)] transition-all duration-150 " +
-                "focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_2px_rgba(24,24,27,0.08)]"
-              : "flex items-center gap-2 rounded-[10px] border bg-[var(--color-surface)] px-3.5 py-2.5 " +
-                "border-[var(--color-border)] transition-all duration-150 " +
-                "focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_2px_rgba(24,24,27,0.08)]"
+            "flex items-center gap-2 rounded-[10px] border bg-[var(--color-surface)] px-3.5 py-2.5 " +
+            "border-[var(--color-border)] transition-all duration-150 " +
+            "focus-within:border-[var(--color-primary)] focus-within:shadow-[0_0_0_2px_rgba(24,24,27,0.08)]"
           }
         >
-          <Plus className={compact ? "h-4 w-4 flex-shrink-0 text-[var(--color-text-subtle)]" : "h-5 w-5 flex-shrink-0 text-[var(--color-text-subtle)]"} />
+          <Plus className="h-5 w-5 flex-shrink-0 text-[var(--color-text-subtle)]" />
 
           <input
             ref={inputRef}
@@ -210,31 +204,26 @@ export function ShotQuickAdd({ shots, onCreated, compact = false }: ShotQuickAdd
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={compact ? "New shot title..." : "New shot title... (press Enter to create)"}
+            placeholder="New shot title... (press Enter to create)"
             disabled={creating}
-            className={compact
-              ? "flex-1 min-w-0 bg-transparent text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none disabled:opacity-50"
-              : "flex-1 bg-transparent text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none disabled:opacity-50"
-            }
+            className="flex-1 bg-transparent text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-subtle)] focus:outline-none disabled:opacity-50"
           />
 
-          {!compact && (
-            <div className="hidden flex-shrink-0 items-center gap-1 text-2xs text-[var(--color-text-subtle)] sm:flex">
-              <kbd className="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] px-1.5 text-3xs font-medium text-[var(--color-text-muted)]">
-                N
-              </kbd>
-              <span>to focus</span>
-              <span className="mx-1 text-[var(--color-border-strong)]">|</span>
-              <button
-                type="button"
-                onClick={() => setBatchOpen(true)}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
-              >
-                <ClipboardList className="h-3.5 w-3.5" />
-                Batch paste
-              </button>
-            </div>
-          )}
+          <div className="hidden flex-shrink-0 items-center gap-1 text-2xs text-[var(--color-text-subtle)] sm:flex">
+            <kbd className="inline-flex h-[18px] min-w-[20px] items-center justify-center rounded border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] px-1.5 text-3xs font-medium text-[var(--color-text-muted)]">
+              N
+            </kbd>
+            <span>to focus</span>
+            <span className="mx-1 text-[var(--color-border-strong)]">|</span>
+            <button
+              type="button"
+              onClick={() => setBatchOpen(true)}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              Batch paste
+            </button>
+          </div>
         </div>
       </ShotBatchCreate>
     </div>

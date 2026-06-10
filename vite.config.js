@@ -91,11 +91,6 @@ export default defineConfig({
             return 'dnd';
           }
 
-          // Rich text / panel libraries - only loaded in ShotDetailPage / CallSheetBuilderPage (lazy).
-          if (id.includes('react-resizable-panels')) {
-            return 'panels-vendor';
-          }
-
           // Everything else from node_modules — including React and all its eager
           // consumers — shares ONE acyclic vendor chunk.
           if (id.includes('node_modules')) {

@@ -1,23 +1,36 @@
 /// <reference types="@testing-library/jest-dom" />
-// Phase 5a — unit matrix for the unified two-column editor (flag-on).
+// Unit matrix for the unified two-column editor (the only shot detail
+// surface since Phase 5c retired the ThreePanel/legacy fork and its flag).
 //
-// Renders through the ShotDetailPage default export with the flag mocked ON,
-// so the fork B entry is exercised too. Section components are stubbed to
-// emit their capability props (behavior-free), so what's asserted here is the
-// page-level capability wiring:
+// Renders through the ShotDetailPage default export, so the wrapper entry is
+// exercised too. Section components are stubbed to emit their capability
+// props (behavior-free), so what's asserted here is the page-level
+// capability wiring:
 //   - scan-path order (DESIGN.md law)
 //   - viewer mounts ZERO enabled write affordances
 //   - crew sees no upload/lifecycle affordances (strict convergence,
 //     Ted 2026-06-09) but keeps operational edits
-//   - 1-4 status keys: viewer no-op, producer writes via the local
-//     STATUS_CYCLE (never imported from ThreePanelLayout)
+//   - 1-4 status keys: viewer no-op, producer writes via the shared
+//     SHOT_STATUS_CYCLE (canonical in @/shared/lib/statusMappings since 5c)
+//   - deleted-shot guard: effect-based navigate+toast, one-shot under
+//     StrictMode
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { StrictMode } from "react"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
+import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
 
 const authState = vi.hoisted(() => ({ role: "producer" }))
+
+// Navigate spy so the deleted-shot guard's target + replace flag are
+// assertable; everything else in react-router-dom stays real.
+const navigateSpy = vi.hoisted(() => vi.fn())
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>()
+  return { ...actual, useNavigate: () => navigateSpy }
+})
 
 // 5b effective-role state. role=null mirrors the global claim (the default
 // matrix shape: member role == global role), a string overrides it (project
@@ -32,11 +45,6 @@ const effectiveState = vi.hoisted(() => ({
 const laneState = vi.hoisted(() => ({
   lanes: [] as unknown[],
   laneById: new Map<string, unknown>(),
-}))
-
-// Flag ON — fork B renders the unified composition.
-vi.mock("@/shared/lib/flags", () => ({
-  isFeatureEnabled: (flag: string) => flag === "featureUnifiedShotEditor",
 }))
 
 vi.mock("@/features/shots/lib/updateShotWithVersion", () => ({
@@ -227,7 +235,7 @@ function expectDocumentOrder(elements: ReadonlyArray<HTMLElement>) {
   }
 }
 
-describe("ShotDetailPageUnified (flag-on)", () => {
+describe("ShotDetailPageUnified", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authState.role = "producer"
@@ -550,6 +558,46 @@ describe("ShotDetailPageUnified (flag-on)", () => {
 
     // Chip shows downgrades only — a promotion renders nothing.
     expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
+
+  // ── Deleted-shot guard (effect-based since 5c) ─────────────────────────────
+
+  it("deleted shot: renders nothing while the effect navigates back with a toast", () => {
+    const infoSpy = vi.spyOn(toast, "info")
+    mockShot({ deleted: true })
+
+    renderPage()
+
+    // Render path returns null — none of the page chrome mounts.
+    expect(screen.queryByTestId("shot-title-edit")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("hero-stub")).not.toBeInTheDocument()
+
+    // The effect (not render) fires the navigate+toast, byte-equal to the
+    // old render-time guard: same target, replace:true, same copy.
+    expect(navigateSpy).toHaveBeenCalledTimes(1)
+    expect(navigateSpy).toHaveBeenCalledWith("/projects/p1/shots", { replace: true })
+    expect(infoSpy).toHaveBeenCalledTimes(1)
+    expect(infoSpy).toHaveBeenCalledWith("This shot has been archived.")
+  })
+
+  it("deleted-shot guard stays one-shot under StrictMode double-invoke", () => {
+    const infoSpy = vi.spyOn(toast, "info")
+    mockShot({ deleted: true })
+
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/projects/p1/shots/s1"]}>
+          <Routes>
+            <Route path="/projects/:id/shots/:sid" element={<ShotDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </StrictMode>,
+    )
+
+    // StrictMode runs the effect twice; the ref gate keeps both side effects
+    // to exactly one call.
+    expect(navigateSpy).toHaveBeenCalledTimes(1)
+    expect(infoSpy).toHaveBeenCalledTimes(1)
   })
 
   // ── Member vs non-member — only where lanes matter (scene banner) ─────────

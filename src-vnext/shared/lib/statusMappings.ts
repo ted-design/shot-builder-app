@@ -21,6 +21,15 @@ const SHOT_STATUS_MAP: Record<ShotFirestoreStatus, ShotStatusMapping> = {
 
 export const SHOT_STATUSES = Object.values(SHOT_STATUS_MAP)
 
+// Keyboard 1-4 cycle order for the shot editor — canonical since Phase 5c
+// (was duplicated locally in the ThreePanel and unified editors).
+export const SHOT_STATUS_CYCLE: ReadonlyArray<ShotFirestoreStatus> = [
+  "todo",
+  "in_progress",
+  "on_hold",
+  "complete",
+]
+
 export function getShotStatusLabel(status: ShotFirestoreStatus): string {
   return SHOT_STATUS_MAP[status]?.label ?? status
 }

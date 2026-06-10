@@ -1,16 +1,14 @@
 /// <reference types="@testing-library/jest-dom" />
-// Phase 5a fork A (build spec, "TWO coupled flag forks").
+// Phase 5c — canonical desktop click behavior (the ThreePanel fork is retired).
 //
-// Flag-ON counterpart of ShotListPage.desktopThreePanel.test.tsx: with
-// featureUnifiedShotEditor enabled, a desktop shot click NAVIGATES to the
-// detail route (same as the non-desktop branch) and the three-panel layout
-// never mounts (threePanelActive folds the flag, permanently false).
+// A desktop shot click NAVIGATES to the unified editor detail route (same as
+// the non-desktop branch). This is the only behavior; the former
+// featureUnifiedShotEditor flag and ThreePanel selection path were deleted.
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
-import type { FeatureFlags } from "@/shared/lib/flags"
 
 vi.mock("@/features/shots/hooks/useShots", () => ({
   useShots: vi.fn(),
@@ -49,18 +47,6 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsDesktop: () => true,
 }))
 
-// Flag mock: featureUnifiedShotEditor ON, everything else default-off.
-// featureSurfaceResolver stays false so useShotListState keeps the legacy
-// resolution path (the two flags are independent by spec).
-vi.mock("@/shared/lib/flags", () => ({
-  isFeatureEnabled: (flag: keyof FeatureFlags) => flag === "featureUnifiedShotEditor",
-  getFeatureFlags: () => ({
-    featurePublishing: false,
-    featureSurfaceResolver: false,
-    featureUnifiedShotEditor: true,
-  }),
-}))
-
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
   ShotStatusSelect: ({ currentStatus }: { readonly currentStatus: string }) => (
     <span>status:{currentStatus}</span>
@@ -73,13 +59,6 @@ vi.mock("@/features/shots/components/CreateShotDialog", () => ({
 
 vi.mock("@/features/pulls/components/CreatePullFromShotsDialog", () => ({
   CreatePullFromShotsDialog: () => null,
-}))
-
-// Stub the three-panel layout so the assertion "never mounts" is unambiguous.
-vi.mock("@/features/shots/components/ThreePanelLayout", () => ({
-  ThreePanelLayout: ({ selectedShotId }: { readonly selectedShotId: string }) => (
-    <div data-testid="three-panel-layout-stub">selected:{selectedShotId}</div>
-  ),
 }))
 
 import { useShots } from "@/features/shots/hooks/useShots"
@@ -125,13 +104,13 @@ function renderPage(initialEntry: string) {
   )
 }
 
-describe("ShotListPage desktop click (featureUnifiedShotEditor ON — fork A)", () => {
+describe("ShotListPage desktop click (unified editor — ThreePanel retired)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
   })
 
-  it("navigates to the detail route instead of selecting into three-panel", () => {
+  it("navigates to the detail route", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeShot({ id: "a", title: "Alpha" })],
       loading: false,
@@ -142,13 +121,11 @@ describe("ShotListPage desktop click (featureUnifiedShotEditor ON — fork A)", 
 
     fireEvent.click(screen.getByText("Alpha"))
 
-    // Flag-on desktop click NAVIGATES (same as the non-desktop branch)...
+    // Desktop click NAVIGATES (same as the non-desktop branch).
     expect(screen.getByText("Shot detail route")).toBeInTheDocument()
-    // ...and the three-panel layout never mounts.
-    expect(screen.queryByTestId("three-panel-layout-stub")).not.toBeInTheDocument()
   })
 
-  it("keeps the list chrome mounted (no three-panel early return) before any click", () => {
+  it("keeps the list chrome mounted before any click", () => {
     ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [makeShot({ id: "a", title: "Alpha" })],
       loading: false,
@@ -158,6 +135,5 @@ describe("ShotListPage desktop click (featureUnifiedShotEditor ON — fork A)", 
     renderPage("/projects/p1/shots")
 
     expect(screen.getByRole("button", { name: /New Shot/ })).toBeInTheDocument()
-    expect(screen.queryByTestId("three-panel-layout-stub")).not.toBeInTheDocument()
   })
 })

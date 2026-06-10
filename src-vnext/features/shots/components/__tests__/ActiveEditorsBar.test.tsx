@@ -23,10 +23,7 @@ vi.mock("@/app/providers/AuthProvider", () => ({
 
 vi.mock("@/shared/lib/firebase", () => ({ db: {} }))
 
-import {
-  ActiveEditorsBar,
-  CompactActiveEditors,
-} from "@/features/shots/components/ActiveEditorsBar"
+import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
 
 const ts = { toDate: () => new Date() } as unknown as Timestamp
 
@@ -114,32 +111,6 @@ describe("ActiveEditorsBar", () => {
     fireEvent.click(screen.getByRole("button"))
     expect(screen.getByText("is editing Title")).toBeInTheDocument()
   })
-})
-
-// ---------------------------------------------------------------------------
-// CompactActiveEditors
-// ---------------------------------------------------------------------------
-
-describe("CompactActiveEditors", () => {
-  it("renders nothing when no active editors", () => {
-    const { container } = render(
-      <CompactActiveEditors clientId="c1" entityType="shots" entityId="s1" />,
-    )
-    expect(container.firstChild).toBeNull()
-  })
-
-  it("renders avatar dots when editors present", () => {
-    setPresence({
-      hasActiveEditors: true,
-      activeEditors: [
-        { userId: "u2", userName: "Bob", userAvatar: null, fields: ["title"], lastActivity: ts },
-      ],
-    })
-    render(
-      <CompactActiveEditors clientId="c1" entityType="shots" entityId="s1" />,
-    )
-    expect(screen.getByTestId("compact-active-editors")).toBeInTheDocument()
-  })
 
   it("shows overflow count for 4+ editors", () => {
     setPresence({
@@ -152,7 +123,7 @@ describe("CompactActiveEditors", () => {
       ],
     })
     render(
-      <CompactActiveEditors clientId="c1" entityType="shots" entityId="s1" />,
+      <ActiveEditorsBar clientId="c1" entityType="shots" entityId="s1" />,
     )
     expect(screen.getByText("+1")).toBeInTheDocument()
   })

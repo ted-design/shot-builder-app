@@ -47,8 +47,6 @@ import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoScene
 import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
-import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
-import { isFeatureEnabled } from "@/shared/lib/flags"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
@@ -65,27 +63,11 @@ export default function ShotListPage() {
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
 
-  // -- featureUnifiedShotEditor fork --
-  // Flag-on, desktop clicks NAVIGATE to the detail route (same as the
-  // non-desktop branch) and threePanelActive folds the flag into the single
-  // derived boolean so the three-panel early return is permanently false
-  // (gating only the early return would strand selection state and silently
-  // disable the 1/2 view shortcuts below).
-  const unifiedEditorEnabled = isFeatureEnabled("featureUnifiedShotEditor")
-
-  // -- Three-panel state (desktop only) --
-  // Flag-off branch byte-identical — gated, NOT deleted; full retirement happens at flag removal
-  // (useShotListState.ts legacy-resolution precedent).
-  const [selectedShotId, setSelectedShotId] = useState<string | null>(null)
-  const threePanelActive = !unifiedEditorEnabled && isDesktop && selectedShotId !== null
-
+  // Shot clicks always navigate to the unified editor route (Phase 5c —
+  // the ThreePanel selection fork is retired).
   const handleShotClick = useCallback((shotId: string) => {
-    if (!unifiedEditorEnabled && isDesktop) {
-      setSelectedShotId(shotId)
-    } else {
-      navigate(`/projects/${projectId}/shots/${shotId}`)
-    }
-  }, [unifiedEditorEnabled, isDesktop, navigate, projectId])
+    navigate(`/projects/${projectId}/shots/${shotId}`)
+  }, [navigate, projectId])
 
   // -- FAB integration: ?create=1 opens the dialog --
   const [searchParams, setSearchParamsFab] = useSearchParams()
@@ -241,12 +223,12 @@ export default function ShotListPage() {
     }, { replace: true })
   }, [searchParams, setSearchParamsFab])
 
-  // -- Keyboard shortcuts: 1-2 switch view mode (disabled when three-panel active) --
+  // -- Keyboard shortcuts: 1-2 switch view mode --
   useKeyboardShortcuts([
     { key: "1", handler: () => setViewMode("card") },
     { key: "2", handler: () => setViewMode("table") },
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
-  ], { enabled: !threePanelActive })
+  ])
 
   const renderLifecycleAction = (shot: Shot) => {
     if (!canManageLifecycle) return null
@@ -349,27 +331,6 @@ export default function ShotListPage() {
           <p className="text-sm text-[var(--color-error)]">{error.message}</p>
         )}
       </div>
-    )
-  }
-
-  // -- Three-panel layout (desktop with selected shot) --
-  if (threePanelActive) {
-    return (
-      <ErrorBoundary>
-        <ThreePanelLayout
-          selectedShotId={selectedShotId}
-          shots={displayShots}
-          allShots={shots}
-          showCreate={showCreate}
-          onDeselect={() => setSelectedShotId(null)}
-          onSelectShot={setSelectedShotId}
-          onShotCreated={(shotId, title) => {
-            toast.success("Shot created", { description: title })
-          }}
-          lanes={lanes}
-          laneById={laneById}
-        />
-      </ErrorBoundary>
     )
   }
 
