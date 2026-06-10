@@ -30,6 +30,12 @@ describe("normalizeRole", () => {
     expect(normalizeRole("  Crew  ")).toBe("crew")
   })
 
+  it("adopts the legacy 'wardrobe' alias as warehouse (matches firestore.rules normalizedRole)", () => {
+    expect(normalizeRole("wardrobe")).toBe("warehouse")
+    expect(normalizeRole("Wardrobe")).toBe("warehouse")
+    expect(normalizeRole("  WARDROBE  ")).toBe("warehouse")
+  })
+
   it("returns viewer for unknown roles", () => {
     expect(normalizeRole("unknown")).toBe("viewer")
     expect(normalizeRole("")).toBe("viewer")

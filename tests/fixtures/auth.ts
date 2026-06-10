@@ -95,7 +95,13 @@ export const test = base.extend<AuthFixtures>({
     await buildRoleFixture(browser, 'producer', use);
   },
 
-  /** Wardrobe — can manage products and view/edit shots. */
+  /**
+   * Wardrobe — LEGACY ALIAS claim (role='wardrobe'). Both firestore.rules
+   * (normalizedRole) and the client's rbac.ts normalizeRole map it to
+   * WAREHOUSE (Phase 4 aligned the client to the rules; it previously fell
+   * through to viewer). Read-only on shots/products; granted NO project
+   * members doc by the seed, so it exercises the non-member path.
+   */
   wardrobePage: async ({ browser }, use) => {
     await buildRoleFixture(browser, 'wardrobe', use);
   },

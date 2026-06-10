@@ -11,6 +11,10 @@ export const ROLE = {
 export function normalizeRole(role: unknown): Role {
   if (typeof role !== "string") return ROLE.VIEWER
   const lower = role.trim().toLowerCase()
+  // Legacy alias: firestore.rules (normalizedRole, :43-56) maps 'wardrobe' →
+  // warehouse. Mirror it here so legacy-wardrobe users land on the same JOB
+  // the rules grant writes for (Phase 4 spec, security invariant 5).
+  if (lower === "wardrobe") return ROLE.WAREHOUSE
   if (
     lower === ROLE.ADMIN ||
     lower === ROLE.PRODUCER ||
@@ -23,6 +27,16 @@ export function normalizeRole(role: unknown): Role {
   return ROLE.VIEWER
 }
 
+/**
+ * QUARANTINED — dead function; do NOT consume or extend (Phase 5b / Q5).
+ *
+ * No production call site. Its claims-map signature (projectRoles record off
+ * the auth token) would ossify the effective-role source, and Ted decided
+ * Q5 differently on 2026-06-09: the effective role comes from a LIVE project
+ * members read at 5b (Q6: project role wins, admin excepted). Phase 4's
+ * resolveSurface deliberately takes an opaque, already-resolved `effectiveRole`
+ * instead of this. Retire or rewrite this at 5b.
+ */
 export function resolveEffectiveRole(
   globalRole: unknown,
   projectRoles?: Record<string, unknown>,

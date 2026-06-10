@@ -15,6 +15,7 @@ import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
 import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
+import type { SurfaceDevice } from "@/features/shots/lib/resolveSurface"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
@@ -47,7 +48,7 @@ import { ThreePanelLayout } from "@/features/shots/components/ThreePanelLayout"
 
 export default function ShotListPage() {
   const { data: shots, loading, error } = useShots()
-  const { role, clientId, user } = useAuth()
+  const { role, clientId, user, loading: authLoading } = useAuth()
   const { projectId, projectName } = useProjectScope()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -137,6 +138,18 @@ export default function ShotListPage() {
   const { data: lanes, laneNameById, laneById } = useLanes()
   const laneOrder = useMemo(() => new Map(lanes.map((l) => [l.id, l.sortOrder])), [lanes])
 
+  // -- Phase 4 (flag-gated) surface resolution inputs. GATED on auth loading:
+  // AuthProvider falls back to 'viewer' while claims load, so resolving then
+  // would flash the viewer surface — pass null until claims settle (the hook
+  // runs its legacy flag-off derivation in the meantime). `role` is already
+  // normalizeRole(globalClaim). Device is three-valued (incl. tablet) from
+  // the existing media hooks. Inert while featureSurfaceResolver is off. --
+  const surfaceDevice: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
+  const surfaceContext = useMemo(
+    () => (authLoading ? null : { role, device: surfaceDevice }),
+    [authLoading, role, surfaceDevice],
+  )
+
   // -- All filter / sort / view state --
   const {
     sortKey, sortDir, viewMode, groupKey, isCustomSort,
@@ -153,7 +166,7 @@ export default function ShotListPage() {
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
-    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById,
+    shots, reorderOptimistic, clientId, projectId, talentNameById, locationNameById, productNameById, familyById, skuById, laneNameById, laneOrder, laneById, surfaceContext,
   })
 
   // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
