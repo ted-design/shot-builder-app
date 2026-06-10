@@ -1,13 +1,5 @@
 import type { Role } from "@/shared/types"
-import type { TableColumnConfig } from "@/shared/types/table"
 import type { ViewMode, GroupKey } from "@/features/shots/lib/shotListFilters"
-import { SHOT_TABLE_COLUMNS } from "@/features/shots/lib/shotTableColumns"
-import {
-  canGeneratePulls,
-  canManagePulls,
-  canManageProjects,
-  canManageShots,
-} from "@/shared/lib/rbac"
 
 // PURE function, all inputs explicit — output is presentation-only by construction; no write
 // handler may consume it. `effectiveRole` is the typed preview slot: callers pass an already-
@@ -21,34 +13,8 @@ export type SurfaceKind = "plan-build" | "shoot" | "review-client" | "review-war
 /** Provenance of the resolved viewMode/groupKey. */
 export type ViewSource = "url" | "stored" | "surface-default" | "device-forced"
 
-/** Derived only from rbac helpers + the REAL device; drives nothing until 5e. */
-export interface SurfaceAffordances {
-  readonly canCreateShots: boolean
-  readonly canReorderShots: boolean
-  readonly canBulkPull: boolean
-  readonly canShare: boolean
-  readonly canManageLanes: boolean
-  // canExport has no role factor today (device-only, ported verbatim) — 5e decides
-  readonly canExport: boolean
-}
-
-/** Typed chrome slot — drives nothing in Phase 4 (consumed at 5e/5f). */
-export interface SurfaceChrome {
-  readonly toolbar: "full" | "minimal" | "none"
-  readonly quickAdd: boolean
-  readonly viewSwitcher: boolean
-}
-
-/**
- * INPUTS to useTableColumns ONLY — never resolved visible/width/order.
- * useTableColumns stays the sole owner of column state. Phase 4 outputs the
- * single shared default set + an empty suffix; the single-key vs
- * per-surface-key question is Phase 6's entry decision.
- */
-export interface SurfaceColumns {
-  readonly defaultColumns: readonly TableColumnConfig[]
-  readonly storageKeySuffix: string
-}
+// affordances / chrome / columns deliberately absent: nothing consumes them in Phase 4
+// (CLAUDE.md no-stubs rule); 5e/5f/6 add each slot when its first consumer lands.
 
 export interface ResolveSurfaceInput {
   /** Already-resolved role. Opaque — see header comment (5b upgrades source). */
@@ -68,9 +34,6 @@ export interface ResolvedSurface {
   readonly viewMode: ViewMode
   readonly groupKey: GroupKey
   readonly viewSource: ViewSource
-  readonly columns: SurfaceColumns
-  readonly affordances: SurfaceAffordances
-  readonly chrome: SurfaceChrome
 }
 
 // ---------------------------------------------------------------------------
@@ -152,27 +115,5 @@ export function resolveSurface(input: ResolveSurfaceInput): ResolvedSurface {
   const groupKey: GroupKey = isMobile ? "none" : preForcingGroup
   const viewSource: ViewSource = forcingChangedOutcome ? "device-forced" : preForcingSource
 
-  return {
-    surface,
-    viewMode,
-    groupKey,
-    viewSource,
-    columns: {
-      defaultColumns: SHOT_TABLE_COLUMNS,
-      storageKeySuffix: "",
-    },
-    affordances: {
-      canCreateShots: canManageShots(effectiveRole),
-      canReorderShots: canManageShots(effectiveRole),
-      canBulkPull: canGeneratePulls(effectiveRole) && device !== "mobile",
-      canShare: canManageProjects(effectiveRole),
-      canManageLanes: canManagePulls(effectiveRole),
-      canExport: device !== "mobile",
-    },
-    chrome: {
-      toolbar: "full",
-      quickAdd: canManageShots(effectiveRole),
-      viewSwitcher: device !== "mobile",
-    },
-  }
+  return { surface, viewMode, groupKey, viewSource }
 }

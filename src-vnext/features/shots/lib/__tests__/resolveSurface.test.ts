@@ -5,7 +5,6 @@ import {
   type SurfaceDevice,
   type SurfaceKind,
 } from "../resolveSurface"
-import { SHOT_TABLE_COLUMNS } from "../shotTableColumns"
 import type { ViewMode, GroupKey } from "../shotListFilters"
 import { normalizeRole } from "@/shared/lib/rbac"
 import type { Role } from "@/shared/types"
@@ -204,57 +203,11 @@ describe("resolveSurface — provenance (viewSource)", () => {
   })
 })
 
-describe("resolveSurface — purity + inert slots", () => {
+describe("resolveSurface — purity", () => {
   it("is pure: frozen input is not mutated and equal inputs give equal outputs", () => {
     const frozen = Object.freeze(input({ effectiveRole: "producer", device: "mobile", urlView: "table", urlGroup: "status", storedView: "card" }))
     const a = resolveSurface(frozen)
     const b = resolveSurface(input({ effectiveRole: "producer", device: "mobile", urlView: "table", urlGroup: "status", storedView: "card" }))
     expect(a).toEqual(b)
-  })
-
-  it("columns are INPUTS to useTableColumns only: shared defaults + empty suffix (per-surface keys = Phase 6 question)", () => {
-    for (const role of ROLES) {
-      const out = resolveSurface(input({ effectiveRole: role }))
-      expect(out.columns.defaultColumns).toBe(SHOT_TABLE_COLUMNS)
-      expect(out.columns.storageKeySuffix).toBe("")
-    }
-  })
-
-  it("affordances derive from rbac helpers + real device (typed, drives nothing in Phase 4)", () => {
-    const producerDesktop = resolveSurface(input({ effectiveRole: "producer" })).affordances
-    expect(producerDesktop).toEqual({
-      canCreateShots: true,
-      canReorderShots: true,
-      canBulkPull: true,
-      canShare: true,
-      canManageLanes: true,
-      canExport: true,
-    })
-
-    const viewerDesktop = resolveSurface(input({ effectiveRole: "viewer" })).affordances
-    expect(viewerDesktop).toEqual({
-      canCreateShots: false,
-      canReorderShots: false,
-      canBulkPull: false,
-      canShare: false,
-      canManageLanes: false,
-      // canExport has NO role factor today — ported verbatim, 5e decides.
-      canExport: true,
-    })
-
-    const producerMobile = resolveSurface(input({ effectiveRole: "producer", device: "mobile" })).affordances
-    expect(producerMobile.canBulkPull).toBe(false)
-    expect(producerMobile.canExport).toBe(false)
-
-    // Warehouse KEEPS lane affordances under flag-on — Ted's Q3 revoke
-    // decision is implemented at 5f WITH the rule tightening, not here.
-    expect(resolveSurface(input({ effectiveRole: "warehouse" })).affordances.canManageLanes).toBe(true)
-  })
-
-  it("chrome slot is typed but mirrors today's reality (viewSwitcher gated off-mobile)", () => {
-    const out = resolveSurface(input({ effectiveRole: "crew", device: "mobile" }))
-    expect(out.chrome).toEqual({ toolbar: "full", quickAdd: true, viewSwitcher: false })
-    const desktop = resolveSurface(input({ effectiveRole: "viewer" }))
-    expect(desktop.chrome).toEqual({ toolbar: "full", quickAdd: false, viewSwitcher: true })
   })
 })

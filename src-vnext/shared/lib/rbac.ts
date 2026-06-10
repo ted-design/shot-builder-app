@@ -27,7 +27,6 @@ export function normalizeRole(role: unknown): Role {
   return ROLE.VIEWER
 }
 
-// resolveEffectiveRole was deleted 2026-06-09 (dead code) — 5b rebuilds it on a live members read
 export function roleLabel(role: Role): string {
   switch (role) {
     case ROLE.ADMIN:
