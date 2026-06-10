@@ -67,6 +67,10 @@ export function EditProjectDialog({
   project,
 }: EditProjectDialogProps) {
   const { clientId, role } = useAuth()
+  // PINNED to the GLOBAL claim (5b): this dialog opens from the org dashboard
+  // (ProjectDashboard) with no ProjectScopeProvider mounted, so there is no
+  // effective role to consult. Backing rule: projects update
+  // (firestore.rules:691-702).
   const showVisibility = canManageProjects(role)
 
   const [name, setName] = useState("")

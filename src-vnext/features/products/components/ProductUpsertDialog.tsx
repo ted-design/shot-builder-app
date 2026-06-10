@@ -270,6 +270,10 @@ export function ProductUpsertDialog({
   const isMobile = useIsMobile()
   const navigate = useNavigate()
 
+  // PINNED to the GLOBAL claim (5b): products are an org-scope backend —
+  // productFamilies/skus create+update require a global admin|producer claim
+  // (firestore.rules:568, :571-574); there is no project context to promote
+  // from, so the effective role must not feed this gate.
   const canEdit = !isMobile && canManageProducts(role)
   const existingSkus = useMemo(() => (skus ?? []).filter((s) => s.deleted !== true), [skus])
 

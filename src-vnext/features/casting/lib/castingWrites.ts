@@ -163,16 +163,25 @@ export async function bulkUpdateCastingStatus(args: {
 }
 
 /**
- * Book a talent: updates the casting entry status to "booked" and
- * adds the projectId to the talent doc's projectIds array.
+ * Book a talent: updates the casting entry status to "booked" and,
+ * when allowed, adds the projectId to the talent doc's projectIds array.
  */
 export async function bookCastingTalent(args: {
   readonly clientId: string
   readonly projectId: string
   readonly userId: string
   readonly talentId: string
+  /**
+   * Whether to include the /clients/{clientId}/talent/{talentId} projectIds
+   * backlink in the batch. That write is GLOBAL-claim only
+   * (firestore.rules:363-365, isAdmin || isProducer) while the board entry
+   * falls to the project wildcard — and the batch is atomic, so a
+   * project-promoted member (global viewer/crew + member-doc producer) must
+   * skip the backlink or the whole Book is permission-denied.
+   */
+  readonly includeTalentBacklink: boolean
 }): Promise<void> {
-  const { clientId, projectId, userId, talentId } = args
+  const { clientId, projectId, userId, talentId, includeTalentBacklink } = args
   const batch = writeBatch(db)
 
   // 1. Update casting entry status to "booked"
@@ -182,14 +191,17 @@ export async function bookCastingTalent(args: {
     updatedAt: serverTimestamp(),
   })
 
-  // 2. Add projectId to talent doc's projectIds array
-  const talentSegments = talentPath(clientId)
-  const talentRef = doc(db, talentSegments[0]!, ...talentSegments.slice(1), talentId)
-  batch.update(talentRef, {
-    projectIds: arrayUnion(projectId),
-    updatedAt: serverTimestamp(),
-    updatedBy: userId,
-  })
+  // 2. Add projectId to talent doc's projectIds array (global claims only —
+  // see includeTalentBacklink doc above)
+  if (includeTalentBacklink) {
+    const talentSegments = talentPath(clientId)
+    const talentRef = doc(db, talentSegments[0]!, ...talentSegments.slice(1), talentId)
+    batch.update(talentRef, {
+      projectIds: arrayUnion(projectId),
+      updatedAt: serverTimestamp(),
+      updatedBy: userId,
+    })
+  }
 
   await batch.commit()
 }

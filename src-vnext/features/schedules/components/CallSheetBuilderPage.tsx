@@ -8,6 +8,8 @@ import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import { canManageSchedules } from "@/shared/lib/rbac"
 import { useCallSheetBundle } from "@/features/schedules/hooks/useCallSheetBundle"
@@ -52,7 +54,11 @@ function formatScheduleDate(date: import("@/shared/types").Schedule["date"]): st
 }
 
 export default function CallSheetBuilderPage() {
-  const { clientId, role } = useAuth()
+  const { clientId } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). `resolving` is true only during the first uncached
+  // member read for this project.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId, projectName } = useProjectScope()
   const isMobile = useIsMobile()
   const navigate = useNavigate()
@@ -60,17 +66,27 @@ export default function CallSheetBuilderPage() {
 
   const scheduleId = searchParams.get("scheduleId")
   const isPreviewParam = searchParams.get("preview") === "1"
-  const canManage = canManageSchedules(role)
+  // canManage drives every schedule/call-sheet write affordance on this page
+  // (builder vs preview fork, editors, dialog mounts). The page renders a
+  // skeleton while roleResolving, never the global-role guess. Backing
+  // rules: /schedules create/update (firestore.rules:796-799) and its
+  // subcollections — entries (:811-814), dayDetails (:822-824),
+  // talentCalls (:832-834), crewCalls (:842-844), clientCalls (:852-854),
+  // callSheet (:863-865) — all ['producer','warehouse'] project arms.
+  const canManage = !roleResolving && canManageSchedules(role)
 
   // Enforce preview mode for non-managers (read-only)
   useEffect(() => {
+    // Don't rewrite the URL on the resolving gap — a manager whose first
+    // member read is still in flight must not be locked into preview=1.
+    if (roleResolving) return
     if (canManage) return
     if (!scheduleId) return
     if (isPreviewParam) return
     const next = new URLSearchParams(searchParams)
     next.set("preview", "1")
     setSearchParams(next, { replace: true })
-  }, [canManage, isPreviewParam, scheduleId, searchParams, setSearchParams])
+  }, [roleResolving, canManage, isPreviewParam, scheduleId, searchParams, setSearchParams])
 
   // Mobile redirect (builder is desktop-only; preview is allowed)
   useEffect(() => {
@@ -150,6 +166,11 @@ export default function CallSheetBuilderPage() {
 
   // No schedule selected: show call sheet list for managers (desktop). Others must use a deep link.
   if (!scheduleId) {
+    // Skeleton while the first member read is in flight — the manager/
+    // non-manager fork below must never run on the global-role guess.
+    if (roleResolving) {
+      return <LoadingState loading skeleton={<DetailPageSkeleton />} />
+    }
     if (!canManage) {
       return (
         <ErrorBoundary>
@@ -169,8 +190,11 @@ export default function CallSheetBuilderPage() {
     )
   }
 
-  // Loading
-  if (scheduleLoading || dayDetailsLoading) {
+  // Loading — roleResolving included so the builder-vs-preview fork below
+  // renders a skeleton during the first uncached member read, never the
+  // global-role guess (no preview flash for managers, no editor flash for
+  // project-downgraded users).
+  if (scheduleLoading || dayDetailsLoading || roleResolving) {
     return <LoadingState loading skeleton={<DetailPageSkeleton />} />
   }
 
@@ -266,6 +290,7 @@ export default function CallSheetBuilderPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <EffectiveRoleChip />
               <Button
                 variant="outline"
                 size="sm"
@@ -333,6 +358,7 @@ export default function CallSheetBuilderPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <EffectiveRoleChip />
               <Button
                 variant="outline"
                 size="sm"

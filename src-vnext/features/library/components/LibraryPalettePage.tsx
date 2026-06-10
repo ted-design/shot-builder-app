@@ -156,6 +156,12 @@ function InlineHexEdit({
 export default function LibraryPalettePage() {
   const { clientId, role } = useAuth()
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): the palette is an org-scope surface
+  // (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/colorSwatches create/update require a global
+  // admin/producer claim (firestore.rules:629); delete is global admin-only
+  // (firestore.rules:630), which canDelete mirrors exactly. A project
+  // promotion never unlocks these.
   const canEdit = canManageProducts(role) && !isMobile
   const canDelete = role === ROLE.ADMIN && !isMobile
 

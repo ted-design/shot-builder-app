@@ -68,6 +68,10 @@ const TALENT_VIEW_OPTIONS = [
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): the talent library is an org-scope
+  // surface (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/talent writes require a global admin/producer claim
+  // (firestore.rules:363-365) — a project promotion never unlocks these.
   const canCreate = canManageTalent(role)
   const canEdit = canCreate && !isMobile
   const { data: talent, loading, error } = useTalentLibrary()

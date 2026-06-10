@@ -32,6 +32,10 @@ export default function LibraryLocationsPage() {
   const { data: locations, loading, error } = useLocationLibrary()
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  // PINNED to the GLOBAL claim (5b): the locations library is an org-scope
+  // surface (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/locations writes require a global admin/producer
+  // claim (firestore.rules:382-384) — a project promotion never unlocks these.
   const canCreate = canManageLocations(role)
   const [viewMode, setViewMode] = usePersistedViewMode("sb:locations-view", "list", LOCATIONS_VIEW_MODES)
 

@@ -191,8 +191,10 @@ export function ShotDetailPageUnified() {
   const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectName } = useProjectScope()
 
-  // ONE device-authority read feeding named capability booleans. Mobile edit
-  // enablement requires the rules backstop first — do NOT remove !isMobile here.
+  // ONE device-authority read feeding named capability booleans. The rules
+  // backstop shipped at 5b-I — mobile edit enablement is now Phase 5e's job
+  // (mobile-crew edit / Shoot surface). Do NOT remove !isMobile here; 5e
+  // removes it deliberately behind its own surface gating.
   // Backing rule for the shot writes below: hardened /shots
   // (firestore.rules:435-472, ['producer','crew'] arms).
   const isMobile = useIsMobile()
@@ -204,6 +206,10 @@ export function ShotDetailPageUnified() {
   // firestore.get()), so a project-promoted crew still cannot upload and the
   // UI must not advertise it from the effective role.
   const canUploadShotImages = (globalRole === "admin" || globalRole === "producer") && !isMobile
+  // NO role gate, by locked decision: export is device-only. The export
+  // backend rules (exportTemplates firestore.rules:641-651, exportReports
+  // :868-877) don't gate this affordance; the per-share export toggle is 5f.
+  // Do not add an effective-role (or any role) source here.
   const canExport = !isMobile
   // PINNED to the GLOBAL claim: /shotShares create requires a global producer
   // claim (firestore.rules:193-204) — backend can't see a project promotion.

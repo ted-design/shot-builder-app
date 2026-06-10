@@ -34,7 +34,22 @@ const mockDayDetails: DayDetails = {
 // --- Provider mocks ---
 
 vi.mock("@/app/providers/AuthProvider", () => ({
-  useAuth: () => ({ clientId: "client-1", role: "producer" }),
+  useAuth: () => ({ clientId: "client-1", role: "producer", loading: false }),
+}))
+
+// 5b: hoisted mutable effective-role state. role=null mirrors the global
+// claim (default matrix); a string overrides it (downgrade rows);
+// resolving=true pins the first-member-read gap.
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? "producer",
+    resolving: effectiveState.resolving,
+  }),
 }))
 
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
@@ -43,10 +58,6 @@ vi.mock("@/app/providers/ProjectScopeProvider", () => ({
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
-}))
-
-vi.mock("@/shared/lib/rbac", () => ({
-  canManageSchedules: () => true,
 }))
 
 // --- Data hook mocks ---
@@ -248,6 +259,11 @@ function renderPage() {
 
 // --- Tests ---
 
+beforeEach(() => {
+  effectiveState.role = null
+  effectiveState.resolving = false
+})
+
 describe("CallSheetBuilderPage — Section Order wiring", () => {
   beforeEach(() => {
     setSectionOrderMock.mockClear()
@@ -292,5 +308,49 @@ describe("CallSheetBuilderPage — Section Order wiring", () => {
       "dayDetails",
       "header",
     ])
+  })
+})
+
+describe("CallSheetBuilderPage — effective role wiring (5b)", () => {
+  it("renders the builder when the effective role mirrors the global producer claim", () => {
+    renderPage()
+
+    expect(
+      screen.getByRole("button", { name: /section order/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /export pdf/i })).toBeInTheDocument()
+    // No downgrade — the chip stays hidden.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
+
+  it("renders a skeleton (no builder, no preview) while the effective role is resolving", () => {
+    effectiveState.resolving = true
+    renderPage()
+
+    expect(screen.getByTestId("loading-state")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /section order/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /export pdf/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId("call-sheet-renderer")).not.toBeInTheDocument()
+  })
+
+  it("project downgrade to viewer renders read-only preview with the role chip; member doc wins over the global claim", () => {
+    effectiveState.role = "viewer"
+    renderPage()
+
+    // Read affordance (preview renderer) stays; write affordances are gone.
+    expect(screen.getByTestId("call-sheet-renderer")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /section order/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /export pdf/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
+      "Viewer on this project",
+    )
   })
 })

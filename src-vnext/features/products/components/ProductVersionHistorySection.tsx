@@ -6,6 +6,7 @@ import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { canRestoreVersions } from "@/shared/lib/rbac"
 import { useProductVersions } from "@/features/products/hooks/useProductVersions"
 import { useProductSkus } from "@/features/products/hooks/useProducts"
 import { restoreProductVersion } from "@/features/products/lib/productVersioning"
@@ -112,9 +113,14 @@ export function ProductVersionHistorySection({
   const [restoreTarget, setRestoreTarget] = useState<ProductVersion | null>(null)
   const [restoring, setRestoring] = useState(false)
 
+  // PINNED to the GLOBAL claim: restore is a productFamilies update whose rule
+  // (firestore.rules:568) is isAdmin() || isProducer() — pure global claims, no
+  // project arm. Wiring the effective role here would advertise Restore to a
+  // project-promoted crew and then fail with permission-denied on the family
+  // update. !isMobile is a device concern, not RBAC.
   const canRestore = useMemo(() => {
     if (isMobile) return false
-    return role === "admin" || role === "producer"
+    return canRestoreVersions(role)
   }, [isMobile, role])
 
   const {

@@ -6,7 +6,7 @@ import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useUsers } from "@/features/admin/hooks/useUsers"
 import { useProjectMembers, type ProjectMember } from "@/features/admin/hooks/useProjectMembers"
 import { removeProjectMember } from "@/features/admin/lib/adminWrites"
-import { roleLabel } from "@/shared/lib/rbac"
+import { ROLE, normalizeRole, roleLabel, roleRank } from "@/shared/lib/rbac"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { Button } from "@/ui/button"
 import {
@@ -35,6 +35,26 @@ interface RemoveTarget {
   readonly projectName: string
 }
 
+// Admin diagnostic (5b-II, copy-level only): the member-doc role is what
+// useEffectiveRole resolves on project surfaces, so surface a quiet one-liner
+// when it differs from the user's global claim. No new reads — useUsers
+// already carries the global role. Returns null when the roles agree (or the
+// global role is unknown), so the row stays exactly as before.
+function effectiveAccessNote(projectRole: Role, globalRole: Role | null): string | null {
+  if (globalRole === null) return null
+  // Mirrors the useEffectiveRole admin exception (locked Q6): a global admin
+  // short-circuits to admin and never reads the member doc.
+  if (globalRole === ROLE.ADMIN) {
+    return "Admin globally — project role has no effect"
+  }
+  const projectRank = roleRank(projectRole)
+  const globalRank = roleRank(globalRole)
+  // crew<->warehouse is lateral (equal rank) — no copy, matching roleRank.
+  if (projectRank === globalRank) return null
+  const direction = projectRank < globalRank ? "downgraded" : "promoted"
+  return `Effective here: ${roleLabel(projectRole)} (${direction} from global ${roleLabel(globalRole)})`
+}
+
 function MemberTable({
   members,
   users,
@@ -44,7 +64,7 @@ function MemberTable({
   currentUserId,
 }: {
   readonly members: readonly ProjectMember[]
-  readonly users: ReadonlyArray<{ readonly id: string; readonly email: string; readonly displayName?: string | null }>
+  readonly users: ReadonlyArray<{ readonly id: string; readonly email: string; readonly displayName?: string | null; readonly role?: Role }>
   readonly projectName: string
   readonly projectId: string
   readonly clientId: string
@@ -56,10 +76,16 @@ function MemberTable({
   const enrichedMembers = useMemo(() => {
     return members.map((m) => {
       const user = users.find((u) => u.id === m.id)
+      // Both roles go through normalizeRole, matching the useEffectiveRole
+      // pipeline (legacy 'wardrobe' member docs label as Warehouse).
+      const projectRole = normalizeRole(m.role)
+      const globalRole = user ? normalizeRole(user.role) : null
       return {
         ...m,
         displayName: user?.displayName ?? null,
         email: user?.email ?? "Unknown",
+        projectRole,
+        effectiveNote: effectiveAccessNote(projectRole, globalRole),
       }
     })
   }, [members, users])
@@ -117,7 +143,15 @@ function MemberTable({
                   {m.email}
                 </td>
                 <td className="px-4 py-2.5 text-sm text-[var(--color-text-muted)]">
-                  {roleLabel(m.role as Role)}
+                  {roleLabel(m.projectRole)}
+                  {m.effectiveNote && (
+                    <div
+                      data-testid="project-access-effective-role"
+                      className="mt-0.5 text-xs text-[var(--color-text-subtle)]"
+                    >
+                      {m.effectiveNote}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   {m.id !== currentUserId && (

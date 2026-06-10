@@ -5,7 +5,9 @@ import { toast } from "sonner"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { canRestoreVersions } from "@/shared/lib/rbac"
 import { useShotVersions } from "@/features/shots/hooks/useShotVersions"
 import { restoreShotVersion } from "@/features/shots/lib/shotVersioning"
 import { Button } from "@/ui/button"
@@ -33,7 +35,14 @@ function changeTypeLabel(type: ShotVersion["changeType"]): string {
 }
 
 export function ShotVersionHistorySection({ shot }: { readonly shot: Shot }) {
-  const { clientId, role, user } = useAuth()
+  const { clientId, user } = useAuth()
+  // 5b effective role: restore is a project-scoped shot write — shot update
+  // (firestore.rules:457-472) + version create (:511-516) both carry
+  // shotProjectRole arms, so the member doc WINS over the global claim
+  // (locked Q5/Q6). The Restore affordance renders NOTHING while the first
+  // uncached member read is in flight (roleResolving) — never the global-role
+  // guess. !isMobile is a device concern, not RBAC — it stays here.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [restoreTarget, setRestoreTarget] = useState<ShotVersion | null>(null)
@@ -41,8 +50,8 @@ export function ShotVersionHistorySection({ shot }: { readonly shot: Shot }) {
 
   const canRestore = useMemo(() => {
     if (isMobile) return false
-    return role === "admin" || role === "producer"
-  }, [isMobile, role])
+    return !roleResolving && canRestoreVersions(role)
+  }, [isMobile, roleResolving, role])
 
   const {
     data: versions,
@@ -84,7 +93,7 @@ export function ShotVersionHistorySection({ shot }: { readonly shot: Shot }) {
 
       {open && (
         <div className="border-t border-[var(--color-border)] p-4">
-          {!canRestore && (
+          {!roleResolving && !canRestore && (
             <div className="mb-3 text-xs text-[var(--color-text-subtle)]">
               Restore is producer/admin desktop-only.
             </div>

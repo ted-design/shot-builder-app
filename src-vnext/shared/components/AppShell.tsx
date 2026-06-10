@@ -28,6 +28,11 @@ export function AppShell() {
   const { data: project } = useProject(projectId ?? null)
   const projectName = project?.name
 
+  // PINNED to the GLOBAL claim (5b): the request badge is org-scope chrome and
+  // its subscription reads /shotRequests, which requires a global
+  // admin/producer claim (firestore.rules:410-412) — a project-level promotion
+  // cannot grant it, so the badge (and the read) must not consult the
+  // effective role.
   const canSeeRequestBadge = role === ROLE.ADMIN || role === ROLE.PRODUCER
   const { count: submittedRequestCount } = useSubmittedRequestCount(
     canSeeRequestBadge ? clientId : null,

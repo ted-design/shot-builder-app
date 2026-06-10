@@ -26,6 +26,21 @@ vi.mock("@/app/providers/AuthProvider", () => ({
   }),
 }))
 
+// 5b: the section consumes the EFFECTIVE role (member doc wins over the
+// global claim). role: null mirrors the global claim; a string overrides it
+// (downgrade rows); resolving=true pins the first-uncached-read gap.
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? "producer",
+    resolving: effectiveState.resolving,
+  }),
+}))
+
 vi.mock("@/features/shots/hooks/useShotVersions", () => ({
   useShotVersions: vi.fn(),
 }))
@@ -85,6 +100,8 @@ function makeVersion(overrides: Partial<ShotVersion>): ShotVersion {
 describe("ShotVersionHistorySection", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    effectiveState.role = null
+    effectiveState.resolving = false
   })
 
   it("shows empty state when no versions exist", async () => {
@@ -126,6 +143,74 @@ describe("ShotVersionHistorySection", () => {
       currentShot: shot,
       user: expect.objectContaining({ uid: "u1" }),
     })
+  })
+
+  it("renders no Restore affordance (and no hint) while the effective role is resolving", async () => {
+    const user = userEvent.setup()
+    effectiveState.resolving = true
+    ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeVersion({ id: "v-1" })],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotVersionHistorySection shot={makeShot({})} />)
+    await user.click(screen.getByRole("button", { name: /history/i }))
+
+    expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument()
+    // The read-only hint stays hidden too — never flash copy off the
+    // global-role guess during the first uncached member read.
+    expect(
+      screen.queryByText("Restore is producer/admin desktop-only."),
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides Restore for a project-downgraded role (effective viewer)", async () => {
+    const user = userEvent.setup()
+    effectiveState.role = "viewer"
+    ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeVersion({ id: "v-1" })],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotVersionHistorySection shot={makeShot({})} />)
+    await user.click(screen.getByRole("button", { name: /history/i }))
+
+    expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument()
+    expect(
+      screen.getByText("Restore is producer/admin desktop-only."),
+    ).toBeInTheDocument()
+  })
+
+  it("hides Restore for effective crew (UI intentionally narrower than the shot rules)", async () => {
+    const user = userEvent.setup()
+    effectiveState.role = "crew"
+    ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeVersion({ id: "v-1" })],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotVersionHistorySection shot={makeShot({})} />)
+    await user.click(screen.getByRole("button", { name: /history/i }))
+
+    expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument()
+  })
+
+  it("shows Restore for an effective producer (project promotion path)", async () => {
+    const user = userEvent.setup()
+    effectiveState.role = "producer"
+    ;(useShotVersions as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeVersion({ id: "v-1" })],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotVersionHistorySection shot={makeShot({})} />)
+    await user.click(screen.getByRole("button", { name: /history/i }))
+
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument()
   })
 })
 

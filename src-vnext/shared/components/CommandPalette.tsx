@@ -117,6 +117,11 @@ function CommandPaletteInner({
   }
 
   const showEmpty = query.trim() && grouped && !hasAnyResults(grouped)
+  // PINNED to the GLOBAL claim (5b): the palette is org-scope chrome (mounted
+  // in AppShell, available on every route regardless of project context) and
+  // its admin actions target /admin, whose backing collections /users
+  // (firestore.rules:539-543) and /pendingInvitations (firestore.rules:547-549)
+  // require the global admin claim — never a project-level role.
   const isAdmin = role === ROLE.ADMIN
 
   return (

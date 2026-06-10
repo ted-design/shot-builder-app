@@ -50,6 +50,11 @@ function persistRequirementsFilter(value: boolean): void {
 export function ShootReadinessWidget() {
   const { items, loading } = useShootReadiness()
   const { role, clientId } = useAuth()
+  // PINNED to the GLOBAL claim (5b): this widget lives on the org dashboard,
+  // outside any ProjectScopeProvider — there is no project context to resolve
+  // an effective role against (useEffectiveRole's null-scope fallback would
+  // return the global claim anyway). The target project is chosen inside
+  // BulkAddToProjectDialog, after the affordance is shown.
   const canBulkAdd = canManageProjects(role)
   const {
     familyProjectMap,

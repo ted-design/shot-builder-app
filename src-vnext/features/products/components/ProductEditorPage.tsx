@@ -444,6 +444,10 @@ export default function ProductEditorPage() {
   const navigate = useNavigate()
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): org-scope product editor — every write
+  // it gates is a global-role rule: productFamilies firestore.rules:566-574,
+  // skus :571-574, samples :578-581, documents :584-586 (admin|producer
+  // arms). No project context exists to resolve an effective role against.
   const canEdit = !isMobile && canManageProducts(role)
 
   const mode: Mode = fid ? "edit" : "create"

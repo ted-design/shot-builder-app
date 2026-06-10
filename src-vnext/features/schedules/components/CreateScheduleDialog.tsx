@@ -3,6 +3,7 @@ import { Timestamp } from "firebase/firestore"
 import { createSchedule } from "@/features/schedules/lib/scheduleWrites"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { canManageSchedules } from "@/shared/lib/rbac"
 import {
   Dialog,
@@ -26,7 +27,14 @@ export function CreateScheduleDialog({
   onOpenChange,
   onCreated,
 }: CreateScheduleDialogProps) {
-  const { clientId, role } = useAuth()
+  const { clientId } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). Defense-in-depth guard — the dialog is only mounted by
+  // canManage parents (ScheduleListPage), but the write guard below must
+  // not fall back to the global-role guess while the first member read is
+  // in flight. Backing rule: /schedules create/update
+  // (firestore.rules:796-799).
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId } = useProjectScope()
   const [name, setName] = useState("")
   const [date, setDate] = useState("")
@@ -35,7 +43,7 @@ export function CreateScheduleDialog({
 
   const handleCreate = async () => {
     const trimmedName = name.trim()
-    if (!trimmedName || !clientId || !canManageSchedules(role)) return
+    if (!trimmedName || !clientId || roleResolving || !canManageSchedules(role)) return
 
     setSaving(true)
     setError(null)

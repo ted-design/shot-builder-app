@@ -9,10 +9,8 @@ import {
   canGeneratePulls,
   canManagePulls,
   canFulfillPulls,
-  isViewer,
-  canSubmitShotRequest,
-  canTriageShotRequests,
   canEditScene,
+  canRestoreVersions,
   roleRank,
 } from "./rbac"
 
@@ -182,59 +180,6 @@ describe("permission checks", () => {
     })
   })
 
-  describe("isViewer", () => {
-    it("viewer is viewer", () => {
-      expect(isViewer("viewer")).toBe(true)
-    })
-
-    it("admin is not viewer", () => {
-      expect(isViewer("admin")).toBe(false)
-    })
-  })
-
-  describe("canSubmitShotRequest", () => {
-    it("admin can submit shot requests", () => {
-      expect(canSubmitShotRequest("admin")).toBe(true)
-    })
-
-    it("producer can submit shot requests", () => {
-      expect(canSubmitShotRequest("producer")).toBe(true)
-    })
-
-    it("crew cannot submit shot requests", () => {
-      expect(canSubmitShotRequest("crew")).toBe(false)
-    })
-
-    it("warehouse cannot submit shot requests", () => {
-      expect(canSubmitShotRequest("warehouse")).toBe(false)
-    })
-
-    it("viewer cannot submit shot requests", () => {
-      expect(canSubmitShotRequest("viewer")).toBe(false)
-    })
-  })
-
-  describe("canTriageShotRequests", () => {
-    it("admin can triage shot requests", () => {
-      expect(canTriageShotRequests("admin")).toBe(true)
-    })
-
-    it("producer can triage shot requests", () => {
-      expect(canTriageShotRequests("producer")).toBe(true)
-    })
-
-    it("crew cannot triage shot requests", () => {
-      expect(canTriageShotRequests("crew")).toBe(false)
-    })
-
-    it("warehouse cannot triage shot requests", () => {
-      expect(canTriageShotRequests("warehouse")).toBe(false)
-    })
-
-    it("viewer cannot triage shot requests", () => {
-      expect(canTriageShotRequests("viewer")).toBe(false)
-    })
-  })
 })
 
 describe("canEditScene", () => {
@@ -259,6 +204,31 @@ describe("canEditScene", () => {
 
   it("viewer cannot edit scenes", () => {
     expect(canEditScene("viewer")).toBe(false)
+  })
+})
+
+describe("canRestoreVersions", () => {
+  // Consolidates the 5a version-history twins (shot + product History
+  // sections). Intentionally narrower than the shot rules' ['producer','crew']
+  // arms — crew stays excluded until a 5e/5f decision widens it.
+  it("admin can restore versions", () => {
+    expect(canRestoreVersions("admin")).toBe(true)
+  })
+
+  it("producer can restore versions", () => {
+    expect(canRestoreVersions("producer")).toBe(true)
+  })
+
+  it("crew cannot restore versions (UI narrower than the shot rules on purpose)", () => {
+    expect(canRestoreVersions("crew")).toBe(false)
+  })
+
+  it("warehouse cannot restore versions", () => {
+    expect(canRestoreVersions("warehouse")).toBe(false)
+  })
+
+  it("viewer cannot restore versions", () => {
+    expect(canRestoreVersions("viewer")).toBe(false)
   })
 })
 

@@ -34,6 +34,10 @@ export default function LocationDetailPage() {
   )
 
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): location detail is an org-scope surface
+  // (no ProjectScopeProvider, so no effective role applies) and
+  // /clients/{clientId}/locations writes require a global admin/producer
+  // claim (firestore.rules:382-384) — a project promotion never unlocks these.
   const canEdit = !isMobile && canManageLocations(role)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)

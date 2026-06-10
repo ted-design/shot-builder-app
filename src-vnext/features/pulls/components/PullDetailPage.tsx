@@ -11,6 +11,8 @@ import { usePull } from "@/features/pulls/hooks/usePull"
 import { updatePullField } from "@/features/pulls/lib/updatePull"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
+import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { canManagePulls, canFulfillPulls } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
 import {
@@ -40,12 +42,26 @@ export default function PullDetailPage() {
   const { pid } = useParams<{ pid: string }>()
   const navigate = useNavigate()
   const { data: pull, loading, error } = usePull(pid)
-  const { role, clientId } = useAuth()
+  const { clientId } = useAuth()
+  // 5b effective role: the project members doc WINS over the global claim
+  // (locked Q5/Q6). `resolving` is true only during the first uncached
+  // member read for this project.
+  const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectId } = useProjectScope()
   const isMobile = useIsMobile()
 
-  const canEdit = canManagePulls(role) && !isMobile
-  const canFulfill = canFulfillPulls(role)
+  // -- Role-based flags (5b-II: effective role + resolving gate) --
+  // Write affordances render NOTHING (or disabled controls) while the first
+  // member read is in flight (roleResolving) — never the global-role guess.
+  // Backing rule: project-scoped /pulls create/update/delete
+  // (firestore.rules:757-766, ['producer','warehouse'] arm). Note the Share
+  // toggle here is a pull-doc field write (shareEnabled/shareToken), NOT a
+  // /shotShares-style global-pinned collection — same /pulls rule applies.
+  const canEdit = !roleResolving && canManagePulls(role) && !isMobile
+  // Fulfillment updates are pull-doc updates under the same /pulls write arm.
+  // rbac.canFulfillPulls (admin||warehouse) is intentionally STRICTER than
+  // the rule (which also allows producer) — UI-stricter is fine.
+  const canFulfill = !roleResolving && canFulfillPulls(role)
 
   const save = async (fields: Record<string, unknown>) => {
     if (!pull || !clientId) return
@@ -138,6 +154,7 @@ export default function PullDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <EffectiveRoleChip />
             <Select
               value={displayStatus}
               onValueChange={handleStatusChange}

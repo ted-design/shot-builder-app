@@ -5,13 +5,30 @@ import { MemoryRouter } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 
+// 5b-II effective-role mock: role=null means "mirror the global claim"
+// (default matrix), a string overrides it (downgrade/promotion rows),
+// resolving=true pins the first-uncached-member-read gap. authState lets
+// promotion rows flip the global claim too.
+const authState = vi.hoisted(() => ({ role: "producer" }))
+const effectiveState = vi.hoisted(() => ({
+  role: null as string | null,
+  resolving: false,
+}))
+
 vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useProjectScope: () => ({ projectId: "p1", projectName: "Project One" }),
   useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project One" }),
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
-  useAuth: () => ({ clientId: "c1", role: "producer" }),
+  useAuth: () => ({ clientId: "c1", role: authState.role }),
+}))
+
+vi.mock("@/shared/hooks/useEffectiveRole", () => ({
+  useEffectiveRole: () => ({
+    role: effectiveState.role ?? authState.role,
+    resolving: effectiveState.resolving,
+  }),
 }))
 
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
@@ -97,9 +114,46 @@ function renderPage() {
   )
 }
 
+function mockDataHooks({
+  shots = [],
+  talent = [],
+}: {
+  readonly shots?: readonly Shot[]
+  readonly talent?: readonly Record<string, unknown>[]
+} = {}) {
+  ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: shots,
+    loading: false,
+    error: null,
+  })
+  ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: talent,
+    loading: false,
+    error: null,
+  })
+  ;(useLocations as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: [],
+    loading: false,
+    error: null,
+  })
+  ;(useProductFamilies as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: [],
+    loading: false,
+    error: null,
+  })
+  ;(useCrew as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+    data: [],
+    loading: false,
+    error: null,
+  })
+}
+
 describe("ProjectAssetsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.role = "producer"
+    effectiveState.role = null
+    effectiveState.resolving = false
   })
 
   it("adds existing talent to a project via the Add dialog", async () => {
@@ -253,6 +307,89 @@ describe("ProjectAssetsPage", () => {
       agency: "CAA",
       notes: "",
     })
+  })
+
+  it("disables asset write affordances while the effective role is resolving", () => {
+    effectiveState.resolving = true
+    mockDataHooks({
+      shots: [makeShot({ talentIds: ["t1"] })],
+      talent: [{ id: "t1", name: "Used Talent", agency: "A", projectIds: ["p1"] }],
+    })
+
+    renderPage()
+
+    // Write affordances are never enabled from the global-role guess during
+    // the first uncached member read.
+    for (const button of screen.getAllByRole("button", { name: /^add$/i })) {
+      expect(button).toBeDisabled()
+    }
+    for (const button of screen.getAllByRole("button", { name: /^new$/i })) {
+      expect(button).toBeDisabled()
+    }
+    expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled()
+    // The chip renders nothing while resolving.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
+  })
+
+  it("disables edits on a project downgrade (member doc wins over global claim) and shows the chip", () => {
+    effectiveState.role = "viewer"
+    mockDataHooks({
+      shots: [makeShot({ talentIds: ["t1"] })],
+      talent: [{ id: "t1", name: "Used Talent", agency: "A", projectIds: ["p1"] }],
+    })
+
+    renderPage()
+
+    for (const button of screen.getAllByRole("button", { name: /^add$/i })) {
+      expect(button).toBeDisabled()
+    }
+    for (const button of screen.getAllByRole("button", { name: /^new$/i })) {
+      expect(button).toBeDisabled()
+    }
+    expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled()
+    expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
+      "Viewer on this project",
+    )
+  })
+
+  it("disables edits on a project PROMOTION (global crew + producer members doc) — backend rules read only the global claim", () => {
+    // /clients/{clientId}/{talent,locations,crew} writes require the GLOBAL
+    // admin||producer claim (firestore.rules:363-365, :382-384, :402-408);
+    // the UI must not advertise what those rules deny.
+    authState.role = "crew"
+    effectiveState.role = "producer"
+    mockDataHooks({
+      shots: [makeShot({ talentIds: ["t1"] })],
+      talent: [{ id: "t1", name: "Used Talent", agency: "A", projectIds: ["p1"] }],
+    })
+
+    renderPage()
+
+    for (const button of screen.getAllByRole("button", { name: /^add$/i })) {
+      expect(button).toBeDisabled()
+    }
+    for (const button of screen.getAllByRole("button", { name: /^new$/i })) {
+      expect(button).toBeDisabled()
+    }
+    expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled()
+  })
+
+  it("falls back to the global claim when there is no project override", () => {
+    // effectiveState.role = null mirrors the global producer claim (the hook
+    // returns the global claim on null project scope / absent member doc).
+    mockDataHooks({
+      shots: [makeShot({ talentIds: ["t1"] })],
+      talent: [{ id: "t1", name: "Used Talent", agency: "A", projectIds: ["p1"] }],
+    })
+
+    renderPage()
+
+    for (const button of screen.getAllByRole("button", { name: /^add$/i })) {
+      expect(button).toBeEnabled()
+    }
+    expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled()
+    // Equal roles render no chip.
+    expect(screen.queryByTestId("effective-role-chip")).not.toBeInTheDocument()
   })
 })
 

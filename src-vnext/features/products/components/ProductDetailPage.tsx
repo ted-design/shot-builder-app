@@ -69,6 +69,11 @@ export default function ProductDetailPage() {
   const navigate = useNavigate()
   const { role, clientId, user } = useAuth()
   const isMobile = useIsMobile()
+  // PINNED to the GLOBAL claim (5b): org-scope product detail — write
+  // affordances (here and propagated as props to the Overview/Samples
+  // sections) are backed by global-role rules: productFamilies
+  // firestore.rules:566-574 (create/update :568 admin|producer, delete
+  // :569 admin). No project context exists on this page.
   const canEdit = !isMobile && canManageProducts(role)
   const [showDeleted, setShowDeleted] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
