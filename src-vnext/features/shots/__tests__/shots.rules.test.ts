@@ -59,7 +59,9 @@ const VIEWER_UID = "viewer-uid"
 const CREW_UID = "crew-uid"
 const MEMBER_CREW_UID = "member-crew-uid"
 const MEMBER_VIEWER_UID = "member-viewer-uid"
+const MEMBER_PRIVATE_PRODUCER_UID = "member-private-producer-uid"
 const PRODUCER_UID = "producer-uid"
+const ADMIN_UID = "admin-uid"
 const OWNER_UID = "owner-uid"
 
 // Seeded projects: one with an explicit visibility field, one without
@@ -93,6 +95,10 @@ const SHOT_EMPTY_PRODUCER_DELETE = "shot-empty-producer-delete"
 const SHOT_EMPTY_CREW_UPDATE = "shot-empty-crew-update"
 const SHOT_MOVE = "shot-move"
 const SHOT_MOVE_CREW = "shot-move-crew"
+const SHOT_MOVE_INTO_PRIVATE = "shot-move-into-private"
+const SHOT_PRIVATE_MOVE_OUT = "shot-private-move-out"
+const SHOT_ADMIN_PRIVATE_UPDATE = "shot-admin-private-update"
+const SHOT_ADMIN_EMPTY_UPDATE = "shot-admin-empty-update"
 const SHOT_VERSIONS = "shot-versions"
 
 /** Shot create payload — mirrors CreateShotDialog.tsx handleCreate. */
@@ -172,7 +178,7 @@ function makeVersionDoc(createdBy: string) {
 }
 
 /** shotShares doc — mirrors ShotsShareDialog.tsx Firestore fallback. */
-function makeShareDoc(projectId: string) {
+function makeShareDoc(projectId: string, createdBy: string = PRODUCER_UID) {
   return {
     clientId: CLIENT_ID,
     projectId,
@@ -181,7 +187,7 @@ function makeShareDoc(projectId: string) {
     title: "All shots",
     expiresAt: null,
     createdAt: serverTimestamp(),
-    createdBy: PRODUCER_UID,
+    createdBy,
     projectName: "Some Project",
     resolvedShots: [],
     columnConfig: ["title", "talent", "products"],
@@ -217,6 +223,18 @@ function memberViewerDb() {
 function producerDb() {
   return testEnv!
     .authenticatedContext(PRODUCER_UID, { role: "producer", clientId: CLIENT_ID })
+    .firestore()
+}
+
+function memberPrivateProducerDb() {
+  return testEnv!
+    .authenticatedContext(MEMBER_PRIVATE_PRODUCER_UID, { role: "producer", clientId: CLIENT_ID })
+    .firestore()
+}
+
+function adminDb() {
+  return testEnv!
+    .authenticatedContext(ADMIN_UID, { role: "admin", clientId: CLIENT_ID })
     .firestore()
 }
 
@@ -295,6 +313,12 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", MEMBER_VIEWER_UID),
         { role: "viewer", addedAt: Timestamp.now(), addedBy: OWNER_UID },
       )
+      // Producer membership on the PRIVATE project — the hasProjectRole arm
+      // of the shotShares create rule.
+      await setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_PRIVATE, "members", MEMBER_PRIVATE_PRODUCER_UID),
+        { role: "producer", addedAt: Timestamp.now(), addedBy: OWNER_UID },
+      )
 
       for (const shotId of [
         SHOT_VIEWER_UPDATE,
@@ -307,6 +331,7 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         SHOT_PRODUCER_TEAM_DELETE,
         SHOT_MOVE,
         SHOT_MOVE_CREW,
+        SHOT_MOVE_INTO_PRIVATE,
         SHOT_VERSIONS,
       ]) {
         await setDoc(
@@ -320,7 +345,12 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         makeSeedShot(PROJ_UNSET),
       )
 
-      for (const shotId of [SHOT_PRIVATE_UPDATE, SHOT_PRIVATE_DELETE]) {
+      for (const shotId of [
+        SHOT_PRIVATE_UPDATE,
+        SHOT_PRIVATE_DELETE,
+        SHOT_PRIVATE_MOVE_OUT,
+        SHOT_ADMIN_PRIVATE_UPDATE,
+      ]) {
         await setDoc(
           doc(db, "clients", CLIENT_ID, "shots", shotId),
           makeSeedShot(PROJ_PRIVATE),
@@ -332,6 +362,7 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         SHOT_EMPTY_PRODUCER_UPDATE,
         SHOT_EMPTY_PRODUCER_DELETE,
         SHOT_EMPTY_CREW_UPDATE,
+        SHOT_ADMIN_EMPTY_UPDATE,
       ]) {
         await setDoc(
           doc(db, "clients", CLIENT_ID, "shots", shotId),
@@ -788,6 +819,58 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
     )
   })
 
+  // The move arm checks producer access on the TARGET project only — moving
+  // a shot OUT of a private project is possible for any global producer.
+  // Accepted-by-spec: shots are client-readable regardless of project
+  // visibility, and the move path is admin/producer-gated lifecycle UI.
+  it("producer-claim CAN move a shot OUT of a private project (move arm checks the TARGET only — accepted asymmetry)", async () => {
+    const db = producerDb()
+    await assertSucceeds(
+      updateDoc(doc(db, "clients", CLIENT_ID, "shots", SHOT_PRIVATE_MOVE_OUT), {
+        projectId: PROJ_TEAM,
+        laneId: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: PRODUCER_UID,
+      }),
+    )
+  })
+
+  it("producer-claim CANNOT move a shot INTO a private project (move arm requires producer access on the TARGET)", async () => {
+    const db = producerDb()
+    await assertFails(
+      updateDoc(doc(db, "clients", CLIENT_ID, "shots", SHOT_MOVE_INTO_PRIVATE), {
+        projectId: PROJ_PRIVATE,
+        laneId: null,
+        updatedAt: serverTimestamp(),
+        updatedBy: PRODUCER_UID,
+      }),
+    )
+  })
+
+  // Admin matrix: isAdmin() short-circuits every arm, including the private
+  // and empty-projectId shapes that deny everyone else.
+  it("admin CAN update a shot on a private project", async () => {
+    const db = adminDb()
+    await assertSucceeds(
+      updateDoc(doc(db, "clients", CLIENT_ID, "shots", SHOT_ADMIN_PRIVATE_UPDATE), {
+        title: "Admin edited private shot",
+        updatedAt: serverTimestamp(),
+        updatedBy: ADMIN_UID,
+      }),
+    )
+  })
+
+  it("admin CAN update an empty-projectId shot", async () => {
+    const db = adminDb()
+    await assertSucceeds(
+      updateDoc(doc(db, "clients", CLIENT_ID, "shots", SHOT_ADMIN_EMPTY_UPDATE), {
+        title: "Admin edited legacy shot",
+        updatedAt: serverTimestamp(),
+        updatedBy: ADMIN_UID,
+      }),
+    )
+  })
+
   it("member-crew CANNOT change a shot's projectId (projectId immutability pin; move arm is admin/global-producer only)", async () => {
     const db = memberCrewDb()
     await assertFails(
@@ -830,6 +913,16 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
       setDoc(
         doc(db, "shotShares", "share-token-private-1"),
         makeShareDoc(PROJ_PRIVATE),
+      ),
+    )
+  })
+
+  it("[f4] producer MEMBER of a private project CAN create a share for it (hasProjectRole arm)", async () => {
+    const db = memberPrivateProducerDb()
+    await assertSucceeds(
+      setDoc(
+        doc(db, "shotShares", "share-token-private-member-1"),
+        makeShareDoc(PROJ_PRIVATE, MEMBER_PRIVATE_PRODUCER_UID),
       ),
     )
   })

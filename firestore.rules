@@ -191,7 +191,8 @@ service cloud.firestore {
       // Create is project-scoped: a non-admin must hold producer access on the
       // share's projectId (team-visible via producerCanAccessProject, or an
       // explicit producer members doc) — a global claim alone cannot mint an
-      // enabled public share for an arbitrary project.
+      // enabled public share for an arbitrary project. Only the admin arm may
+      // create a share with an empty projectId (legacy/unscoped shares).
       allow create: if isAuthed() &&
         request.resource.data.clientId == userClient() &&
         request.resource.data.projectId is string &&
@@ -459,6 +460,11 @@ service cloud.firestore {
 
 	      // Project-move (shotLifecycleActions.ts moveShotToProject): admins, or
 	      // global producers holding a project-scoped role on the TARGET projectId.
+	      // The arm checks the TARGET only — a producer can move a shot OUT of a
+	      // private project (accepted: shot reads are client-wide regardless of
+	      // project visibility). It also matches non-move updates; that is
+	      // intentional — its access requirement is equal or stricter than the
+	      // arm above, never wider.
 	      allow update: if clientMatches(clientId) && (
 	        isAdmin() ||
 	        (hasGlobalRole(['producer']) &&
@@ -498,6 +504,8 @@ service cloud.firestore {
       // full shot data, so a denied shot-writer must not mint them. projectId
       // comes from the parent shot doc (get is cached per request; version
       // writes never ride in batches with shot writes).
+      // isAuthed() is belt-and-suspenders: createdBy compares against
+      // request.auth.uid and must never evaluate it on null auth.
       match /versions/{versionId} {
         allow read: if clientMatches(clientId);
         allow create: if clientMatches(clientId) && isAuthed() &&
