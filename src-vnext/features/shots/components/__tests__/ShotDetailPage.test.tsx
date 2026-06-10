@@ -32,6 +32,17 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => true,
 }))
 
+// Pin the legacy (flag-off) detail body — the 5c rollback path. The real
+// featureUnifiedShotEditor default is ON since the default-flip PR.
+vi.mock("@/shared/lib/flags", () => ({
+  isFeatureEnabled: () => false,
+  getFeatureFlags: () => ({
+    featurePublishing: false,
+    featureSurfaceResolver: false,
+    featureUnifiedShotEditor: false,
+  }),
+}))
+
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useTalent: () => ({ data: [], loading: false, error: null }),
   useLocations: () => ({ data: [], loading: false, error: null }),
