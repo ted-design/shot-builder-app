@@ -906,11 +906,16 @@ service cloud.firestore {
 
       // Wildcard catch-all for any other project sub-collections
       // Includes 'crew' for consistency with explicit sub-resource rules above.
+      // members is excluded from the write arm: overlapping matches OR
+      // together, so without the exclusion any team-visible-project producer
+      // could write arbitrary members docs through this rule, bypassing the
+      // explicit members rules (admin-only management + creation-time self-add).
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
         allow create, update, delete: if clientMatches(clientId) &&
+          collectionId != 'members' &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'warehouse']));
       }

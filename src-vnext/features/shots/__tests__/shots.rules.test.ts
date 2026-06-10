@@ -643,6 +643,34 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
     )
   })
 
+  // The project-subcollection wildcard catch-all ORs with the explicit
+  // members rules, so members must be excluded from its write arm — these
+  // two pin the exclusion (without it, any team-visible-project producer
+  // writes arbitrary members docs through the wildcard).
+  it("producer-claim CANNOT grant ANOTHER user a members doc on a team project (wildcard write arm excludes members)", async () => {
+    const db = producerDb()
+    await assertFails(
+      setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", "some-other-uid"),
+        {
+          role: "producer",
+          addedAt: serverTimestamp(),
+          addedBy: PRODUCER_UID,
+        },
+      ),
+    )
+  })
+
+  it("producer-claim CANNOT update an existing members doc on a team project (wildcard write arm excludes members)", async () => {
+    const db = producerDb()
+    await assertFails(
+      updateDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", MEMBER_CREW_UID),
+        { role: "producer" },
+      ),
+    )
+  })
+
   // Carve-out positive path: project create + self-member in ONE batch
   // (CreateProjectDialog.tsx handleCreate shape — createdBy set to self, so
   // getAfter resolves the pending project write).
