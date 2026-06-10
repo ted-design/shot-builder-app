@@ -55,6 +55,23 @@ jobs:
           echo "Storage emulator ready"
           echo "Firebase emulators started (PID: $EMULATOR_PID)"
 
+      - name: Rules unit tests (emulator)
+        run: |
+          set -o pipefail
+          NO_COLOR=1 CI=1 FIRESTORE_EMULATOR_HOST=localhost:8080 \
+            npx vitest run ".rules.test.ts" 2>&1 | tee rules-tests.log
+          # Guard against green-by-skip: the rules suites self-skip (and still
+          # report a passing skip-notice test) when FIRESTORE_EMULATOR_HOST is
+          # not visible, so require a non-zero passed count AND zero skipped.
+          summary=$(grep -E '^[[:space:]]*Tests[[:space:]]' rules-tests.log | tail -1)
+          echo "Rules test summary: ${summary}"
+          if [ -z "${summary}" ] \
+            || ! echo "${summary}" | grep -qE '[1-9][0-9]* passed' \
+            || echo "${summary}" | grep -q 'skipped'; then
+            echo "Rules tests did not all execute (zero passed or some skipped) — failing."
+            exit 1
+          fi
+
       - name: Build & Preview (Vite)
         run: |
           if [ -f vite.config.ts ] || [ -f vite.config.js ]; then
