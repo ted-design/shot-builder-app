@@ -6,7 +6,7 @@ import { InlineEmpty } from "@/shared/components/InlineEmpty"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
 import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
-import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { useResolvedSurface } from "@/features/shots/hooks/useResolvedSurface"
 import { canRestoreVersions } from "@/shared/lib/rbac"
 import { useShotVersions } from "@/features/shots/hooks/useShotVersions"
 import { restoreShotVersion } from "@/features/shots/lib/shotVersioning"
@@ -41,17 +41,21 @@ export function ShotVersionHistorySection({ shot }: { readonly shot: Shot }) {
   // shotProjectRole arms, so the member doc WINS over the global claim
   // (locked Q5/Q6). The Restore affordance renders NOTHING while the first
   // uncached member read is in flight (roleResolving) — never the global-role
-  // guess. !isMobile is a device concern, not RBAC — it stays here.
+  // guess. The device concern lives in resolveSurface's affordances since
+  // 5e-I (versionRestore — same value as the old isMobile kill-switch); the
+  // ROLE term stays here: canRestoreVersions deliberately excludes crew (UI
+  // narrower than the rules; crew-widening is a 5f decision).
   const { role, resolving: roleResolving } = useEffectiveRole()
-  const isMobile = useIsMobile()
+  const { affordances } = useResolvedSurface()
   const [open, setOpen] = useState(false)
   const [restoreTarget, setRestoreTarget] = useState<ShotVersion | null>(null)
   const [restoring, setRestoring] = useState(false)
 
   const canRestore = useMemo(() => {
-    if (isMobile) return false
+    // null affordances == resolving — same false as the roleResolving term.
+    if (!affordances?.versionRestore) return false
     return !roleResolving && canRestoreVersions(role)
-  }, [isMobile, roleResolving, role])
+  }, [affordances, roleResolving, role])
 
   const {
     data: versions,

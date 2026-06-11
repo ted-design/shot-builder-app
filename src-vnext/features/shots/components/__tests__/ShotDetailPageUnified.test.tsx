@@ -81,12 +81,16 @@ vi.mock("@/shared/hooks/useEffectiveRole", () => ({
   }),
 }))
 
-// Desktop mode.
+// Desktop by default; per-test override for the 5e-I tablet export pin.
+const deviceState = vi.hoisted(() => ({
+  device: "desktop" as "mobile" | "tablet" | "desktop",
+}))
+
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useMediaQuery: () => false,
-  useIsMobile: () => false,
-  useIsTablet: () => false,
-  useIsDesktop: () => true,
+  useIsMobile: () => deviceState.device === "mobile",
+  useIsTablet: () => deviceState.device === "tablet",
+  useIsDesktop: () => deviceState.device === "desktop",
 }))
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
@@ -251,6 +255,7 @@ describe("ShotDetailPageUnified", () => {
     effectiveState.resolving = false
     laneState.lanes = []
     laneState.laneById = new Map()
+    deviceState.device = "desktop"
   })
 
   it("renders the scan-path order: description, hero, products, meta, notes, links, tags, comments, history, rail", () => {
@@ -479,6 +484,40 @@ describe("ShotDetailPageUnified", () => {
     renderPage()
 
     expectAllWriteAffordances()
+  })
+
+  // ── 5e-I named sub-delta: export keys to device === 'desktop' ─────────────
+
+  it("tablet (768-1023): Export hidden — the route's RequireDesktop needs ≥1024px; every other gate keeps its non-mobile value", () => {
+    deviceState.device = "tablet"
+    mockShot()
+
+    renderPage()
+
+    // The one intentional 5e-I behavior change: the tablet Export button
+    // dead-ended in RequireDesktop's toast+redirect — affordances.export
+    // now keys to desktop, so it no longer mounts.
+    expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument()
+    // Everything else on tablet is byte-identical to today's !isMobile gates.
+    expect(screen.getByTestId("shot-title-edit")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+    expect(screen.getByTestId("lifecycle-actions-stub")).toBeInTheDocument()
+    expect(screen.getByTestId("hero-stub")).toHaveAttribute("data-can-upload", "true")
+    // statusControl stays 'badge-select' off-mobile: select renders, no tap row.
+    expect(screen.getByTestId("shot-status-select-trigger")).toBeInTheDocument()
+    expect(screen.queryByTestId("status-tap-row")).not.toBeInTheDocument()
+  })
+
+  it("mobile: the chrome statusControl fork renders the tap row, not the badge select (zero-delta)", () => {
+    deviceState.device = "mobile"
+    mockShot()
+
+    renderPage()
+
+    expect(screen.getByTestId("status-tap-row")).toBeInTheDocument()
+    expect(screen.queryByTestId("shot-status-select-trigger")).not.toBeInTheDocument()
+    // Export keys to desktop — hidden on mobile, same as today's !isMobile.
+    expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument()
   })
 
   it("warehouse mounts zero enabled write affordances and the 1-4 keys no-op", () => {

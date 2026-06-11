@@ -47,6 +47,20 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsDesktop: () => true,
 }))
 
+// 5e-I flag-flip audit: these tests click into the card grid (the legacy
+// producer default) and silently relied on featureSurfaceResolver defaulting
+// false — flag-on, a never-customized desktop producer resolves the TABLE
+// surface default. Pin the flag OFF explicitly; the flag-ON path is owned by
+// useShotListState.resolver.test.tsx.
+vi.mock("@/shared/lib/flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/lib/flags")>()
+  return {
+    ...actual,
+    isFeatureEnabled: (flag: keyof import("@/shared/lib/flags").FeatureFlags) =>
+      flag === "featureSurfaceResolver" ? false : actual.isFeatureEnabled(flag),
+  }
+})
+
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
   ShotStatusSelect: ({ currentStatus }: { readonly currentStatus: string }) => (
     <span>status:{currentStatus}</span>

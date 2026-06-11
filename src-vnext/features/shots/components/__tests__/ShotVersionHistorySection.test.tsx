@@ -9,8 +9,12 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
+// Desktop. useResolvedSurface (5e-I) reads useIsMobile + useIsDesktop — the
+// section's device term flows through affordances.versionRestore now.
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => false,
+  useIsTablet: () => false,
+  useIsDesktop: () => true,
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
