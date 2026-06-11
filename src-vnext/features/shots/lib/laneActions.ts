@@ -6,8 +6,12 @@ import {
   deleteDoc,
   writeBatch,
   serverTimestamp,
-  getFirestore,
 } from "firebase/firestore"
+// Shared db instance — NOT a bare getFirestore(): firebase.ts initializes
+// Firestore with the durable offline cache (Decision C), and a stray
+// getFirestore() racing that init would pin the default memory-cache
+// instance for the whole app. All call sites go through the shared export.
+import { db } from "@/shared/lib/firebase"
 import { lanesPath, laneDocPath, shotsPath } from "@/shared/lib/paths"
 import type { Lane, Shot } from "@/shared/types"
 import type { User } from "firebase/auth"
@@ -42,7 +46,6 @@ export async function createLane(params: {
     params.sceneNumber ??
     Math.max(0, ...(existingLanes ?? []).map((l) => l.sceneNumber ?? 0)) + 1
 
-  const db = getFirestore()
   const ref = doc(collection(db, ...lanesPath(projectId, clientId)))
   await setDoc(ref, {
     name: trimmedName,
@@ -67,7 +70,6 @@ export async function updateLane(params: {
   readonly patch: LanePatch
 }): Promise<void> {
   const { laneId, projectId, clientId, patch } = params
-  const db = getFirestore()
   const ref = doc(db, ...laneDocPath(laneId, projectId, clientId))
   await updateDoc(ref, {
     ...patch,
@@ -81,7 +83,6 @@ export async function deleteLane(params: {
   readonly clientId: string
 }): Promise<void> {
   const { laneId, projectId, clientId } = params
-  const db = getFirestore()
   const ref = doc(db, ...laneDocPath(laneId, projectId, clientId))
   await deleteDoc(ref)
 }
@@ -98,7 +99,6 @@ export async function assignShotsToLane(params: {
     throw new Error(`Cannot assign more than ${MAX_BULK_OPS} shots to a scene at once.`)
   }
 
-  const db = getFirestore()
   let updated = 0
 
   for (let i = 0; i < shotIds.length; i += BATCH_CHUNK_SIZE) {

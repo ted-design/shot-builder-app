@@ -7,6 +7,10 @@ import {
 import {
   connectFirestoreEmulator,
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
 } from "firebase/firestore"
 import {
   connectFunctionsEmulator,
@@ -141,7 +145,31 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const provider = new GoogleAuthProvider()
 provider.setCustomParameters({ prompt: "select_account" })
-export const db = getFirestore(app)
+// Decision C (5e-II): durable offline cache, APP-WIDE (cache config cannot be
+// feature-flag forked — it is set once per Firestore instance). With the
+// default memory cache an offline write was queued in RAM only: the UI showed
+// it optimistically and a reload silently LOST it. persistentLocalCache makes
+// the queue durable (IndexedDB), so offline status taps / comments survive a
+// reload and sync on reconnect — Firestore's standard offline semantics, not
+// a custom sync engine. persistentMultipleTabManager avoids the legacy
+// single-tab lock failure (second tab would otherwise fail persistence).
+// In environments without IndexedDB the SDK falls back to the memory cache
+// on its own (warning, not a crash).
+function initFirestoreWithDurableCache(): Firestore {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    })
+  } catch {
+    // Firestore was already initialized for this app (e.g. dev-server HMR
+    // re-evaluation). Reuse the existing instance rather than crashing.
+    return getFirestore(app)
+  }
+}
+
+export const db = initFirestoreWithDurableCache()
 export const storage = getStorage(app)
 export const functions = getFunctions(app, "northamerica-northeast1")
 
