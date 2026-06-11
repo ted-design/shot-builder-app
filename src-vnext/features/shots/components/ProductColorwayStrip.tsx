@@ -9,9 +9,12 @@ import type { ShotLook } from "@/shared/types"
 export function ProductColorwayStrip({
   looks,
   activeLookId,
+  readOnly = false,
 }: {
   readonly looks: ReadonlyArray<ShotLook>
   readonly activeLookId: string | null | undefined
+  /** Read-only surfaces (Shoot shell, 5f Review) have no rail — drop the producer hint. */
+  readonly readOnly?: boolean
 }) {
   const sorted = [...looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const productCount = sorted.reduce((acc, l) => acc + (l.products?.length ?? 0), 0)
@@ -39,7 +42,7 @@ export function ProductColorwayStrip({
 
       {sorted.length === 0 ? (
         <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-          No products yet. Add a look in the rail.
+          No products yet.{readOnly ? "" : " Add a look in the rail."}
         </p>
       ) : (
         sorted.map((look) => {

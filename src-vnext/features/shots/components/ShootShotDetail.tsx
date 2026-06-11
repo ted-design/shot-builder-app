@@ -267,6 +267,7 @@ export function ShootShotDetail() {
           <ProductColorwayStrip
             looks={shot.looks ?? []}
             activeLookId={shot.activeLookId}
+            readOnly
           />
 
           {/* ── Shot-to-shot navigation — large tap targets over the nav
