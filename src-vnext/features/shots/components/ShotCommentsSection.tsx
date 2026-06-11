@@ -42,9 +42,19 @@ function initials(name: string | null | undefined): string {
 export function ShotCommentsSection({
   shotId,
   canComment,
+  offline = false,
 }: {
   readonly shotId: string
   readonly canComment: boolean
+  /**
+   * Decision C (5e-II) — queued-post affordance, passed ONLY by the Shoot
+   * shell (flag-gated); every existing call site omits it, so the flag-OFF
+   * composer is byte-identical. When true, Post becomes fire-and-forget:
+   * awaiting createShotComment offline would lock the composer on `saving`
+   * until reconnect even though the comment already shows from the local
+   * snapshot (durable cache). A quiet note tells the crew it is queued.
+   */
+  readonly offline?: boolean
 }) {
   const { clientId, role, user } = useAuth()
   const { data: comments, loading, error } = useShotComments(shotId)
@@ -114,9 +124,8 @@ export function ShotCommentsSection({
                   disabled={saving || draft.trim().length === 0}
                   onClick={async () => {
                     if (!clientId || !user?.uid) return
-                    setSaving(true)
-                    try {
-                      await createShotComment({
+                    const submit = () =>
+                      createShotComment({
                         clientId,
                         shotId,
                         body: draft,
@@ -124,11 +133,28 @@ export function ShotCommentsSection({
                         userName: user.displayName ?? user.email ?? null,
                         userAvatar: user.photoURL ?? null,
                       })
-                      setDraft("")
-                    } catch (err) {
+                    const reportError = (err: unknown) => {
                       toast.error(
                         err instanceof Error ? err.message : "Failed to create comment.",
                       )
+                    }
+                    if (offline) {
+                      // Queued-post (Decision C): the write lands in the
+                      // durable local cache and the comment renders from the
+                      // local snapshot immediately. Don't await — the promise
+                      // only resolves on server ack (reconnect). Real
+                      // failures (e.g. rules-denied on reconnect) still
+                      // surface through the catch while the page is open.
+                      submit().catch(reportError)
+                      setDraft("")
+                      return
+                    }
+                    setSaving(true)
+                    try {
+                      await submit()
+                      setDraft("")
+                    } catch (err) {
+                      reportError(err)
                     } finally {
                       setSaving(false)
                     }
@@ -138,6 +164,15 @@ export function ShotCommentsSection({
                 </Button>
               </div>
             </div>
+            {offline && (
+              <p
+                className="text-xs text-[var(--color-text-muted)]"
+                data-testid="comments-offline-note"
+                role="status"
+              >
+                Offline — comments post when you reconnect
+              </p>
+            )}
           </div>
         )}
 

@@ -29,6 +29,7 @@ import { ShotReferenceLinksSection } from "@/features/shots/components/ShotRefer
 import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { ShotDetailSidebar } from "@/features/shots/components/ShotDetailSidebar"
+import { ShootShotDetail } from "@/features/shots/components/ShootShotDetail"
 import { ProductColorwayStrip } from "@/features/shots/components/ProductColorwayStrip"
 import { ShotDetailQuickAdd } from "@/features/shots/components/ShotDetailQuickAdd"
 import { readShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
@@ -42,6 +43,7 @@ import { canEditScene as canEditSceneForRole, canManageShots } from "@/shared/li
 import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useResolvedSurface } from "@/features/shots/hooks/useResolvedSurface"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { textPreview } from "@/shared/lib/textPreview"
 import {
   SectionLabel,
@@ -94,6 +96,23 @@ function MetaDot() {
 // ---------------------------------------------------------------------------
 
 export function ShotDetailPageUnified() {
+  // 5e-II Shoot-shell mount fork — the shell replaces the editor body when
+  // featureShootSurface is ON and the resolved surface is 'shoot' (crew;
+  // surface-keyed, not device-keyed — Decision F). A PRESENTATION choice,
+  // not a permission boundary (spec §Rules-vs-UI). The fork sits ABOVE the
+  // editor body so none of the body's hooks register under the shell — in
+  // particular its Escape → navigate(-1) and 1-4 status keys (the shell
+  // binds Escape to the explicit list target instead). Flag OFF (or any
+  // non-shoot surface, or while the surface is resolving): the body renders
+  // byte-identically — the existing test suite is the contract.
+  const { surface } = useResolvedSurface()
+  if (isFeatureEnabled("featureShootSurface") && surface === "shoot") {
+    return <ShootShotDetail />
+  }
+  return <ShotDetailEditorBody />
+}
+
+function ShotDetailEditorBody() {
   const { sid } = useParams<{ sid: string }>()
   const navigate = useNavigate()
   const { shot, lanes, laneById, loading, error } = useShotDetailBundle(sid)

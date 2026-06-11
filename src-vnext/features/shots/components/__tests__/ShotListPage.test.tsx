@@ -76,8 +76,11 @@ vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
   ),
 }))
 
+// Emits its open state so the FAB ?create=1 consume-path pins below can
+// assert "dialog opened" vs "param cleared without opening".
 vi.mock("@/features/shots/components/CreateShotDialog", () => ({
-  CreateShotDialog: () => null,
+  CreateShotDialog: ({ open }: { readonly open: boolean }) =>
+    open ? <div data-testid="create-shot-dialog-open" /> : null,
 }))
 
 vi.mock("@/features/pulls/components/CreatePullFromShotsDialog", () => ({
@@ -716,6 +719,128 @@ describe("ShotListPage", () => {
     renderPage("/projects/p1/shots")
 
     expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
+  })
+
+  // ── 5e-II FAB ?create=1 consume-path gate (rules-vs-UI matrix item 5) ─────
+
+  it("viewer + ?create=1: no dialog opens and the param is cleared without consuming the intent", async () => {
+    effectiveState.role = "viewer"
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedSearch: string | undefined
+    function SearchObserver() {
+      const { search } = useLocation()
+      capturedSearch = search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots?create=1"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <SearchObserver />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(screen.queryByTestId("create-shot-dialog-open")).not.toBeInTheDocument()
+    // Param cleaned per the existing param-cleanup idiom — no re-trigger on
+    // back-nav, no dangling intent for a later role change to consume.
+    expect(capturedSearch).toBeDefined()
+    expect(new URLSearchParams(capturedSearch!).get("create")).toBeNull()
+  })
+
+  it("producer + ?create=1: dialog opens and the param is cleared", async () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedSearch: string | undefined
+    function SearchObserver() {
+      const { search } = useLocation()
+      capturedSearch = search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots?create=1"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <SearchObserver />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(screen.getByTestId("create-shot-dialog-open")).toBeInTheDocument()
+    expect(capturedSearch).toBeDefined()
+    expect(new URLSearchParams(capturedSearch!).get("create")).toBeNull()
+  })
+
+  it("?create=1 is NOT consumed while the effective role resolves — the gate must never swallow a producer's FAB intent on the first-read gap", async () => {
+    effectiveState.resolving = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedSearch: string | undefined
+    function SearchObserver() {
+      const { search } = useLocation()
+      capturedSearch = search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots?create=1"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <SearchObserver />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Still pending: param survives, nothing opened. The effect consumes it
+    // only after the member read settles.
+    expect(screen.queryByTestId("create-shot-dialog-open")).not.toBeInTheDocument()
+    expect(capturedSearch).toBeDefined()
+    expect(new URLSearchParams(capturedSearch!).get("create")).toBe("1")
   })
 
   it("renders note URLs as clickable links", () => {
