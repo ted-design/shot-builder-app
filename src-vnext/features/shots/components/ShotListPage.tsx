@@ -123,8 +123,8 @@ export default function ShotListPage() {
   // hardened /shots (firestore.rules:435-472, ['producer','crew'] arms).
   const showCreate = !roleResolving && canManageShots(role)
   const canReorder = !roleResolving && canManageShots(role)
-  const canBulkPull = !roleResolving && canGeneratePulls(role) && (affordances?.bulkPull ?? false)
-  const canRepair = !roleResolving && (role === "admin" || role === "producer") && (affordances?.repair ?? false)
+  const canBulkPull = !roleResolving && canGeneratePulls(role) && (affordances?.bulkPull ?? !isMobile)
+  const canRepair = !roleResolving && (role === "admin" || role === "producer") && (affordances?.repair ?? !isMobile)
   // PINNED to the GLOBAL claim: /shotShares create requires a global producer
   // claim (firestore.rules:193-204) — the backend cannot see a project
   // promotion, so the UI must not advertise Share from the effective role.
@@ -140,7 +140,7 @@ export default function ShotListPage() {
   // Export rendered immediately on desktop (no flash-of-missing) and hidden
   // on tablet/mobile throughout — same device keying, pinned in tests.
   const canExport = affordances?.export ?? isDesktop
-  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && (affordances?.lifecycle ?? false)
+  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && (affordances?.lifecycle ?? !isMobile)
   // Scene/lane writes (edit, delete, ungroup) consolidate on canEditScene
   // (rbac.ts), which mirrors the /lanes rule (firestore.rules:880-882,
   // :901-904 — already project-aware). Crew users see the scene grouping UI
