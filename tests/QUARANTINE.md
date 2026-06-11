@@ -1,6 +1,6 @@
 # E2E (`ui-checks`) Quarantine & Backlog
 
-_Last updated: 2026-06-06_
+_Last updated: 2026-06-11_
 
 ## Why this file exists
 
@@ -233,6 +233,36 @@ set, so no new env/secret was needed. `storage.rules` permits the producer to
 write+read `clients/test-client/shots/<shotId>/hero.webp` purely on
 `role(producer) ∈ {producer,wardrobe,admin}` + `userClient() == clientId` +
 image contentType <10MB — no project-membership doc required (unlike pulls).
+
+## Shoot-shell flag-ON lane (added 2026-06-11) — NOT a quarantine
+
+`tests/shoot-shell.spec.ts` (Phase 5e-II) appears in `playwright.config.ts`'s
+`testIgnore` **conditionally** — this is a build-flag **lane gate**, not a
+quarantine, and it runs on **every PR**:
+
+- `featureShootSurface` is a **build-time** flag (`VITE_SHOOT_SURFACE`,
+  default OFF). The main `npx playwright test` run executes against the
+  flag-OFF bundle, where the Shoot shell cannot render — running the spec
+  there could only false-fail, so it is excluded **unless**
+  `SHOOT_SURFACE_E2E=1` is set.
+- `ui-checks.yml` then rebuilds with `VITE_SHOOT_SURFACE=1`, swaps the
+  preview server, and runs `npx playwright test tests/shoot-shell.spec.ts`
+  with `SHOOT_SURFACE_E2E=1` — the flag-ON lane. Both lanes block the merge.
+- What the lane pins (the things only a flag-ON bundle + emulator can prove):
+  member-crew lands on the shell through the real resolver chain with
+  planning editors unmounted; a status tap passes the hardened
+  `['producer','crew']` rules arm **and** the fire-and-forget version
+  snapshot doc lands (the silent-failure regression pin); a legacy
+  `projectId==''` deep-link renders read-only (Decision D); Back binds to
+  the explicit list route.
+- Dedicated fixtures: `SEED_SHOT_SHOOT` (this spec's mutable status target —
+  no other spec may touch it) and `SEED_SHOT_LEGACY` (projectId `''`,
+  deep-link-only by construction; `clearShotsCrudData` deletes it by fixed id
+  since the projectId query can't see it).
+- **Owner/phase to fold it into the default run:** the `featureShootSurface`
+  flag-removal task (post-5e rollout) — when the default flips ON, delete the
+  conditional `testIgnore` entry and the workflow lane, and the spec joins
+  the main run.
 
 ## Quarantined specs (excluded via `testIgnore` in `playwright.config.ts`)
 

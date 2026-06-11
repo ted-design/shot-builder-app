@@ -13,6 +13,8 @@ import {
   SEED_SHOT_SPECTRA_COMPLETE,
   SEED_SHOT_RICH,
   SEED_RICH_SHOT_FIELDS,
+  SEED_SHOT_SHOOT,
+  SEED_SHOT_LEGACY,
   SEED_PULL,
   SEED_PULL_ITEM,
 } from './seedConstants';
@@ -433,6 +435,10 @@ export async function clearShotsCrudData(): Promise<void> {
 
   const refs = shotsSnap.docs.map((doc) => doc.ref);
   refs.push(db.collection(`clients/${CLIENT_ID}/projects`).doc(SEED_PROJECT_ID));
+  // The LEGACY fixture shot has projectId === '' (Decision D shape), so the
+  // projectId == SEED_PROJECT_ID query above can never find it — delete it by
+  // its fixed id so a persisted local emulator doesn't accumulate stale state.
+  refs.push(db.collection(`clients/${CLIENT_ID}/shots`).doc(SEED_SHOT_LEGACY.id));
 
   // Delete in chunks — a Firestore batch is capped at 500 ops. A persisted local
   // emulator can accumulate test-created shots across runs (CI is fresh each time).
@@ -564,6 +570,32 @@ export async function seedShotsCrudScenario(
     heroImage: SEED_RICH_SHOT_FIELDS.heroImage,
   });
   order += 1;
+
+  // SHOOT shot (Phase 5e-II flag-ON lane) — the shoot-shell spec's dedicated
+  // status-mutation target. Always re-seeded to status=todo so the spec's
+  // todo → in_progress tap is deterministic. See the ownership note on
+  // SEED_SHOT_SHOOT: no other spec may touch it (fullyParallel suite).
+  await createTestShot(SEED_PROJECT_ID, {
+    id: SEED_SHOT_SHOOT.id,
+    title: SEED_SHOT_SHOOT.title,
+    status: 'todo',
+    sortOrder: order,
+    shotNumber: String(order),
+  });
+  order += 1;
+
+  // LEGACY shot (Decision D) — projectId '' (the mapShot missing-projectId
+  // fallback shape). Deep-link-only by construction: useShots's
+  // projectId == <id> filter can never select it, so it is invisible to every
+  // list assertion. The shoot-shell spec deep-links it to pin the read-only
+  // legacy rendering (disabled tap-row + quiet note).
+  await createTestShot('', {
+    id: SEED_SHOT_LEGACY.id,
+    title: SEED_SHOT_LEGACY.title,
+    status: 'todo',
+    sortOrder: order,
+    shotNumber: null,
+  });
 
   // Grant the viewer user project membership so firestore.rules permits it to
   // read the project's lanes (and project doc) — see the VIEWER ACCESS note

@@ -100,6 +100,7 @@ const SHOT_PRIVATE_MOVE_OUT = "shot-private-move-out"
 const SHOT_ADMIN_PRIVATE_UPDATE = "shot-admin-private-update"
 const SHOT_ADMIN_EMPTY_UPDATE = "shot-admin-empty-update"
 const SHOT_VERSIONS = "shot-versions"
+const SHOT_VERSIONS_SEQ = "shot-versions-seq"
 
 /** Shot create payload — mirrors CreateShotDialog.tsx handleCreate. */
 function makeShotCreate(projectId: string, createdBy: string) {
@@ -142,6 +143,18 @@ function makeSeedShot(projectId: string) {
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     createdBy: OWNER_UID,
+  }
+}
+
+/** Comment doc — mirrors shotCommentWrites.ts createShotComment. */
+function makeCommentDoc(createdBy: string) {
+  return {
+    body: "On-set note from the comment composer",
+    createdAt: new Date(),
+    createdBy,
+    createdByName: "Test User",
+    createdByAvatar: null,
+    deleted: false,
   }
 }
 
@@ -333,6 +346,7 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         SHOT_MOVE_CREW,
         SHOT_MOVE_INTO_PRIVATE,
         SHOT_VERSIONS,
+        SHOT_VERSIONS_SEQ,
       ]) {
         await setDoc(
           doc(db, "clients", CLIENT_ID, "shots", shotId),
@@ -963,6 +977,102 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
           "version-2",
         ),
         makeVersionDoc(MEMBER_CREW_UID),
+      ),
+    )
+  })
+
+  // 5e-II snapshot SYMMETRY pins (build spec §Rules-vs-UI "Version
+  // snapshots"). The app's snapshot write is fire-and-forget
+  // (updateShotWithVersion.ts .catch → console.error), so a rules asymmetry
+  // between the parent shot write and the versions create would fail
+  // SILENTLY in production — the 5d-bug shape. These pin the symmetry both
+  // ways on the exact updateShotWithVersion sequence (update, then
+  // versions create, SAME shot): the member-crew Shoot-shell status save
+  // mints its snapshot legally, and a denied shot-writer is equally denied
+  // the snapshot (no data exfiltration through the versions arm).
+
+  it("member-crew shot UPDATE then versions CREATE on the SAME shot both succeed (updateShotWithVersion sequence — the Shoot-shell status save)", async () => {
+    const db = memberCrewDb()
+    // Step 1 — the parent shot status patch (ShotStatusTapRow shape).
+    await assertSucceeds(
+      updateDoc(doc(db, "clients", CLIENT_ID, "shots", SHOT_VERSIONS_SEQ), {
+        status: "in_progress",
+        updatedAt: serverTimestamp(),
+        updatedBy: MEMBER_CREW_UID,
+      }),
+    )
+    // Step 2 — the fire-and-forget snapshot the same save mints.
+    await assertSucceeds(
+      setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_VERSIONS_SEQ,
+          "versions",
+          "version-seq-1",
+        ),
+        makeVersionDoc(MEMBER_CREW_UID),
+      ),
+    )
+  })
+
+  it("[b4] crew-claim non-member CANNOT create a versions doc (denied symmetrically with the parent shot write)", async () => {
+    const db = crewDb()
+    await assertFails(
+      setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_VERSIONS,
+          "versions",
+          "version-crew-denied",
+        ),
+        makeVersionDoc(CREW_UID),
+      ),
+    )
+  })
+
+  // --- (h) comments — the Shoot-shell composer's write surface ---
+  // The comments create arm is clientMatches + isAuthed + createdBy-self
+  // (firestore.rules /shots comments block) — deliberately WIDER than the
+  // UI's double gate. Both pins are 5e-II spec verdicts, not new behavior.
+
+  it("[h1] member-crew CAN create a comment on a shot (the Shoot-shell comment composer write)", async () => {
+    const db = memberCrewDb()
+    await assertSucceeds(
+      setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_VERSIONS,
+          "comments",
+          "comment-member-crew-1",
+        ),
+        makeCommentDoc(MEMBER_CREW_UID),
+      ),
+    )
+  })
+
+  it("[h2] crew-claim non-member CAN create a comment (NAMED rules-wider-than-UI: comments are the ONE write a non-member crew keeps — spec §Rules-vs-UI, leave-as-is until 5f Q4)", async () => {
+    const db = crewDb()
+    await assertSucceeds(
+      setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_VERSIONS,
+          "comments",
+          "comment-nonmember-crew-1",
+        ),
+        makeCommentDoc(CREW_UID),
       ),
     )
   })
