@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   collection,
   onSnapshot,
@@ -32,14 +32,31 @@ interface FirestoreCollectionResult<T> {
   readonly error: FirestoreCollectionError | null
 }
 
+interface FirestoreCollectionOptions {
+  /**
+   * Error codes EXPECTED at this call site (e.g. a non-member reading a
+   * project-scoped collection is rules-denied — useCastingBoard). Suppresses
+   * the console.error for those codes ONLY; the error still surfaces through
+   * the result so callers can degrade gracefully. Mirrors useFirestoreDoc's
+   * quietErrorCodes.
+   */
+  readonly quietErrorCodes?: ReadonlyArray<string>
+}
+
 export function useFirestoreCollection<T>(
   pathSegments: string[] | null,
   constraints: QueryConstraint[] = [],
   mapDoc?: (id: string, data: Record<string, unknown>) => T,
+  options?: FirestoreCollectionOptions,
 ): FirestoreCollectionResult<T> {
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<FirestoreCollectionError | null>(null)
+
+  // Ref so the snapshot error callback reads the latest options without
+  // retriggering the subscription effect (deps stay [pathKey, constraintKeys]).
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   const pathKey = pathSegments?.join("/") ?? ""
   const constraintKeys = constraints.map((c) => JSON.stringify(c)).join(",")
@@ -71,8 +88,13 @@ export function useFirestoreCollection<T>(
         setLoading(false)
       },
       (err) => {
-        console.error("[useFirestoreCollection]", err)
         const fireErr = err as { code?: string; message?: string }
+        if (
+          !fireErr.code ||
+          !optionsRef.current?.quietErrorCodes?.includes(fireErr.code)
+        ) {
+          console.error("[useFirestoreCollection]", err)
+        }
         const isMissingIndex = fireErr.code === "failed-precondition"
         const urlMatch = (fireErr.message ?? "").match(
           /https:\/\/console\.firebase\.google\.com[^\s)]+/,

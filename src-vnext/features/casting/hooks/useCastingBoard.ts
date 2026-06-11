@@ -22,6 +22,16 @@ function mapCastingEntry(
   }
 }
 
+// Stable options object — permission-denied is the EXPECTED answer for a
+// signed-in user with no project membership reading this project-scoped
+// collection (firestore.rules project wildcard read arm), not an error worth
+// logging. The error still surfaces through the result (TalentPicker's
+// flat-list degrade keys off it). Mirrors useEffectiveRole's
+// MEMBER_DOC_OPTIONS precedent.
+const CASTING_BOARD_OPTIONS = {
+  quietErrorCodes: ["permission-denied"],
+} as const
+
 export function useCastingBoard(
   projectId: string | null,
   clientId: string | null,
@@ -37,6 +47,7 @@ export function useCastingBoard(
     path,
     [orderBy("sortOrder", "asc")],
     mapCastingEntry,
+    CASTING_BOARD_OPTIONS,
   )
 
   return {
