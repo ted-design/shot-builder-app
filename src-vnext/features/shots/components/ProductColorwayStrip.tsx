@@ -42,48 +42,51 @@ export function ProductColorwayStrip({
           No products yet. Add a look in the rail.
         </p>
       ) : (
-        sorted.map((look) => (
-          <div key={look.id} className="mt-3 first-of-type:mt-2">
-            <p className="label-meta">
-              {look.label || "Look"}
-              {look.id === resolvedActiveId ? <> &middot; Active</> : null}
-            </p>
-            {(look.products ?? []).length === 0 ? (
-              <p className="py-1 text-sm text-[var(--color-text-muted)]">
-                No products in this look.
+        sorted.map((look) => {
+          const products = look.products ?? []
+          return (
+            <div key={look.id} className="mt-3 first-of-type:mt-2">
+              <p className="label-meta">
+                {look.label || "Look"}
+                {look.id === resolvedActiveId ? <> &middot; Active</> : null}
               </p>
-            ) : (
-              (look.products ?? []).map((p, i) => (
-                <div
-                  key={`${p.familyId}-${p.colourId ?? p.skuId ?? ""}-${i}`}
-                  className="flex flex-wrap items-baseline gap-x-2.5 py-1"
-                >
-                  <span className="text-base font-semibold text-[var(--color-text)]">
-                    {p.familyName ?? p.familyId}
-                  </span>
-                  {(p.colourName || p.size) && (
-                    <span className="text-sm text-[var(--color-text-secondary)]">
-                      {p.colourName && (
-                        <>
-                          &middot;{" "}
-                          <span className="font-semibold text-[var(--color-text)]">
-                            {p.colourName}
-                          </span>
-                        </>
-                      )}
-                      {p.size && <> &middot; {p.size}</>}
+              {products.length === 0 ? (
+                <p className="py-1 text-sm text-[var(--color-text-muted)]">
+                  No products in this look.
+                </p>
+              ) : (
+                products.map((p, i) => (
+                  <div
+                    key={`${p.familyId}-${p.colourId ?? p.skuId ?? ""}-${i}`}
+                    className="flex flex-wrap items-baseline gap-x-2.5 py-1"
+                  >
+                    <span className="text-base font-semibold text-[var(--color-text)]">
+                      {p.familyName ?? p.familyId}
                     </span>
-                  )}
-                  {p.skuName && (
-                    <span className="ml-auto text-2xs tabular-nums text-[var(--color-text-subtle)]">
-                      {p.skuName}
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        ))
+                    {(p.colourName || p.size) && (
+                      <span className="text-sm text-[var(--color-text-secondary)]">
+                        {p.colourName && (
+                          <>
+                            &middot;{" "}
+                            <span className="font-semibold text-[var(--color-text)]">
+                              {p.colourName}
+                            </span>
+                          </>
+                        )}
+                        {p.size && <> &middot; {p.size}</>}
+                      </span>
+                    )}
+                    {p.skuName && (
+                      <span className="ml-auto text-2xs tabular-nums text-[var(--color-text-subtle)]">
+                        {p.skuName}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )
+        })
       )}
     </section>
   )

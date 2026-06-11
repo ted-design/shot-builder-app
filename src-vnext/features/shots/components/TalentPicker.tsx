@@ -58,6 +58,11 @@ export function TalentPicker({
   const draftRef = useRef<string[]>(selectedIds)
   const lastSavedRef = useRef<string[]>([...selectedIds].sort())
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Per-commit generation counter: each commit takes a token, and only the
+  // LATEST commit's settlement may revert. Without it, a slow failed save A
+  // racing a newer burst B settles late and clobbers B's lastSavedRef +
+  // visible draft with A's stale 'previous' (PR #440 disposition).
+  const commitGenerationRef = useRef(0)
 
   const applyDraft = (next: string[]) => {
     draftRef.current = next
@@ -71,8 +76,15 @@ export function TalentPicker({
     const previous = lastSavedRef.current
     if (JSON.stringify(ordered) === JSON.stringify(previous)) return
     lastSavedRef.current = ordered
+    const generation = ++commitGenerationRef.current
+
+    // A settlement is stale when a newer commit has taken a generation since
+    // this save started — stale settlements (resolve false OR reject) must
+    // no-op on both lastSavedRef and the visible draft, and surface no toast.
+    const isStale = () => commitGenerationRef.current !== generation
 
     const revert = () => {
+      if (isStale()) return
       lastSavedRef.current = previous
       applyDraft(previous)
     }
@@ -85,6 +97,7 @@ export function TalentPicker({
           if (ok === false) revert()
         })
         .catch(() => {
+          if (isStale()) return
           revert()
           toast.error("Failed to save talent")
         })
