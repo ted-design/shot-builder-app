@@ -35,11 +35,7 @@ function QuickViewImage({ src, alt }: { readonly src: string | undefined; readon
 }
 
 function QuickViewContent({ assignment }: { readonly assignment: ProductAssignment }) {
-  const needsLookup = !assignment.thumbUrl && !assignment.skuImageUrl && !assignment.familyImageUrl
-  const familyIdForLookup =
-    needsLookup && assignment.familyId ? assignment.familyId : assignment.familyId
-
-  const { data: family } = useProductFamilyDoc(familyIdForLookup ?? null)
+  const { data: family } = useProductFamilyDoc(assignment.familyId ?? null)
   // Legacy/colour-keyed assignments carry the SKU doc id in colourId, not
   // skuId (mirrors ProductAssignmentPicker's lookup) — fall back so the
   // per-SKU launch date still resolves for them.
@@ -135,7 +131,12 @@ export function ProductQuickViewPopover({
       <PopoverContent
         side="left"
         align="start"
+        collisionPadding={8}
+        hideWhenDetached
         className="w-[220px] p-0"
+        // The shot page binds Escape -> navigate(-1); Escape inside the
+        // popover must only dismiss it, never leave the page.
+        onEscapeKeyDown={(event) => event.stopPropagation()}
       >
         {open && <QuickViewContent assignment={assignment} />}
       </PopoverContent>

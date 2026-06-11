@@ -8,8 +8,9 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore"
-import { db } from "@/shared/lib/firebase"
+import { auth, db } from "@/shared/lib/firebase"
 import { crewPath, locationsPath, talentPath } from "@/shared/lib/paths"
+import { canManageProjects, normalizeRole } from "@/shared/lib/rbac"
 
 type AssetKind = "talent" | "locations" | "crew"
 
@@ -70,12 +71,68 @@ async function removeFromProject({
   })
 }
 
+/**
+ * Org-scoped talent docs are writable only by the GLOBAL admin/producer
+ * claim (firestore.rules /clients/{clientId}/talent:363-365 — isAdmin() ||
+ * isProducer(); project-scoped roles do NOT apply). TalentPicker's
+ * auto-repair effect calls addTalentToProject for ANY signed-in user viewing
+ * a shot with an orphaned talent link, so without this gate a crew/viewer
+ * editor fires repeating permission-denied writes. Reads the SDK-cached ID
+ * token (no network refresh) and runs it through normalizeRole — the same
+ * trim+lowercase pipeline AuthProvider uses for useAuth().role — so the
+ * case variants the rules accept ('Admin'/'ADMIN'/'Producer'/'PRODUCER',
+ * firestore.rules:21-35) pass the gate too.
+ *
+ * Deliberately STRICTER than the backend rule: rules isProducer() also
+ * grants warehouse/wardrobe (firestore.rules:28-35), but this gate uses
+ * canManageProjects (admin||producer only) to match ProjectAssetsPage's
+ * canEdit — "UI excluding warehouse stays stricter-than-rule (pre-existing,
+ * fail-toward-fewer)". normalizeRole maps legacy 'wardrobe' → warehouse, so
+ * every case variant of both lands outside the gate.
+ */
+async function hasGlobalTalentWriteClaim(): Promise<boolean> {
+  const user = auth.currentUser
+  if (!user) return false
+  try {
+    const tokenResult = await user.getIdTokenResult()
+    const role = normalizeRole(tokenResult.claims["role"])
+    return canManageProjects(role)
+  } catch {
+    // Unreadable token — fail toward not writing (rules would deny anyway).
+    return false
+  }
+}
+
+/**
+ * Belt-and-suspenders for claim/rules drift: if a talent link write IS
+ * rules-denied despite the claim gate, memo the client/project pair so the
+ * auto-repair effect (which re-fires whenever its deps change) never loops
+ * the denied write. Module-level session cache — same lifetime pattern as
+ * useEffectiveRole's role cache.
+ */
+const deniedTalentLinkKeys = new Set<string>()
+
+/** Test-only: clears the permission-denied memo between specs. */
+export function resetDeniedTalentLinkMemoForTests(): void {
+  deniedTalentLinkKeys.clear()
+}
+
 export async function addTalentToProject(opts: {
   readonly clientId: string
   readonly projectId: string
   readonly ids: readonly string[]
 }) {
-  return addManyToProject({ ...opts, kind: "talent" })
+  const memoKey = `${opts.clientId}/${opts.projectId}`
+  if (deniedTalentLinkKeys.has(memoKey)) return
+  if (!(await hasGlobalTalentWriteClaim())) return
+  try {
+    return await addManyToProject({ ...opts, kind: "talent" })
+  } catch (err) {
+    if ((err as { code?: string }).code === "permission-denied") {
+      deniedTalentLinkKeys.add(memoKey)
+    }
+    throw err
+  }
 }
 
 export async function removeTalentFromProject(opts: {

@@ -59,6 +59,30 @@ const VERSIONED_SHOT_FIELDS: ReadonlyArray<keyof Shot> = [
   "referenceLinks",
 ]
 
+/**
+ * Firestore's addDoc rejects `undefined` anywhere in the payload, and
+ * mapShot-produced shots carry nested `undefined`s (e.g. look products'
+ * optional colourId/quantity). Strip them deeply: dropped from plain
+ * objects, `null`ed inside arrays (to preserve positions). Non-plain
+ * objects (Timestamp, GeoPoint, …) pass through untouched.
+ */
+function stripUndefinedDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => (item === undefined ? null : stripUndefinedDeep(item)))
+  }
+  if (value !== null && typeof value === "object") {
+    const proto = Object.getPrototypeOf(value)
+    if (proto !== Object.prototype && proto !== null) return value
+    const out: Record<string, unknown> = {}
+    for (const [key, entry] of Object.entries(value)) {
+      if (entry === undefined) continue
+      out[key] = stripUndefinedDeep(entry)
+    }
+    return out
+  }
+  return value
+}
+
 function buildShotSnapshot(shot: Shot, patch: Record<string, unknown> = {}): Record<string, unknown> {
   const snapshot: Record<string, unknown> = {}
 
@@ -69,7 +93,7 @@ function buildShotSnapshot(shot: Shot, patch: Record<string, unknown> = {}): Rec
       snapshot[key] = null
       continue
     }
-    snapshot[key as string] = nextValue
+    snapshot[key as string] = stripUndefinedDeep(nextValue)
   }
 
   return snapshot
