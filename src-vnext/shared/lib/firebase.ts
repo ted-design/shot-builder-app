@@ -162,10 +162,17 @@ function initFirestoreWithDurableCache(): Firestore {
         tabManager: persistentMultipleTabManager(),
       }),
     })
-  } catch {
+  } catch (error) {
     // Firestore was already initialized for this app (e.g. dev-server HMR
-    // re-evaluation). Reuse the existing instance rather than crashing.
-    return getFirestore(app)
+    // re-evaluation) — reuse the existing instance rather than crashing.
+    // Only that known case is swallowed; anything else (IndexedDB schema
+    // errors, SDK version mismatches) must surface, not silently degrade.
+    const code = (error as { code?: string })?.code ?? ""
+    const message = error instanceof Error ? error.message : ""
+    if (code === "failed-precondition" || message.includes("already")) {
+      return getFirestore(app)
+    }
+    throw error
   }
 }
 

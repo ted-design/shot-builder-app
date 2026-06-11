@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Shot } from "@/shared/types"
@@ -754,14 +754,13 @@ describe("ShotListPage", () => {
       </MemoryRouter>,
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    expect(screen.queryByTestId("create-shot-dialog-open")).not.toBeInTheDocument()
     // Param cleaned per the existing param-cleanup idiom — no re-trigger on
     // back-nav, no dangling intent for a later role change to consume.
-    expect(capturedSearch).toBeDefined()
-    expect(new URLSearchParams(capturedSearch!).get("create")).toBeNull()
+    await waitFor(() => {
+      expect(capturedSearch).toBeDefined()
+      expect(new URLSearchParams(capturedSearch!).get("create")).toBeNull()
+    })
+    expect(screen.queryByTestId("create-shot-dialog-open")).not.toBeInTheDocument()
   })
 
   it("producer + ?create=1: dialog opens and the param is cleared", async () => {
@@ -794,10 +793,9 @@ describe("ShotListPage", () => {
       </MemoryRouter>,
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    expect(screen.getByTestId("create-shot-dialog-open")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId("create-shot-dialog-open")).toBeInTheDocument()
+    })
     expect(capturedSearch).toBeDefined()
     expect(new URLSearchParams(capturedSearch!).get("create")).toBeNull()
   })
@@ -833,6 +831,9 @@ describe("ShotListPage", () => {
       </MemoryRouter>,
     )
 
+    // A negative steady-state ("nothing happened") has no waitFor condition —
+    // two bounded ticks flush the consume effect window, then we assert it
+    // declined to fire.
     await new Promise((resolve) => setTimeout(resolve, 0))
     await new Promise((resolve) => setTimeout(resolve, 0))
 
