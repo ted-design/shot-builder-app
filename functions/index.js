@@ -67,6 +67,40 @@ async function verifyAuth(req) {
   }
 }
 
+// Decision E (Phase 5e-II invite hardening): shared sanitizer for the optional
+// assignToProjects field (CF payload and pendingInvitations doc both use the
+// same string[] of project ids). Defensive shape handling — strips anything
+// that is not a plain, non-empty, slash-free string (Firestore doc ids cannot
+// contain "/"), and dedupes so the member-doc writes stay idempotent.
+function sanitizeAssignToProjects(value) {
+  if (!Array.isArray(value)) return [];
+  const ids = value
+    .filter((id) => typeof id === "string")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0 && !id.includes("/"));
+  return [...new Set(ids)];
+}
+
+// Shared member-doc writer for project auto-assignment. Mirrors the original
+// processInvitation write, including the org-admin → project-producer clamp:
+// "admin" is not a valid project-scoped role (hasProjectRole checks
+// producer/crew/warehouse/viewer). The Admin SDK bypasses security rules —
+// authorization is enforced by the calling handler, never here.
+async function writeProjectMemberDocs({ clientId, uid, orgRole, projectIds, addedBy }) {
+  if (!projectIds || projectIds.length === 0) return;
+  const db = admin.firestore();
+  const projectRole = orgRole === "admin" ? "producer" : orgRole;
+  await Promise.all(projectIds.map((projectId) =>
+    db.collection("clients").doc(clientId).collection("projects")
+      .doc(projectId).collection("members").doc(uid)
+      .set({
+        role: projectRole,
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+        addedBy,
+      }, { merge: true }),
+  ));
+}
+
 async function processInvitation(invitationDoc, caller) {
   const invitation = invitationDoc.data();
   const uid = caller.uid;
@@ -105,24 +139,16 @@ async function processInvitation(invitationDoc, caller) {
   });
 
   // Auto-assign to projects if specified on the invitation
-  const assignToProjects = Array.isArray(invitation.assignToProjects)
-    ? invitation.assignToProjects.filter((id) => typeof id === "string" && id.trim().length > 0)
-    : [];
+  const assignToProjects = sanitizeAssignToProjects(invitation.assignToProjects);
 
   if (assignToProjects.length > 0) {
-    // Clamp org-level "admin" to "producer" for project membership — "admin" is
-    // not a valid project-scoped role (hasProjectRole checks producer/crew/warehouse/viewer).
-    const projectRole = invitation.role === "admin" ? "producer" : invitation.role;
-    const memberWrites = assignToProjects.map((projectId) =>
-      db.collection("clients").doc(clientId).collection("projects")
-        .doc(projectId).collection("members").doc(uid)
-        .set({
-          role: projectRole,
-          addedAt: admin.firestore.FieldValue.serverTimestamp(),
-          addedBy: invitation.invitedBy || "system",
-        }, { merge: true }),
-    );
-    await Promise.all(memberWrites);
+    await writeProjectMemberDocs({
+      clientId,
+      uid,
+      orgRole: invitation.role,
+      projectIds: assignToProjects,
+      addedBy: invitation.invitedBy || "system",
+    });
     console.log(`[processInvitation] Auto-assigned ${uid} to ${assignToProjects.length} projects`);
   }
 
@@ -219,6 +245,9 @@ async function handleSetUserClaims(data, caller) {
 
   const VALID_ROLES = {
     admin: true,
+    // "editor" is legacy (pre producer/crew split). It stays accepted here so
+    // claim UPDATES for already-provisioned legacy accounts keep working —
+    // NEW invitations reject it in the user-not-found lane below.
     editor: true,
     viewer: true,
     warehouse: true,
@@ -230,21 +259,38 @@ async function handleSetUserClaims(data, caller) {
     throw Object.assign(new Error("Invalid input. Provide targetEmail, role, clientId."), { code: "invalid-argument" });
   }
 
+  // Decision E (Phase 5e-II): optional project auto-assignment, validated
+  // defensively — if the field is present it must be an array; contents are
+  // sanitized (string, non-empty, no "/", deduped) by sanitizeAssignToProjects.
+  if (data.assignToProjects !== undefined && !Array.isArray(data.assignToProjects)) {
+    throw Object.assign(
+      new Error("Invalid input. assignToProjects must be an array of project ids."),
+      { code: "invalid-argument" },
+    );
+  }
+  const assignToProjects = sanitizeAssignToProjects(data.assignToProjects);
+
   let user;
   try {
     user = await admin.auth().getUserByEmail(targetEmail);
   } catch (lookupErr) {
     if (lookupErr.code === "auth/user-not-found") {
+      // NEW invitation lane: reject the legacy "editor" role here (and only
+      // here). Existing-user claim updates above keep accepting it so legacy
+      // accounts can still be managed, but no new "editor" can be minted.
+      if (role === "editor") {
+        throw Object.assign(
+          new Error("Role 'editor' is legacy and cannot be used for new invitations."),
+          { code: "invalid-argument" },
+        );
+      }
+
       const normalizedEmail = targetEmail.trim().toLowerCase();
       const invitationRef = admin.firestore()
         .collection("clients")
         .doc(clientId)
         .collection("pendingInvitations")
         .doc(normalizedEmail);
-
-      const assignToProjects = Array.isArray(data.assignToProjects)
-        ? data.assignToProjects.filter((id) => typeof id === "string" && id.trim().length > 0)
-        : [];
 
       await invitationRef.set({
         email: normalizedEmail,
@@ -276,6 +322,24 @@ async function handleSetUserClaims(data, caller) {
   const newClaims = { ...(user.customClaims || {}), role, clientId };
 
   await admin.auth().setCustomUserClaims(user.uid, newClaims);
+
+  // Decision E (Phase 5e-II): the existing-user lane now writes project member
+  // docs server-side in the same call as the claims update, mirroring the
+  // new-user lane (processInvitation), incl. the admin→producer clamp. Before
+  // this, membership for existing users depended on a separate client-side
+  // write that could fail after claims succeeded, leaving a user with an org
+  // role but no project access. The client keeps its idempotent merge-write as
+  // belt-and-suspenders until this version of the function is deployed.
+  if (assignToProjects.length > 0) {
+    await writeProjectMemberDocs({
+      clientId,
+      uid: user.uid,
+      orgRole: role,
+      projectIds: assignToProjects,
+      addedBy: caller.uid,
+    });
+    console.log(`[handleSetUserClaims] Assigned ${user.uid} to ${assignToProjects.length} projects`);
+  }
 
   // Only revoke refresh tokens when admin is changing ANOTHER user's claims.
   // Revoking on self would invalidate the caller's session before the client
