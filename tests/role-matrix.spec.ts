@@ -80,26 +80,32 @@ test.describe('Shot detail — non-member (global crew, no project membership)',
 });
 
 /**
- * Phase 4 — flag-off NO-CHANGE assertions (build spec §Test plan item 4).
+ * Phase 4 → 5e-I — resolver-default pins (build spec §Test plan item 4,
+ * updated at 5e-I).
  *
- * `featureSurfaceResolver` is enabled ONLY via `VITE_SURFACE_RESOLVER=1` at
- * build/dev time, and the CI build env never defines it — so this suite runs
- * against the FLAG-OFF path and pins the pre-Phase-4 trunk behavior that the
- * resolver must not change while the flag is off:
+ * As of 5e-I `featureSurfaceResolver` DEFAULTS ON (flags.ts;
+ * VITE_SURFACE_RESOLVER survives only as an enable-only override hook) — so
+ * this suite now runs against the FLAG-ON resolution path. Resolution is
+ * byte-identical to the legacy path except the ONE named, accepted change in
+ * (a); every other pin carries over verbatim:
  *
- *   (a) producer default view stays CARD for never-customized users (the
- *       flag-on resolver defaults producers to table — that flip is a named,
- *       accepted behavior change AT FLAG REMOVAL, not before);
- *   (b) mount performs ZERO URL writes (no view/group params materialize);
+ *   (a) NEVER-CUSTOMIZED producer default view is now TABLE on desktop (the
+ *       plan-build surface default) — the named, accepted behavior change of
+ *       the 5e-I default flip. Stored and URL choices still outrank it;
+ *   (b) mount performs ZERO URL writes (resolution is a pure derivation —
+ *       no view/group params materialize);
  *   (c) mobile forcing is override-without-erase: a 390px viewport forces the
  *       card list and hides the view toggle WITHOUT erasing latent
  *       `?view=table&group=status`, and resizing across 768px (live
- *       matchMedia) restores them;
+ *       matchMedia) restores them — reproduced by the resolver's
+ *       device-forced rung (last + non-destructive);
  *   (d) read-only roles keep their read-only list chrome (no "New Shot"),
  *       and crew KEEPS its existing "New Shot" affordance
- *       (canManageShots(crew)=true today — flag-off must not revoke it);
+ *       (canManageShots(crew)=true today). Crew/warehouse/viewer resolution
+ *       is INERT under flag-on (their surface defaults are card, same as
+ *       legacy);
  *   (e) a deep-linked `?view=table&group=status` survives a RELOAD unchanged
- *       (URL is the source of truth; resolution adds/removes nothing) — pinned
+ *       (URL is the source of truth; it outranks every resolver rung) — pinned
  *       for producer, crew, and viewer.
  *
  * The mobile case uses a PER-TEST viewport override — the auth fixtures pin
@@ -113,7 +119,7 @@ test.describe('Shot detail — non-member (global crew, no project membership)',
 const DEEP_LINK_SEARCH = '?view=table&group=status';
 
 /**
- * Shared flag-off pin (assertion (e)): deep-linked `?view=table&group=status`
+ * Shared pin (assertion (e)): deep-linked `?view=table&group=status`
  * renders the table on a desktop viewport, the load mutates NOTHING in the
  * URL (assert page.url() exactly), and a reload comes back byte-identical.
  */
@@ -136,8 +142,8 @@ async function expectDeepLinkSurvivesReload(
   expect(new URL(page.url()).search).toBe(DEEP_LINK_SEARCH);
 }
 
-test.describe('Shots list — Phase 4 flag-off no-change', () => {
-  test('producer (desktop, never customized): default view stays card; mount writes no URL params', async ({
+test.describe('Shots list — resolver default-ON pins (5e-I)', () => {
+  test('producer (desktop, never customized): default view is TABLE (5e-I named change); mount writes no URL params', async ({
     producerPage,
   }) => {
     await producerPage.goto(SHOTS_URL);
@@ -148,11 +154,14 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
       producerPage.getByText(SEED_SHOT_AURORA.title).first(),
     ).toBeVisible();
 
-    // (a) Default is the CARD view: no table is mounted. The fixture context
-    // is rebuilt from the global-setup storage state every test, so this
-    // producer has no stored `:view:v1` choice — the "never customized" case
-    // the flag-on resolver would flip to table. Flag-off must stay card.
-    await expect(producerPage.locator('main table')).toHaveCount(0);
+    // (a) Default is the TABLE view — the named, accepted behavior change of
+    // the 5e-I featureSurfaceResolver default flip: a never-customized
+    // producer on desktop resolves the plan-build 'table' surface default.
+    // The fixture context is rebuilt from the global-setup storage state
+    // every test, so this producer has no stored `:view:v1` choice — exactly
+    // the "never customized" case the flip targets. (Stored/URL choices
+    // still win — see the deep-link pins below.)
+    await expect(producerPage.locator('main table').first()).toBeVisible();
 
     // Desktop toolbar still offers the view toggle (gated on !isMobile only).
     await expect(
@@ -173,7 +182,7 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
   });
 
   /**
-   * CREW — flag-off pin for the third write-capable role. Crew has a global
+   * CREW — resolver-inert pin for the third write-capable role. Crew has a global
    * claim role='crew' but NO project members doc (intentionally — the
    * lanes-carve-out repro at the top of this file is load-bearing on crew
    * staying a non-member; do NOT seed one). On the LIST page the denied lanes
@@ -204,7 +213,9 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
       crewPage.getByRole('button', { name: /new shot/i }).first(),
     ).toBeVisible();
 
-    // (a)+(b) Card default + zero URL writes on an absent-override load.
+    // (d)+(b) Crew default stays CARD (flag-on is INERT for crew: the shoot
+    // surface default is card, same as legacy) + zero URL writes on an
+    // absent-override load.
     await expect(crewPage.locator('main table')).toHaveCount(0);
     const url = new URL(crewPage.url());
     expect(url.searchParams.get('view')).toBeNull();
@@ -262,7 +273,9 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
       viewerPage.getByRole('button', { name: /new shot/i }),
     ).toHaveCount(0);
 
-    // Card default + zero URL writes — same flag-off pins as the producer case.
+    // Card default + zero URL writes — viewer resolves the review-client
+    // surface whose default is card (flag-on inert; the table flip is
+    // plan-build only).
     await expect(viewerPage.locator('main table')).toHaveCount(0);
     const url = new URL(viewerPage.url());
     expect(url.searchParams.get('view')).toBeNull();
@@ -278,7 +291,8 @@ test.describe('Shots list — Phase 4 flag-off no-change', () => {
    * WARDROBE — annotated VIEWER DUPLICATE (build spec §Test plan item 4).
    *
    * This test deliberately duplicates the viewer assertions above, because for
-   * the shots LIST under flag-off the two roles are behaviorally identical:
+   * the shots LIST the two roles are behaviorally identical (under the
+   * default-ON resolver both land on card-default review-* surfaces):
    *
    * - The wardrobe user carries a legacy global claim role='wardrobe'. As of
    *   Phase 4 (spec security invariant 5) the client's normalizeRole maps
