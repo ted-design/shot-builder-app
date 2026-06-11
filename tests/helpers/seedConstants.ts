@@ -178,6 +178,31 @@ export const SEED_RICH_SHOT_FIELDS = {
   ],
 } as const;
 
+/**
+ * SHOOT — the dedicated MUTABLE target for `tests/shoot-shell.spec.ts`
+ * (Phase 5e-II flag-ON lane). That spec taps the shell's status row on this
+ * shot (status write + version snapshot), so by the shot-ownership map
+ * (AURORA read-only · EDITABLE status/notes/title · HERO hero-only · RICH
+ * display-only) NO other spec may read-assert or mutate it — the suite runs
+ * fullyParallel and a shared mutable shot races. Title token "Meridian" is
+ * unique (never Aurora/Borealis/Spectra/Helios/Cascade), so per-title
+ * assertions elsewhere are unaffected. Re-seeded to status=todo every run.
+ */
+export const SEED_SHOT_SHOOT = { id: 'e2e-shot-shoot', title: 'Meridian Set Shot' } as const;
+
+/**
+ * LEGACY — a projectId === '' shot (the mapShot.ts missing-projectId fallback
+ * shape) for the 5e-II Decision D pin: crew-uneditable at the rules level
+ * (shotProjectRole's legacy arm admits only admin/global-producer), so the
+ * Shoot shell renders existing deep-links READ-ONLY with a quiet note.
+ * It can NEVER appear in any project's shot list (useShots filters
+ * `where('projectId','==',projectId)`), so it is deep-link-only by
+ * construction and invisible to every other spec. Because its projectId is
+ * '', clearShotsCrudData's projectId==SEED_PROJECT_ID query also misses it —
+ * the clear deletes this doc id explicitly. Token "Relic" is unique.
+ */
+export const SEED_SHOT_LEGACY = { id: 'e2e-shot-legacy', title: 'Relic Archive Shot' } as const;
+
 /** All seeded shots, in seed order. */
 export const SEED_SHOTS = [
   SEED_SHOT_AURORA,

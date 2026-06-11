@@ -12,6 +12,7 @@ import { CreatePullFromShotsDialog } from "@/features/pulls/components/CreatePul
 import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecycleActionsMenu"
 import { ShotListToolbar } from "@/features/shots/components/ShotListToolbar"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
+import { ShootShotList } from "@/features/shots/components/ShootShotList"
 import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
 import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
@@ -23,6 +24,7 @@ import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { canEditScene, canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
 import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { Button } from "@/ui/button"
@@ -64,25 +66,18 @@ export default function ShotListPage() {
   // 5e-I: resolved-surface affordances replace ONLY the device terms of the
   // flags below (resolveSurface output is presentation-only by law) — every
   // role/rbac term stays here. null while auth/role resolve.
-  const { affordances } = useResolvedSurface()
+  // 5e-II adds `surface` + `chrome`: the Shoot list shell mounts off the
+  // RESOLVED surface (same fork idiom as ShotDetailPageUnified), and chrome
+  // drives the toolbar/quick-add decisions below.
+  const { surface, affordances, chrome } = useResolvedSurface()
   const { data: talentRecords } = useTalent()
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
 
-  // -- FAB integration: ?create=1 opens the dialog --
+  // -- FAB integration: ?create=1 opens the dialog (consume effect lives
+  // below the role-flags block — its gate reads showCreate) --
   const [searchParams, setSearchParamsFab] = useSearchParams()
   const [createOpen, setCreateOpen] = useState(false)
-
-  useEffect(() => {
-    if (searchParams.get("create") === "1") {
-      setCreateOpen(true)
-      setSearchParamsFab((prev) => {
-        const next = new URLSearchParams(prev)
-        next.delete("create")
-        return next
-      }, { replace: true })
-    }
-  }, [searchParams, setSearchParamsFab])
 
   // -- Dialog state --
   const [reorderOptimistic, setMobileOptimistic] = useState<ReadonlyArray<Shot> | null>(null)
@@ -147,6 +142,44 @@ export default function ShotListPage() {
   // read-only — no kebab menu, no edit sheet access from the table header.
   const canManageLanes = !roleResolving && canEditScene(role)
 
+  // -- 5e-II Shoot shell (spec §PR partition 5e-II) --
+  // Mount fork mirrors ShotDetailPageUnified's: structurally keyed off the
+  // RESOLVED surface, never the flag alone (flag strategy law). surface is
+  // null while auth/role resolve, so the shell never mounts off the
+  // global-role guess. Flag OFF: isShootShell is always false — every render
+  // below is byte-identical to 5e-I.
+  const isShootShell = isFeatureEnabled("featureShootSurface") && surface === "shoot"
+  // chrome.toolbar consumer: 'minimal' (shoot shell) drops the full
+  // search/sort/filter toolbar block; flag-off resolves 'full' on every
+  // surface (byte-identical). Falls back to 'full' while chrome resolves —
+  // today's toolbar renders during the first member read too.
+  const showFullToolbar = (chrome?.toolbar ?? "full") === "full"
+  // chrome.quickAdd consumer (resolver doc: showCreate button + the FAB
+  // ?create=1 consume path + the inline quick-add). True on every surface
+  // today — wired so the shell owns its create affordance through chrome.
+  // The ROLE term (showCreate / canManageShots) stays at this consumer.
+  const quickAdd = chrome?.quickAdd ?? true
+
+  // FAB ?create=1 consume path — GATED on showCreate (5e-II rules-honesty:
+  // it previously opened CreateShotDialog with no role gate, an affordance
+  // leak for viewers reaching the URL). Ungated visitors get the param
+  // cleared without the dialog (existing param-cleanup idiom). The effect
+  // waits out the first member read instead of consuming during it —
+  // clearing on the roleResolving gap would silently swallow a legitimate
+  // producer's FAB intent.
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return
+    if (authLoading || roleResolving) return
+    if (showCreate && quickAdd) {
+      setCreateOpen(true)
+    }
+    setSearchParamsFab((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("create")
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParamsFab, authLoading, roleResolving, showCreate, quickAdd])
+
   // -- Lookup maps (computed from picker data, passed to list state hook) --
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
   const locationNameById = useMemo(() => new Map(locationRecords.map((l) => [l.id, l.name])), [locationRecords])
@@ -180,7 +213,7 @@ export default function ShotListPage() {
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
-    displayShots, insights, hasActiveFilters, hasActiveGrouping,
+    displayShots, unfilteredSortedShots, insights, hasActiveFilters, hasActiveGrouping,
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
@@ -196,6 +229,31 @@ export default function ShotListPage() {
     }
     navigate(`/projects/${projectId}/shots/${shotId}`)
   }, [navigate, projectId, clientId, displayShots])
+
+  // -- 5e-II Decision D: legacy projectId=='' shots are crew-uneditable at
+  // the rules level (shotProjectRole's legacy arm admits only admin/global-
+  // producer, firestore.rules:107-114; mapShot defaults missing projectId to
+  // '') — the Shoot shell filters them out rather than advertise a
+  // guaranteed permission-denied tap. Existing deep-links render read-only
+  // in ShootShotDetail; the backfill migration is a later Ted-gated task.
+  // Derived from the UNFILTERED order (Codex #442 P2): the shell renders no
+  // filter controls, so a lingering deep-link filter (?status=…/?q=…) must
+  // never silently subset the on-set list (locked Decision G: full list). --
+  const shootShots = useMemo(
+    () => unfilteredSortedShots.filter((s) => s.projectId !== ""),
+    [unfilteredSortedShots],
+  )
+  const hiddenLegacyCount = unfilteredSortedShots.length - shootShots.length
+
+  // Shell taps reuse the handleShotClick contract but snapshot the FILTERED
+  // order — the detail shell's prev/next + [ / ] keys must never land on a
+  // hidden legacy shot.
+  const handleShootShotClick = useCallback((shotId: string) => {
+    if (clientId) {
+      writeShotListNavOrder(clientId, projectId, shootShots.map((s) => s.id))
+    }
+    navigate(`/projects/${projectId}/shots/${shotId}`)
+  }, [navigate, projectId, clientId, shootShots])
 
   // -- Extra (advanced) filter count: conditions beyond status/missing inline filters --
   const extraFilterCount = useMemo(
@@ -243,10 +301,14 @@ export default function ShotListPage() {
     }, { replace: true })
   }, [searchParams, setSearchParamsFab])
 
-  // -- Keyboard shortcuts: 1-2 switch view mode --
+  // -- Keyboard shortcuts: 1-2 switch view mode. Inert on the Shoot shell
+  // (chrome.viewSwitcher false — the shell has no card/table fork to switch;
+  // a stored 'table' write here would leak into the user's plan-build view).
+  // Guarded on isShootShell, not chrome.viewSwitcher: flag-off mobile has
+  // viewSwitcher=false but these keys still work today (byte-identical law).
   useKeyboardShortcuts([
-    { key: "1", handler: () => setViewMode("card") },
-    { key: "2", handler: () => setViewMode("table") },
+    { key: "1", handler: () => { if (!isShootShell) setViewMode("card") } },
+    { key: "2", handler: () => { if (!isShootShell) setViewMode("table") } },
     { key: "?", shift: true, handler: () => setShortcutsOpen(true) },
   ])
 
@@ -385,7 +447,7 @@ export default function ShotListPage() {
                 {selectionEnabled ? "Done" : "Select"}
               </Button>
             )}
-            {showCreate ? (
+            {showCreate && quickAdd ? (
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Shot
@@ -418,8 +480,10 @@ export default function ShotListPage() {
         />
       )}
 
-      {/* Toolbar: search + sort + inline filters + view */}
-      {shots.length > 0 && (
+      {/* Toolbar: search + sort + inline filters + view. chrome.toolbar
+          drives the mount: 'minimal' (Shoot shell) drops the whole block —
+          no ShotListToolbar, no view switcher, no filter/reorder banners. */}
+      {showFullToolbar && shots.length > 0 && (
         <>
           <ShotListToolbar
             queryDraft={queryDraft}
@@ -538,8 +602,10 @@ export default function ShotListPage() {
         </>
       )}
 
-      {/* Quick-add inline input */}
-      {showCreate && shots.length > 0 && (
+      {/* Quick-add inline input — the shell's create affordance too
+          (chrome.quickAdd, spec §FAB ownership): the Shoot shell keeps this
+          one minimal showCreate-gated input instead of growing its own. */}
+      {showCreate && quickAdd && shots.length > 0 && (
         <ShotQuickAdd
           shots={shots}
           onCreated={(shotId, title) => {
@@ -572,8 +638,9 @@ export default function ShotListPage() {
         />
       )}
 
-      {/* Sort override banner */}
-      {!isCustomSort && shots.length > 0 && (
+      {/* Sort override banner — full-toolbar chrome only (the shell has no
+          sort controls to restore from) */}
+      {showFullToolbar && !isCustomSort && shots.length > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
           <Info className="h-3.5 w-3.5 flex-shrink-0" />
           <span>
@@ -603,6 +670,17 @@ export default function ShotListPage() {
           description="Try adjusting your search, filters, or sort."
           actionLabel={hasActiveFilters ? "Clear filters" : undefined}
           onAction={hasActiveFilters ? clearFilters : undefined}
+        />
+      ) : isShootShell ? (
+        /* 5e-II Shoot shell list — REPLACES the isMobile/card/table forks
+           below (surface-keyed, not device-keyed: tablet/desktop crew get
+           the same rows, Decision F). Full project list in display order
+           (Decision G); legacy shots filtered with a quiet note (Decision D). */
+        <ShootShotList
+          shots={shootShots}
+          hiddenLegacyCount={hiddenLegacyCount}
+          talentNameById={talentNameById}
+          onOpenShot={handleShootShotClick}
         />
       ) : isMobile ? (
         /* Mobile: card list with up/down controls when custom sort */

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router-dom"
 import { useIsDesktop } from "@/shared/hooks/useMediaQuery"
+import { isFeatureEnabled } from "@/shared/lib/flags"
+import { useResolvedSurface } from "@/features/shots/hooks/useResolvedSurface"
 import { Button } from "@/ui/button"
 import { Plus, Camera, StickyNote, X } from "lucide-react"
 
@@ -34,6 +36,7 @@ function getActionsForRoute(pathname: string): readonly FabAction[] {
 
 export function FloatingActionBar() {
   const isDesktop = useIsDesktop()
+  const { surface } = useResolvedSurface()
   const { pathname } = useLocation()
   const [, setSearchParams] = useSearchParams()
   const [expanded, setExpanded] = useState(false)
@@ -78,7 +81,10 @@ export function FloatingActionBar() {
     [setSearchParams],
   )
 
-  // Don't render on desktop, public pages, or routes with no actions
+  // Don't render on desktop, public pages, or routes with no actions.
+  // The Shoot shell owns its own create/status affordances and the FAB would
+  // overlap its sticky bottom status bar (5e-II eyeball finding).
+  if (isFeatureEnabled("featureShootSurface") && surface === "shoot") return null
   if (isDesktop || actions.length === 0) return null
 
   const singleAction = actions.length === 1

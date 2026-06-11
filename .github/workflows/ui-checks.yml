@@ -80,6 +80,31 @@ jobs:
             npx wait-on http://localhost:4173
           fi
       - run: npx playwright test
+
+      # ── Phase 5e-II Shoot-shell flag-ON lane ────────────────────────────
+      # featureShootSurface is a BUILD-TIME flag (VITE_SHOOT_SURFACE, default
+      # OFF). The full playwright run above is the FLAG-OFF contract — its
+      # build never defines the flag, so every existing pin proves the
+      # flag-off path is unchanged. The Shoot-shell E2E needs a flag-ON
+      # bundle, so: rebuild with the flag, swap the preview server, and run
+      # ONLY tests/shoot-shell.spec.ts (smoke discipline — 2 journeys).
+      # SHOOT_SURFACE_E2E=1 lifts the spec's lane gate in
+      # playwright.config.ts (it is excluded from the flag-OFF run, where
+      # the shell cannot render). Global setup re-runs and re-seeds — the
+      # lane starts from the same deterministic fixture as the main run.
+      - name: Rebuild with VITE_SHOOT_SURFACE=1 (Shoot-shell flag-ON lane)
+        env:
+          VITE_SHOOT_SURFACE: 1
+        run: |
+          fuser -k 4173/tcp || true
+          npm run build
+          (npm run preview &>/dev/null &)
+          npx wait-on http://localhost:4173
+      - name: Shoot-shell E2E (flag-ON)
+        env:
+          SHOOT_SURFACE_E2E: 1
+        run: npx playwright test tests/shoot-shell.spec.ts
+
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

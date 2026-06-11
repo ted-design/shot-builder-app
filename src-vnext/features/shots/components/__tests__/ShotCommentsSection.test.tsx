@@ -110,6 +110,95 @@ describe("ShotCommentsSection", () => {
     })
   })
 
+  // ── Decision C (5e-II) — offline queued-post affordance ───────────────────
+  // The `offline` prop is passed ONLY by the Shoot shell; every existing call
+  // site omits it, so the default-path tests above stay the byte-identical
+  // flag-OFF contract.
+
+  it("offline: shows the quiet queued-post note next to the composer", () => {
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment offline />)
+
+    expect(
+      screen.getByText("Offline — comments post when you reconnect"),
+    ).toBeInTheDocument()
+  })
+
+  it("default (no offline prop): no queued-post note", () => {
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment />)
+
+    expect(screen.queryByTestId("comments-offline-note")).not.toBeInTheDocument()
+  })
+
+  it("offline post is fire-and-forget: draft clears immediately and the composer never locks on a promise that only resolves on reconnect", async () => {
+    const user = userEvent.setup()
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+    // An offline addDoc promise resolves only on server ack — model that
+    // with a promise that never settles during the test.
+    ;(createShotComment as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue(
+      new Promise(() => {}),
+    )
+
+    render(<ShotCommentsSection shotId="s1" canComment offline />)
+
+    const textarea = screen.getByPlaceholderText("Leave a note for your team…")
+    await user.type(textarea, "Queued from set")
+    await user.click(screen.getByRole("button", { name: "Post" }))
+
+    expect(createShotComment).toHaveBeenCalledWith({
+      clientId: "c1",
+      shotId: "s1",
+      body: "Queued from set",
+      userId: "u1",
+      userName: "Alex Rivera",
+      userAvatar: null,
+    })
+    // Cleared synchronously — no await on the unsettled write.
+    expect(textarea).toHaveValue("")
+    // Composer stays usable for the next comment (no `saving` lock).
+    expect(textarea).not.toBeDisabled()
+  })
+
+  it("offline post failure still surfaces a toast through the detached catch", async () => {
+    const user = userEvent.setup()
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+    ;(createShotComment as unknown as { mockRejectedValue: (v: unknown) => void }).mockRejectedValue(
+      new Error("Comment cannot exceed 2000 characters."),
+    )
+
+    render(<ShotCommentsSection shotId="s1" canComment offline />)
+
+    await user.type(
+      screen.getByPlaceholderText("Leave a note for your team…"),
+      "Too long",
+    )
+    await user.click(screen.getByRole("button", { name: "Post" }))
+
+    const { toast } = await import("sonner")
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Comment cannot exceed 2000 characters.")
+    })
+  })
+
   it("allows deleting your own comment", async () => {
     const user = userEvent.setup()
     ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({

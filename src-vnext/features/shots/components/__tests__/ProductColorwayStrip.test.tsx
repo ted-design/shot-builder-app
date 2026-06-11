@@ -70,6 +70,13 @@ describe("ProductColorwayStrip", () => {
     expect(screen.queryByText(/items ·/)).not.toBeInTheDocument()
   })
 
+  it("drops the producer rail hint from the empty state when readOnly (Shoot shell / Review)", () => {
+    render(<ProductColorwayStrip looks={[]} activeLookId={null} readOnly />)
+
+    expect(screen.getByText("No products yet.")).toBeInTheDocument()
+    expect(screen.queryByText(/Add a look in the rail/)).not.toBeInTheDocument()
+  })
+
   it("renders product line fields: family, colour, size, and sku", () => {
     render(<ProductColorwayStrip looks={looks} activeLookId="look-2" />)
 

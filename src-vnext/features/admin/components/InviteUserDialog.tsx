@@ -102,6 +102,18 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
           },
         })
       } else {
+        // Belt-and-suspenders (Decision E, Phase 5e-II): the hardened
+        // setUserClaims CF now writes these member docs server-side, atomic
+        // with the claims update — but functions deploys are manual and
+        // Ted-gated (deploy-live is hosting-only), so the deployed CF may
+        // still be the old version that ignores assignToProjects for existing
+        // users. This client-side write is idempotent (setDoc merge over the
+        // same docs — harmless double-write against the new CF) and also
+        // carries the per-project role overrides from the picker, which the
+        // CF payload (project ids only) clamps from the org role instead.
+        // REMOVAL TRIGGER: after the hardened functions deploy lands — and
+        // only if dropping per-project role overrides (or moving them into
+        // the CF payload) is acceptable at that point.
         if (projectAssignments.length > 0 && clientId && user) {
           await bulkAddProjectMembers({
             assignments: projectAssignments,

@@ -66,7 +66,14 @@ export function LocationPicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
+      <PopoverContent
+        className="w-64 p-0"
+        align="start"
+        // The shot page binds Escape -> navigate(-1); Escape inside the
+        // picker must only dismiss it, never leave the page (the 5d guard
+        // TalentPicker/ProductQuickViewPopover already carry).
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+      >
         <Command>
           <CommandInput placeholder="Search locations..." />
           <CommandList>

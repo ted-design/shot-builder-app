@@ -83,6 +83,9 @@ function input(overrides: Partial<ResolveSurfaceInput>): ResolveSurfaceInput {
     urlView: null,
     urlGroup: null,
     storedView: null,
+    // Test-helper default only — the PRODUCTION input field is required (a
+    // missed call site is a type error, never a silent flag-off).
+    shootSurfaceEnabled: false,
     ...overrides,
   }
 }
@@ -206,11 +209,21 @@ describe("resolveSurface — provenance (viewSource)", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Affordances / chrome — 5e-I characterization table (build spec §The API).
-// Every value reproduces TODAY'S device gate at the consumer; the ONE named
-// sub-delta is `export` keying to desktop (the 768-1023 tablet Export button
-// dead-ends in RequireDesktop's toast+redirect today). Values are deliberately
-// surface-INDEPENDENT at 5e-I — asserted across every role per device.
+// Affordances / chrome — role × device × shootSurfaceEnabled matrix.
+//
+// FLAG OFF — the 5e-I characterization table (build spec §The API), pinned
+// UNCHANGED: every value reproduces TODAY'S device gate at the consumer; the
+// ONE named sub-delta is `export` keying to desktop (the 768-1023 tablet
+// Export button dead-ends in RequireDesktop's toast+redirect today). Values
+// are deliberately surface-INDEPENDENT flag-off — asserted across every role
+// per device.
+//
+// FLAG ON — 5e-II value flips: every affordance drops its device term
+// (consumers' role/global-claim terms still gate — presentation-only law)
+// EXCEPT export, which keeps device==='desktop' (route constraint). Chrome
+// reshapes for surface==='shoot' only (minimal toolbar, no view switcher,
+// tap-row at every density); non-shoot surfaces keep today's chrome
+// identically.
 // ---------------------------------------------------------------------------
 
 const EXPECTED_AFFORDANCES: Record<SurfaceDevice, Affordances> = {
@@ -252,11 +265,57 @@ const EXPECTED_CHROME: Record<SurfaceDevice, Chrome> = {
   desktop: { toolbar: "full", viewSwitcher: true, quickAdd: true, statusControl: "badge-select" },
 }
 
-describe("resolveSurface — affordances/chrome role × device matrix (5e-I characterization)", () => {
+/** Flag-ON affordances: device term dropped everywhere EXCEPT export. */
+const EXPECTED_AFFORDANCES_FLAG_ON: Record<SurfaceDevice, Affordances> = {
+  mobile: {
+    fieldEditing: true,
+    lifecycle: true,
+    imageUpload: true,
+    share: true,
+    export: false, // desktop-keyed route constraint, flag-independent
+    bulkPull: true,
+    repair: true,
+    versionRestore: true,
+  },
+  tablet: {
+    fieldEditing: true,
+    lifecycle: true,
+    imageUpload: true,
+    share: true,
+    export: false,
+    bulkPull: true,
+    repair: true,
+    versionRestore: true,
+  },
+  desktop: {
+    fieldEditing: true,
+    lifecycle: true,
+    imageUpload: true,
+    share: true,
+    export: true,
+    bulkPull: true,
+    repair: true,
+    versionRestore: true,
+  },
+}
+
+/**
+ * Flag-ON shoot-surface chrome — identical at EVERY density: the shell uses
+ * the tap row on tablet/desktop too (Decision F's desktop-density covers
+ * layout, not the control).
+ */
+const EXPECTED_SHOOT_CHROME_FLAG_ON: Chrome = {
+  toolbar: "minimal",
+  viewSwitcher: false,
+  quickAdd: true,
+  statusControl: "tap-row",
+}
+
+describe("resolveSurface — affordances/chrome role × device matrix, flag OFF (5e-I values pinned unchanged)", () => {
   for (const role of ROLES) {
     for (const device of DEVICES) {
-      it(`role=${role} device=${device} → today's device gates (export desktop-keyed)`, () => {
-        const out = resolveSurface(input({ effectiveRole: role, device }))
+      it(`role=${role} device=${device} shootSurfaceEnabled=false → today's device gates (export desktop-keyed)`, () => {
+        const out = resolveSurface(input({ effectiveRole: role, device, shootSurfaceEnabled: false }))
         expect(out.affordances).toEqual(EXPECTED_AFFORDANCES[device])
         expect(out.chrome).toEqual(EXPECTED_CHROME[device])
       })
@@ -270,6 +329,68 @@ describe("resolveSurface — affordances/chrome role × device matrix (5e-I char
       )
       expect(noisy.affordances).toEqual(EXPECTED_AFFORDANCES[device])
       expect(noisy.chrome).toEqual(EXPECTED_CHROME[device])
+    }
+  })
+})
+
+describe("resolveSurface — affordances/chrome role × device matrix, flag ON (5e-II value flips)", () => {
+  for (const role of ROLES) {
+    for (const device of DEVICES) {
+      const isShoot = EXPECTED_SURFACE[role] === "shoot"
+      it(`role=${role} device=${device} shootSurfaceEnabled=true → device term dropped (export desktop-keyed); ${isShoot ? "shoot chrome" : "chrome unchanged"}`, () => {
+        const out = resolveSurface(input({ effectiveRole: role, device, shootSurfaceEnabled: true }))
+        expect(out.affordances).toEqual(EXPECTED_AFFORDANCES_FLAG_ON[device])
+        // Chrome reshapes ONLY for surface==='shoot'; every other surface
+        // keeps today's device-based chrome byte-identical.
+        expect(out.chrome).toEqual(isShoot ? EXPECTED_SHOOT_CHROME_FLAG_ON : EXPECTED_CHROME[device])
+      })
+    }
+  }
+
+  it("crew gets the tap-row status control at EVERY density under the flag (shell control, not layout)", () => {
+    for (const device of DEVICES) {
+      const out = resolveSurface(input({ effectiveRole: "crew", device, shootSurfaceEnabled: true }))
+      expect(out.chrome.statusControl).toBe("tap-row")
+      expect(out.chrome.toolbar).toBe("minimal")
+      expect(out.chrome.viewSwitcher).toBe(false)
+    }
+  })
+
+  it("plan-build keeps the device-based statusControl fork under the flag (non-shoot chrome unchanged)", () => {
+    for (const role of ["admin", "producer"] as const) {
+      expect(resolveSurface(input({ effectiveRole: role, device: "mobile", shootSurfaceEnabled: true })).chrome.statusControl).toBe("tap-row")
+      expect(resolveSurface(input({ effectiveRole: role, device: "tablet", shootSurfaceEnabled: true })).chrome.statusControl).toBe("badge-select")
+      expect(resolveSurface(input({ effectiveRole: role, device: "desktop", shootSurfaceEnabled: true })).chrome.statusControl).toBe("badge-select")
+    }
+  })
+
+  it("export stays device==='desktop' under the flag (the route constraint is flag-independent)", () => {
+    for (const role of ROLES) {
+      for (const device of DEVICES) {
+        const out = resolveSurface(input({ effectiveRole: role, device, shootSurfaceEnabled: true }))
+        expect(out.affordances.export).toBe(device === "desktop")
+      }
+    }
+  })
+
+  it("never alters surface/viewMode/groupKey/viewSource: flag-on equals flag-off on every non-affordance/chrome output", () => {
+    for (const role of ROLES) {
+      for (const device of DEVICES) {
+        for (const urlView of URL_VIEWS) {
+          for (const urlGroup of URL_GROUPS) {
+            for (const storedRaw of STORED_RAW) {
+              const storedView = parseStoredRaw(storedRaw)
+              const base = { effectiveRole: role, device, urlView, urlGroup, storedView }
+              const off = resolveSurface(input({ ...base, shootSurfaceEnabled: false }))
+              const on = resolveSurface(input({ ...base, shootSurfaceEnabled: true }))
+              expect(on.surface).toBe(off.surface)
+              expect(on.viewMode).toBe(off.viewMode)
+              expect(on.groupKey).toBe(off.groupKey)
+              expect(on.viewSource).toBe(off.viewSource)
+            }
+          }
+        }
+      }
     }
   })
 })

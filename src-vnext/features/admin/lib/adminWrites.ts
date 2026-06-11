@@ -20,6 +20,20 @@ interface SetUserClaimsResponse {
   readonly email?: string
 }
 
+/**
+ * Invite a new user (creates a pending invitation) or update an existing
+ * user's claims via the setUserClaims CF.
+ *
+ * `assignToProjects` (project ids) is passed through to the CF for BOTH lanes:
+ * - new user → stored on the pending invitation; processInvitation writes the
+ *   member docs server-side when the invite is claimed.
+ * - existing user → the hardened CF (Decision E, Phase 5e-II) writes the
+ *   member docs server-side, atomic with the claims update, clamping the org
+ *   "admin" role to project "producer".
+ * Callers may keep an idempotent client-side member write as a fallback for
+ * the existing-user lane until the hardened CF is deployed (functions deploys
+ * are manual and Ted-gated) — see InviteUserDialog.
+ */
 export async function inviteOrUpdateUser({
   targetEmail,
   displayName,

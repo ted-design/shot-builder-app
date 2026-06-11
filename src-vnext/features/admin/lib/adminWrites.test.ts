@@ -65,6 +65,41 @@ describe("inviteOrUpdateUser", () => {
     )
   })
 
+  it("passes assignToProjects through to the CF when provided", async () => {
+    await inviteOrUpdateUser({
+      targetEmail: "user@example.com",
+      displayName: null,
+      role: "crew",
+      clientId: "c1",
+      assignToProjects: ["p1", "p2"],
+    })
+
+    expect(mockCallFunction).toHaveBeenCalledWith(
+      "setUserClaims",
+      {
+        targetEmail: "user@example.com",
+        role: "crew",
+        clientId: "c1",
+        assignToProjects: ["p1", "p2"],
+      },
+    )
+  })
+
+  it("omits assignToProjects from the CF payload when empty", async () => {
+    await inviteOrUpdateUser({
+      targetEmail: "user@example.com",
+      displayName: null,
+      role: "crew",
+      clientId: "c1",
+      assignToProjects: [],
+    })
+
+    expect(mockCallFunction).toHaveBeenCalledWith(
+      "setUserClaims",
+      { targetEmail: "user@example.com", role: "crew", clientId: "c1" },
+    )
+  })
+
   it("writes user doc after CF call with merge: true", async () => {
     await inviteOrUpdateUser({
       targetEmail: "user@example.com",

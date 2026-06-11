@@ -56,7 +56,19 @@ export function ShotLifecycleActionsMenu({
   disabled = false,
 }: ShotLifecycleActionsMenuProps) {
   const navigate = useNavigate()
-  const { clientId, user } = useAuth()
+  const { role: globalRole, clientId, user } = useAuth()
+
+  // 5e-II rules-honesty split (same shape as the 5b-II schedules canDelete
+  // split): Transfer ("Move to another project…") and Copy-to-project are
+  // GLOBAL-claim-only at the rules level — the /shots move arm and the
+  // create-in-target arm require a global admin/producer claim
+  // (firestore.rules:468-472), with no project-promotion path. A
+  // project-promoted producer (global crew/viewer + members-doc producer)
+  // passes the page's canManageLifecycle (effective role) but would be
+  // rules-denied here, so these two items gate on the GLOBAL claim from
+  // useAuth, NOT the effective role. Duplicate/delete stay effective-role
+  // (their arms are project-aware via shotProjectRole) — gated by the page.
+  const canTransferAcrossProjects = globalRole === "admin" || globalRole === "producer"
 
   const [busyAction, setBusyAction] = useState<
     "duplicate" | "copy" | "move" | "delete" | null
@@ -85,8 +97,14 @@ export function ShotLifecycleActionsMenu({
     try {
       const projectsSegs = projectsPath(clientId)
       const shotsSegs = shotsPath(clientId)
+      // The client-wide projects LIST only feeds the Transfer/Copy target
+      // picker — global-claim gated above. For a non-global user the rules
+      // deny that list (firestore.rules:668-684), so don't issue it: the
+      // Promise.all would reject and break Duplicate's title dedup too.
       const [projectsSnap, shotsSnap] = await Promise.all([
-        getDocs(collection(db, projectsSegs[0]!, ...projectsSegs.slice(1))),
+        canTransferAcrossProjects
+          ? getDocs(collection(db, projectsSegs[0]!, ...projectsSegs.slice(1)))
+          : Promise.resolve(null),
         getDocs(
           query(
             collection(db, shotsSegs[0]!, ...shotsSegs.slice(1)),
@@ -95,7 +113,9 @@ export function ShotLifecycleActionsMenu({
           ),
         ),
       ])
-      const mappedProjects = projectsSnap.docs.map((d) => mapProject(d.id, d.data()))
+      const mappedProjects = projectsSnap
+        ? projectsSnap.docs.map((d) => mapProject(d.id, d.data()))
+        : []
       const titles = new Set<string>()
       for (const d of shotsSnap.docs) {
         const title = (d.data()["title"] as string | undefined)?.trim()
@@ -110,7 +130,7 @@ export function ShotLifecycleActionsMenu({
     } finally {
       setMenuDataLoading(false)
     }
-  }, [clientId, menuDataLoaded, menuDataLoading, shot.projectId])
+  }, [clientId, menuDataLoaded, menuDataLoading, shot.projectId, canTransferAcrossProjects])
 
   const targetProjects = useMemo(() => {
     return projects.filter(
@@ -261,24 +281,31 @@ export function ShotLifecycleActionsMenu({
           >
             Duplicate in project
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault()
-              openTransfer("copy")
-            }}
-            disabled={transferDisabled || targetProjects.length === 0}
-          >
-            Copy to another project…
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault()
-              openTransfer("move")
-            }}
-            disabled={transferDisabled || targetProjects.length === 0}
-          >
-            Move to another project…
-          </DropdownMenuItem>
+          {/* Transfer/Copy — GLOBAL-claim gated (rules-honesty split above):
+              hidden, not disabled, for project-promoted producers whose
+              global claim the move/create-in-target rules arms would deny. */}
+          {canTransferAcrossProjects && (
+            <>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+                  openTransfer("copy")
+                }}
+                disabled={transferDisabled || targetProjects.length === 0}
+              >
+                Copy to another project…
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+                  openTransfer("move")
+                }}
+                disabled={transferDisabled || targetProjects.length === 0}
+              >
+                Move to another project…
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-[var(--color-error)] focus:text-[var(--color-error)]"

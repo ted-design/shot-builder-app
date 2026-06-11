@@ -63,6 +63,14 @@ export interface ResolveSurfaceInput {
   readonly urlGroup: string | null
   /** Prior EXPLICIT choice from localStorage `:view:v1`, null if never set. */
   readonly storedView: ViewMode | null
+  /**
+   * 5e-II — `featureShootSurface` flag value, passed EXPLICITLY by every
+   * caller (required, no default: a missed call site is a type error, not a
+   * silent flag-off). false → byte-identical 5e-I values; true → the flag-on
+   * affordances/chrome table below. surface/viewMode/groupKey/viewSource are
+   * NEVER affected by this input.
+   */
+  readonly shootSurfaceEnabled: boolean
 }
 
 export interface ResolvedSurface {
@@ -132,7 +140,7 @@ function parseUrlGroup(urlGroup: string | null): GroupKey {
  * on resize across 768px. groupKey keeps URL-only persistence.
  */
 export function resolveSurface(input: ResolveSurfaceInput): ResolvedSurface {
-  const { effectiveRole, device, urlView, urlGroup, storedView } = input
+  const { effectiveRole, device, urlView, urlGroup, storedView, shootSurfaceEnabled } = input
 
   const surface = SURFACE_BY_ROLE[effectiveRole]
 
@@ -153,30 +161,60 @@ export function resolveSurface(input: ResolveSurfaceInput): ResolvedSurface {
   const groupKey: GroupKey = isMobile ? "none" : preForcingGroup
   const viewSource: ViewSource = forcingChangedOutcome ? "device-forced" : preForcingSource
 
-  // Affordances/chrome — derived from surface + device ONLY. At 5e-I every
-  // value reproduces TODAY'S device gate, deliberately surface-INDEPENDENT so
-  // rewired consumers are zero-delta; 5e-II reshapes these for
-  // surface === 'shoot' behind featureShootSurface. The one named sub-delta:
-  // `export` keys to desktop, not !mobile — the export route's RequireDesktop
-  // needs ≥1024px, so today's 768-1023 tablet Export button dead-ends in a
-  // toast+redirect.
+  // Affordances/chrome — derived from surface + device + shootSurfaceEnabled
+  // ONLY.
+  //
+  // FLAG OFF (5e-I, byte-identical): every value reproduces TODAY'S device
+  // gate, deliberately surface-INDEPENDENT so rewired consumers are
+  // zero-delta. The one named sub-delta: `export` keys to desktop, not
+  // !mobile — the export route's RequireDesktop needs ≥1024px, so today's
+  // 768-1023 tablet Export button dead-ends in a toast+redirect.
+  //
+  // FLAG ON (5e-II): the device term is DROPPED from every affordance —
+  // consumers' role/global-claim terms still gate (presentation-only law) —
+  // EXCEPT `export`, which keeps the desktop key (route constraint,
+  // unchanged). Chrome reshapes for surface === 'shoot' only: minimal
+  // toolbar, no view switcher, tap-row status control at EVERY density (the
+  // shell uses the tap row on tablet/desktop too — Decision F's
+  // desktop-density covers layout, not the control). Non-shoot surfaces keep
+  // today's chrome identically (plan-build keeps the device-based
+  // statusControl fork).
   const offMobile = device !== "mobile"
-  const affordances: Affordances = {
-    fieldEditing: offMobile,
-    lifecycle: offMobile,
-    imageUpload: offMobile,
-    share: offMobile,
-    export: device === "desktop",
-    bulkPull: offMobile,
-    repair: offMobile,
-    versionRestore: offMobile,
-  }
-  const chrome: Chrome = {
-    toolbar: "full",
-    viewSwitcher: offMobile,
-    quickAdd: true,
-    statusControl: device === "mobile" ? "tap-row" : "badge-select",
-  }
+  const affordances: Affordances = shootSurfaceEnabled
+    ? {
+        fieldEditing: true,
+        lifecycle: true,
+        imageUpload: true,
+        share: true,
+        export: device === "desktop",
+        bulkPull: true,
+        repair: true,
+        versionRestore: true,
+      }
+    : {
+        fieldEditing: offMobile,
+        lifecycle: offMobile,
+        imageUpload: offMobile,
+        share: offMobile,
+        export: device === "desktop",
+        bulkPull: offMobile,
+        repair: offMobile,
+        versionRestore: offMobile,
+      }
+  const chrome: Chrome =
+    shootSurfaceEnabled && surface === "shoot"
+      ? {
+          toolbar: "minimal",
+          viewSwitcher: false,
+          quickAdd: true,
+          statusControl: "tap-row",
+        }
+      : {
+          toolbar: "full",
+          viewSwitcher: offMobile,
+          quickAdd: true,
+          statusControl: device === "mobile" ? "tap-row" : "badge-select",
+        }
 
   return { surface, viewMode, groupKey, viewSource, affordances, chrome }
 }

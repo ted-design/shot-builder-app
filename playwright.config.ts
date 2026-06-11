@@ -41,6 +41,15 @@ export default defineConfig({
     '**/e2e/richtext-bubble.spec.ts', // snapshot/visual baselines
     // diagnose-sticky.spec.js DELETED 2026-06-06 — dead ad-hoc diagnostic scratch
     // (no assertions); removed rather than quarantined. See tests/QUARANTINE.md.
+    // shoot-shell.spec.ts — NOT a quarantine, a build-flag LANE GATE (see
+    // tests/QUARANTINE.md "Shoot-shell flag-ON lane", added 2026-06-11): the
+    // 5e-II Shoot shell only exists in a VITE_SHOOT_SURFACE=1 bundle, so the
+    // spec is excluded from the flag-OFF default run (where it could only
+    // false-fail) and ui-checks runs it on EVERY PR in its own lane — a
+    // rebuild with the flag + a targeted run with SHOOT_SURFACE_E2E=1, which
+    // lifts this exclusion. Fold it into the default run when the
+    // featureShootSurface default flips ON at flag removal.
+    ...(process.env.SHOOT_SURFACE_E2E ? [] : ['**/shoot-shell.spec.ts']),
   ],
 
   // Global setup to seed test users in Firebase emulator (required for CI)

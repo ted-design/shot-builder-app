@@ -407,6 +407,104 @@ describe("TalentPicker", () => {
     expect(onSave).toHaveBeenCalledWith(["t-none"])
   })
 
+  it("(11) concurrent bursts: a stale failed save A never clobbers a newer burst B (and fires no revert-toast)", async () => {
+    mockEntries = []
+    // Controllable deferreds — burst A stays in flight while burst B commits.
+    const deferred: Array<{
+      resolve: (v: boolean) => void
+      reject: (e: unknown) => void
+    }> = []
+    const onSave = vi.fn(
+      () =>
+        new Promise<boolean>((resolve, reject) => {
+          deferred.push({ resolve, reject })
+        }),
+    )
+    renderPicker({ onSave })
+    await openPicker()
+
+    vi.useFakeTimers()
+    // Burst A: toggle Bella, let the debounce flush — save A in flight.
+    fireEvent.click(itemFor("Booked Bella"))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenLastCalledWith(["t-booked"])
+
+    // Burst B while A is still unsettled: add Harry, flush.
+    fireEvent.click(itemFor("Hold Harry"))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(onSave).toHaveBeenCalledTimes(2)
+    expect(onSave).toHaveBeenLastCalledWith(["t-booked", "t-hold"])
+
+    // Stale A rejects AFTER B committed — its revert closure captured a
+    // 'previous' of [] and must no-op instead of clobbering B.
+    await act(async () => {
+      deferred[0]!.reject(new Error("boom"))
+      await Promise.resolve()
+    })
+
+    expect(itemFor("Booked Bella").getAttribute("aria-checked")).toBe("true")
+    expect(itemFor("Hold Harry").getAttribute("aria-checked")).toBe("true")
+    // The stale settlement surfaces NO revert-toast.
+    expect(toast.error).not.toHaveBeenCalled()
+
+    // B settles successfully — selection stays intact.
+    await act(async () => {
+      deferred[1]!.resolve(true)
+      await Promise.resolve()
+    })
+    expect(itemFor("Booked Bella").getAttribute("aria-checked")).toBe("true")
+    expect(itemFor("Hold Harry").getAttribute("aria-checked")).toBe("true")
+  })
+
+  it("(11b) concurrent bursts: a stale save resolving false no-ops silently — only the LATEST burst may revert", async () => {
+    mockEntries = []
+    const deferred: Array<{
+      resolve: (v: boolean) => void
+      reject: (e: unknown) => void
+    }> = []
+    const onSave = vi.fn(
+      () =>
+        new Promise<boolean>((resolve, reject) => {
+          deferred.push({ resolve, reject })
+        }),
+    )
+    renderPicker({ onSave })
+    await openPicker()
+
+    vi.useFakeTimers()
+    fireEvent.click(itemFor("Booked Bella"))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
+    fireEvent.click(itemFor("Hold Harry"))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(onSave).toHaveBeenCalledTimes(2)
+
+    // Stale A settles with the parent-toasted `false` — must not revert B.
+    await act(async () => {
+      deferred[0]!.resolve(false)
+      await Promise.resolve()
+    })
+    expect(itemFor("Booked Bella").getAttribute("aria-checked")).toBe("true")
+    expect(itemFor("Hold Harry").getAttribute("aria-checked")).toBe("true")
+
+    // The LATEST burst rejecting still reverts (to A's saved value) + toasts.
+    await act(async () => {
+      deferred[1]!.reject(new Error("boom"))
+      await Promise.resolve()
+    })
+    expect(itemFor("Booked Bella").getAttribute("aria-checked")).toBe("true")
+    expect(itemFor("Hold Harry").getAttribute("aria-checked")).toBe("false")
+    expect(toast.error).toHaveBeenCalledTimes(1)
+  })
+
   it("(10) Escape inside the open picker never propagates to window — the page's Escape -> navigate(-1) shortcut must not fire", async () => {
     const onSave = vi.fn().mockResolvedValue(true)
     renderPicker({ onSave })
