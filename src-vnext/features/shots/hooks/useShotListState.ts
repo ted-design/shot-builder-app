@@ -302,6 +302,11 @@ export function useShotListState(params: {
     }
   }, [surfaceResolverEnabled, storageKeyBase])
 
+  // 5e-II: resolveSurface's explicit flag input — same flag read as
+  // useResolvedSurface. Flips only affordances/chrome (unconsumed here);
+  // viewMode/groupKey/surface/viewSource are flag-independent.
+  const shootSurfaceEnabled = isFeatureEnabled("featureShootSurface")
+
   // Resolution is a pure derivation — zero setSearchParams / localStorage
   // writes. Gated on surfaceContext (null while auth loads — no viewer-flash).
   const resolved = useMemo(() => {
@@ -312,8 +317,9 @@ export function useShotListState(params: {
       urlView: viewParam,
       urlGroup: groupParam,
       storedView: storedExplicitView,
+      shootSurfaceEnabled,
     })
-  }, [surfaceResolverEnabled, surfaceContext, viewParam, groupParam, storedExplicitView])
+  }, [surfaceResolverEnabled, surfaceContext, viewParam, groupParam, storedExplicitView, shootSurfaceEnabled])
 
   // -- Derived view/group --
   // Legacy (flag-off) resolution. Byte-identical to pre-Phase-4 trunk —

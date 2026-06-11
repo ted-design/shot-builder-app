@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { resolveSurface } from "@/features/shots/lib/resolveSurface"
 import type {
   Affordances,
@@ -14,10 +15,12 @@ import type {
 // resolveSurface (the detail page does no surface resolution of its own; the
 // list page keeps its url/stored view path through useShotListState).
 //
-// NOT flag-gated, by design: resolveSurface is pure and the 5e-I affordances
-// values are pure device derivations identical to today's `!isMobile` gates,
-// so always-on is zero-delta. featureShootSurface changes the VALUES at
-// 5e-II; featureSurfaceResolver gates only the list's viewMode/groupKey
+// NOT flag-gated, by design: resolveSurface is pure and the flag-off
+// affordances values are pure device derivations identical to today's
+// `!isMobile` gates, so always-on is zero-delta. featureShootSurface changes
+// the VALUES (5e-II): it is read here and passed as resolveSurface's explicit
+// `shootSurfaceEnabled` input — flag OFF keeps every output byte-identical to
+// 5e-I. featureSurfaceResolver gates only the list's viewMode/groupKey
 // substitution (inside useShotListState) — untouched here.
 //
 // Output stays presentation-only (resolveSurface header law): consumers
@@ -48,6 +51,11 @@ export function useResolvedSurface(): UseResolvedSurfaceResult {
   // Same 3-valued derivation as ShotListPage's surfaceDevice.
   const device: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
 
+  // 5e-II: the flag flips resolver VALUES (affordances device-term drop +
+  // shoot chrome). Read here, passed explicitly — same flag read as
+  // useShotListState's resolveSurface call site.
+  const shootSurfaceEnabled = isFeatureEnabled("featureShootSurface")
+
   // Never resolve from the global-role guess: while the first member-doc read
   // is in flight (or auth is settling) return no affordances, mirroring the
   // existing render-nothing-while-resolving discipline.
@@ -64,7 +72,8 @@ export function useResolvedSurface(): UseResolvedSurfaceResult {
       urlView: null,
       urlGroup: null,
       storedView: null,
+      shootSurfaceEnabled,
     })
     return { surface, affordances, chrome, resolving: false }
-  }, [resolving, role, device])
+  }, [resolving, role, device, shootSurfaceEnabled])
 }
