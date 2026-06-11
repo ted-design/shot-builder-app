@@ -13,8 +13,44 @@ export type SurfaceKind = "plan-build" | "shoot" | "review-client" | "review-war
 /** Provenance of the resolved viewMode/groupKey. */
 export type ViewSource = "url" | "stored" | "surface-default" | "device-forced"
 
-// affordances / chrome / columns deliberately absent: nothing consumes them in Phase 4
-// (CLAUDE.md no-stubs rule); 5e/5f/6 add each slot when its first consumer lands.
+// columns deliberately absent: nothing consumes it before Phase 6 (CLAUDE.md no-stubs rule).
+
+/**
+ * Presentation-only by construction (header law carries verbatim): each field
+ * replaces ONLY the device term of an existing consumer gate — the rbac/
+ * global-claim term stays at the consumer. No can-* or write handler may
+ * consume these as a role source.
+ */
+export interface Affordances {
+  /** → ShotDetailPageUnified canEdit's !isMobile term. */
+  readonly fieldEditing: boolean
+  /** → ShotDetailPageUnified + ShotListPage canManageLifecycle device terms. */
+  readonly lifecycle: boolean
+  /** → ShotDetailPageUnified canUploadShotImages device term ONLY — role term stays GLOBAL-pinned. */
+  readonly imageUpload: boolean
+  /** → ShotDetailPageUnified's inline share !isMobile — role term stays global-pinned. */
+  readonly share: boolean
+  /** → ShotDetailPageUnified canExport + ShotListPage canExport — stays ROLE-FREE (locked). */
+  readonly export: boolean
+  /** → ShotListPage canBulkPull device term. */
+  readonly bulkPull: boolean
+  /** → ShotListPage canRepair device term. */
+  readonly repair: boolean
+  /** → ShotVersionHistorySection's INTERNAL isMobile kill-switch (own hook, outside the page capability block). */
+  readonly versionRestore: boolean
+}
+
+/** Shell chrome decisions — same presentation-only law as Affordances. */
+export interface Chrome {
+  /** → ShotListToolbar mount in ShotListPage. */
+  readonly toolbar: "full" | "minimal" | "none"
+  /** → ShotListToolbar card/table toggle. */
+  readonly viewSwitcher: boolean
+  /** → showCreate button + the FAB ?create=1 consume path in ShotListPage. */
+  readonly quickAdd: boolean
+  /** → the desktop-select-vs-mobile-tap-row fork in ShotDetailPageUnified. */
+  readonly statusControl: "tap-row" | "badge-select"
+}
 
 export interface ResolveSurfaceInput {
   /** Already-resolved role. Opaque — see header comment (5b upgrades source). */
@@ -34,6 +70,8 @@ export interface ResolvedSurface {
   readonly viewMode: ViewMode
   readonly groupKey: GroupKey
   readonly viewSource: ViewSource
+  readonly affordances: Affordances
+  readonly chrome: Chrome
 }
 
 // ---------------------------------------------------------------------------
@@ -115,5 +153,30 @@ export function resolveSurface(input: ResolveSurfaceInput): ResolvedSurface {
   const groupKey: GroupKey = isMobile ? "none" : preForcingGroup
   const viewSource: ViewSource = forcingChangedOutcome ? "device-forced" : preForcingSource
 
-  return { surface, viewMode, groupKey, viewSource }
+  // Affordances/chrome — derived from surface + device ONLY. At 5e-I every
+  // value reproduces TODAY'S device gate, deliberately surface-INDEPENDENT so
+  // rewired consumers are zero-delta; 5e-II reshapes these for
+  // surface === 'shoot' behind featureShootSurface. The one named sub-delta:
+  // `export` keys to desktop, not !mobile — the export route's RequireDesktop
+  // needs ≥1024px, so today's 768-1023 tablet Export button dead-ends in a
+  // toast+redirect.
+  const offMobile = device !== "mobile"
+  const affordances: Affordances = {
+    fieldEditing: offMobile,
+    lifecycle: offMobile,
+    imageUpload: offMobile,
+    share: offMobile,
+    export: device === "desktop",
+    bulkPull: offMobile,
+    repair: offMobile,
+    versionRestore: offMobile,
+  }
+  const chrome: Chrome = {
+    toolbar: "full",
+    viewSwitcher: offMobile,
+    quickAdd: true,
+    statusControl: device === "mobile" ? "tap-row" : "badge-select",
+  }
+
+  return { surface, viewMode, groupKey, viewSource, affordances, chrome }
 }

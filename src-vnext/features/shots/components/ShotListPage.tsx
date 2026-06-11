@@ -15,6 +15,7 @@ import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
 import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
+import { useResolvedSurface } from "@/features/shots/hooks/useResolvedSurface"
 import type { SurfaceDevice } from "@/features/shots/lib/resolveSurface"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
@@ -60,6 +61,10 @@ export default function ShotListPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const isDesktop = useIsDesktop()
+  // 5e-I: resolved-surface affordances replace ONLY the device terms of the
+  // flags below (resolveSurface output is presentation-only by law) — every
+  // role/rbac term stays here. null while auth/role resolve.
+  const { affordances } = useResolvedSurface()
   const { data: talentRecords } = useTalent()
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
@@ -118,8 +123,8 @@ export default function ShotListPage() {
   // hardened /shots (firestore.rules:435-472, ['producer','crew'] arms).
   const showCreate = !roleResolving && canManageShots(role)
   const canReorder = !roleResolving && canManageShots(role)
-  const canBulkPull = !roleResolving && canGeneratePulls(role) && !isMobile
-  const canRepair = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  const canBulkPull = !roleResolving && canGeneratePulls(role) && (affordances?.bulkPull ?? !isMobile)
+  const canRepair = !roleResolving && (role === "admin" || role === "producer") && (affordances?.repair ?? !isMobile)
   // PINNED to the GLOBAL claim: /shotShares create requires a global producer
   // claim (firestore.rules:193-204) — the backend cannot see a project
   // promotion, so the UI must not advertise Share from the effective role.
@@ -128,8 +133,14 @@ export default function ShotListPage() {
   // backend rules (exportTemplates firestore.rules:641-651, exportReports
   // :868-877) don't gate this affordance; the per-share export toggle is 5f.
   // Do not add an effective-role (or any role) source here.
-  const canExport = !isMobile
-  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  // 5e-I: now DESKTOP-keyed (affordances.export), matching the export route's
+  // RequireDesktop (≥1024px) — the named tablet fix: today's 768-1023px Export
+  // button dead-ends in RequireDesktop's toast+redirect. With no role term to
+  // wait on, falling back to `isDesktop` while affordances resolve keeps
+  // Export rendered immediately on desktop (no flash-of-missing) and hidden
+  // on tablet/mobile throughout — same device keying, pinned in tests.
+  const canExport = affordances?.export ?? isDesktop
+  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && (affordances?.lifecycle ?? !isMobile)
   // Scene/lane writes (edit, delete, ungroup) consolidate on canEditScene
   // (rbac.ts), which mirrors the /lanes rule (firestore.rules:880-882,
   // :901-904 — already project-aware). Crew users see the scene grouping UI

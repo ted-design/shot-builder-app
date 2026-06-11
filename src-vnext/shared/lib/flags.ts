@@ -16,18 +16,34 @@ export interface FeatureFlags {
   readonly featurePublishing: boolean
   /**
    * Phase 4 — resolveSurface job-default resolution in useShotListState.
-   * Default OFF (flag-off path is byte-identical to pre-Phase-4 trunk).
-   * Enabled ONLY via `VITE_SURFACE_RESOLVER=1` (or `true`) at build/dev time
-   * (LoginPage VITE_USE_FIREBASE_EMULATORS precedent) — e.g. the :5174
-   * eyeball runs `VITE_SURFACE_RESOLVER=1 npm run dev -- --port 5174`.
-   * CI build env must never define it. No URL/localStorage override layer.
+   * Default flipped to ON at 5e-I (was OFF since Phase 4). The ONE named,
+   * accepted behavior change of the flip: never-customized producers on
+   * tablet/desktop land on the plan-build 'table' surface default instead of
+   * 'card'. Everyone else is byte-identical (URL/stored choices still win;
+   * crew/warehouse/viewer resolution is inert vs legacy).
+   * `VITE_SURFACE_RESOLVER` is kept as the enable-only override hook
+   * (LoginPage VITE_USE_FIREBASE_EMULATORS precedent) — inert while the
+   * default is true; retire it at flag removal. No URL/localStorage
+   * override layer.
    */
   readonly featureSurfaceResolver: boolean
+  /**
+   * Phase 5e — the Shoot surface. Gates ALL Phase 5e behavior: the Shoot
+   * shell render, the `!isMobile` capability removals, and the View-as menu.
+   * Structurally requires resolver output — the shell mounts only off a
+   * resolved `surface === 'shoot'`, never off this flag alone.
+   * Default OFF (flag-off path is byte-identical to 5e-I trunk). Enabled
+   * ONLY via `VITE_SHOOT_SURFACE=1` (or `true`) at build/dev time
+   * (featureSurfaceResolver env-parse precedent). CI build env must never
+   * define it. No URL/localStorage override layer.
+   */
+  readonly featureShootSurface: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
   featurePublishing: false,
-  featureSurfaceResolver: false,
+  featureSurfaceResolver: true,
+  featureShootSurface: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -50,6 +66,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureSurfaceResolver:
       DEFAULT_FLAGS.featureSurfaceResolver ||
       parseEnvFlag(import.meta.env.VITE_SURFACE_RESOLVER),
+    featureShootSurface:
+      DEFAULT_FLAGS.featureShootSurface ||
+      parseEnvFlag(import.meta.env.VITE_SHOOT_SURFACE),
   }
 }
 

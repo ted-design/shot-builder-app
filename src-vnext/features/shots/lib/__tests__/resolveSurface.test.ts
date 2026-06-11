@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest"
 import {
   resolveSurface,
+  type Affordances,
+  type Chrome,
   type ResolveSurfaceInput,
   type SurfaceDevice,
   type SurfaceKind,
@@ -200,6 +202,75 @@ describe("resolveSurface — provenance (viewSource)", () => {
     expect(out.viewMode).toBe("table")
     expect(out.groupKey).toBe("status")
     expect(out.viewSource).toBe("url")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Affordances / chrome — 5e-I characterization table (build spec §The API).
+// Every value reproduces TODAY'S device gate at the consumer; the ONE named
+// sub-delta is `export` keying to desktop (the 768-1023 tablet Export button
+// dead-ends in RequireDesktop's toast+redirect today). Values are deliberately
+// surface-INDEPENDENT at 5e-I — asserted across every role per device.
+// ---------------------------------------------------------------------------
+
+const EXPECTED_AFFORDANCES: Record<SurfaceDevice, Affordances> = {
+  mobile: {
+    fieldEditing: false,
+    lifecycle: false,
+    imageUpload: false,
+    share: false,
+    export: false,
+    bulkPull: false,
+    repair: false,
+    versionRestore: false,
+  },
+  tablet: {
+    fieldEditing: true,
+    lifecycle: true,
+    imageUpload: true,
+    share: true,
+    export: false, // the named sub-delta: tablet loses the dead-end Export button
+    bulkPull: true,
+    repair: true,
+    versionRestore: true,
+  },
+  desktop: {
+    fieldEditing: true,
+    lifecycle: true,
+    imageUpload: true,
+    share: true,
+    export: true,
+    bulkPull: true,
+    repair: true,
+    versionRestore: true,
+  },
+}
+
+const EXPECTED_CHROME: Record<SurfaceDevice, Chrome> = {
+  mobile: { toolbar: "full", viewSwitcher: false, quickAdd: true, statusControl: "tap-row" },
+  tablet: { toolbar: "full", viewSwitcher: true, quickAdd: true, statusControl: "badge-select" },
+  desktop: { toolbar: "full", viewSwitcher: true, quickAdd: true, statusControl: "badge-select" },
+}
+
+describe("resolveSurface — affordances/chrome role × device matrix (5e-I characterization)", () => {
+  for (const role of ROLES) {
+    for (const device of DEVICES) {
+      it(`role=${role} device=${device} → today's device gates (export desktop-keyed)`, () => {
+        const out = resolveSurface(input({ effectiveRole: role, device }))
+        expect(out.affordances).toEqual(EXPECTED_AFFORDANCES[device])
+        expect(out.chrome).toEqual(EXPECTED_CHROME[device])
+      })
+    }
+  }
+
+  it("derives from surface + device only: url/stored/group inputs never alter affordances or chrome", () => {
+    for (const device of DEVICES) {
+      const noisy = resolveSurface(
+        input({ effectiveRole: "producer", device, urlView: "table", urlGroup: "status", storedView: "card" }),
+      )
+      expect(noisy.affordances).toEqual(EXPECTED_AFFORDANCES[device])
+      expect(noisy.chrome).toEqual(EXPECTED_CHROME[device])
+    }
   })
 })
 

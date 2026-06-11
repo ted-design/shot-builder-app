@@ -43,10 +43,32 @@ vi.mock("@/app/providers/ProjectScopeProvider", () => ({
   useOptionalProjectScope: () => ({ projectId: "p1", projectName: "Project 1" }),
 }))
 
-vi.mock("@/shared/hooks/useMediaQuery", () => ({
-  useIsMobile: () => false,
-  useIsDesktop: () => false,
+// Device state. Default (both false) is TABLET (768-1023px) — the historical
+// shape of this file. Flip isDesktop for the desktop-keyed export pins below.
+const mediaState = vi.hoisted(() => ({
+  isMobile: false,
+  isDesktop: false,
 }))
+
+vi.mock("@/shared/hooks/useMediaQuery", () => ({
+  useIsMobile: () => mediaState.isMobile,
+  useIsDesktop: () => mediaState.isDesktop,
+}))
+
+// 5e-I flag-flip audit: this file pins the LEGACY (flag-off) card-grid
+// default rendering and silently relied on featureSurfaceResolver defaulting
+// false. The default flipped to true at 5e-I (never-customized producers
+// resolve the table surface default), so the flag is pinned OFF explicitly
+// here — the flag-ON resolution path is owned by
+// useShotListState.resolver.test.tsx.
+vi.mock("@/shared/lib/flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/lib/flags")>()
+  return {
+    ...actual,
+    isFeatureEnabled: (flag: keyof import("@/shared/lib/flags").FeatureFlags) =>
+      flag === "featureSurfaceResolver" ? false : actual.isFeatureEnabled(flag),
+  }
+})
 
 vi.mock("@/features/shots/components/ShotStatusSelect", () => ({
   ShotStatusSelect: ({ currentStatus }: { readonly currentStatus: string }) => (
@@ -112,6 +134,8 @@ describe("ShotListPage", () => {
     window.localStorage.clear()
     effectiveState.role = null
     effectiveState.resolving = false
+    mediaState.isMobile = false
+    mediaState.isDesktop = false
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -658,6 +682,40 @@ describe("ShotListPage", () => {
     expect(screen.getByTestId("effective-role-chip")).toHaveTextContent(
       "Viewer on this project",
     )
+  })
+
+  // ── 5e-I export device keying (the one named sub-delta) ──────────────────
+
+  it("hides Export on tablet (768-1023px) — affordances.export keys to desktop, matching the route's RequireDesktop", () => {
+    // Default mediaState is tablet. Before 5e-I this button rendered (canExport
+    // was !isMobile) and dead-ended in RequireDesktop's toast+redirect.
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument()
+    // Control: the actions row itself rendered (Share is device-free).
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument()
+  })
+
+  it("shows Export on desktop immediately, even while the effective role resolves (no flash-of-missing)", () => {
+    // canExport has NO role term (locked) — while affordances are null during
+    // the first member read it falls back to the same desktop keying.
+    mediaState.isDesktop = true
+    effectiveState.resolving = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
   })
 
   it("renders note URLs as clickable links", () => {

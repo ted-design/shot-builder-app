@@ -29,6 +29,7 @@ import { ShotReferenceLinksSection } from "@/features/shots/components/ShotRefer
 import { SceneContextBanner } from "@/features/shots/components/SceneContextBanner"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { ShotDetailSidebar } from "@/features/shots/components/ShotDetailSidebar"
+import { ProductColorwayStrip } from "@/features/shots/components/ProductColorwayStrip"
 import { ShotDetailQuickAdd } from "@/features/shots/components/ShotDetailQuickAdd"
 import { readShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
@@ -39,7 +40,8 @@ import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
 import { canEditScene as canEditSceneForRole, canManageShots } from "@/shared/lib/rbac"
 import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
-import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
+import { useResolvedSurface } from "@/features/shots/hooks/useResolvedSurface"
 import { textPreview } from "@/shared/lib/textPreview"
 import {
   SectionLabel,
@@ -55,7 +57,6 @@ import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
 import { ActiveEditorsBar } from "@/features/shots/components/ActiveEditorsBar"
 import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
-import type { ShotLook } from "@/shared/types"
 
 // ---------------------------------------------------------------------------
 // Meta line segment (one editorial line replacing the three MetaEditorCards)
@@ -89,93 +90,6 @@ function MetaDot() {
 }
 
 // ---------------------------------------------------------------------------
-// Product colorway strip — pure-text typographic centerpiece (read-only; writes stay in the right rail).
-// ---------------------------------------------------------------------------
-
-function ProductColorwayStrip({
-  looks,
-  activeLookId,
-}: {
-  readonly looks: ReadonlyArray<ShotLook>
-  readonly activeLookId: string | null | undefined
-}) {
-  const sorted = [...looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const productCount = sorted.reduce((acc, l) => acc + (l.products?.length ?? 0), 0)
-  const resolvedActiveId =
-    activeLookId && sorted.some((l) => l.id === activeLookId)
-      ? activeLookId
-      : sorted.length > 0
-        ? sorted[0]!.id
-        : null
-
-  return (
-    <section
-      className="border-t border-[var(--color-border)] pt-4"
-      data-testid="product-colorway-strip"
-    >
-      <div className="flex items-baseline gap-2">
-        <SectionLabel>Products</SectionLabel>
-        {sorted.length > 0 && (
-          <span className="text-2xs text-[var(--color-text-subtle)]">
-            {productCount} {productCount === 1 ? "item" : "items"} &middot; {sorted.length}{" "}
-            {sorted.length === 1 ? "look" : "looks"}
-          </span>
-        )}
-      </div>
-
-      {sorted.length === 0 ? (
-        <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-          No products yet. Add a look in the rail.
-        </p>
-      ) : (
-        sorted.map((look) => (
-          <div key={look.id} className="mt-3 first-of-type:mt-2">
-            <p className="label-meta">
-              {look.label || "Look"}
-              {look.id === resolvedActiveId ? <> &middot; Active</> : null}
-            </p>
-            {(look.products ?? []).length === 0 ? (
-              <p className="py-1 text-sm text-[var(--color-text-muted)]">
-                No products in this look.
-              </p>
-            ) : (
-              (look.products ?? []).map((p, i) => (
-                <div
-                  key={`${p.familyId}-${p.colourId ?? p.skuId ?? ""}-${i}`}
-                  className="flex flex-wrap items-baseline gap-x-2.5 py-1"
-                >
-                  <span className="text-base font-semibold text-[var(--color-text)]">
-                    {p.familyName ?? p.familyId}
-                  </span>
-                  {(p.colourName || p.size) && (
-                    <span className="text-sm text-[var(--color-text-secondary)]">
-                      {p.colourName && (
-                        <>
-                          &middot;{" "}
-                          <span className="font-semibold text-[var(--color-text)]">
-                            {p.colourName}
-                          </span>
-                        </>
-                      )}
-                      {p.size && <> &middot; {p.size}</>}
-                    </span>
-                  )}
-                  {p.skuName && (
-                    <span className="ml-auto text-2xs tabular-nums text-[var(--color-text-subtle)]">
-                      {p.skuName}
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        ))
-      )}
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -191,26 +105,45 @@ export function ShotDetailPageUnified() {
   const { role, resolving: roleResolving } = useEffectiveRole()
   const { projectName } = useProjectScope()
 
-  // ONE device-authority read feeding named capability booleans. The rules
-  // backstop shipped at 5b-I — mobile edit enablement is now Phase 5e's job
-  // (mobile-crew edit / Shoot surface). Do NOT remove !isMobile here; 5e
-  // removes it deliberately behind its own surface gating.
+  // ONE device-authority read feeding named capability booleans — the device
+  // terms flow through resolveSurface's affordances since 5e-I, reproducing
+  // today's `!isMobile` values exactly. The VALUE flips (mobile-crew edit /
+  // Shoot surface) happen at 5e-II behind featureShootSurface. The resolver
+  // output stays presentation-only: each affordance replaces ONLY the device
+  // term of its gate — the role/global-claim terms stay HERE.
   // Backing rule for the shot writes below: hardened /shots
   // (firestore.rules:435-472, ['producer','crew'] arms).
+  //
+  // affordances are null while resolving (first uncached member read / auth
+  // settling) — every gate must keep TODAY'S value through that gap: the
+  // role-gated flags already collapse via !roleResolving, but the role-free/
+  // global-pinned ones (export, share, upload, status control) stay live, so
+  // their device terms fall back to the raw device reads.
   const isMobile = useIsMobile()
-  const canEdit = !roleResolving && canManageShots(role) && !isMobile
+  const isDesktop = useIsDesktop()
+  const { affordances, chrome } = useResolvedSurface()
+  const canEdit =
+    !roleResolving && canManageShots(role) && (affordances?.fieldEditing ?? !isMobile)
   const canDoOperational = !roleResolving && canManageShots(role)
-  const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && !isMobile
+  const canManageLifecycle =
+    !roleResolving &&
+    (role === "admin" || role === "producer") &&
+    (affordances?.lifecycle ?? !isMobile)
   // PINNED to the GLOBAL claim: storage.rules sees only the auth token
   // (isProducerOrWardrobe, storage.rules:15-25 — no cross-service
   // firestore.get()), so a project-promoted crew still cannot upload and the
   // UI must not advertise it from the effective role.
-  const canUploadShotImages = (globalRole === "admin" || globalRole === "producer") && !isMobile
+  const canUploadShotImages =
+    (globalRole === "admin" || globalRole === "producer") &&
+    (affordances?.imageUpload ?? !isMobile)
   // NO role gate, by locked decision: export is device-only. The export
   // backend rules (exportTemplates firestore.rules:641-651, exportReports
   // :868-877) don't gate this affordance; the per-share export toggle is 5f.
   // Do not add an effective-role (or any role) source here.
-  const canExport = !isMobile
+  // 5e-I named sub-delta: affordances.export keys to device === 'desktop' —
+  // the export route's RequireDesktop needs ≥1024px, so today's 768-1023
+  // tablet button dead-ended in a toast+redirect. Fallback matches.
+  const canExport = affordances?.export ?? isDesktop
   // PINNED to the GLOBAL claim: /shotShares create requires a global producer
   // claim (firestore.rules:193-204) — backend can't see a project promotion.
   const canShare = globalRole === "admin" || globalRole === "producer"
@@ -219,6 +152,9 @@ export function ShotDetailPageUnified() {
   // /lanes rule (firestore.rules:880-882, :901-904 — already project-aware;
   // warehouse keeps lane-write until 5f per locked Q3).
   const canEditScene = !roleResolving && canEditSceneForRole(role)
+  // Status-control fork keyed off chrome (5e-I): 'tap-row' iff mobile —
+  // zero delta vs the old isMobile ternary; 5e-II reshapes it per surface.
+  const statusControl = chrome?.statusControl ?? (isMobile ? "tap-row" : "badge-select")
 
   const [shareOpen, setShareOpen] = useState(false)
   const [sceneSheetOpen, setSceneSheetOpen] = useState(false)
@@ -441,7 +377,7 @@ export function ShotDetailPageUnified() {
                 Export
               </Button>
             )}
-            {canShare && !isMobile && (
+            {canShare && (affordances?.share ?? !isMobile) && (
               <Button variant="outline" onClick={() => setShareOpen(true)}>
                 Share
               </Button>
@@ -466,7 +402,7 @@ export function ShotDetailPageUnified() {
                 shot.shotNumber && <span>#{shot.shotNumber}</span>
               )}
             </span>
-            {!isMobile && (
+            {statusControl === "badge-select" && (
               <ShotStatusSelect
                 shotId={shot.id}
                 currentStatus={shot.status}
@@ -498,7 +434,7 @@ export function ShotDetailPageUnified() {
           </div>
 
           {/* Mobile: full-width status tap row (today's behavior, unchanged) */}
-          {isMobile && canDoOperational && <ShotStatusTapRow shot={shot} />}
+          {statusControl === "tap-row" && canDoOperational && <ShotStatusTapRow shot={shot} />}
         </header>
 
         {/* ── Scene context banner ── */}
