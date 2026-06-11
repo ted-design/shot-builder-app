@@ -213,7 +213,7 @@ export default function ShotListPage() {
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
-    displayShots, insights, hasActiveFilters, hasActiveGrouping,
+    displayShots, unfilteredSortedShots, insights, hasActiveFilters, hasActiveGrouping,
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
   } = useShotListState({
@@ -235,12 +235,15 @@ export default function ShotListPage() {
   // producer, firestore.rules:107-114; mapShot defaults missing projectId to
   // '') — the Shoot shell filters them out rather than advertise a
   // guaranteed permission-denied tap. Existing deep-links render read-only
-  // in ShootShotDetail; the backfill migration is a later Ted-gated task. --
+  // in ShootShotDetail; the backfill migration is a later Ted-gated task.
+  // Derived from the UNFILTERED order (Codex #442 P2): the shell renders no
+  // filter controls, so a lingering deep-link filter (?status=…/?q=…) must
+  // never silently subset the on-set list (locked Decision G: full list). --
   const shootShots = useMemo(
-    () => displayShots.filter((s) => s.projectId !== ""),
-    [displayShots],
+    () => unfilteredSortedShots.filter((s) => s.projectId !== ""),
+    [unfilteredSortedShots],
   )
-  const hiddenLegacyCount = displayShots.length - shootShots.length
+  const hiddenLegacyCount = unfilteredSortedShots.length - shootShots.length
 
   // Shell taps reuse the handleShotClick contract but snapshot the FILTERED
   // order — the detail shell's prev/next + [ / ] keys must never land on a

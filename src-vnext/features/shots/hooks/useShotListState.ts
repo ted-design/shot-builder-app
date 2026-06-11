@@ -104,6 +104,11 @@ export type ShotListState = {
   readonly setFields: (fields: ShotsListFields) => void
   // Computed
   readonly displayShots: ReadonlyArray<Shot>
+  /** Alive shots in display sort order with NO condition/query filtering.
+   *  The Shoot shell list (5e-II) derives from this: a lingering deep-link
+   *  filter (?status=…/?q=…) must never silently subset the on-set list,
+   *  which renders no filter controls to explain or clear it. */
+  readonly unfilteredSortedShots: ReadonlyArray<Shot>
   readonly insights: ReturnType<typeof computeInsights>
   readonly hasActiveFilters: boolean
   readonly hasActiveGrouping: boolean
@@ -534,6 +539,11 @@ export function useShotListState(params: {
     return sortShots(queried, sortKey, sortDir, familyById, skuById)
   }, [shots, reorderOptimistic, conditions, queryParam, sortKey, sortDir, familyById, skuById])
 
+  const unfilteredSortedShots = useMemo(() => {
+    const alive = (reorderOptimistic ?? shots).filter((s) => s.deleted !== true)
+    return sortShots(alive, sortKey, sortDir, familyById, skuById)
+  }, [shots, reorderOptimistic, sortKey, sortDir, familyById, skuById])
+
   const hasActiveFilters = conditions.length > 0 || queryParam.trim().length > 0
 
   const hasActiveGrouping = groupKey !== "none"
@@ -632,7 +642,7 @@ export function useShotListState(params: {
     setTalentFilter, setLocationFilter, setProductFilter,
     clearFilters, clearQuery,
     fields, setFields,
-    displayShots, insights, hasActiveFilters, hasActiveGrouping,
+    displayShots, unfilteredSortedShots, insights, hasActiveFilters, hasActiveGrouping,
     shotGroups, activeFilterBadges, tagOptions,
     storageKeyBase,
     surface: resolved?.surface,

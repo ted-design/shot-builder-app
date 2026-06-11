@@ -296,6 +296,20 @@ describe("ShootShotList (the 5e-II Shoot list shell)", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
   })
 
+  it("ignores lingering deep-link filters: a ?status subset never hides shell rows (Codex #442 P2; Decision G full list)", () => {
+    mockShots(FIXTURE)
+
+    // Under the producer surface this filter would subset to the one todo
+    // shot; the shell renders no filter controls, so it must show all three.
+    renderPage("/projects/p1/shots?filters=" + encodeURIComponent("status.in:todo"))
+
+    const rows = screen.getAllByTestId("shoot-shot-row")
+    expect(rows).toHaveLength(3)
+    expect(screen.getByText("Alpha")).toBeInTheDocument()
+    expect(screen.getByText("Bravo")).toBeInTheDocument()
+    expect(screen.getByText("Charlie")).toBeInTheDocument()
+  })
+
   it("producer + flag ON: no shell — plan-build keeps the card/table surface", () => {
     authState.role = "producer"
     deviceState.device = "desktop"
