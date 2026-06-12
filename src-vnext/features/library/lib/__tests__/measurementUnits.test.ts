@@ -103,3 +103,12 @@ describe("formatMeasurement — unparseable returns raw, no throw", () => {
     expect(formatMeasurement("waist", undefined, { system: "imperial" })).toBe("")
   })
 })
+
+describe("formatMeasurement — unknown key passthrough (no invented unit)", () => {
+  it("returns the raw value unchanged for a non-standard key in both systems", () => {
+    // Must NOT append a unit / convert — matches the prior String(raw) behavior.
+    expect(formatMeasurement("neck", "34", { system: "imperial" })).toBe("34")
+    expect(formatMeasurement("neck", "34", { system: "metric" })).toBe("34")
+    expect(formatMeasurement("eyeColor", "blue", { system: "metric" })).toBe("blue")
+  })
+})

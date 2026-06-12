@@ -1,17 +1,5 @@
-/**
- * Display-only measurement unit conversion.
- *
- * Talent measurements are stored as free-form raw strings/numbers in Firestore
- * (e.g. `5'9"`, `34"`, `175cm`, `40R`, `10.5`). This module converts those raw
- * values to a chosen unit system *for display only* — it never mutates or writes
- * stored data.
- *
- * Field classification:
- *   - LINEAR (height + body/garment lengths): stored as inches; height may be ft'in.
- *       imperial → feet'inches" (height) or inches" (other); metric → cm.
- *   - SHOE: stored as a US shoe size number; imperial → "US n", metric → "EU n".
- *   - GARMENT (suit/dress): sizing systems, NOT physical lengths — never converted.
- */
+// Display-only unit conversion for talent measurements (never mutates stored data).
+// LINEAR → inches"/cm (height as ft'in"); SHOE → US/EU; GARMENT (suit/dress) → never converted.
 
 import { normalizeGender } from "./measurementOptions"
 import { parseMeasurementValue } from "./measurementParsing"
@@ -105,7 +93,7 @@ function extrapolateEu(table: Readonly<Record<string, number>>, usSize: number):
   const maxUs = Math.max(...keys)
   if (usSize > maxUs) return roundToHalf(table[stripTrailingZero(maxUs)]! + (usSize - maxUs) * 1.5)
   if (usSize < minUs) return roundToHalf(table[stripTrailingZero(minUs)]! - (minUs - usSize) * 1.5)
-  // In-range half-step not in the (now dense) table — last-resort offset.
+  // Unreachable for whole/half sizes (tables cover every .5 in range); last-resort for odd fractions.
   return roundToHalf(usSize + 33)
 }
 
@@ -158,7 +146,6 @@ export function formatMeasurement(
     return `${stripTrailingZero(parsed)}"`
   }
 
-  // Unknown key: best-effort, treat as plain inches.
-  if (system === "metric") return `${inchesToCm(parsed)} cm`
-  return `${stripTrailingZero(parsed)}"`
+  // Unknown/non-standard key: passthrough (don't invent a unit) — matches the prior String(raw) behavior.
+  return rawStr
 }

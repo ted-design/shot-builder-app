@@ -7,10 +7,7 @@ const OPTIONS: readonly { readonly key: UnitSystem; readonly label: string }[] =
   { key: "metric", label: "Metric" },
 ]
 
-/**
- * Segmented control toggling the global imperial ↔ metric display preference.
- * Display-only: changes how measurements render, never the stored data.
- */
+// Segmented control for the global imperial↔metric display preference (display-only).
 export function MeasurementUnitToggle() {
   const { system, setSystem } = useMeasurementUnits()
 

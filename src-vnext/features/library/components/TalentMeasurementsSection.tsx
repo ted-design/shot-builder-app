@@ -47,8 +47,7 @@ export function TalentMeasurementsSection({
                   const raw = (measurements as Record<string, unknown>)[key]
                   const display = typeof raw === "string" || typeof raw === "number" ? String(raw) : ""
                   const label = MEASUREMENT_LABEL_MAP[key] ?? key
-                  // Display-only converted read-out. The INPUT keeps the RAW
-                  // stored value; only this label reflects the unit toggle.
+                  // Read-out only — the input stays RAW; this label reflects the unit toggle.
                   const converted =
                     display.trim() !== ""
                       ? formatMeasurement(key, display, { system, gender: selected.gender })
