@@ -98,16 +98,50 @@ function countLooksRefs(looks: ReadonlyArray<ShotLook>): number {
   return n
 }
 
-/** Union+dedup two string arrays, preserving first-seen order. */
-function unionStrings(a: ReadonlyArray<string>, b: ReadonlyArray<string>): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const s of [...a, ...b]) {
-    if (seen.has(s)) continue
-    seen.add(s)
-    out.push(s)
+/**
+ * Union talent across two shots, keyed by `talentId` so the `talent` (display
+ * names) and `talentIds` arrays stay in LOCKSTEP. Unioning the two arrays
+ * independently desyncs them when the same id carries a different denormalized
+ * name in each shot (e.g. "Alice" vs "Alice Smith") — names would dedup to 2,
+ * ids to 1. Here each id appears once with the PRIMARY's name (first-seen wins),
+ * and legacy name-only talent (no id) is carried through, name-deduped.
+ */
+function unionTalent(
+  primary: Shot,
+  secondary: Shot,
+): { talent: string[]; talentIds: string[]; talentAdded: number } {
+  const nameById = new Map<string, string>()
+  const orderedIds: string[] = []
+  const nameOnly: string[] = []
+  const seenNameOnly = new Set<string>()
+
+  const add = (names: ReadonlyArray<string>, ids: ReadonlyArray<string>) => {
+    for (let i = 0; i < Math.max(names.length, ids.length); i++) {
+      const id = ids[i]
+      const name = names[i]
+      if (id) {
+        if (!nameById.has(id)) {
+          nameById.set(id, name ?? id)
+          orderedIds.push(id)
+        }
+        // else: id already seen — primary's name wins, don't overwrite.
+      } else if (name && !seenNameOnly.has(name)) {
+        seenNameOnly.add(name)
+        nameOnly.push(name)
+      }
+    }
   }
-  return out
+
+  add(primary.talent ?? [], primary.talentIds ?? [])
+  const primaryIds = new Set(orderedIds)
+  add(secondary.talent ?? [], secondary.talentIds ?? [])
+
+  const talentIds = orderedIds
+  const talent = [...orderedIds.map((id) => nameById.get(id)!), ...nameOnly]
+  const talentAdded = (secondary.talentIds ?? []).filter(
+    (id) => !primaryIds.has(id),
+  ).length
+  return { talent, talentIds, talentAdded }
 }
 
 /**
@@ -145,14 +179,17 @@ export function buildShotMergePlan(args: {
 
     const productIds = new Set(products.map((p) => p.familyId))
     const refIds = new Set(references.map((r) => r.id))
+    // Fall back to `undefined` (not null) when the original id is no longer
+    // valid, so sanitizeForFirestore strips the key rather than writing an
+    // explicit null to a field that may never have existed on the look.
     const heroProductId =
       targetLook.heroProductId && productIds.has(targetLook.heroProductId)
         ? targetLook.heroProductId
-        : null
+        : undefined
     const displayImageId =
       targetLook.displayImageId && refIds.has(targetLook.displayImageId)
         ? targetLook.displayImageId
-        : null
+        : undefined
 
     mergedLooks = [
       {
@@ -194,13 +231,7 @@ export function buildShotMergePlan(args: {
   const rootProductsMirror =
     mergedLooks.find((l) => l.id === activeLookId)?.products ?? []
 
-  const talent = unionStrings(primary.talent ?? [], secondary.talent ?? [])
-  const talentIds = unionStrings(primary.talentIds ?? [], secondary.talentIds ?? [])
-
-  const primaryTalentIdSet = new Set(primary.talentIds ?? [])
-  const talentAdded = (secondary.talentIds ?? []).filter(
-    (id) => !primaryTalentIdSet.has(id),
-  ).length
+  const { talent, talentIds, talentAdded } = unionTalent(primary, secondary)
 
   const referenceLinks = unionReferenceLinks(
     primary.referenceLinks ?? [],
@@ -230,8 +261,10 @@ export function buildShotMergePlan(args: {
   if (heroImage) patch.heroImage = heroImage
 
   // notesAddendum concatenation — NEVER `notes`.
-  // Only build a divider when there is real prose on either side; a divider with
-  // no surrounding content is "nothing to add" → omit the key.
+  // Only touch the field when the SECONDARY contributes prose: otherwise there is
+  // nothing to merge in and the primary's existing addendum should stay as-is (a
+  // divider with nothing after it would be a dangling em-dash). When secondary
+  // has prose, prepend the primary's (if any) + a provenance divider.
   const primaryAddendum =
     typeof primary.notesAddendum === "string" && primary.notesAddendum.trim()
       ? primary.notesAddendum
@@ -240,15 +273,11 @@ export function buildShotMergePlan(args: {
     typeof secondary.notesAddendum === "string" && secondary.notesAddendum.trim()
       ? secondary.notesAddendum
       : ""
-  if (primaryAddendum || secondaryAddendum) {
+  if (secondaryAddendum) {
     const divider = `— merged from "${secondary.title}" —`
-    const notesAddendum = [primaryAddendum, divider, secondaryAddendum]
+    patch.notesAddendum = [primaryAddendum, divider, secondaryAddendum]
       .filter((s) => s.length > 0)
       .join("\n\n")
-    // Omit if the result equals primary's existing addendum (nothing to add).
-    if (notesAddendum && notesAddendum !== primaryAddendum) {
-      patch.notesAddendum = notesAddendum
-    }
   }
 
   const sanitized = sanitizeForFirestore(patch) as Record<string, unknown>

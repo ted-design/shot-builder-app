@@ -213,6 +213,21 @@ describe("ShotMergeWizard", () => {
     })
   })
 
+  it("surfaces a toast and stays on preview when the merge fails", async () => {
+    executeShotMergeMock.mockRejectedValueOnce(new Error("batch failed"))
+    renderWizard()
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }))
+    fireEvent.click(screen.getByRole("checkbox"))
+    fireEvent.click(screen.getByRole("button", { name: /Merge/i }))
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled())
+    // Did NOT advance to the result step…
+    expect(screen.queryByText("Shots merged")).toBeNull()
+    // …and the Merge button is re-enabled (merging reset in the finally block).
+    expect(screen.getByRole("button", { name: /Merge/i })).not.toBeDisabled()
+  })
+
   it("View shot navigates to the project-scoped shot-detail route", async () => {
     const onMerged = vi.fn()
     renderWizard({ projectId: "p9", onMerged })

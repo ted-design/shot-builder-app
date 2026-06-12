@@ -142,7 +142,7 @@ describe("buildShotMergePlan — combine mode", () => {
     expect(result.referencesKept).toBe(3)
   })
 
-  it("drops heroProductId/displayImageId when no longer valid", () => {
+  it("keeps heroProductId/displayImageId when still valid in the merged look", () => {
     const primary = makeShot({
       id: "A",
       title: "Shot A",
@@ -162,6 +162,30 @@ describe("buildShotMergePlan — combine mode", () => {
     const looks = patch.looks as ShotLook[]
     expect(looks[0]!.heroProductId).toBe("f1")
     expect(looks[0]!.displayImageId).toBe("r1")
+  })
+
+  it("omits heroProductId/displayImageId (not null) when the id is no longer valid", () => {
+    // hero/display point at ids that aren't among the merged products/refs.
+    const primary = makeShot({
+      id: "A",
+      title: "Shot A",
+      activeLookId: "la",
+      looks: [
+        look({
+          id: "la",
+          products: [product({ familyId: "f1" })],
+          heroProductId: "gone",
+          displayImageId: "missing",
+        }),
+      ],
+    })
+    const secondary = makeShot({ id: "B", title: "Shot B" })
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    const looks = patch.looks as ShotLook[]
+    // sanitizeForFirestore strips the undefined fallback — the keys are ABSENT,
+    // never written as an explicit null to a field that may not have existed.
+    expect(looks[0]).not.toHaveProperty("heroProductId")
+    expect(looks[0]).not.toHaveProperty("displayImageId")
   })
 })
 
@@ -255,6 +279,33 @@ describe("buildShotMergePlan — talent / links / tags / meta", () => {
     expect(result.talentAdded).toBe(1)
   })
 
+  it("keeps talent/talentIds in lockstep when the same id has divergent names", () => {
+    // Same person (t1) carries a different denormalized name in each shot.
+    // Unioning names + ids independently would yield talent=2, talentIds=1.
+    const primary = makeShot({ id: "A", title: "Shot A", talent: ["Alice"], talentIds: ["t1"] })
+    const secondary = makeShot({
+      id: "B",
+      title: "Shot B",
+      talent: ["Alice Smith", "Bob"],
+      talentIds: ["t1", "t2"],
+    })
+    const { patch, result } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    // One entry per id, primary's name wins on the conflict; arrays stay aligned.
+    expect(patch.talentIds).toEqual(["t1", "t2"])
+    expect(patch.talent).toEqual(["Alice", "Bob"])
+    expect((patch.talent as string[]).length).toBe((patch.talentIds as string[]).length)
+    expect(result.talentAdded).toBe(1)
+  })
+
+  it("carries legacy name-only talent (no talentId) through the union", () => {
+    const primary = makeShot({ id: "A", title: "Shot A", talent: ["Legacy Person"], talentIds: [] })
+    const secondary = makeShot({ id: "B", title: "Shot B", talent: ["Bob"], talentIds: ["t2"] })
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    expect(patch.talentIds).toEqual(["t2"])
+    // id-bearing names first, then name-only legacy entries.
+    expect(patch.talent).toEqual(["Bob", "Legacy Person"])
+  })
+
   it("unions referenceLinks by url and tags by id", () => {
     const primary = makeShot({
       id: "A",
@@ -334,11 +385,20 @@ describe("buildShotMergePlan — notesAddendum (notes BLOCKED)", () => {
     expect(patch).not.toHaveProperty("notesAddendum")
   })
 
-  it("appends a divider when only the primary has addendum prose", () => {
+  it("leaves notesAddendum untouched (no dangling divider) when only the primary has prose", () => {
+    // Secondary contributes nothing → there's nothing to merge in; the primary's
+    // existing addendum stays as-is rather than gaining a trailing em-dash divider.
     const primary = makeShot({ id: "A", title: "Shot A", notesAddendum: "alpha" })
     const secondary = makeShot({ id: "B", title: "Shot B" })
     const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
-    expect(patch.notesAddendum).toBe('alpha\n\n— merged from "Shot B" —')
+    expect(patch).not.toHaveProperty("notesAddendum")
+  })
+
+  it("prepends the divider before secondary prose when only the secondary has addendum", () => {
+    const primary = makeShot({ id: "A", title: "Shot A" })
+    const secondary = makeShot({ id: "B", title: "Shot B", notesAddendum: "beta" })
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    expect(patch.notesAddendum).toBe('— merged from "Shot B" —\n\nbeta')
   })
 })
 
