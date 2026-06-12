@@ -49,7 +49,7 @@ Every layout starts from the smallest viewport. Desktop adds density and editing
 - Tailwind classes reference token values. No hardcoded hex colors or arbitrary spacing in components.
 - Use `text-3xs` (9px), `text-2xs` (10px), `text-xxs` (11px) for micro font sizes — never `text-[9px]`, `text-[10px]`, `text-[11px]`.
 - Use `text-sm` (13px), `text-base` (14px), `text-lg` (16px), `text-xl` (18px) — never `text-[13px]`, `text-[14px]`, `text-[15px]`. These sizes are overridden in `tailwind.config.js` to be 1-2px smaller than Tailwind defaults.
-- Page headings use `heading-page` semantic class (weight 300 editorial) — never `text-xl font-semibold` or `text-2xl font-bold`.
+- Page headings use the `heading-page` semantic class — **Founders Grotesk X-Condensed Bold (700)** per the Immediate brand style guide (updated 2026-06-04 from the former editorial Neue Haas Light 300). Never hand-roll with `text-xl font-semibold` / `text-2xl font-bold`.
 - Section headings use `heading-section` — never `text-base font-semibold`. Subsections use `heading-subsection`.
 - Tag badges use neutral body with subtle tag-color left borders (category as fallback) — never use rainbow `getTagColorClasses()` on `TagBadge`.
 - Every surface uses the same building blocks. No one-off component variants for a single page.
@@ -187,6 +187,20 @@ Phase order is the default. Override when reality demands it:
 - **Firestore missing field gotcha:** In Firestore rules, `resource.data.someField` on a document where the field doesn't exist **throws an error** causing the rule to deny. Always write optional fields with explicit `null` value (not omit them). Use defensive checks in rules: `!('fieldName' in resource.data) || resource.data.fieldName == null || ...`.
 - **Talent import script:** `scripts/import-talent-roster.ts` — dry-run by default, `--write` to execute. Reads Excel (Men/Women sheets), normalizes measurements, matches by name (Levenshtein fuzzy for near-misses), additive-only merge. Force-match aliases for confirmed duplicates. Uploads headshots as WebP (1600px, q82).
 - **Measurement parser:** `parseMeasurementValue` regex updated to handle spaces in heights (`6' 1"`) and half-inches (`5'11.5"`). `normalizeGender()` handles `male`/`female`/`man`/`woman` in addition to `men`/`women`. "Chest" added to men's `MEASUREMENT_GROUPS`.
+
+### 15. Sprint S29 New Infrastructure
+
+- **Scene-level direction and notes:** Lane type extended with optional `sceneNumber?: number`, `direction?: string` (max 500 chars), `notes?: string` (max 5000 chars). No migration needed — `useLanes.mapLane` backfills `sceneNumber = sortOrder + 1` for legacy lanes that lack it. `createLane` accepts `existingLanes` param to auto-increment sceneNumber — **always pass this** or every new scene gets `sceneNumber = 1`.
+- **Letter-suffix sub-numbering:** Shots in scenes get `{sceneNumber}{A-Z/AA-ZZ}` format (e.g., "51A", "51B"). `indexToLetterSuffix(0..701)` → "A".."ZZ" (clamped, `MAX_SHOTS_PER_SCENE = 702`). Ungrouped shots get raw unpadded sequential numbers in scene mode. All numbering functions in `shotNumbering.ts`. `parseSceneShotNumber("51A")` → `{ base: 51, suffix: "A" }`.
+- **Scene grouping in table view:** `ShotsTable` accepts `groups?: ReadonlyArray<ShotGroup>` + collapse/action callbacks. `SceneTableRow.tsx` renders scene header rows. `SceneHeader.tsx` enhanced with `sceneNumber`, `direction`, `onEdit`, `canManageLanes`. Scene groups sort by `sceneNumber` (not `sortOrder`).
+- **Scene colors extracted:** `SCENE_COLORS`, `getSceneColor`, `SceneColorKey` canonical location is `src-vnext/features/shots/lib/sceneColors.ts`. `SceneHeader.tsx` re-exports for backward compat.
+- **Scene detail sheet:** `SceneDetailSheet.tsx` — right-side Sheet for editing scene name, number, color, direction, notes. Blur-only saves (no debounce). `useRef` init gate prevents Firestore snapshot echoes from clobbering in-progress edits. Validates sceneNumber ≥ 1 and ≤ 9999, rejects duplicates against `siblingLanes`.
+- **Scene context banner:** `SceneContextBanner.tsx` — thin banner on shot detail showing scene color + name + direction preview. Integrated in `ShotDetailPage`, `ThreePanelCanvasPanel`, `ThreePanelPropertiesPanel`. `SceneDetailSheet` lifted to `ThreePanelLayout` to avoid duplicate instances.
+- **Scene assignment:** `SceneAssignPopover.tsx` for inline scene assignment from table cells. Scene column in `SHOT_TABLE_COLUMNS` (default hidden, order 14). `BulkActionBar` button renamed to "Set Scene".
+- **Renumber dialog scene mode:** `RenumberShotsDialog` has Sequential / By Scene toggle. Scene mode uses `previewRenumberWithScenes` + `renumberShotsWithScenes`. `maxSceneNumberOverride` prevents cross-filter collisions. Overflow guard: disables Renumber button when any scene exceeds 702 shots. Warning banner when sequential mode would destroy existing letter suffixes.
+- **Crew role gating:** `canManageLanes` prop on `SceneHeader`, `SceneTableRow`, `ShotsTable` hides the kebab menu for crew users. Lane CRUD restricted to admin/producer/warehouse in Firestore rules. `assignShotsToLane` writes to shots (not lanes), so crew CAN assign scenes.
+- **Firestore rules — lanes:** Explicit `match /lanes/{laneId}` before the wildcard catch-all with `direction.size() <= 500`, `notes.size() <= 5000`, `sceneNumber is int && >= 1 && <= 9999`. Read access includes `crew`/`warehouse`/`viewer`. Write access: admin/producer/warehouse.
+- **Export shot number display:** `padStart(3, "0")` removed from 4 export files. Shot numbers display raw. Export sort uses `localeCompare({ numeric: true, sensitivity: "base" })` — never `Number()`. Nulls sort last.
 
 ## Legacy Codebase Context
 

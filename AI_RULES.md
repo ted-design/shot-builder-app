@@ -135,6 +135,16 @@ When creating or updating tags anywhere in the codebase:
 - **Export builder:** Inline on block data (persisted with export document)
 - **Reusable component:** `ColumnSettingsList.tsx` — DnD column list shared by shot table popover and share dialog
 
+### Scene Infrastructure Pattern (Sprint S29)
+
+- **Numbering:** Shots in scenes use letter suffixes: `{sceneNumber}{A-Z/AA-ZZ}`. Use `formatSceneShotNumber(sceneNumber, index)` — never construct manually. `parseSceneShotNumber("51A")` → `{ base: 51, suffix: "A" }`. Ungrouped shots in scene mode use raw `String(n)` (no `formatShotNumber` padding). Never use `Number()` or `padStart()` on shot numbers — use `localeCompare({ numeric: true })` for sorting.
+- **Scene colors:** Import from `lib/sceneColors.ts` (not from `SceneHeader.tsx`). `getSceneColor(key)` resolves to hex or falls back to `var(--color-text-subtle)`.
+- **Scene detail editing:** `SceneDetailSheet` uses blur-only saves (no debounced keystroke writes — prevents multi-user conflict). `useRef` init gate prevents Firestore snapshot echoes from clobbering in-progress edits. Toast deduplication via `{ id: "scene-update:{lane.id}" }`.
+- **Scene table grouping:** `ShotsTable` accepts `groups` prop. `SceneTableRow` renders header rows. Orphan `laneId` guard in `groupShots` uses `lanes.size > 0` to avoid load-race flicker. Groups sort by `sceneNumber` (not `sortOrder`).
+- **Crew gating:** `canManageLanes` prop gates the kebab menu. Scene writes restricted to admin/producer/warehouse. Crew users see read-only scene headers.
+- **createLane:** Always pass `existingLanes` for auto-increment. Without it, `Math.max(0, ...[])` = 0 and every new scene collides to `sceneNumber = 1`.
+- **Three-panel parity:** `SceneDetailSheet` is lifted to `ThreePanelLayout` (single instance). `SceneContextBanner` renders in both canvas + properties panels. `useLanes` call deduped — parent passes `lanes`/`laneById` as props.
+
 ---
 
 ## Off-Limits Without Approval
@@ -362,8 +372,8 @@ Violations of these rules break dark mode and visual consistency. They are treat
 **tailwind.config.js editorial body scale (Sprint S4):** `xs`=12px, `sm`=13px, `base`=14px, `lg`=16px, `xl`=18px. These are 1-2px smaller than Tailwind defaults. Do NOT use arbitrary `text-[Npx]` for any size in this range.
 
 **No raw Tailwind typography combos where semantic classes exist:**
-- `text-xl font-semibold`, `text-2xl font-bold`, `text-2xl font-semibold` → `.heading-page`
-- `text-2xl font-light tracking-tight` → `.heading-page`
+- `text-xl font-semibold`, `text-2xl font-bold`, `text-2xl font-semibold` → `.heading-page` (now **Founders X-Cond Bold 700** per the brand style guide; was Neue Haas Light 300 pre-2026-06-04)
+- `text-2xl font-light tracking-tight` (the old editorial-light page heading) → `.heading-page`
 - `text-base font-semibold tracking-tight` → `.heading-section`
 - `text-sm font-semibold tracking-tight` → `.heading-subsection`
 - `text-xs font-semibold uppercase tracking-widest text-muted` → `.label-meta`

@@ -70,7 +70,7 @@ Persistent cross-session memory. Updated by Claude Code after each implementatio
 - **Block colors:** CSS var references via `blockColors.ts`, not Tailwind color classes
 - **Typography:** Semantic classes from `design-tokens.js` (`heading-page`, `heading-section`, `heading-subsection`)
 - **Font sizes:** Use `text-sm` (13px), `text-base` (14px), etc. — never `text-[13px]`
-- **Page headings:** `heading-page` class (weight 300 editorial) — never `text-xl font-semibold`
+- **Page headings:** `heading-page` class — Founders X-Cond Bold 700 (brand display; updated 2026-06-04 from Neue Haas Light 300) — never `text-xl font-semibold`
 - **Section headings:** `heading-section` class — never `text-base font-semibold`
 - **Subsection headings:** `heading-subsection` class — never `text-lg font-semibold`
 - **Tag badges:** Neutral body with subtle category-accent left borders

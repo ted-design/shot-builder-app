@@ -1,7 +1,7 @@
-# HANDOFF — Sprint S29: Scene Enhancement (2026-04-10)
+# HANDOFF — Sprint S29: Scene Enhancement (2026-04-11)
 
 ## State
-Sprint S29 implementation COMPLETE. Build clean. Lint zero. 167 test files / 1975 tests passing. Not yet committed or deployed. Ready for PR.
+Sprint S29 COMPLETE. PR #409 merged to main (squash `21e5076f`). Firestore rules deployed to production. Build clean. Lint zero. 167 test files / 1981 tests passing. 11 rounds of bot review with all findings addressed.
 
 ## What Was Built
 
@@ -135,17 +135,19 @@ Sprint S29 closes three gaps in the S28 scene system:
 
 ## Next Steps
 
-1. **Visual smoke test with live data** — Requires logged-in Firebase user. User should verify: (a) table view scene grouping, (b) scene detail sheet editing flow, (c) scene context banner on shot detail, (d) renumber by scene, (e) scene assign popover from table cell.
-2. **Deploy Firestore rules** — `firebase deploy --only firestore:rules` (adds lane size validation)
-3. **Commit + PR** — Suggested title: `feat: S29 scene enhancement — table grouping, notes, letter-suffix numbering`. Include test/lint/build status in PR description.
-4. **Follow-up items (not blocking merge):**
-   - (All M-level follow-ups from initial review have been resolved per CLAUDE.md rule 6b.)
+1. **Visual smoke test with live data** — Verify: (a) table view scene grouping, (b) scene detail sheet editing flow, (c) scene context banner on shot detail, (d) renumber by scene, (e) scene assign popover from table cell.
+2. **Follow-up backlog (non-blocking):**
+   - ScenePicker in ThreePanelPropertiesPanel (Phase 4 deferred — requires non-trivial plumbing)
+   - E2E auth emulator fix (PR #396 — pre-existing, unrelated to S29)
+   - Recreate casting share links (old shares have 12-image cap)
+   - bulkShotUpdates unit tests
 
 ## Verification Status
 
-- **Tests:** 167 files / 1975 passing (includes 39 new scene numbering + 24 new component tests)
+- **Tests:** 167 files / 1981 passing (includes 53 scene numbering + 14 SceneDetailSheet + 10 SceneContextBanner + 5 SceneAssignPopover + misc)
 - **Lint:** zero warnings
 - **Build:** clean (`npm run build` ~12s)
-- **Dev server:** starts and renders shell correctly
-- **HTML mockup:** visually verified in Chrome, matches implementation design
-- **Codex CLI:** unavailable (gpt-5.4-high not supported on ChatGPT account — known limitation)
+- **PR:** #409 merged (squash `21e5076f`), 11 bot review rounds
+- **Firestore rules:** deployed to production 2026-04-10
+- **HTML mockup:** `mockups/s29-scene-enhancements.html` — visually verified in Chrome
+- **Codex CLI:** attempted, gpt-5.4-high unavailable on ChatGPT account (known limitation — documented in memory)

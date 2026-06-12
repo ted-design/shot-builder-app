@@ -1,6 +1,6 @@
-# CHECKPOINT — Sprint S29 Implementation Complete (2026-04-10)
+# CHECKPOINT — Sprint S29 COMPLETE (2026-04-11)
 
-## Build clean. Lint zero. 167 test files / 1975 tests passing. Ready for commit + PR.
+## PR #409 merged. Firestore rules deployed. 167 test files / 1981 tests. Lint zero. Build clean.
 
 ## Sprint S29 — All Phases Complete
 
@@ -89,8 +89,10 @@ rule 6b ("no deferring known issues") in round-2 and round-3 review fixes:
 
 ## Deployment Checklist
 
-- [ ] `git add` + commit with conventional message
-- [ ] Open PR with full test/lint/build status
-- [ ] `firebase deploy --only firestore:rules` (new lanes rule)
+- [x] `git add` + commit with conventional message
+- [x] Open PR with full test/lint/build status (PR #409)
+- [x] 11 rounds of bot review — all findings addressed
+- [x] CI green (build, vitest, gitleaks, preview) — E2E pre-existing failure only
+- [x] Merge after CI + approval (squash `21e5076f`)
+- [x] `firebase deploy --only firestore:rules` (lanes rule deployed 2026-04-10)
 - [ ] User visual smoke test across table + detail + renumber flows
-- [ ] Merge after CI + approval

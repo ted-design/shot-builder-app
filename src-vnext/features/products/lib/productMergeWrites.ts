@@ -97,26 +97,35 @@ async function transferNewSkus(args: {
       const newRef = doc(winnerSkuCol)
       // Track loser→winner SKU ID mapping for sample scope remapping
       skuIdMap.set(sku.id, newRef.id)
-      batch.set(newRef, {
-        colorName: sku.colorName ?? sku.name,
-        name: sku.name,
-        skuCode: sku.skuCode ?? null,
-        sizes: sku.sizes ? [...sku.sizes] : [],
-        status: sku.status ?? "active",
-        archived: sku.archived ?? false,
-        imagePath: sku.imagePath ?? null,
-        colorKey: sku.colorKey ?? null,
-        hexColor: sku.hexColor ?? null,
-        colourHex: sku.colourHex ?? null,
-        assetRequirements: sku.assetRequirements ?? null,
-        launchDate: sku.launchDate ?? null,
-        deleted: false,
-        deletedAt: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: mergedBy,
-        updatedBy: mergedBy,
-      })
+      // `name` is the only required SKU field, but legacy/imported loser SKUs can
+      // lack it — writing `name: undefined` makes Firestore reject the whole
+      // batch ("Unsupported field value: undefined"). Default to the best
+      // human-readable fallback, and sanitizeForFirestore() (matching steps 2–5)
+      // strips any remaining undefined from nested fields like assetRequirements.
+      const skuName = sku.name ?? sku.colorName ?? sku.skuCode ?? "Untitled"
+      batch.set(
+        newRef,
+        sanitizeForFirestore({
+          colorName: sku.colorName ?? skuName,
+          name: skuName,
+          skuCode: sku.skuCode ?? null,
+          sizes: sku.sizes ? [...sku.sizes] : [],
+          status: sku.status ?? "active",
+          archived: sku.archived ?? false,
+          imagePath: sku.imagePath ?? null,
+          colorKey: sku.colorKey ?? null,
+          hexColor: sku.hexColor ?? null,
+          colourHex: sku.colourHex ?? null,
+          assetRequirements: sku.assetRequirements ?? null,
+          launchDate: sku.launchDate ?? null,
+          deleted: false,
+          deletedAt: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: mergedBy,
+          updatedBy: mergedBy,
+        }) as Record<string, unknown>,
+      )
     }
     await batch.commit()
   }
@@ -285,7 +294,7 @@ async function updateShotReferences(args: {
       const mappedProducts = products.map((p) => {
         if (p.familyId === loserId) {
           changed = true
-          return { ...p, familyId: winnerId, familyName: winnerName }
+          return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
         }
         return p
       })
@@ -304,7 +313,7 @@ async function updateShotReferences(args: {
         const mappedLookProducts = lookProducts.map((p) => {
           if (p.familyId === loserId) {
             changed = true
-            return { ...p, familyId: winnerId, familyName: winnerName }
+            return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
           }
           return p
         })
@@ -377,15 +386,19 @@ async function updatePullReferences(args: {
         const items = (data.items ?? []) as Record<string, unknown>[]
         const newItems = items.map((item) => {
           if (item.familyId === loserId) {
-            return { ...item, familyId: winnerId, familyName: winnerName }
+            return { ...item, familyId: winnerId, familyName: winnerName ?? item.familyName }
           }
           return item
         })
 
-        batch.update(pullDoc.ref, {
-          items: newItems,
-          updatedAt: serverTimestamp(),
-        })
+        // winnerName is typed string but legacy families can lack styleName at runtime (the class this PR fixes) — fall back to the item's own name.
+        batch.update(
+          pullDoc.ref,
+          sanitizeForFirestore({
+            items: newItems,
+            updatedAt: serverTimestamp(),
+          }) as Record<string, unknown>,
+        )
         updated += 1
       }
       await batch.commit()
@@ -794,3 +807,6 @@ export async function executeProductMerge(args: {
     throw err
   }
 }
+
+/** @internal Test-only surface — do not import outside tests. */
+export const productMergeWritesForTests = { transferNewSkus }

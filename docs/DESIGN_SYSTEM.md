@@ -26,7 +26,7 @@ This file is referenced from `CLAUDE.md` Hard Rule #3 and must be consulted befo
 
 | Class | Purpose | Weight |
 |-------|---------|--------|
-| `.heading-page` | Page titles | 300 (light, editorial) |
+| `.heading-page` | Page titles | Founders X-Cond Bold (700), brand display |
 | `.heading-section` | Section headings within a page | 600 |
 | `.heading-subsection` | Sub-section headings | 600 |
 | `.label-meta` | Uppercase micro labels (section headers in detail panels) | 600, uppercase, tracking-wider |
@@ -34,7 +34,7 @@ This file is referenced from `CLAUDE.md` Hard Rule #3 and must be consulted befo
 | `.body-text-muted` | De-emphasized body copy | 400 |
 | `.caption` | Footnotes, helper text | 400 |
 
-**Rule:** Page headings MUST use `heading-page` (weight 300). Never `text-xl font-semibold` or `text-2xl font-bold`.
+**Rule:** Page headings MUST use `heading-page` — **Founders Grotesk X-Condensed Bold (700)** per the Immediate brand style guide (updated 2026-06-04 from the former editorial Neue Haas Light 300). Never hand-roll with `text-xl font-semibold` or `text-2xl font-bold`.
 
 ---
 
@@ -257,6 +257,42 @@ All interaction utilities respect `prefers-reduced-motion: reduce`.
 - Keyboard navigation: Tab order must be logical; Escape closes dialogs/sheets
 - Color contrast: status badge text must meet WCAG AA against badge background
 - Animations: all must respect `prefers-reduced-motion`
+
+## 11. Scene Components (Sprint S29)
+
+### Scene Colors
+- **Canonical source:** `src-vnext/features/shots/lib/sceneColors.ts`
+- 6 accent colors: teal (`#14b8a6`), purple (`#a78bfa`), green (`#22c55e`), orange (`#fb923c`), pink (`#fb7185`), blue (`#3b82f6`)
+- Always use `getSceneColor(key)` to resolve — handles null → `var(--color-text-subtle)` fallback
+- Color displayed as 3px left border on scene headers, 8px dot in cells/popovers, ring on active swatch
+
+### SceneHeader / SceneTableRow
+- **Left border:** `border-left: 3px solid ${getSceneColor(color)}` (inline style, scene accent)
+- **Scene number prefix:** `#sceneNumber` in `text-[var(--color-text-subtle)]` before scene name
+- **Direction preview:** First 60 chars in `text-2xs text-[var(--color-text-muted)]` below name, with `title` attribute for hover tooltip
+- **Shot count badge:** `text-2xs` in rounded-full pill on the right side
+- **Kebab menu:** Only shown when `canManageLanes` is true (crew sees read-only headers)
+- **Table row hover:** `hover:bg-[var(--color-surface-muted)]` (one shade darker than `bg-[var(--color-surface-subtle)]`)
+
+### SceneContextBanner
+- Height ~36px, `bg-[var(--color-surface-subtle)]` with 3px left border in scene color
+- Content: color dot + `#sceneNumber sceneName` (`text-sm font-medium`) + direction preview (`text-xs text-muted`, 100 char truncation) + "View scene >" link
+- Returns null when shot has no laneId or lane not found in laneById
+
+### SceneDetailSheet
+- Right-side Sheet (380px width)
+- Labels use `text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]`
+- Labels must have `htmlFor` associated with input `id`
+- Color picker: `fieldset`/`legend` pattern, `aria-pressed` on active swatch
+- Character counters: `text-3xs text-[var(--color-text-subtle)]` aligned right
+
+### SceneAssignPopover
+- Width: `w-52`, padding: `p-1`
+- Items: `px-2 py-1.5 rounded-sm hover:bg-[var(--color-surface-subtle)]`
+- Color dots: `h-2 w-2 rounded-full inline-block` with `getSceneColor()`
+- "None (ungrouped)" at top with `text-[var(--color-text-muted)]`
+- Active lane shows `Check` icon
+- Stops click propagation on content so table row click doesn't fire
 
 ---
 

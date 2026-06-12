@@ -1249,6 +1249,20 @@ Admin (role-gated: admin only)
   - [x] Fix X-Frame-Options for public share routes (Slack compatibility)
   - [x] 3 rounds of claude-review feedback addressed
 
+## Sprint S29: Scene Enhancement — Table Grouping, Notes, Letter-Suffix Numbering (2026-04-10)
+
+PR #409 merged. Firestore rules deployed. 38 files, +4966/-316. 167 test files / 1981 tests.
+
+- [x] **Phase 1 — Data Model:** Lane type extended (sceneNumber, direction, notes). useLanes returns laneById. createLane auto-increments sceneNumber. ShotGroup extended with scene metadata.
+- [x] **Phase 1 UI — Scene Detail Sheet:** SceneDetailSheet right slide-over (name, number, color, direction 500 chars, notes 5000 chars). SceneContextBanner in ShotDetailPage + ThreePanelCanvasPanel + ThreePanelPropertiesPanel. SceneHeader enhanced.
+- [x] **Phase 2 — Table Grouping:** SceneTableRow for table view. ShotsTable accepts groups + collapse callbacks. ShotListPage removed "switch to cards" banner. Orphan laneId guard with load-race protection.
+- [x] **Phase 3 — Sub-Numbering:** Letter-suffix system (51A, 51B, 51C). 8 new functions in shotNumbering.ts. RenumberShotsDialog Sequential/By Scene toggle. previewRenumberWithScenes + renumberShotsWithScenes. maxSceneNumberOverride for cross-filter safety.
+- [x] **Phase 4 — Scene Assignment:** Scene column in SHOT_TABLE_COLUMNS. SceneAssignPopover for inline assignment. BulkActionBar renamed to "Set Scene".
+- [x] **Pre-impl fixes:** Export sort NaN bug (blockDataResolvers), 4× padStart removal, shotTableColumns test update.
+- [x] **Firestore rules:** Explicit /lanes match with direction/notes size + sceneNumber bounds (1-9999). Crew gated from writes.
+- [x] **Review:** 4 internal review passes (pre-impl audit, data model + numbering, architect, full sprint) + 11 bot review rounds. All CRITICAL/HIGH/MEDIUM addressed.
+- [x] **Tests:** +76 new tests (53 numbering, 14 SceneDetailSheet, 10 SceneContextBanner, 5 SceneAssignPopover, misc).
+
 ---
 
 ## Cross-Phase Requirements
