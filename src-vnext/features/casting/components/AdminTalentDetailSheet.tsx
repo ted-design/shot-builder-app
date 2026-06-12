@@ -7,7 +7,9 @@
  * vote buttons or comment input — admin views, doesn't vote.
  */
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
+import { Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 import {
   Sheet,
   SheetContent,
@@ -24,6 +26,11 @@ import {
   getCastingStatusLabel,
   getCastingStatusColor,
 } from "@/features/casting/lib/castingStatuses"
+import {
+  buildBoardImageModel,
+  type BoardImage,
+} from "@/features/casting/lib/castingBoardImages"
+import { updateCastingEntryVisibility } from "@/features/casting/lib/castingWrites"
 import type { CastingBoardEntry, TalentRecord } from "@/shared/types"
 import type { VoteAggregate } from "@/features/casting/hooks/useCastingVoteAggregates"
 
@@ -31,6 +38,9 @@ interface AdminTalentDetailSheetProps {
   readonly talent: TalentRecord | null
   readonly entry: CastingBoardEntry | null
   readonly voteAggregate: VoteAggregate | null
+  readonly canEdit: boolean
+  readonly clientId: string | null
+  readonly projectId: string | null
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
 }
@@ -152,10 +162,98 @@ function ReviewerVoteList({ aggregate }: { readonly aggregate: VoteAggregate }) 
   )
 }
 
+/**
+ * A single image tile. Resolves its URL via `useStorageUrl` (a hook, so it
+ * cannot run inside a `.map`) — prefers an already-resolved `downloadURL`,
+ * falling back to resolving `path` through Storage. Renders dimmed when hidden.
+ * When `canEdit`, exposes an eye / eye-off toggle (its own control — clicks are
+ * stopped from bubbling to the tile's lightbox `onClick`). The per-image toggle
+ * is DISABLED when the image is hidden only because its folder is hidden:
+ * toggling would push the id into `hiddenImageIds` without making it visible and
+ * strand it there after the folder is shown again — the folder toggle is the
+ * control in that case.
+ */
+function BoardThumb({
+  img,
+  individuallyHidden,
+  folderHidden,
+  canEdit,
+  alt,
+  onOpen,
+  onToggle,
+}: {
+  readonly img: BoardImage
+  readonly individuallyHidden: boolean
+  readonly folderHidden: boolean
+  readonly canEdit: boolean
+  readonly alt: string
+  readonly onOpen: (resolvedUrl: string) => void
+  readonly onToggle: () => void
+}) {
+  const resolved = useStorageUrl(img.path)
+  const url = img.downloadURL ?? resolved
+  const dimmed = individuallyHidden || folderHidden
+  // Folder-hidden (but not individually hidden) → the per-image toggle is inert.
+  const toggleDisabled = folderHidden && !individuallyHidden
+
+  return (
+    <div className="relative overflow-hidden rounded">
+      <button
+        type="button"
+        onClick={() => { if (url) onOpen(url) }}
+        className={`block w-full overflow-hidden rounded ${dimmed ? "opacity-40" : ""}`}
+      >
+        {url ? (
+          <img
+            src={url}
+            alt={alt}
+            className="aspect-square w-full object-cover object-top"
+            loading="lazy"
+          />
+        ) : (
+          <div className="aspect-square w-full bg-[var(--color-surface-subtle)]" />
+        )}
+      </button>
+
+      {dimmed && (
+        <span className="pointer-events-none absolute left-1 top-1 rounded bg-[var(--color-surface-raised)]/90 px-1.5 py-0.5 text-3xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+          {folderHidden && !individuallyHidden ? "Folder hidden" : "Hidden"}
+        </span>
+      )}
+
+      {canEdit && (
+        <button
+          type="button"
+          disabled={toggleDisabled}
+          aria-label={
+            toggleDisabled
+              ? "Hidden via folder — toggle the folder to show"
+              : individuallyHidden
+                ? "Show image"
+                : "Hide image"
+          }
+          title={toggleDisabled ? "Hidden via folder — use the folder toggle" : undefined}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (toggleDisabled) return
+            onToggle()
+          }}
+          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-[var(--color-surface-raised)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-[var(--color-text-muted)]"
+        >
+          {individuallyHidden || folderHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function AdminTalentDetailSheet({
   talent,
   entry,
   voteAggregate,
+  canEdit,
+  clientId,
+  projectId,
   open,
   onOpenChange,
 }: AdminTalentDetailSheetProps) {
@@ -177,14 +275,96 @@ export function AdminTalentDetailSheet({
     [talent?.measurements, talent?.gender, system],
   )
 
-  // Resolve portfolio URLs from talent record
-  const galleryImages = useMemo(
-    () => (talent?.galleryImages ?? []).map((img) => {
-      if (typeof img === "string") return img
-      return (img as { readonly url?: string })?.url ?? ""
-    }).filter(Boolean),
-    [talent?.galleryImages],
+  // Optimistic visibility state. Toggles are written to Firestore but the doc
+  // round-trips asynchronously; computing the next array from the lagging
+  // `entry` prop drops a toggle when two fire inside one round-trip. We hold the
+  // just-applied arrays locally and compute from them so rapid toggles compose,
+  // and the tile updates instantly. Reset when a different talent is shown or
+  // the sheet reopens (a fresh read becomes the source of truth again).
+  const [pendingHidden, setPendingHidden] = useState<{
+    readonly images: readonly string[]
+    readonly sessions: readonly string[]
+  } | null>(null)
+  useEffect(() => {
+    setPendingHidden(null)
+  }, [entry?.talentId, open])
+
+  const effectiveHidden = pendingHidden ?? {
+    images: entry?.hiddenImageIds ?? [],
+    sessions: entry?.hiddenSessionIds ?? [],
+  }
+
+  // Annotated gallery + session folders (unfiltered, with per-item flags),
+  // built from the effective (optimistic) hidden ids.
+  const boardModel = useMemo(
+    () =>
+      buildBoardImageModel(
+        talent,
+        entry
+          ? { ...entry, hiddenImageIds: effectiveHidden.images, hiddenSessionIds: effectiveHidden.sessions }
+          : null,
+      ),
+    [talent, entry, effectiveHidden.images, effectiveHidden.sessions],
   )
+
+  // When read-only, render only VISIBLE items (parity with the public viewer).
+  const visibleGallery = canEdit
+    ? boardModel.gallery
+    : boardModel.gallery.filter((g) => !g.hidden)
+  const visibleFolders = canEdit
+    ? boardModel.folders
+    : boardModel.folders
+        .filter((f) => !f.hidden)
+        .map((f) => ({ ...f, images: f.images.filter((i) => !i.hidden) }))
+
+  const canToggle = canEdit && !!entry && !!clientId && !!projectId
+
+  // Write the FULL recomputed arrays (immutable — never a delta).
+  const writeVisibility = async (
+    hiddenImageIds: readonly string[],
+    hiddenSessionIds: readonly string[],
+  ) => {
+    if (!entry || !clientId || !projectId) return
+    try {
+      await updateCastingEntryVisibility({
+        clientId,
+        projectId,
+        talentId: entry.talentId,
+        hiddenImageIds,
+        hiddenSessionIds,
+      })
+    } catch (err) {
+      toast.error("Failed to update visibility", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    }
+  }
+
+  const toggleImage = (imageId: string) => {
+    if (!entry) return
+    const current = effectiveHidden.images
+    const next = current.includes(imageId)
+      ? current.filter((id) => id !== imageId)
+      : [...current, imageId]
+    setPendingHidden({ images: next, sessions: effectiveHidden.sessions })
+    void writeVisibility(next, effectiveHidden.sessions)
+  }
+
+  const toggleFolder = (sessionId: string) => {
+    if (!entry) return
+    const current = effectiveHidden.sessions
+    const next = current.includes(sessionId)
+      ? current.filter((id) => id !== sessionId)
+      : [...current, sessionId]
+    setPendingHidden({ images: effectiveHidden.images, sessions: next })
+    void writeVisibility(effectiveHidden.images, next)
+  }
+
+  // Lightbox is fed a RESOLVED url (the tile resolves path → Storage url and
+  // passes it up), never a raw path.
+  const openLightbox = (resolvedUrl: string) => {
+    setLightboxState({ images: [resolvedUrl], index: 0 })
+  }
 
   const statusColor = entry ? getCastingStatusColor(entry.status) : null
 
@@ -252,28 +432,72 @@ export function AdminTalentDetailSheet({
               <ReviewerVoteList aggregate={voteAggregate} />
             )}
 
-            {/* Portfolio */}
-            {galleryImages.length > 0 && (
+            {/* Portfolio (gallery images) */}
+            {visibleGallery.length > 0 && (
               <div>
                 <div className="heading-subsection mb-2">Portfolio</div>
                 <div className="grid grid-cols-2 gap-2">
-                  {galleryImages.map((url, i) => (
-                    <button
-                      key={url}
-                      type="button"
-                      onClick={() => setLightboxState({ images: galleryImages, index: i })}
-                      className="overflow-hidden rounded"
-                    >
-                      <img
-                        src={url}
-                        alt=""
-                        className="aspect-square w-full object-cover object-top"
-                        loading="lazy"
-                      />
-                    </button>
+                  {visibleGallery.map(({ img, individuallyHidden, folderHidden }) => (
+                    <BoardThumb
+                      key={img.id}
+                      img={img}
+                      individuallyHidden={individuallyHidden}
+                      folderHidden={folderHidden}
+                      canEdit={canToggle}
+                      alt={displayName}
+                      onOpen={openLightbox}
+                      onToggle={() => toggleImage(img.id)}
+                    />
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Casting-session folders */}
+            {visibleFolders.map((folder) =>
+              folder.images.length > 0 ? (
+                <div key={folder.id}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="heading-subsection">
+                      {folder.title}
+                      {folder.date && (
+                        <span className="ml-2 text-2xs font-normal text-[var(--color-text-subtle)]">
+                          {folder.date}
+                        </span>
+                      )}
+                    </div>
+                    {canToggle && (
+                      <button
+                        type="button"
+                        aria-label={folder.hidden ? "Show folder" : "Hide folder"}
+                        onClick={() => toggleFolder(folder.id)}
+                        className="flex items-center gap-1 text-2xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                      >
+                        {folder.hidden ? (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                        {folder.hidden ? "Hidden" : "Visible"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {folder.images.map(({ img, individuallyHidden, folderHidden }) => (
+                      <BoardThumb
+                        key={img.id}
+                        img={img}
+                        individuallyHidden={individuallyHidden}
+                        folderHidden={folderHidden}
+                        canEdit={canToggle}
+                        alt={displayName}
+                        onOpen={openLightbox}
+                        onToggle={() => toggleImage(img.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null,
             )}
 
             {/* Measurements */}

@@ -792,6 +792,10 @@ export interface CastingBoardEntry {
   readonly notes?: string | null
   /** Free-text role label, e.g. "Lead Male", "Supporting". */
   readonly roleLabel?: string | null
+  /** Image ids (gallery or session) hidden from the casting-board card. */
+  readonly hiddenImageIds?: readonly string[]
+  /** Casting-session (folder) ids hidden wholesale from the casting-board card. */
+  readonly hiddenSessionIds?: readonly string[]
   readonly sortOrder: number
   readonly addedBy: string
   readonly addedAt: unknown // Firestore Timestamp
