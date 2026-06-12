@@ -181,6 +181,28 @@ describe("buildBoardImageModel", () => {
     expect(s1.images.every((i) => i.hidden)).toBe(true)
   })
 
+  it("distinguishes folder-hidden from individually-hidden (P2 regression)", () => {
+    // s1 hidden as a folder; s1i2 ALSO individually hidden; s2 untouched.
+    const model = buildBoardImageModel(
+      makeTalent(),
+      makeEntry({ hiddenSessionIds: ["s1"], hiddenImageIds: ["s1i2"] }),
+    )
+    const s1 = model.folders.find((f) => f.id === "s1")!
+    const s1i1 = s1.images.find((i) => i.img.id === "s1i1")!
+    const s1i2 = s1.images.find((i) => i.img.id === "s1i2")!
+    // s1i1: hidden purely via the folder — the per-image toggle must be disabled.
+    expect(s1i1.hidden).toBe(true)
+    expect(s1i1.folderHidden).toBe(true)
+    expect(s1i1.individuallyHidden).toBe(false)
+    // s1i2: hidden via BOTH — survives the folder being shown again.
+    expect(s1i2.folderHidden).toBe(true)
+    expect(s1i2.individuallyHidden).toBe(true)
+    // Gallery images never inherit folder-hidden state.
+    expect(model.gallery.every((g) => g.folderHidden === false)).toBe(true)
+    const g2 = model.gallery.find((g) => g.img.id === "g2")!
+    expect(g2.individuallyHidden).toBe(false)
+  })
+
   it("null entry → nothing hidden; null talent → empty", () => {
     expect(
       buildBoardImageModel(makeTalent(), null).gallery.every((g) => !g.hidden),

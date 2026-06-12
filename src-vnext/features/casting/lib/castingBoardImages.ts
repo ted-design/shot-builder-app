@@ -32,14 +32,22 @@ export interface ResolvedBoardImages {
   readonly folders: readonly BoardFolder[]
   /** Flat list, order: gallery then folders — for the card strip. */
   readonly allVisible: readonly BoardImage[]
-  /** Whether the talent has ANY gallery/session image at all. */
+  /** True when the talent has at least one gallery/session image — i.e. there
+   *  are images a producer could choose to hide (a precondition flag, not a
+   *  count of what is currently hidden). */
   readonly hasHiddenCandidates: boolean
 }
 
 /** Per-image annotation for the admin toggle UI. */
 export interface BoardImageModelEntry {
   readonly img: BoardImage
+  /** Combined hidden state (individually OR via its folder) — drives dimming. */
   readonly hidden: boolean
+  /** The image's own id is in `hiddenImageIds` (the per-image toggle controls this). */
+  readonly individuallyHidden: boolean
+  /** The image is hidden because its whole session/folder is hidden. When true,
+   *  the per-image toggle must be disabled — the folder toggle is the control. */
+  readonly folderHidden: boolean
 }
 
 export interface BoardFolderModelEntry {
@@ -100,10 +108,16 @@ export function buildBoardImageModel(
   const hiddenSessions = hiddenSessionIdSet(entry)
 
   const gallery: BoardImageModelEntry[] = (talent.galleryImages ?? []).map(
-    (img) => ({
-      img: toBoardImage(img),
-      hidden: hiddenImages.has(img.id),
-    }),
+    (img) => {
+      const individuallyHidden = hiddenImages.has(img.id)
+      return {
+        img: toBoardImage(img),
+        // Gallery images have no folder, so individual === combined.
+        hidden: individuallyHidden,
+        individuallyHidden,
+        folderHidden: false,
+      }
+    },
   )
 
   const folders: BoardFolderModelEntry[] = (talent.castingSessions ?? []).map(
@@ -114,11 +128,20 @@ export function buildBoardImageModel(
         title: folderTitle(session),
         date: session.date ?? null,
         hidden: folderHidden,
-        images: (session.images ?? []).map((img) => ({
-          img: toBoardImage(img),
-          // An image is hidden when its own id is hidden OR its session is hidden.
-          hidden: folderHidden || hiddenImages.has(img.id),
-        })),
+        images: (session.images ?? []).map((img) => {
+          const individuallyHidden = hiddenImages.has(img.id)
+          return {
+            img: toBoardImage(img),
+            // An image is hidden when its own id is hidden OR its session is hidden,
+            // but the two causes are tracked separately so the per-image toggle
+            // (which only mutates hiddenImageIds) can be disabled for folder-hidden
+            // images — otherwise toggling would silently strand the id in
+            // hiddenImageIds without making the image visible.
+            hidden: folderHidden || individuallyHidden,
+            individuallyHidden,
+            folderHidden,
+          }
+        }),
       }
     },
   )

@@ -172,6 +172,70 @@ describe("AdminTalentDetailSheet", () => {
     })
   })
 
+  it("disables the per-image toggle for a folder-hidden image (Codex P2)", () => {
+    render(
+      <AdminTalentDetailSheet
+        talent={makeTalent()}
+        entry={makeEntry({ hiddenImageIds: [], hiddenSessionIds: ["s1"] })}
+        voteAggregate={null}
+        canEdit
+        clientId="c1"
+        projectId="p1"
+        open
+        onOpenChange={() => {}}
+      />,
+    )
+
+    // The session folder is shown in edit mode; its child image toggles are
+    // inert ("hidden via folder") so clicking them can't strand an id in
+    // hiddenImageIds. There are two such images (i1, i2).
+    const inertToggles = screen.getAllByRole("button", {
+      name: "Hidden via folder — toggle the folder to show",
+    })
+    expect(inertToggles).toHaveLength(2)
+    inertToggles.forEach((b) => expect(b).toBeDisabled())
+
+    fireEvent.click(inertToggles[0]!)
+    expect(updateCastingEntryVisibility).not.toHaveBeenCalled()
+
+    // The folder toggle itself is the control (folder currently hidden → "Show folder").
+    expect(screen.getByRole("button", { name: "Show folder" })).toBeInTheDocument()
+    // Gallery images are unaffected — still individually hideable.
+    expect(screen.getAllByRole("button", { name: "Hide image" })).toHaveLength(2)
+  })
+
+  it("composes rapid successive toggles via optimistic state (no dropped write)", () => {
+    render(
+      <AdminTalentDetailSheet
+        talent={makeTalent()}
+        entry={makeEntry({ hiddenImageIds: [], hiddenSessionIds: [] })}
+        voteAggregate={null}
+        canEdit
+        clientId="c1"
+        projectId="p1"
+        open
+        onOpenChange={() => {}}
+      />,
+    )
+
+    // Hide g1 (the write mock never updates the `entry` prop, simulating the
+    // Firestore round-trip latency window).
+    fireEvent.click(screen.getAllByRole("button", { name: "Hide image" })[0]!)
+    // g1 is now optimistically hidden; the next "Hide image" button is g2.
+    fireEvent.click(screen.getAllByRole("button", { name: "Hide image" })[0]!)
+
+    expect(updateCastingEntryVisibility).toHaveBeenCalledTimes(2)
+    // The SECOND write must include BOTH ids — the pre-fix code, computing from
+    // the stale entry prop, would have written only ["g2"] and dropped g1.
+    expect(updateCastingEntryVisibility).toHaveBeenLastCalledWith({
+      clientId: "c1",
+      projectId: "p1",
+      talentId: "t1",
+      hiddenImageIds: ["g1", "g2"],
+      hiddenSessionIds: [],
+    })
+  })
+
   it("read-only (canEdit=false) shows no toggles and hides hidden images", () => {
     render(
       <AdminTalentDetailSheet

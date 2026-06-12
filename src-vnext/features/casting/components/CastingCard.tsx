@@ -236,7 +236,7 @@ export function CastingCard({
                 <div key={image.id} className="relative">
                   <BoardThumb image={image} alt={`${displayName} image ${index + 1}`} />
                   {isLast && overflowCount > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-black/55 text-2xs font-semibold text-white">
+                    <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-black/45 text-2xs font-semibold text-white">
                       +{overflowCount}
                     </div>
                   )}

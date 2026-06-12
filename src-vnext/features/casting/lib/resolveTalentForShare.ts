@@ -91,6 +91,10 @@ export async function resolveTalentForCastingShare(args: {
         ? (data["measurements"] as Record<string, string | number | null>)
         : null
 
+      // Curator-hidden ids (Set lookups — these are scanned per image/session below).
+      const hiddenImageIds = new Set(entry.hiddenImageIds ?? [])
+      const hiddenSessionIds = new Set(entry.hiddenSessionIds ?? [])
+
       // Gallery / portfolio (only if visible)
       let galleryUrls: readonly string[] = []
       if (visibleFields.portfolio && data) {
@@ -101,8 +105,7 @@ export async function resolveTalentForCastingShare(args: {
         // Drop curator-hidden gallery images BEFORE applying the cap so the
         // visible cap (MAX_GALLERY_IMAGES) counts only visible images.
         const visible = gallery.filter(
-          (img) =>
-            !(typeof img.id === "string" && entry.hiddenImageIds?.includes(img.id)),
+          (img) => !(typeof img.id === "string" && hiddenImageIds.has(img.id)),
         )
         const limited = visible.slice(0, MAX_GALLERY_IMAGES)
         const urls = await Promise.all(
@@ -137,18 +140,14 @@ export async function resolveTalentForCastingShare(args: {
           if (allUrls.length >= MAX_TOTAL_CASTING_IMAGES) break
 
           // Skip whole curator-hidden sessions (folders) outright.
-          if (
-            typeof session.id === "string" &&
-            entry.hiddenSessionIds?.includes(session.id)
-          ) {
+          if (typeof session.id === "string" && hiddenSessionIds.has(session.id)) {
             continue
           }
 
           // Drop curator-hidden images within a kept session before path
           // extraction so the per-session/total caps count only visible images.
           const imgs = (Array.isArray(session.images) ? session.images : []).filter(
-            (img) =>
-              !(typeof img.id === "string" && entry.hiddenImageIds?.includes(img.id)),
+            (img) => !(typeof img.id === "string" && hiddenImageIds.has(img.id)),
           )
           const remaining = MAX_TOTAL_CASTING_IMAGES - allUrls.length
           const paths = imgs
