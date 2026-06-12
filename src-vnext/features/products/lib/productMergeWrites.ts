@@ -294,7 +294,7 @@ async function updateShotReferences(args: {
       const mappedProducts = products.map((p) => {
         if (p.familyId === loserId) {
           changed = true
-          return { ...p, familyId: winnerId, familyName: winnerName }
+          return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
         }
         return p
       })
@@ -313,7 +313,7 @@ async function updateShotReferences(args: {
         const mappedLookProducts = lookProducts.map((p) => {
           if (p.familyId === loserId) {
             changed = true
-            return { ...p, familyId: winnerId, familyName: winnerName }
+            return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
           }
           return p
         })
@@ -386,16 +386,15 @@ async function updatePullReferences(args: {
         const items = (data.items ?? []) as Record<string, unknown>[]
         const newItems = items.map((item) => {
           if (item.familyId === loserId) {
-            return { ...item, familyId: winnerId, familyName: winnerName }
+            return { ...item, familyId: winnerId, familyName: winnerName ?? item.familyName }
           }
           return item
         })
 
+        // familyName falls back to the item's own (winnerName is preserved, not dropped); sanitize is belt-and-suspenders.
         batch.update(
           pullDoc.ref,
           sanitizeForFirestore({
-            // winnerName can be undefined for an unnamed winner family; sanitize
-            // so a re-pointed pull item never injects an undefined familyName.
             items: newItems,
             updatedAt: serverTimestamp(),
           }) as Record<string, unknown>,

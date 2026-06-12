@@ -33,7 +33,7 @@ function makeSku(overrides: Partial<ProductSku> & { id: string }): ProductSku {
 }
 
 /** Collect every undefined-valued field path in an object (Firestore rejects these). */
-function undefinedFields(obj: Record<string, unknown>): string[] {
+function topLevelUndefinedFields(obj: Record<string, unknown>): string[] {
   return Object.entries(obj)
     .filter(([, v]) => v === undefined)
     .map(([k]) => k)
@@ -79,7 +79,7 @@ describe("transferNewSkus (product merge — Step 1)", () => {
 
     expect(mockBatchSet).toHaveBeenCalledTimes(1)
     const payload = mockBatchSet.mock.calls[0]![1] as Record<string, unknown>
-    expect(undefinedFields(payload)).toEqual([])
+    expect(topLevelUndefinedFields(payload)).toEqual([])
     expect(payload.name).toBe("Sea Salt") // falls back to colorName
     expect(payload.colorName).toBe("Sea Salt")
   })
@@ -94,8 +94,8 @@ describe("transferNewSkus (product merge — Step 1)", () => {
     const second = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
     expect(first.name).toBe("M-BT-PN-1097")
     expect(second.name).toBe("Untitled")
-    expect(undefinedFields(first)).toEqual([])
-    expect(undefinedFields(second)).toEqual([])
+    expect(topLevelUndefinedFields(first)).toEqual([])
+    expect(topLevelUndefinedFields(second)).toEqual([])
   })
 
   it("strips nested undefined (e.g. assetRequirements) from the payload", async () => {
