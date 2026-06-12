@@ -2,7 +2,10 @@ import { useMemo, useState } from "react"
 import { Search } from "lucide-react"
 import type { TalentRecord } from "@/shared/types"
 import type { GenderKey } from "@/features/library/lib/measurementOptions"
-import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
+import {
+  getMeasurementOptionsForGender,
+  genderDisplayLabel,
+} from "@/features/library/lib/measurementOptions"
 import type { MeasurementRange } from "@/features/library/lib/talentFilters"
 import type { CastingBrief, TalentMatchResult, FieldMatchDetail } from "@/features/library/lib/castingMatch"
 import { EMPTY_CASTING_BRIEF } from "@/features/library/lib/castingMatch"
@@ -225,7 +228,7 @@ function MatchCard({ result, compact }: MatchCardProps) {
           </span>
         </div>
         <div className="mb-2 text-xs text-[var(--color-text-muted)]">
-          {talent.agency ?? "No agency"} {talent.gender ? `\u00b7 ${talent.gender.charAt(0).toUpperCase() + talent.gender.slice(1)}` : ""}
+          {talent.agency ?? "No agency"} {talent.gender ? `\u00b7 ${genderDisplayLabel(talent.gender)}` : ""}
         </div>
 
         {/* Field breakdown pills */}
