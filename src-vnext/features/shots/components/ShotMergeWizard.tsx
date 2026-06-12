@@ -164,6 +164,7 @@ function ShotCompareCard({
           <img
             src={resolved}
             alt={shot.title}
+            loading="lazy"
             className="h-full w-full object-cover"
           />
         ) : (
@@ -172,7 +173,7 @@ function ShotCompareCard({
           </div>
         )}
       </div>
-      <h3 className="mb-2 truncate text-sm font-semibold text-[var(--color-text)]" title={shot.title}>
+      <h3 className="heading-subsection mb-2 truncate" title={shot.title}>
         {shot.title}
       </h3>
       <dl className="space-y-1 text-xs text-[var(--color-text-muted)]">
@@ -342,15 +343,16 @@ export function ShotMergeWizard({
                 <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                   Merge mode
                 </legend>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div role="radiogroup" aria-label="Merge mode" className="grid gap-2 sm:grid-cols-2">
                   {MODE_OPTIONS.map((opt) => {
                     const selected = mode === opt.key
                     return (
                       <button
                         key={opt.key}
                         type="button"
+                        role="radio"
+                        aria-checked={selected}
                         onClick={() => setMode(opt.key)}
-                        aria-pressed={selected}
                         className={cn(
                           "rounded-md border p-3 text-left transition-colors",
                           selected

@@ -363,8 +363,10 @@ export default function ShotListPage() {
 
   // Open the merge wizard on a snapshot of the current pair (see mergeShots).
   const openMerge = () => {
+    if (selectedShots.length !== 2) return
     const [a, b] = selectedShots
-    if (a && b && selectedShots.length === 2) {
+    if (a && b) {
+      // a && b is the type-narrowing guard (TS can't narrow a tuple from .length).
       setMergeShots([a, b])
       setMergeOpen(true)
     }

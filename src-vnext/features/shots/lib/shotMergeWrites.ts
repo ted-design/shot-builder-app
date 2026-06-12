@@ -1,6 +1,9 @@
-import { serverTimestamp } from "firebase/firestore"
+import { doc, serverTimestamp, writeBatch } from "firebase/firestore"
+import { db } from "@/shared/lib/firebase"
+import { shotPath } from "@/shared/lib/paths"
 import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
-import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
+import { buildShotWritePayload } from "@/features/shots/lib/updateShot"
+import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
 import type {
   AuthUser,
   ProductAssignment,
@@ -293,14 +296,18 @@ function unionTags(
   return out
 }
 
+/** Build a Firestore doc ref from a path-helper string array. */
+function shotDocRef(shotId: string, clientId: string) {
+  const path = shotPath(shotId, clientId)
+  return doc(db, path[0]!, ...path.slice(1))
+}
+
 /**
- * Thin orchestrator — does the two writes.
- * Primary write FIRST; if it throws, the secondary is never soft-deleted (no orphan).
- *
- * NOTE: the two writes are sequential, not atomic. A successful primary write
- * followed by a failed secondary soft-delete leaves both shots visible with
- * duplicated products. Acceptable for v1 pairwise merge (the user can re-run);
- * TODO(v2): wrap both in a single WriteBatch once version snapshots support it.
+ * Orchestrator — applies the merge as a SINGLE atomic WriteBatch: the primary's
+ * merged patch and the secondary's soft-delete commit together or not at all, so
+ * a partial failure can never leave a half-merged pair (both shots visible with
+ * duplicated products). Version snapshots are best-effort audit writes fired
+ * after the atomic merge lands (mirroring updateShotWithVersion's posture).
  */
 export async function executeShotMerge(args: {
   clientId: string
@@ -310,25 +317,56 @@ export async function executeShotMerge(args: {
   user: AuthUser | null
 }): Promise<ShotMergeResult> {
   const { clientId, primary, secondary, mode, user } = args
+  if (!clientId) throw new Error("Missing clientId.")
+
   const { patch, result } = buildShotMergePlan({ primary, secondary, mode })
 
-  await updateShotWithVersion({
-    clientId,
-    shotId: primary.id,
-    patch,
-    shot: primary,
-    user,
-    source: "shot-merge",
-  })
+  // buildShotWritePayload strips the BLOCKED `notes` field + top-level undefined
+  // (the patch is already deep-sanitized); same guard updateShotWithVersion uses.
+  const primaryPayload = buildShotWritePayload(patch)
+  const secondaryPayload: Record<string, unknown> = {
+    deleted: true,
+    deletedAt: serverTimestamp(),
+  }
+  const auditFields = user?.uid ? { updatedBy: user.uid } : {}
 
-  await updateShotWithVersion({
-    clientId,
-    shotId: secondary.id,
-    patch: { deleted: true, deletedAt: serverTimestamp() },
-    shot: secondary,
-    user,
-    source: "shot-merge-loser",
+  const batch = writeBatch(db)
+  batch.update(shotDocRef(primary.id, clientId), {
+    ...primaryPayload,
+    updatedAt: serverTimestamp(),
+    ...auditFields,
   })
+  batch.update(shotDocRef(secondary.id, clientId), {
+    ...secondaryPayload,
+    updatedAt: serverTimestamp(),
+    ...auditFields,
+  })
+  await batch.commit()
+
+  // Best-effort version snapshots (audit, not core state) — never block or fail
+  // the merge if they error.
+  if (user?.uid) {
+    void createShotVersionSnapshot({
+      clientId,
+      shotId: primary.id,
+      previousShot: primary,
+      patch: primaryPayload,
+      user,
+      changeType: "update",
+    }).catch((err) => {
+      console.error("[executeShotMerge] primary version snapshot failed", err)
+    })
+    void createShotVersionSnapshot({
+      clientId,
+      shotId: secondary.id,
+      previousShot: secondary,
+      patch: secondaryPayload,
+      user,
+      changeType: "update",
+    }).catch((err) => {
+      console.error("[executeShotMerge] loser version snapshot failed", err)
+    })
+  }
 
   return { mergedShotId: primary.id, ...result }
 }

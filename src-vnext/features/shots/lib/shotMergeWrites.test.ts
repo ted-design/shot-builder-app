@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
+// Hoisted batch spies so the firebase/firestore mock factory can close over them.
+const { batchUpdate, batchCommit, makeBatch } = vi.hoisted(() => {
+  const batchUpdate = vi.fn()
+  const batchCommit = vi.fn().mockResolvedValue(undefined)
+  const makeBatch = vi.fn(() => ({ update: batchUpdate, commit: batchCommit }))
+  return { batchUpdate, batchCommit, makeBatch }
+})
+
 vi.mock("firebase/firestore", () => ({
   serverTimestamp: vi.fn(() => ({ _methodName: "serverTimestamp" })),
+  doc: vi.fn((_db: unknown, ...segments: string[]) => ({ path: segments.join("/") })),
+  writeBatch: makeBatch,
 }))
 
 vi.mock("@/shared/lib/firebase", () => ({ db: {} }))
@@ -15,13 +25,11 @@ vi.mock("@/shared/lib/paths", () => ({
   ],
 }))
 
-// Mock the writer so executeShotMerge tests assert orchestration only.
-vi.mock("./updateShotWithVersion", () => ({
-  updateShotWithVersion: vi.fn().mockResolvedValue(undefined),
-}))
+// Best-effort audit write — stubbed so orchestration tests stay focused.
+const createShotVersionSnapshot = vi.hoisted(() => vi.fn().mockResolvedValue("v1"))
+vi.mock("./shotVersioning", () => ({ createShotVersionSnapshot }))
 
 import { buildShotMergePlan, executeShotMerge } from "./shotMergeWrites"
-import { updateShotWithVersion } from "./updateShotWithVersion"
 import type {
   AuthUser,
   ProductAssignment,
@@ -403,7 +411,7 @@ describe("executeShotMerge — orchestration", () => {
     vi.clearAllMocks()
   })
 
-  it("writes primary FIRST then soft-deletes secondary; returns counts", async () => {
+  it("merges primary + soft-deletes secondary in ONE atomic batch; returns counts", async () => {
     const primary = makeShot({
       id: "A",
       title: "Shot A",
@@ -429,27 +437,44 @@ describe("executeShotMerge — orchestration", () => {
     expect(out.mergedShotId).toBe("A")
     expect(out.talentAdded).toBe(1)
 
-    const calls = vi.mocked(updateShotWithVersion).mock.calls
-    expect(calls).toHaveLength(2)
-    // primary first
-    expect(calls[0]![0].shotId).toBe("A")
-    expect(calls[0]![0].source).toBe("shot-merge")
-    // secondary soft-deleted (deleted:true), NOT hard-deleted
-    expect(calls[1]![0].shotId).toBe("B")
-    expect(calls[1]![0].source).toBe("shot-merge-loser")
-    expect(calls[1]![0].patch).toMatchObject({ deleted: true })
-    expect(calls[1]![0].patch).toHaveProperty("deletedAt")
+    // ONE batch, committed exactly once (atomic) — both writes land together.
+    expect(makeBatch).toHaveBeenCalledTimes(1)
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+
+    const updates = batchUpdate.mock.calls
+    expect(updates).toHaveLength(2)
+    // primary update FIRST, carries the merged looks (not a delete).
+    expect((updates[0]![0] as { path: string }).path).toBe("clients/unbound-merino/shots/A")
+    expect(updates[0]![1]).toHaveProperty("looks")
+    expect(updates[0]![1]).not.toHaveProperty("deleted")
+    // secondary soft-deleted (deleted:true + deletedAt), NOT hard-deleted.
+    expect((updates[1]![0] as { path: string }).path).toBe("clients/unbound-merino/shots/B")
+    expect(updates[1]![1]).toMatchObject({ deleted: true })
+    expect(updates[1]![1]).toHaveProperty("deletedAt")
+
+    // Best-effort version snapshots for both shots (audit, fired after commit).
+    expect(createShotVersionSnapshot).toHaveBeenCalledTimes(2)
   })
 
-  it("does not delete secondary if primary write throws (no orphan)", async () => {
-    vi.mocked(updateShotWithVersion).mockRejectedValueOnce(new Error("primary failed"))
+  it("commits nothing if the batch fails — no half-merged pair (atomic)", async () => {
+    batchCommit.mockRejectedValueOnce(new Error("batch failed"))
     const primary = makeShot({ id: "A", title: "Shot A" })
     const secondary = makeShot({ id: "B", title: "Shot B" })
 
     await expect(
       executeShotMerge({ clientId: "c1", primary, secondary, mode: "combine", user }),
-    ).rejects.toThrow("primary failed")
+    ).rejects.toThrow("batch failed")
 
-    expect(vi.mocked(updateShotWithVersion).mock.calls).toHaveLength(1)
+    // Firestore guarantees an all-or-nothing batch: neither shot is mutated.
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it("throws on a missing clientId before touching Firestore", async () => {
+    const primary = makeShot({ id: "A", title: "Shot A" })
+    const secondary = makeShot({ id: "B", title: "Shot B" })
+    await expect(
+      executeShotMerge({ clientId: "", primary, secondary, mode: "combine", user }),
+    ).rejects.toThrow("Missing clientId")
+    expect(makeBatch).not.toHaveBeenCalled()
   })
 })
