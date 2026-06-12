@@ -187,10 +187,8 @@ export async function setTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
-  // Drop the stale cache entry, but do NOT delete the old object on replace: a
-  // published casting share denormalizes (snapshots) the old headshot's download
-  // URL, so deleting it would break that share's image. Orphans are swept on hard-delete.
-  invalidateStoragePath(args.previousPath ?? null)
+  // No delete on replace: a published casting share snapshots the old headshot's URL — deleting breaks it. The old object is left orphaned on purpose (accepted storage tradeoff).
+  invalidateStoragePath(args.previousPath)
 
   return uploaded
 }
@@ -214,7 +212,7 @@ export async function removeTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
-  invalidateStoragePath(args.previousPath ?? null)
+  invalidateStoragePath(args.previousPath)
   await deleteStoragePath(args.previousPath ?? null)
 }
 
