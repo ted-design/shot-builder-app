@@ -47,6 +47,7 @@ import { useLanes } from "@/features/shots/hooks/useLanes"
 import { SceneHeader } from "@/features/shots/components/SceneHeader"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
+import { ShotMergeWizard } from "@/features/shots/components/ShotMergeWizard"
 import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { Skeleton } from "@/ui/skeleton"
@@ -91,6 +92,13 @@ export default function ShotListPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [renumberOpen, setRenumberOpen] = useState(false)
   const [groupSceneOpen, setGroupSceneOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
+  // Snapshot the two merge candidates at open time. Hosting the wizard on the
+  // live `selectedShots` would unmount it mid-flow: a successful merge soft-
+  // deletes the loser, which drops it out of `displayShots` → `selectedShots`
+  // falls to 1 → the dialog unmounts before the Result step can render (and
+  // leaves `mergeOpen` true, re-popping next time two shots are selected).
+  const [mergeShots, setMergeShots] = useState<readonly [Shot, Shot] | null>(null)
   const [deleteSceneTarget, setDeleteSceneTarget] = useState<{ id: string; name: string } | null>(null)
   const [editSceneId, setEditSceneId] = useState<string | null>(null)
   const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
@@ -353,6 +361,17 @@ export default function ShotListPage() {
     return displayShots.filter((s) => selectedIds.has(s.id))
   }, [displayShots, selectedIds, selectionEnabled])
 
+  // Open the merge wizard on a snapshot of the current pair (see mergeShots).
+  const openMerge = () => {
+    if (selectedShots.length !== 2) return
+    const [a, b] = selectedShots
+    if (a && b) {
+      // a && b is the type-narrowing guard (TS can't narrow a tuple from .length).
+      setMergeShots([a, b])
+      setMergeOpen(true)
+    }
+  }
+
   // -- Loading / error states --
   const stuck = useStuckLoading(loading)
 
@@ -469,6 +488,7 @@ export default function ShotListPage() {
           role={role}
           onShareOpen={() => setShareOpen(true)}
           onGroupSceneOpen={() => setGroupSceneOpen(true)}
+          onMergeOpen={openMerge}
           onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
@@ -977,6 +997,22 @@ export default function ShotListPage() {
         user={user}
         onDeleted={clearSelection}
       />
+
+      {mergeShots && (
+        <ShotMergeWizard
+          open={mergeOpen}
+          onOpenChange={(o) => {
+            setMergeOpen(o)
+            if (!o) setMergeShots(null)
+          }}
+          clientId={clientId}
+          user={user}
+          shotA={mergeShots[0]}
+          shotB={mergeShots[1]}
+          projectId={projectId}
+          onMerged={clearSelection}
+        />
+      )}
 
       <RenumberShotsDialog
         open={renumberOpen}
