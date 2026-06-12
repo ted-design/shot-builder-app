@@ -22,6 +22,7 @@ import {
   arrayUnion,
 } from "firebase/firestore"
 import { db } from "@/shared/lib/firebase"
+import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 import {
   castingBoardPath,
   castingBoardDocPath,
@@ -132,6 +133,37 @@ export async function updateCastingEntry(args: {
     ...patch,
     updatedAt: serverTimestamp(),
   })
+}
+
+/**
+ * Update a casting entry's image/folder visibility curation.
+ *
+ * Stores which individual images (`hiddenImageIds`) and which whole casting
+ * sessions/folders (`hiddenSessionIds`) are hidden from the talent's
+ * casting-board card. Mirrors `updateCastingEntry` (same entry doc ref) but
+ * wraps the payload in `sanitizeForFirestore` per spec; the `serverTimestamp`
+ * sentinel passes through sanitize untouched.
+ *
+ * Callers must pass the FULL next-state arrays (immutable — never a delta).
+ */
+export async function updateCastingEntryVisibility(args: {
+  readonly clientId: string
+  readonly projectId: string
+  readonly talentId: string
+  readonly hiddenImageIds: readonly string[]
+  readonly hiddenSessionIds: readonly string[]
+}): Promise<void> {
+  const { clientId, projectId, talentId, hiddenImageIds, hiddenSessionIds } =
+    args
+  const entryRef = docRef(castingBoardDocPath(talentId, projectId, clientId))
+  await updateDoc(
+    entryRef,
+    sanitizeForFirestore({
+      hiddenImageIds,
+      hiddenSessionIds,
+      updatedAt: serverTimestamp(),
+    }) as Record<string, unknown>,
+  )
 }
 
 /**

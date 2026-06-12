@@ -11,6 +11,10 @@ import {
 } from "@/ui/dropdown-menu"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import {
+  resolveVisibleBoardImages,
+  type BoardImage,
+} from "@/features/casting/lib/castingBoardImages"
+import {
   getCastingStatusLabel,
   getCastingStatusColor,
   CASTING_STATUS_MAP,
@@ -46,6 +50,32 @@ function statusBadgeClasses(status: CastingBoardStatus): string {
   return `bg-[var(--color-${color}-bg)] text-[var(--color-${color}-text)]`
 }
 
+/** Max thumbnails shown inline before collapsing the remainder into a +N chip. */
+const MAX_STRIP_THUMBS = 4
+
+/**
+ * Resolves a single board image's Storage URL (prefers a pre-resolved
+ * downloadURL, else resolves the path via `useStorageUrl`). A child component
+ * is required because `useStorageUrl` is a hook and cannot run inside a map.
+ */
+function BoardThumb({
+  image,
+  alt,
+}: {
+  readonly image: BoardImage
+  readonly alt: string
+}) {
+  const resolvedUrl = useStorageUrl(image.path || undefined)
+  const url = image.downloadURL || resolvedUrl
+  return (
+    <div className="aspect-square overflow-hidden rounded-sm bg-[var(--color-surface-subtle)]">
+      {url ? (
+        <img src={url} alt={alt} className="h-full w-full object-cover" />
+      ) : null}
+    </div>
+  )
+}
+
 export function CastingCard({
   entry,
   talent,
@@ -72,6 +102,13 @@ export function CastingCard({
     )
     return text.length > 0 ? text : null
   }, [talent?.measurements, talent?.gender, system])
+
+  const visibleImages = useMemo(
+    () => resolveVisibleBoardImages(talent, entry).allVisible,
+    [talent, entry],
+  )
+  const stripThumbs = visibleImages.slice(0, MAX_STRIP_THUMBS)
+  const overflowCount = visibleImages.length - stripThumbs.length
 
   const showBookButton =
     canEdit && (entry.status === "shortlist" || entry.status === "hold")
@@ -183,6 +220,30 @@ export function CastingCard({
           <div className="mt-1.5 text-2xs text-[var(--color-text-muted)]">
             {measurementText}
           </div>
+        )}
+
+        {/* Visible board-image strip — opens the detail sheet on click */}
+        {stripThumbs.length > 0 && (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={`View ${visibleImages.length} image${visibleImages.length !== 1 ? "s" : ""} for ${displayName}`}
+            className="mt-2 grid w-full grid-cols-4 gap-1"
+          >
+            {stripThumbs.map((image, index) => {
+              const isLast = index === stripThumbs.length - 1
+              return (
+                <div key={image.id} className="relative">
+                  <BoardThumb image={image} alt={`${displayName} image ${index + 1}`} />
+                  {isLast && overflowCount > 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-black/55 text-2xs font-semibold text-white">
+                      +{overflowCount}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </button>
         )}
 
         {/* Vote tally */}

@@ -15,6 +15,12 @@ function mapCastingEntry(
     status: (data["status"] as CastingBoardStatus) ?? "shortlist",
     notes: (data["notes"] as string) ?? null,
     roleLabel: (data["roleLabel"] as string) ?? null,
+    hiddenImageIds: Array.isArray(data["hiddenImageIds"])
+      ? (data["hiddenImageIds"] as string[])
+      : [],
+    hiddenSessionIds: Array.isArray(data["hiddenSessionIds"])
+      ? (data["hiddenSessionIds"] as string[])
+      : [],
     sortOrder: typeof data["sortOrder"] === "number" ? data["sortOrder"] : 0,
     addedBy: (data["addedBy"] as string) ?? "",
     addedAt: data["addedAt"],

@@ -95,10 +95,16 @@ export async function resolveTalentForCastingShare(args: {
       let galleryUrls: readonly string[] = []
       if (visibleFields.portfolio && data) {
         const gallery = Array.isArray(data["galleryImages"])
-          ? (data["galleryImages"] as ReadonlyArray<{ path?: string; downloadURL?: string | null }>)
+          ? (data["galleryImages"] as ReadonlyArray<{ id?: string; path?: string; downloadURL?: string | null }>)
           : []
 
-        const limited = gallery.slice(0, MAX_GALLERY_IMAGES)
+        // Drop curator-hidden gallery images BEFORE applying the cap so the
+        // visible cap (MAX_GALLERY_IMAGES) counts only visible images.
+        const visible = gallery.filter(
+          (img) =>
+            !(typeof img.id === "string" && entry.hiddenImageIds?.includes(img.id)),
+        )
+        const limited = visible.slice(0, MAX_GALLERY_IMAGES)
         const urls = await Promise.all(
           limited.map(async (img) => {
             // Prefer pre-resolved downloadURL, fall back to resolving the path
@@ -117,9 +123,10 @@ export async function resolveTalentForCastingShare(args: {
       if (visibleFields.portfolio && data) {
         const rawSessions = Array.isArray(data["castingSessions"])
           ? (data["castingSessions"] as ReadonlyArray<{
+              id?: string
               title?: string | null
               date?: string | null
-              images?: ReadonlyArray<{ path?: string }>
+              images?: ReadonlyArray<{ id?: string; path?: string }>
             }>)
           : []
 
@@ -129,7 +136,20 @@ export async function resolveTalentForCastingShare(args: {
         for (const session of rawSessions) {
           if (allUrls.length >= MAX_TOTAL_CASTING_IMAGES) break
 
-          const imgs = Array.isArray(session.images) ? session.images : []
+          // Skip whole curator-hidden sessions (folders) outright.
+          if (
+            typeof session.id === "string" &&
+            entry.hiddenSessionIds?.includes(session.id)
+          ) {
+            continue
+          }
+
+          // Drop curator-hidden images within a kept session before path
+          // extraction so the per-session/total caps count only visible images.
+          const imgs = (Array.isArray(session.images) ? session.images : []).filter(
+            (img) =>
+              !(typeof img.id === "string" && entry.hiddenImageIds?.includes(img.id)),
+          )
           const remaining = MAX_TOTAL_CASTING_IMAGES - allUrls.length
           const paths = imgs
             .map((img) => (typeof img.path === "string" && img.path.trim().length > 0 ? img.path : null))

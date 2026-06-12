@@ -492,6 +492,9 @@ export default function CastingBoardPage() {
         talent={detailTalentId ? (talentById.get(detailTalentId) ?? null) : null}
         entry={detailTalentId ? (entries.find((e) => e.talentId === detailTalentId) ?? null) : null}
         voteAggregate={detailTalentId ? (voteAggregates.get(detailTalentId) ?? null) : null}
+        canEdit={canEdit}
+        clientId={clientId}
+        projectId={projectId}
       />
     </ErrorBoundary>
   )
