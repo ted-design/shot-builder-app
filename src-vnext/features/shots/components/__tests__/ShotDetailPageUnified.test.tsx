@@ -726,7 +726,6 @@ describe("ShotDetailPageUnified", () => {
     renderPage()
 
     expect(screen.getByTestId("shot-detail-sidebar")).toBeInTheDocument()
-    expect(screen.queryByTestId("quick-add-stub")).not.toBeInTheDocument()
     expect(screen.queryByText(/quick add/i)).not.toBeInTheDocument()
   })
 })

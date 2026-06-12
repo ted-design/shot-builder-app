@@ -19,12 +19,7 @@ interface ReferenceUrlFieldProps {
   readonly onSave: (next: string | null) => void
 }
 
-/**
- * Reference URL row: shows a single clean clickable hostname link as the display
- * (e.g. "www.sutherlandmodels.com"); the full URL only appears while actively
- * editing. Replaces the previous render that showed BOTH the hostname link and a
- * full-URL InlineEdit side by side (the duplicated/ugly row).
- */
+// Reference URL row: clickable hostname link as the display; full URL only while editing.
 function ReferenceUrlField({ url, canEdit, busy, onSave }: ReferenceUrlFieldProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(url ?? "")

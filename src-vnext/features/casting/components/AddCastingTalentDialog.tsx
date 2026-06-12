@@ -18,13 +18,8 @@ import {
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import type { TalentRecord } from "@/shared/types"
 
-/**
- * Avatar for a talent row. Resolves the headshot the SAME way the library list and
- * casting cards do — useStorageUrl(headshotPath || imageUrl) — instead of relying on
- * the denormalized headshotUrl field (which is only populated when a headshot was
- * uploaded through the library flow, so it was blank for most talent here). Extracted
- * into its own component because useStorageUrl is a hook and can't run inside .map().
- */
+// Resolves the headshot via useStorageUrl (like the library list/cards), not the often-empty
+// denormalized headshotUrl. Own component because useStorageUrl can't run inside .map().
 function CastingTalentAvatar({
   talent,
   name,

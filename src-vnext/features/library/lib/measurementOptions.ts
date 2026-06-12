@@ -44,8 +44,8 @@ export const MEASUREMENT_LABEL_MAP: Readonly<Record<string, string>> =
 
 export function normalizeGender(gender: string | null | undefined): GenderKey {
   const value = (gender ?? "").toLowerCase().trim()
-  if (value === "male" || value === "man" || value.startsWith("men")) return "men"
-  if (value === "female" || value === "woman" || value.startsWith("women")) return "women"
+  if (value === "m" || value === "male" || value === "man" || value.startsWith("men")) return "men"
+  if (value === "f" || value === "female" || value === "woman" || value.startsWith("women")) return "women"
   return "other"
 }
 
