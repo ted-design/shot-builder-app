@@ -1,6 +1,9 @@
 /// <reference types="@testing-library/jest-dom" />
-// 5f-II — unit matrix for the Review-client shell (the read-only approval
-// gallery surface) and its mount fork in ShotDetailPageUnified.
+// 5f-II / 5f-III — unit matrix for the Review shells (the read-only approval
+// surfaces) and their mount fork in ShotDetailPageUnified. The first describe
+// pins the 5f-II review-CLIENT shell; the trailing 5f-III block pins the
+// product-forward review-WAREHOUSE variant (products FIRST, read-only status,
+// open composer, no version-history, no hero-led layout).
 //
 // Renders through the ShotDetailPage default export so the real fork is
 // exercised: isFeatureEnabled('featureReviewSurface') && resolved
@@ -21,8 +24,9 @@
 //   - NO version-history section (the explicit scoping boundary)
 //   - products render through ProductColorwayStrip readOnly=true
 //   - producer + flag ON: NO review shell (surface is plan-build)
-//   - the 'review-warehouse' variant renders a quiet placeholder (5f-III stub),
-//     never the client composition
+//   - the 'review-warehouse' variant (5f-III) renders the product-forward pull
+//     detail (products FIRST, read-only status, open composer), never the
+//     client composition and never the old 5f-II placeholder
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
@@ -443,12 +447,11 @@ describe("ReviewShotDetail (the 5f-II Review-client shell)", () => {
     expect(meta.textContent).toContain("—")
   })
 
-  // ── Variant guard: warehouse (5f-III) renders a placeholder, never crashes ─
+  // ── 5f-III: the 'review-warehouse' variant (PRODUCT-FORWARD pull view) ──────
 
-  it("the 'review-warehouse' variant renders a quiet placeholder — never the client composition", () => {
-    mockShot()
-
-    render(
+  function renderWarehouse(overrides: Partial<Shot> = {}) {
+    mockShot(overrides)
+    return render(
       <MemoryRouter initialEntries={["/projects/p1/shots/s1"]}>
         <Routes>
           <Route
@@ -458,10 +461,109 @@ describe("ReviewShotDetail (the 5f-II Review-client shell)", () => {
         </Routes>
       </MemoryRouter>,
     )
+  }
 
-    expect(screen.getByTestId("review-warehouse-placeholder")).toBeInTheDocument()
-    // The client-only blocks do NOT render for the warehouse stub.
+  it("review-warehouse: renders the product-forward pull detail, not the placeholder or client composition", () => {
+    renderWarehouse()
+
+    expect(screen.getByTestId("review-warehouse-detail")).toBeInTheDocument()
+    // The 5f-II placeholder is GONE (replaced by the real composition).
+    expect(screen.queryByTestId("review-warehouse-placeholder")).not.toBeInTheDocument()
+    // No client-variant blocks leak into the warehouse surface.
     expect(screen.queryByTestId("review-shot-detail")).not.toBeInTheDocument()
     expect(screen.queryByTestId("review-client-composer")).not.toBeInTheDocument()
+  })
+
+  it("review-warehouse: blocks render PRODUCT-FORWARD — products FIRST, then identity, meta, composer", () => {
+    renderWarehouse({
+      talentIds: ["t1", "t2"],
+      locationName: "Studio C",
+      looks: [
+        {
+          id: "l1",
+          label: "Primary",
+          order: 0,
+          products: [
+            { familyId: "f1", familyName: "Merino T-Shirt", colourName: "Ivory" },
+          ],
+        },
+      ],
+      activeLookId: "l1",
+    })
+
+    // Products FIRST (the warehouse pulls every garment), then identity/status,
+    // read-only meta, comment composer LAST.
+    expectDocumentOrder([
+      screen.getByTestId("review-warehouse-products"),
+      screen.getByTestId("review-warehouse-identity"),
+      screen.getByTestId("review-warehouse-meta"),
+      screen.getByTestId("review-warehouse-composer"),
+    ])
+
+    // The product strip is the FIRST block (nested inside the products wrapper).
+    const products = screen.getByTestId("review-warehouse-products")
+    expect(products).toContainElement(screen.getByTestId("product-colorway-strip"))
+    expect(screen.getByText("Merino T-Shirt")).toBeInTheDocument()
+
+    // Identity: shot number eyebrow + serif title.
+    expect(screen.getByText(/Shot #11/)).toBeInTheDocument()
+    expect(screen.getByText("Linen overshirt — window light")).toBeInTheDocument()
+
+    // Read-only meta: resolved talent + location.
+    const meta = screen.getByTestId("review-warehouse-meta")
+    expect(meta).toHaveTextContent("Malik R. · Dana K.")
+    expect(meta).toHaveTextContent("Studio C")
+  })
+
+  it("review-warehouse: the product strip renders read-only (ProductColorwayStrip readOnly)", () => {
+    renderWarehouse({
+      looks: [
+        {
+          id: "l1",
+          label: "Primary",
+          order: 0,
+          products: [
+            { familyId: "f1", familyName: "Merino T-Shirt", colourName: "Ivory" },
+          ],
+        },
+      ],
+      activeLookId: "l1",
+    })
+
+    const strip = screen.getByTestId("product-colorway-strip")
+    expect(strip).toBeInTheDocument()
+    // Read-only: no assignment-affordance copy on the strip.
+    expect(strip).not.toHaveTextContent("Add a look in the rail")
+  })
+
+  it("review-warehouse: status is shown READ-ONLY — a badge, never a tap-row or status select", () => {
+    renderWarehouse({ status: "in_progress" })
+
+    expect(screen.getByTestId("review-warehouse-status-badge")).toBeInTheDocument()
+    expect(screen.getByText("In Progress")).toBeInTheDocument()
+    // No status WRITE controls (warehouse review surface doesn't write shots).
+    expect(screen.queryByTestId("status-tap-row")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("status-tap-todo")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("shot-status-select-trigger")).not.toBeInTheDocument()
+  })
+
+  it("review-warehouse: the comment composer is OPEN — writeAuthoritative + canComment passed through", () => {
+    renderWarehouse()
+
+    const comments = screen.getByTestId("comments-stub")
+    expect(comments).toHaveAttribute("data-can-comment", "true")
+    expect(comments).toHaveAttribute("data-write-authoritative", "true")
+  })
+
+  it("review-warehouse: NO version-history section, and no hero-led layout (product-forward, not image-forward)", () => {
+    renderWarehouse()
+
+    // Scoping boundary: the version-history audit tool never mounts on review.
+    expect(screen.queryByTestId("history-stub")).not.toBeInTheDocument()
+    // The warehouse variant is product-forward — no hero image section leads it.
+    expect(screen.queryByTestId("hero-stub")).not.toBeInTheDocument()
+    // No plan-build chrome leaks.
+    expect(screen.queryByTestId("notes-stub")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("lifecycle-actions-stub")).not.toBeInTheDocument()
   })
 })

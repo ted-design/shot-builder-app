@@ -19,10 +19,18 @@
 //   → minimal read-only meta (talent / location) → products read-only LAST
 //   (ProductColorwayStrip readOnly=true).
 //
-// Deliberately ABSENT (scoping boundaries): no version-history section
-// (edit-diff audit is a producer/crew tool, not a client approval affordance),
-// no field editors, no lifecycle menu, no status tap-row (clients can't write
-// shots — status is shown read-only), no upload, no share.
+// review-warehouse composition (the warehouse's job is to PULL): product-FORWARD
+//   — ProductColorwayStrip readOnly FIRST (every look's garments, because the
+//   warehouse pulls everything, not just the cover) → shot # / title /
+//   read-only status context → read-only talent / location meta → comment
+//   composer OPEN (same writeAuthoritative escape hatch as the client variant;
+//   warehouse can leave notes). NO hero-led layout, NO prep status (no such
+//   field exists in the model).
+//
+// Deliberately ABSENT (scoping boundaries, BOTH variants): no version-history
+// section (edit-diff audit is a producer/crew tool, not a review affordance),
+// no field editors, no lifecycle menu, no status tap-row (review surfaces don't
+// write shots — status is shown read-only), no upload, no share.
 import { useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { LoadingState } from "@/shared/components/LoadingState"
@@ -68,17 +76,6 @@ export function ReviewShotDetail({ variant }: { readonly variant: ReviewVariant 
   }
   if (shot.deleted === true) return null
 
-  // 5f-III fills warehouse; until then render a quiet placeholder, never crash.
-  if (variant === "review-warehouse") {
-    return (
-      <div className="p-8 text-center" data-testid="review-warehouse-placeholder">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Warehouse review surface coming soon.
-        </p>
-      </div>
-    )
-  }
-
   const talentIds = shot.talentIds ?? shot.talent ?? []
   const resolvedTalentNames = talentIds
     .map((id) => talentNameById.get(id))
@@ -90,6 +87,80 @@ export function ReviewShotDetail({ variant }: { readonly variant: ReviewVariant 
         ? resolvedTalentNames.join(" · ")
         : `${talentIds.length} assigned`
   const locationLine = shot.locationName?.trim() || "—"
+
+  // ── review-warehouse: PRODUCT-FORWARD read-only pull view. Products FIRST
+  //    (every look), then identity/status context, meta, comment composer. ──
+  if (variant === "review-warehouse") {
+    return (
+      <ErrorBoundary>
+        <div
+          className="mx-auto flex w-full max-w-2xl flex-col gap-5"
+          data-testid="review-warehouse-detail"
+        >
+          {projectName && (
+            <p className="truncate text-xs text-[var(--color-text-muted)]">
+              {projectName}
+            </p>
+          )}
+
+          {/* ── Products FIRST — the warehouse pulls every garment across all
+              looks (ProductColorwayStrip renders all looks, read-only). ── */}
+          <div data-testid="review-warehouse-products">
+            <ProductColorwayStrip
+              looks={shot.looks ?? []}
+              activeLookId={shot.activeLookId}
+              readOnly
+            />
+          </div>
+
+          {/* ── Shot identity + read-only status context (no tap-row write). ── */}
+          <header
+            className="flex flex-col gap-1.5"
+            data-testid="review-warehouse-identity"
+          >
+            <span className="text-2xs font-bold uppercase tracking-wider text-[var(--color-text-subtle)]">
+              Shot{shot.shotNumber ? ` #${shot.shotNumber}` : ""}
+            </span>
+            <div className="flex flex-wrap items-baseline text-3xl">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight text-[var(--color-text)] [font-family:var(--font-serif)]">
+                {shot.title || "Untitled Shot"}
+              </h1>
+              <span className="iconic-period" aria-hidden="true">
+                .
+              </span>
+            </div>
+            <div data-testid="review-warehouse-status-badge">
+              <StatusBadge
+                label={getShotStatusLabel(shot.status)}
+                color={getShotStatusColor(shot.status)}
+              />
+            </div>
+          </header>
+
+          {/* ── Read-only talent / location meta. ── */}
+          <section
+            data-testid="review-warehouse-meta"
+            className="flex flex-col gap-2"
+          >
+            <div>
+              <SectionLabel>Talent</SectionLabel>
+              <p className="mt-1 text-sm text-[var(--color-text)]">{talentLine}</p>
+            </div>
+            <div>
+              <SectionLabel>Location</SectionLabel>
+              <p className="mt-1 text-sm text-[var(--color-text)]">{locationLine}</p>
+            </div>
+          </section>
+
+          {/* ── Comments — composer OPEN (same writeAuthoritative escape hatch
+              as the client variant; warehouse can leave pull notes). ── */}
+          <div data-testid="review-warehouse-composer">
+            <ShotCommentsSection shotId={shot.id} canComment writeAuthoritative />
+          </div>
+        </div>
+      </ErrorBoundary>
+    )
+  }
 
   return (
     <ErrorBoundary>

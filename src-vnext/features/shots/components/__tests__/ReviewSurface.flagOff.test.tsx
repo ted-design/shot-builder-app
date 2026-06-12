@@ -240,4 +240,22 @@ describe("Review surface — flag OFF (no-change contract for a viewer)", () => 
     // The unified editor body renders instead (notes section is body-only).
     expect(screen.getByTestId("notes-stub")).toBeInTheDocument()
   })
+
+  // 5f-III: the warehouse fork is ALSO flag-gated. With featureReviewSurface
+  // OFF, a warehouse effective-role must fall through to the editor body exactly
+  // as today — the review-warehouse detail (sentinel: review-shot-detail) never
+  // mounts. (The ReviewShotDetail stub is variant-agnostic, so its absence
+  // proves NEITHER review variant mounted.)
+  it("ShotDetailPage: a warehouse role falls through to the editor body — the review-warehouse shell never mounts", () => {
+    authState.role = "warehouse"
+    effectiveState.role = "warehouse"
+
+    renderDetail()
+
+    expect(screen.queryByTestId("review-shot-detail")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("review-warehouse-detail")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("shoot-shot-detail")).not.toBeInTheDocument()
+    // The unified editor body renders instead (notes section is body-only).
+    expect(screen.getByTestId("notes-stub")).toBeInTheDocument()
+  })
 })

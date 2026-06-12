@@ -182,10 +182,12 @@ describe("permission checks", () => {
 
 })
 
-describe("canEditScene", () => {
-  // Mirrors the /lanes rule role list (firestore.rules:880-882 create/update,
-  // :901-904 delete): admin || producer || warehouse. 5f's warehouse revoke
-  // edits this helper + the lanes rule lists together (two-line edit).
+describe("canEditScene (5f-III A1 — warehouse revoked)", () => {
+  // 5f-III revoke (A1): canEditScene is now admin || producer ONLY. Warehouse,
+  // which 5f-II kept for lane-write, no longer edits scenes/lanes — the surface
+  // is read-only for warehouse. This change is scene/lane-edit UI ONLY; it does
+  // NOT touch warehouse PULLS (canManagePulls, below) — guarded against
+  // over-reach by the "warehouse keeps pulls" pin in canManagePulls.
   it("admin can edit scenes", () => {
     expect(canEditScene("admin")).toBe(true)
   })
@@ -194,8 +196,8 @@ describe("canEditScene", () => {
     expect(canEditScene("producer")).toBe(true)
   })
 
-  it("warehouse keeps lane-write until the 5f revoke (locked Q3)", () => {
-    expect(canEditScene("warehouse")).toBe(true)
+  it("warehouse CANNOT edit scenes (5f-III A1 revoke — review surface is read-only)", () => {
+    expect(canEditScene("warehouse")).toBe(false)
   })
 
   it("crew cannot edit scenes (crew writes shots, not lanes)", () => {
@@ -204,6 +206,14 @@ describe("canEditScene", () => {
 
   it("viewer cannot edit scenes", () => {
     expect(canEditScene("viewer")).toBe(false)
+  })
+
+  // Over-reach guard: A1 removes scene-edit from warehouse but MUST NOT strip
+  // its pull capability (canManagePulls is a separate helper). If a future edit
+  // accidentally widened A1's revoke to pulls, this pin fails.
+  it("warehouse KEEPS pulls after the scene-edit revoke (A1 is cleanly scoped)", () => {
+    expect(canEditScene("warehouse")).toBe(false)
+    expect(canManagePulls("warehouse")).toBe(true)
   })
 })
 
