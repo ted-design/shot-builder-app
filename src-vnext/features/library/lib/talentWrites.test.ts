@@ -90,11 +90,11 @@ describe("talent headshot writes (replaced-image fix)", () => {
     expect(a.path).not.toBe(b.path)
   })
 
-  it("invalidates the cache and deletes the previous object on replace", async () => {
+  it("invalidates the cache but does NOT delete the previous object on replace (casting shares snapshot it)", async () => {
     const prev = "images/talent/t1/headshot.webp"
     await setTalentHeadshot({ clientId: "c", userId: "u", talentId: "t1", file, previousPath: prev })
     expect(invalidateStoragePath).toHaveBeenCalledWith(prev)
-    expect(deleteObject).toHaveBeenCalledTimes(1)
+    expect(deleteObject).not.toHaveBeenCalled()
   })
 
   it("removeTalentHeadshot clears all three image fields and invalidates the cache", async () => {

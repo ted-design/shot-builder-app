@@ -15,9 +15,13 @@ import {
   invalidateStoragePath,
 } from "./resolveStoragePath"
 
+const TEST_PATH = "images/talent/t1/headshot-abc.webp"
+
 describe("resolveStoragePath cache + invalidation", () => {
   beforeEach(() => {
     getDownloadURL.mockReset()
+    // Module-level cache persists across tests — clear the path we use for isolation.
+    invalidateStoragePath(TEST_PATH)
   })
 
   it("caches a resolved URL; invalidateStoragePath forces a fresh fetch", async () => {
@@ -25,7 +29,7 @@ describe("resolveStoragePath cache + invalidation", () => {
       .mockResolvedValueOnce("https://x/url1")
       .mockResolvedValueOnce("https://x/url2")
 
-    const path = "images/talent/t1/headshot-abc.webp"
+    const path = TEST_PATH
     expect(await resolveStoragePath(path)).toBe("https://x/url1")
     // Second resolve is served from cache — no extra fetch.
     expect(await resolveStoragePath(path)).toBe("https://x/url1")

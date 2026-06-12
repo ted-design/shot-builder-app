@@ -14,14 +14,8 @@ import { talentPath } from "@/shared/lib/paths"
 import { compressImageToWebp, validateImageFileForUpload } from "@/shared/lib/uploadImage"
 import { invalidateStoragePath } from "@/shared/lib/resolveStoragePath"
 
-/**
- * Headshots use a UNIQUE filename per upload (like gallery/casting images),
- * NOT a fixed `headshot.webp`. A fixed path meant every replacement overwrote
- * the same Storage object and reused the same download URL, so the browser's
- * HTTP cache and the in-memory resolve cache kept serving the OLD image — the
- * "replaced image keeps coming back" bug. A unique path yields a fresh URL that
- * no cache layer can stale-serve; the old object is deleted afterwards.
- */
+// Unique filename per upload (like gallery/casting) — a fixed `headshot.webp` reused the same
+// download URL, so browser + resolve caches served the stale old image after a replace.
 function headshotStoragePath(talentId: string): string {
   return `images/talent/${talentId}/headshot-${crypto.randomUUID()}.webp`
 }
@@ -193,10 +187,10 @@ export async function setTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
-  if (args.previousPath && args.previousPath !== uploaded.path) {
-    invalidateStoragePath(args.previousPath)
-    await deleteStoragePath(args.previousPath)
-  }
+  // Drop the stale cache entry, but do NOT delete the old object on replace: a
+  // published casting share denormalizes (snapshots) the old headshot's download
+  // URL, so deleting it would break that share's image. Orphans are swept on hard-delete.
+  invalidateStoragePath(args.previousPath ?? null)
 
   return uploaded
 }
