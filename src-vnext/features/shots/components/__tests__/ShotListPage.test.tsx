@@ -61,12 +61,20 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
 // resolve the table surface default), so the flag is pinned OFF explicitly
 // here — the flag-ON resolution path is owned by
 // useShotListState.resolver.test.tsx.
+// 5e-III: featureShootSurface gates the View-as menu mount; default OFF here
+// (matches the rest of this legacy-pinned file). Flip per-test for the mount pin.
+const flagState = vi.hoisted(() => ({ shootSurface: false }))
+
 vi.mock("@/shared/lib/flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/lib/flags")>()
   return {
     ...actual,
     isFeatureEnabled: (flag: keyof import("@/shared/lib/flags").FeatureFlags) =>
-      flag === "featureSurfaceResolver" ? false : actual.isFeatureEnabled(flag),
+      flag === "featureSurfaceResolver"
+        ? false
+        : flag === "featureShootSurface"
+          ? flagState.shootSurface
+          : actual.isFeatureEnabled(flag),
   }
 })
 
@@ -139,6 +147,7 @@ describe("ShotListPage", () => {
     effectiveState.resolving = false
     mediaState.isMobile = false
     mediaState.isDesktop = false
+    flagState.shootSurface = false
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -842,6 +851,35 @@ describe("ShotListPage", () => {
     expect(screen.queryByTestId("create-shot-dialog-open")).not.toBeInTheDocument()
     expect(capturedSearch).toBeDefined()
     expect(new URLSearchParams(capturedSearch!).get("create")).toBe("1")
+  })
+
+  // ── 5e-III View-as menu mount (Writer 4 slice) ───────────────────────────
+
+  it("mounts the View-as menu in the header actions when featureShootSurface is on (global producer)", () => {
+    flagState.shootSurface = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    // The quiet trigger renders (useAuth mock = global producer). Its own
+    // dropdown behavior is owned by ViewAsMenu's component test.
+    expect(screen.getByTestId("view-as-trigger")).toBeInTheDocument()
+  })
+
+  it("does NOT mount the View-as menu when featureShootSurface is off (default)", () => {
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots")
+
+    expect(screen.queryByTestId("view-as-trigger")).not.toBeInTheDocument()
   })
 
   it("renders note URLs as clickable links", () => {

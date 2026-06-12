@@ -20,6 +20,26 @@ vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({ role: "admin", clientId: "c1" }),
 }))
 
+// 5e-III: View-as preview provider — hoisted swappable state so tests can
+// toggle previewing on/off and assert the setter / clear calls.
+const mockViewAsPreview = vi.hoisted(() => ({
+  previewRole: null as "crew" | null,
+  setPreviewRole: vi.fn(),
+  clearPreview: vi.fn(),
+}))
+
+vi.mock("@/app/providers/ViewAsPreviewProvider", () => ({
+  useViewAsPreview: () => mockViewAsPreview,
+}))
+
+// 5e-III: feature flags — hoisted so each test can flip featureShootSurface.
+const mockFlagEnabled = vi.hoisted(() => ({ current: true }))
+
+vi.mock("@/shared/lib/flags", () => ({
+  isFeatureEnabled: (flag: string) =>
+    flag === "featureShootSurface" ? mockFlagEnabled.current : false,
+}))
+
 // Project scope — hoisted ref so tests can swap between null and a value
 const mockProjectScope: { current: { projectId: string; projectName: string } | null } = {
   current: { projectId: "p1", projectName: "Alpha Project" },
@@ -281,6 +301,9 @@ describe("CommandPalette", () => {
     // Default: scoped to project p1, lazy fetch returns nothing
     mockProjectScope.current = { projectId: "p1", projectName: "Alpha Project" }
     primeLazyFetch({})
+    // 5e-III defaults: flag ON, not previewing
+    mockFlagEnabled.current = true
+    mockViewAsPreview.previewRole = null
   })
 
   it("renders the palette when open", () => {
@@ -374,6 +397,40 @@ describe("CommandPalette", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/admin")
   })
 
+  // -------------------------------------------------------------------------
+  // 5e-III — "View as" quick actions
+  // -------------------------------------------------------------------------
+
+  it("shows 'View as Crew (Shoot)' for flag-on admin when not previewing", () => {
+    renderOpen()
+    expect(screen.getByText("View as Crew (Shoot)")).toBeInTheDocument()
+  })
+
+  it("calls setPreviewRole('crew') when 'View as Crew (Shoot)' is selected", () => {
+    renderOpen()
+    fireEvent.click(screen.getByText("View as Crew (Shoot)"))
+    expect(mockViewAsPreview.setPreviewRole).toHaveBeenCalledWith("crew")
+    // View-as does NOT navigate.
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it("does NOT show the View-as action when the Shoot-surface flag is off", () => {
+    mockFlagEnabled.current = false
+    renderOpen()
+    expect(screen.queryByText("View as Crew (Shoot)")).not.toBeInTheDocument()
+    expect(screen.queryByText("Return to your view")).not.toBeInTheDocument()
+  })
+
+  it("shows 'Return to your view' while previewing and calls clearPreview", () => {
+    mockViewAsPreview.previewRole = "crew"
+    renderOpen()
+    // The enter action is replaced by the return action while previewing.
+    expect(screen.queryByText("View as Crew (Shoot)")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText("Return to your view"))
+    expect(mockViewAsPreview.clearPreview).toHaveBeenCalledTimes(1)
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
   it("stores navigated item in localStorage recent items", async () => {
     renderOpen()
     const input = screen.getByPlaceholderText("Search projects, products, talent, crew...")
@@ -439,6 +496,9 @@ describe("CommandPalette — lazy project-scoped indexing", () => {
     localStorage.clear()
     mockProjectScope.current = { projectId: "p1", projectName: "Alpha Project" }
     primeLazyFetch({})
+    // 5e-III defaults: flag ON, not previewing
+    mockFlagEnabled.current = true
+    mockViewAsPreview.previewRole = null
   })
 
   it("fetches shots, pulls, and lanes exactly once when palette opens inside a project", async () => {

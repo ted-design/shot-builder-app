@@ -11,6 +11,7 @@ import {
   Film,
   Package2,
   Clapperboard,
+  Eye,
 } from "lucide-react"
 import {
   Command,
@@ -25,7 +26,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog"
 import { useSearchCommand } from "@/app/providers/SearchCommandProvider"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useOptionalProjectScope } from "@/app/providers/ProjectScopeProvider"
+import { useViewAsPreview } from "@/app/providers/ViewAsPreviewProvider"
 import { ROLE } from "@/shared/lib/rbac"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useProjects } from "@/features/projects/hooks/useProjects"
 import { useProductFamilies } from "@/features/products/hooks/useProducts"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
@@ -74,6 +77,9 @@ function CommandPaletteInner({
 }) {
   const navigate = useNavigate()
   const { role } = useAuth()
+  // 5e-III: in-memory "View as" preview (NO persistence). The preview only
+  // swaps the presentation surface — real write-gates keep using the real role.
+  const { previewRole, setPreviewRole, clearPreview } = useViewAsPreview()
   const [query, setQuery] = useState("")
 
   const { data: projects } = useProjects()
@@ -123,6 +129,15 @@ function CommandPaletteInner({
   // (firestore.rules:539-543) and /pendingInvitations (firestore.rules:547-549)
   // require the global admin claim — never a project-level role.
   const isAdmin = role === ROLE.ADMIN
+
+  // 5e-III: "View as" quick actions are gated behind the Shoot-surface flag AND
+  // the GLOBAL admin/producer claim (same global-role pin as `isAdmin` above —
+  // this is the org-scope claim from useAuth(), NOT useEffectiveRole). The
+  // actions interpose ONLY at surface resolution; they never persist anything
+  // (no URL, no localStorage, no resolvedRoleCache commit, no toast).
+  const canViewAs =
+    isFeatureEnabled("featureShootSurface") &&
+    (role === ROLE.ADMIN || role === ROLE.PRODUCER)
 
   return (
     <>
@@ -329,6 +344,32 @@ function CommandPaletteInner({
                 >
                   <Settings className="text-muted-foreground" />
                   <span>Go to Admin</span>
+                </CommandItem>
+              )}
+              {/* 5e-III: View-as preview toggle. Does NOT navigate — it flips
+                  the in-memory preview surface and closes the palette. */}
+              {canViewAs && !previewRole && (
+                <CommandItem
+                  value="action-view-as-crew"
+                  onSelect={() => {
+                    setPreviewRole(ROLE.CREW)
+                    onClose()
+                  }}
+                >
+                  <Eye className="text-muted-foreground" />
+                  <span>View as Crew (Shoot)</span>
+                </CommandItem>
+              )}
+              {canViewAs && previewRole && (
+                <CommandItem
+                  value="action-view-as-return"
+                  onSelect={() => {
+                    clearPreview()
+                    onClose()
+                  }}
+                >
+                  <Eye className="text-muted-foreground" />
+                  <span>Return to your view</span>
                 </CommandItem>
               )}
             </CommandGroup>

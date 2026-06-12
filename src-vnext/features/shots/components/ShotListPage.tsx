@@ -22,6 +22,8 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useProjectScope } from "@/app/providers/ProjectScopeProvider"
 import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { EffectiveRoleChip } from "@/shared/components/EffectiveRoleChip"
+import { ViewAsMenu } from "@/shared/components/ViewAsMenu"
+import { useViewAsPreview } from "@/app/providers/ViewAsPreviewProvider"
 import { canEditScene, canGeneratePulls, canManageShots } from "@/shared/lib/rbac"
 import { shotWriteErrorDescription } from "@/features/shots/lib/shotWriteError"
 import { isFeatureEnabled } from "@/shared/lib/flags"
@@ -71,6 +73,10 @@ export default function ShotListPage() {
   // RESOLVED surface (same fork idiom as ShotDetailPageUnified), and chrome
   // drives the toolbar/quick-add decisions below.
   const { surface, affordances, chrome } = useResolvedSurface()
+  // 5e-III: in-memory "View as" preview. previewRole (null = not previewing)
+  // interposes ONLY on surfaceContext.role below — every real write-gate keeps
+  // using the REAL effective role, so preview can only NARROW the surface.
+  const { previewRole } = useViewAsPreview()
   const { data: talentRecords } = useTalent()
   const { data: locationRecords } = useLocations()
   const { data: productFamilies } = useProductFamilies()
@@ -204,9 +210,17 @@ export default function ShotListPage() {
   // EFFECTIVE role — resolveSurface's input contract is byte-unchanged (the
   // opaque effectiveRole param is 5e's View-as interposition seam).
   const surfaceDevice: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
+  // 5e-III: previewRole substitutes for the EFFECTIVE role at surface
+  // resolution ONLY (the real `role` above still drives every write-gate).
+  // previewActive flags the suppression of url/stored view rungs inside
+  // useShotListState so the previewer's own stored choice can't mask the
+  // previewed surface default. Still null while auth/role resolve (no flash).
   const surfaceContext = useMemo(
-    () => (authLoading || roleResolving ? null : { role, device: surfaceDevice }),
-    [authLoading, roleResolving, role, surfaceDevice],
+    () =>
+      authLoading || roleResolving
+        ? null
+        : { role: previewRole ?? role, device: surfaceDevice, previewActive: previewRole != null },
+    [authLoading, roleResolving, role, previewRole, surfaceDevice],
   )
 
   // -- All filter / sort / view state --
@@ -442,6 +456,10 @@ export default function ShotListPage() {
         actions={
           <div className="flex items-center gap-2">
             <EffectiveRoleChip />
+            {/* 5e-III View-as: quiet preview menu, self-gated on the GLOBAL
+                admin/producer claim + featureShootSurface (renders null
+                otherwise). Adjacent to the chip so preview state reads together. */}
+            <ViewAsMenu />
             {canExport && (
               <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
                 Export
