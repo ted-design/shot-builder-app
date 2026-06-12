@@ -56,10 +56,7 @@ export function ViewAsMenu() {
             on the provider — no persistence side-effects. */}
         <DropdownMenuItem
           data-testid="view-as-crew"
-          onSelect={(event) => {
-            event.preventDefault()
-            setPreviewRole(ROLE.CREW)
-          }}
+          onSelect={() => setPreviewRole(ROLE.CREW)}
         >
           Crew (Shoot)
         </DropdownMenuItem>
@@ -69,10 +66,7 @@ export function ViewAsMenu() {
         <DropdownMenuItem
           data-testid="view-as-return"
           disabled={!isPreviewing}
-          onSelect={(event) => {
-            event.preventDefault()
-            clearPreview()
-          }}
+          onSelect={() => clearPreview()}
         >
           Return to your view
         </DropdownMenuItem>
