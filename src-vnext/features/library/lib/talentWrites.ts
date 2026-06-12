@@ -170,7 +170,7 @@ export async function setTalentHeadshot(args: {
   readonly talentId: string
   readonly file: File
   readonly previousPath?: string | null
-}) {
+}): Promise<{ path: string; url: string }> {
   const talentId = args.talentId.trim()
   if (!talentId) throw new Error("Missing talent id")
 
@@ -212,8 +212,8 @@ export async function removeTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
+  // Symmetric with replace: leave the old object so a casting share that snapshotted it keeps working; just clear the doc fields + cache.
   invalidateStoragePath(args.previousPath)
-  await deleteStoragePath(args.previousPath ?? null)
 }
 
 export async function addTalentToProject(args: {
