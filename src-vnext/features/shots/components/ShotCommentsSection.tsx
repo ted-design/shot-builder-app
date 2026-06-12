@@ -43,6 +43,7 @@ export function ShotCommentsSection({
   shotId,
   canComment,
   offline = false,
+  writeAuthoritative = false,
 }: {
   readonly shotId: string
   readonly canComment: boolean
@@ -55,6 +56,18 @@ export function ShotCommentsSection({
    * snapshot (durable cache). A quiet note tells the crew it is queued.
    */
   readonly offline?: boolean
+  /**
+   * Q4 / 5f-II — composer authority override, passed ONLY by the Review shell
+   * (ReviewShotDetail, flag-gated review-client). When true, writeEnabled is
+   * governed by `canComment` ALONE — the internal `canManageShots(role)` term
+   * is bypassed so viewers/clients (whom canManageShots excludes) get the OPEN
+   * composer. The comment-create rule is already isAuthed + createdBy-self
+   * (firestore.rules, wider than this UI), so this only RELAXES the UI toward
+   * what the backend already permits. Every existing call site omits it
+   * (undefined = false), so the producer editor + Shoot shell keep today's
+   * double gate BYTE-IDENTICALLY. Author-only update/delete is unaffected.
+   */
+  readonly writeAuthoritative?: boolean
 }) {
   const { clientId, role, user } = useAuth()
   const { data: comments, loading, error } = useShotComments(shotId)
@@ -63,17 +76,20 @@ export function ShotCommentsSection({
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // The comments create rule is isAuthed + createdBy-self (firestore.rules
-  // comments block), so this double gate (effective-role canComment prop AND
-  // global-claim canManageShots) is UI-stricter than the backend — safe
-  // (fail-toward-fewer). Collapsing onto the effective-role prop alone is a
-  // 5f decision (Q4 viewer commenting) — tracked in the 5b spec deferred
-  // register; do not rewire here.
+  // comments block), so the default double gate (effective-role canComment
+  // prop AND global-claim canManageShots) is UI-stricter than the backend —
+  // safe (fail-toward-fewer). 5f-II Q4 (viewer/client commenting) lands as an
+  // OPT-IN escape hatch: only the Review shell passes writeAuthoritative, which
+  // collapses onto the canComment prop alone (the canManageShots term is
+  // bypassed). Default callers (producer editor, Shoot shell) omit the prop, so
+  // their double gate is byte-identical — do not rewire the default path.
   const writeEnabled = useMemo(() => {
     if (!canComment) return false
     if (!clientId) return false
     if (!user?.uid) return false
+    if (writeAuthoritative) return true
     return canManageShots(role)
-  }, [canComment, clientId, role, user?.uid])
+  }, [canComment, clientId, role, user?.uid, writeAuthoritative])
 
   const isSelfDelete = Boolean(deleteId && comments.find((c) => c.id === deleteId)?.createdBy === user?.uid)
 

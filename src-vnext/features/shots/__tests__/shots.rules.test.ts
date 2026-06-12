@@ -101,6 +101,13 @@ const SHOT_ADMIN_PRIVATE_UPDATE = "shot-admin-private-update"
 const SHOT_ADMIN_EMPTY_UPDATE = "shot-admin-empty-update"
 const SHOT_VERSIONS = "shot-versions"
 const SHOT_VERSIONS_SEQ = "shot-versions-seq"
+// 5f-II Q4 — the shot whose comments thread the viewer-commenting cases use.
+const SHOT_REVIEW_COMMENTS = "shot-review-comments"
+// A comment authored by SOMEONE ELSE (the owner) — the viewer must not be able
+// to mutate/delete it ([c2]/[c3]). And the viewer's OWN comment — soft-delete
+// via the allowed update path is permitted ([c4]).
+const COMMENT_OTHERS = "comment-owned-by-other"
+const COMMENT_VIEWER_OWN = "comment-owned-by-viewer"
 
 /** Shot create payload — mirrors CreateShotDialog.tsx handleCreate. */
 function makeShotCreate(projectId: string, createdBy: string) {
@@ -347,12 +354,41 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         SHOT_MOVE_INTO_PRIVATE,
         SHOT_VERSIONS,
         SHOT_VERSIONS_SEQ,
+        SHOT_REVIEW_COMMENTS,
       ]) {
         await setDoc(
           doc(db, "clients", CLIENT_ID, "shots", shotId),
           makeSeedShot(PROJ_TEAM),
         )
       }
+
+      // 5f-II Q4 comment fixtures on SHOT_REVIEW_COMMENTS: one authored by the
+      // owner (the viewer may not touch it), one authored by the viewer (their
+      // own soft-delete via update is allowed).
+      await setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          COMMENT_OTHERS,
+        ),
+        makeCommentDoc(OWNER_UID),
+      )
+      await setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          COMMENT_VIEWER_OWN,
+        ),
+        makeCommentDoc(VIEWER_UID),
+      )
 
       await setDoc(
         doc(db, "clients", CLIENT_ID, "shots", SHOT_PRODUCER_UNSET_UPDATE),
@@ -1073,6 +1109,84 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
           "comment-nonmember-crew-1",
         ),
         makeCommentDoc(CREW_UID),
+      ),
+    )
+  })
+
+  // --- (cc) 5f-II Q4 — VIEWER (client) commenting on the Review-client shell ---
+  // These pin the EXISTING comment rules the read-only Review surface now
+  // relies on (the UI's writeAuthoritative composer only RELAXES toward what
+  // these arms already permit — no rules change in 5f-II). The comments block
+  // is: create = isAuthed + createdBy-self; update = author-or-admin with body
+  // immutable (soft-delete flips only `deleted`); delete = author-only.
+
+  it("[c1] viewer project-member CAN create a comment (createdBy == self)", async () => {
+    const db = memberViewerDb()
+    await assertSucceeds(
+      setDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          "comment-viewer-create-1",
+        ),
+        makeCommentDoc(MEMBER_VIEWER_UID),
+      ),
+    )
+  })
+
+  it("[c2] viewer CANNOT update another user's comment body (author-or-admin update arm)", async () => {
+    const db = viewerDb()
+    await assertFails(
+      updateDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          COMMENT_OTHERS,
+        ),
+        { body: "Viewer rewrote someone else's comment" },
+      ),
+    )
+  })
+
+  it("[c3] viewer CANNOT delete another user's comment (author-only delete arm)", async () => {
+    const db = viewerDb()
+    await assertFails(
+      deleteDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          COMMENT_OTHERS,
+        ),
+      ),
+    )
+  })
+
+  it("[c4] viewer CAN soft-delete their OWN comment via the allowed update path (only the deleted flag changes)", async () => {
+    const db = viewerDb()
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          db,
+          "clients",
+          CLIENT_ID,
+          "shots",
+          SHOT_REVIEW_COMMENTS,
+          "comments",
+          COMMENT_VIEWER_OWN,
+        ),
+        { deleted: true },
       ),
     )
   })
