@@ -161,7 +161,7 @@ All data scoped by `clientId` from Firebase Auth custom claims.
   ├── projects/{projectId}/
   │   ├── members/{userId}/
   │   ├── pulls/{pullId}/              # Public via shareToken
-  │   ├── lanes/{laneId}/
+  │   ├── lanes/{laneId}/              # S28/S29: Scenes (project-scoped shot grouping)
   │   ├── departments/{departmentId}/
   │   │   └── positions/{positionId}/
   │   ├── activities/{activityId}/     # Audit trail, 90-day retention
@@ -215,8 +215,9 @@ interface Shot {
   talent: string[]           // talentId references
   products: ProductAssignment[]
   locationId?: string
-  laneId?: string
+  laneId?: string            // S28: references lanes/{laneId} for scene grouping
   sortOrder: number
+  shotNumber?: string        // S29: "51A" (scene letter suffix) or "01" (flat sequential)
   notes?: string
   heroImage?: { path: string; downloadURL: string }
   tags?: string[]
@@ -225,6 +226,28 @@ interface Shot {
   updatedAt: Timestamp
   createdBy: string
 }
+```
+
+**Lane (Scene):** (Sprint S28/S29)
+```typescript
+interface Lane {
+  id: string
+  name: string
+  projectId: string
+  clientId: string
+  sortOrder: number          // Display order (drag-and-drop)
+  sceneNumber?: number       // Stable identifier (1-9999, auto-incremented, user-editable)
+  color?: string             // Key from SCENE_COLORS palette (teal, purple, green, orange, pink, blue)
+  direction?: string         // Creative brief (max 500 chars)
+  notes?: string             // Operational notes (max 5000 chars)
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  createdBy: string
+}
+// Path: clients/{clientId}/projects/{projectId}/lanes/{laneId}
+// Shot reference: Shot.laneId = Lane.id
+// Numbering: shots in scene get "{sceneNumber}{A-Z/AA-ZZ}" format
+// Firestore rules: explicit match before wildcard, direction/notes size + sceneNumber bounds enforced
 ```
 
 **Project:**
@@ -496,7 +519,7 @@ Single source of design truth. CSS custom properties for colors, spacing, typogr
 
 | Class | Spec | Usage |
 |---|---|---|
-| `.heading-page` | 24px / 300 / -0.02em / md:28px | Page-level `<h1>` (editorial light weight) |
+| `.heading-page` | Founders X-Cond Bold / 28px / 700 / 0 tracking / md:32px | Page-level `<h1>` (Immediate brand display; iconic red period). Updated 2026-06-04 from Neue Haas Light 300. |
 | `.heading-section` | 16px / 600 / -0.01em | Section `<h2>` |
 | `.heading-subsection` | 14px / 600 / -0.01em | Subsection `<h3>` |
 | `.label-meta` | 12px / 600 / upper / 0.05em / text-subtle | Uppercase meta labels |

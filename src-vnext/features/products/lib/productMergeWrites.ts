@@ -391,7 +391,7 @@ async function updatePullReferences(args: {
           return item
         })
 
-        // familyName falls back to the item's own (winnerName is preserved, not dropped); sanitize is belt-and-suspenders.
+        // winnerName is typed string but legacy families can lack styleName at runtime (the class this PR fixes) — fall back to the item's own name.
         batch.update(
           pullDoc.ref,
           sanitizeForFirestore({
