@@ -95,14 +95,14 @@ describe("TalentTable", () => {
     expect(screen.getByText(`5'11"`)).toBeInTheDocument()
     expect(screen.getByText(`5'7"`)).toBeInTheDocument()
 
-    // Individual measurement columns for Alex Rivera
-    expect(screen.getByText("38")).toBeInTheDocument()
-    expect(screen.getByText("30")).toBeInTheDocument()
-    expect(screen.getByText("36")).toBeInTheDocument()
+    // Individual measurement columns for Alex Rivera (normalized imperial → inches)
+    expect(screen.getByText(`38"`)).toBeInTheDocument()
+    expect(screen.getByText(`30"`)).toBeInTheDocument()
+    expect(screen.getByText(`36"`)).toBeInTheDocument()
     // Individual measurement columns for Jordan Blake
-    expect(screen.getByText("34")).toBeInTheDocument()
-    expect(screen.getByText("26")).toBeInTheDocument()
-    expect(screen.getByText("35")).toBeInTheDocument()
+    expect(screen.getByText(`34"`)).toBeInTheDocument()
+    expect(screen.getByText(`26"`)).toBeInTheDocument()
+    expect(screen.getByText(`35"`)).toBeInTheDocument()
 
     expect(screen.getByText("2")).toBeInTheDocument()
     expect(screen.getByText("1")).toBeInTheDocument()

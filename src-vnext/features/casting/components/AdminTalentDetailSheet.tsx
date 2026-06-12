@@ -16,7 +16,9 @@ import {
 } from "@/ui/sheet"
 import { Badge } from "@/ui/badge"
 import { ImageLightbox } from "@/shared/components/ImageLightbox"
+import { MeasurementUnitToggle } from "@/features/library/components/MeasurementUnitToggle"
 import { formatLabeledMeasurements } from "@/features/library/lib/measurementOptions"
+import { useMeasurementUnits } from "@/shared/hooks/useMeasurementUnits"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import {
   getCastingStatusLabel,
@@ -166,12 +168,13 @@ export function AdminTalentDetailSheet({
   const headshotUrl = useStorageUrl(headshotPath)
   const displayName = talent?.name || entry?.talentName || ""
 
+  const { system } = useMeasurementUnits()
   const labeledMeasurements = useMemo(
     () =>
       talent?.measurements
-        ? formatLabeledMeasurements(talent.measurements, talent.gender, "labeled")
+        ? formatLabeledMeasurements(talent.measurements, talent.gender, "labeled", system)
         : [],
-    [talent?.measurements, talent?.gender],
+    [talent?.measurements, talent?.gender, system],
   )
 
   // Resolve portfolio URLs from talent record
@@ -276,7 +279,10 @@ export function AdminTalentDetailSheet({
             {/* Measurements */}
             {labeledMeasurements.length > 0 && (
               <div>
-                <div className="heading-subsection mb-2">Measurements</div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="heading-subsection">Measurements</div>
+                  <MeasurementUnitToggle />
+                </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                   {labeledMeasurements.map((m) => (
                     <div key={m.label}>

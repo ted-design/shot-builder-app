@@ -16,6 +16,7 @@ import {
   CASTING_STATUS_MAP,
 } from "@/features/casting/lib/castingStatuses"
 import { formatLabeledMeasurements } from "@/features/library/lib/measurementOptions"
+import { useMeasurementUnits } from "@/shared/hooks/useMeasurementUnits"
 import type { CastingBoardEntry, CastingBoardStatus, TalentRecord } from "@/shared/types"
 
 import type { VoteAggregate } from "@/features/casting/hooks/useCastingVoteAggregates"
@@ -61,14 +62,16 @@ export function CastingCard({
   const headshotUrl = useStorageUrl(headshotPath)
   const displayName = talent?.name || entry.talentName
   const agency = talent?.agency || entry.talentAgency || null
+  const { system } = useMeasurementUnits()
   const measurementText = useMemo(() => {
     const text = formatLabeledMeasurements(
       talent?.measurements,
       talent?.gender,
       "compact",
+      system,
     )
     return text.length > 0 ? text : null
-  }, [talent?.measurements, talent?.gender])
+  }, [talent?.measurements, talent?.gender, system])
 
   const showBookButton =
     canEdit && (entry.status === "shortlist" || entry.status === "hold")
