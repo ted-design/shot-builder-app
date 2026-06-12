@@ -96,10 +96,13 @@ export function canManageCasting(role: Role): boolean {
 // producerCanAccessProject || hasProjectRole(projectId, ['producer',
 // 'warehouse']). Consumes the EFFECTIVE role (5b) — the two surviving
 // copies (ShotListPage canManageLanes, ShotDetailPageUnified canEditScene)
-// consolidate here. 5f's warehouse revoke is a two-line edit: remove
-// 'warehouse' from this helper AND from the lanes rule role lists.
+// consolidate here. 5f's warehouse revoke is two coordinated edits across two
+// PRs: this helper (5f-III, the UI half) AND the lanes rule role lists +
+// wildcard catch-all (5f-I / firestore.rules, the backend half). They align on
+// main once both merge; deploy the rules on go, coordinated with the
+// featureReviewSurface flip so warehouse never hits a UI/rules mismatch window.
 export function canEditScene(role: Role): boolean {
-  return role === ROLE.ADMIN || role === ROLE.PRODUCER || role === ROLE.WAREHOUSE
+  return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }
 
 // Version-history restore (shot + product detail History sections). Backing

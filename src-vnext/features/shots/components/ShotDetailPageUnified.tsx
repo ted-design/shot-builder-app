@@ -109,17 +109,20 @@ export function ShotDetailPageUnified() {
   if (isFeatureEnabled("featureShootSurface") && surface === "shoot") {
     return <ShootShotDetail />
   }
-  // 5f-II Review-client mount fork — the read-only approval gallery shell
-  // replaces the editor body when `featureReviewSurface` is ON and the resolved
-  // surface is 'review-client' (client/viewer; surface-keyed, mirrors the shoot
-  // fork above). Like the shoot shell it sources its own data via hooks
-  // (useParams/useShotDetailBundle/useTalent/useProjectScope) — no props
-  // plumbed in. 'review-warehouse' (5f-III) deliberately falls through to the
-  // editor for now. Flag OFF (or any non-review-client surface, or while the
-  // surface resolves): the body renders byte-identically — the existing test
-  // suite is the contract.
+  // 5f-II/5f-III Review mount forks — the read-only review surface replaces the
+  // editor body when `featureReviewSurface` is ON and the resolved surface is a
+  // review variant (5f-II: 'review-client', client/viewer; 5f-III:
+  // 'review-warehouse', warehouse). Surface-keyed, mirrors the shoot fork above.
+  // ONE component (ReviewShotDetail), variant-keyed; like the shoot shell it
+  // sources its own data via hooks (useParams/useShotDetailBundle/useTalent/
+  // useProjectScope) — no props plumbed in. Flag OFF (or any non-review surface,
+  // or while the surface resolves): the body renders byte-identically — the
+  // existing test suite is the contract.
   if (isFeatureEnabled("featureReviewSurface") && surface === "review-client") {
     return <ReviewShotDetail variant="review-client" />
+  }
+  if (isFeatureEnabled("featureReviewSurface") && surface === "review-warehouse") {
+    return <ReviewShotDetail variant="review-warehouse" />
   }
   return <ShotDetailEditorBody />
 }
