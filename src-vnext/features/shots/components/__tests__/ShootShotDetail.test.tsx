@@ -212,10 +212,6 @@ vi.mock("@/features/shots/components/ActiveEditorsBar", () => ({
   ActiveEditorsBar: () => null,
 }))
 
-vi.mock("@/features/shots/components/ShotDetailQuickAdd", () => ({
-  ShotDetailQuickAdd: () => <div data-testid="quick-add-stub">QuickAdd</div>,
-}))
-
 import { useShot } from "@/features/shots/hooks/useShot"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"

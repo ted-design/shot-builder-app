@@ -44,9 +44,42 @@ export const MEASUREMENT_LABEL_MAP: Readonly<Record<string, string>> =
 
 export function normalizeGender(gender: string | null | undefined): GenderKey {
   const value = (gender ?? "").toLowerCase().trim()
-  if (value === "male" || value === "man" || value.startsWith("men")) return "men"
-  if (value === "female" || value === "woman" || value.startsWith("women")) return "women"
+  if (value === "m" || value === "male" || value === "man" || value.startsWith("men")) return "men"
+  if (value === "f" || value === "female" || value === "woman" || value.startsWith("women")) return "women"
   return "other"
+}
+
+function isNonBinary(raw: string): boolean {
+  return raw === "nb" || raw === "non-binary" || raw === "nonbinary" || raw === "non binary"
+}
+
+/**
+ * Canonical TALENT gender label for badges/display. Collapses the inconsistent
+ * stored values ("Women"/"women"/"female"/"f" → Female; "Men"/"male"/"m" → Male)
+ * into one uniform set so every talent surface reads the same. (Product gender —
+ * Men/Women/Unisex apparel categories — is a separate concept and is NOT routed
+ * through this helper.) Returns "" for empty/unknown-empty so callers can guard.
+ */
+export function genderDisplayLabel(gender: string | null | undefined): string {
+  const raw = (gender ?? "").toLowerCase().trim()
+  if (!raw) return ""
+  if (isNonBinary(raw)) return "Non-binary"
+  const key = normalizeGender(gender)
+  if (key === "men") return "Male"
+  if (key === "women") return "Female"
+  return "Other"
+}
+
+/** Canonical talent gender badge color classes (men→blue, women/non-binary→purple, else gray). */
+export function genderBadgeClasses(gender: string | null | undefined): string {
+  const raw = (gender ?? "").toLowerCase().trim()
+  if (!raw) return ""
+  const key = normalizeGender(gender)
+  if (key === "men")
+    return "border border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]"
+  if (key === "women" || isNonBinary(raw))
+    return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
+  return "border border-[var(--color-status-gray-border)] bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]"
 }
 
 export function getMeasurementOptionsForGender(

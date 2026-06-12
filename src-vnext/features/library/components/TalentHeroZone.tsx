@@ -4,7 +4,10 @@ import { Upload } from "lucide-react"
 import { Button } from "@/ui/button"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { ImageLightbox } from "@/shared/components/ImageLightbox"
-import { normalizeGender } from "@/features/library/lib/measurementOptions"
+import {
+  genderBadgeClasses,
+  genderDisplayLabel,
+} from "@/features/library/lib/measurementOptions"
 import {
   buildDisplayName,
   initials,
@@ -18,24 +21,6 @@ import {
   SelectValue,
 } from "@/ui/select"
 import type { TalentRecord } from "@/shared/types"
-
-function genderBadgeClasses(gender: string | null | undefined): string {
-  const key = normalizeGender(gender)
-  if (key === "men") return "bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)] border-[var(--color-status-blue-border)]"
-  if (key === "women") return "bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)] border-[var(--color-status-purple-border)]"
-  return "bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)] border-[var(--color-status-gray-border)]"
-}
-
-function genderDisplayLabel(gender: string | null | undefined): string {
-  if (!gender) return ""
-  const map: Record<string, string> = {
-    male: "Male",
-    female: "Female",
-    "non-binary": "Non-binary",
-    other: "Other",
-  }
-  return map[gender.toLowerCase()] ?? gender
-}
 
 interface TalentHeroZoneProps {
   readonly selected: TalentRecord

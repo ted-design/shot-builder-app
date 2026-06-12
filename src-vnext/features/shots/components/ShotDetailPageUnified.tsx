@@ -31,7 +31,6 @@ import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { ShotDetailSidebar } from "@/features/shots/components/ShotDetailSidebar"
 import { ShootShotDetail } from "@/features/shots/components/ShootShotDetail"
 import { ProductColorwayStrip } from "@/features/shots/components/ProductColorwayStrip"
-import { ShotDetailQuickAdd } from "@/features/shots/components/ShotDetailQuickAdd"
 import { readShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { formatDateOnly, parseDateOnly } from "@/features/shots/lib/dateOnly"
@@ -618,11 +617,7 @@ function ShotDetailEditorBody() {
           </div>
 
           {/* ── Right sticky rail ── */}
-          <ShotDetailSidebar
-            shot={shot}
-            canEditLooks={canEdit}
-            footer={canDoOperational ? <ShotDetailQuickAdd /> : undefined}
-          />
+          <ShotDetailSidebar shot={shot} canEditLooks={canEdit} />
         </div>
 
         {canShare && (
