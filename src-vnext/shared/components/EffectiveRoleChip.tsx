@@ -15,12 +15,11 @@ export function EffectiveRoleChip() {
   // 5e-III View-as: the in-memory preview role (null = not previewing).
   const { previewRole } = useViewAsPreview()
 
-  // 5e-III: the "Previewing as X" state is DISTINCT from and takes precedence
-  // over the downgrade pill. Branch on previewRole explicitly — do NOT lean on
-  // the downgrade guard below (a producer previewing as crew is the canonical
-  // case, and while roleRank(crew) < roleRank(producer) happens to hold, the
-  // preview chip must render on its own terms). Visually distinct: Eye prefix +
-  // strong border so the previewer always knows they're in a narrowed view.
+  // 5e-III: an active preview always renders its own "Previewing as X" chip,
+  // ahead of BOTH the auth/role loading guards and the downgrade pill below: a
+  // preview is only ever set by deliberate action, so if a claim refresh briefly
+  // re-enters `resolving` the previewer must still see they're in a narrowed
+  // view, not a blank. (The downgrade-rank guard below would also miss it.)
   if (previewRole !== null) {
     return (
       <span

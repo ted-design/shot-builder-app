@@ -48,7 +48,7 @@ export function ViewAsPreviewProvider({
 
   const value = useMemo<ViewAsPreviewContextValue>(
     () => ({ previewRole, setPreviewRole, clearPreview }),
-    [previewRole, clearPreview],
+    [previewRole, setPreviewRole, clearPreview],
   )
 
   return (

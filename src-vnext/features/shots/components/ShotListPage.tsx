@@ -210,11 +210,8 @@ export default function ShotListPage() {
   // EFFECTIVE role — resolveSurface's input contract is byte-unchanged (the
   // opaque effectiveRole param is 5e's View-as interposition seam).
   const surfaceDevice: SurfaceDevice = isMobile ? "mobile" : isDesktop ? "desktop" : "tablet"
-  // 5e-III: previewRole substitutes for the EFFECTIVE role at surface
-  // resolution ONLY (the real `role` above still drives every write-gate).
-  // previewActive flags the suppression of url/stored view rungs inside
-  // useShotListState so the previewer's own stored choice can't mask the
-  // previewed surface default. Still null while auth/role resolve (no flash).
+  // 5e-III: previewRole feeds surface resolution ONLY — the real `role` above
+  // still drives every write-gate, so preview can never escalate.
   const surfaceContext = useMemo(
     () =>
       authLoading || roleResolving

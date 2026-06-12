@@ -66,7 +66,9 @@ export function ViewAsMenu() {
         <DropdownMenuItem
           data-testid="view-as-return"
           disabled={!isPreviewing}
-          onSelect={() => clearPreview()}
+          onSelect={() => {
+            if (isPreviewing) clearPreview()
+          }}
         >
           Return to your view
         </DropdownMenuItem>

@@ -55,6 +55,12 @@ describe("ViewAsMenu", () => {
     expect(screen.queryByTestId("view-as-trigger")).not.toBeInTheDocument()
   })
 
+  it("renders nothing for warehouse (non-global claim)", () => {
+    authState.role = "warehouse"
+    render(<ViewAsMenu />)
+    expect(screen.queryByTestId("view-as-trigger")).not.toBeInTheDocument()
+  })
+
   it("renders nothing when the featureShootSurface flag is off", () => {
     flagState.featureShootSurface = false
     render(<ViewAsMenu />)
