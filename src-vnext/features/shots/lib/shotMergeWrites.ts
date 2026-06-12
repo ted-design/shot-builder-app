@@ -99,12 +99,17 @@ function countLooksRefs(looks: ReadonlyArray<ShotLook>): number {
 }
 
 /**
- * Union talent across two shots, keyed by `talentId` so the `talent` (display
- * names) and `talentIds` arrays stay in LOCKSTEP. Unioning the two arrays
- * independently desyncs them when the same id carries a different denormalized
- * name in each shot (e.g. "Alice" vs "Alice Smith") — names would dedup to 2,
- * ids to 1. Here each id appears once with the PRIMARY's name (first-seen wins),
- * and legacy name-only talent (no id) is carried through, name-deduped.
+ * Union talent across two shots, keyed by `talentId`. For id-bearing entries the
+ * `talent` (display names) and `talentIds` arrays stay INDEX-ALIGNED — each id
+ * appears once with the PRIMARY's name (first-seen wins). Unioning the two arrays
+ * independently would desync them when the same id carries a different
+ * denormalized name in each shot ("Alice" vs "Alice Smith"): names dedup to 2,
+ * ids to 1.
+ *
+ * ASYMMETRY: legacy name-only talent (a name in `talent[]` with no corresponding
+ * `talentIds[]` entry) is appended to `talent` AFTER the id-bearing names, so for
+ * such shots `talent.length > talentIds.length`. Index alignment holds only for
+ * the id-bearing prefix — do not assume `talent[i]` ↔ `talentIds[i]` past it.
  */
 function unionTalent(
   primary: Shot,

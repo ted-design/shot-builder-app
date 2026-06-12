@@ -10,6 +10,7 @@ import {
 } from "@/ui/dialog"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/ui/radio-group"
 import { toast } from "sonner"
 import { cn } from "@/shared/lib/utils"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
@@ -343,33 +344,38 @@ export function ShotMergeWizard({
                 <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">
                   Merge mode
                 </legend>
-                <div role="radiogroup" aria-label="Merge mode" className="grid gap-2 sm:grid-cols-2">
+                <RadioGroup
+                  value={mode}
+                  onValueChange={(v) => setMode(v as ShotMergeMode)}
+                  aria-label="Merge mode"
+                  className="grid gap-2 sm:grid-cols-2"
+                >
                   {MODE_OPTIONS.map((opt) => {
                     const selected = mode === opt.key
+                    const id = `merge-mode-${opt.key}`
                     return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setMode(opt.key)}
-                        className={cn(
-                          "rounded-md border p-3 text-left transition-colors",
-                          selected
-                            ? "border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
-                            : "border-[var(--color-border)] hover:border-[var(--color-text-subtle)]",
-                        )}
-                      >
-                        <div className="text-sm font-medium text-[var(--color-text)]">
-                          {opt.label}
-                        </div>
-                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          {opt.helper}
-                        </div>
-                      </button>
+                      <div key={opt.key}>
+                        <RadioGroupItem value={opt.key} id={id} className="sr-only" />
+                        <label
+                          htmlFor={id}
+                          className={cn(
+                            "block cursor-pointer rounded-md border p-3 text-left transition-colors",
+                            selected
+                              ? "border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
+                              : "border-[var(--color-border)] hover:border-[var(--color-text-subtle)]",
+                          )}
+                        >
+                          <div className="text-sm font-medium text-[var(--color-text)]">
+                            {opt.label}
+                          </div>
+                          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                            {opt.helper}
+                          </div>
+                        </label>
+                      </div>
                     )
                   })}
-                </div>
+                </RadioGroup>
               </fieldset>
 
               <div className="flex justify-end gap-2">
