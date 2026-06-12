@@ -127,9 +127,7 @@ export type ShotListSurfaceContext = {
   readonly role: Role
   readonly device: SurfaceDevice
   /** 5e-III — when true, the View-as preview suppresses url/stored view rungs
-   *  so the previewed surface's default isn't masked by the previewer's own
-   *  stored choice (e.g. a stored 'table' would otherwise outrank the previewed
-   *  shoot surface default and hide the shell). Additive; defaults undefined. */
+   *  so the previewer's own stored choice can't mask the previewed surface. */
   readonly previewActive?: boolean
 }
 

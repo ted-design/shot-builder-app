@@ -2,11 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react"
 import { Role } from "@/shared/types"
+import { useAuth } from "@/app/providers/AuthProvider"
 
 // 5e-III: In-memory "View as" preview. A GLOBAL admin/producer can preview the
 // Crew (Shoot) surface without persisting anything. NO localStorage, NO URL,
@@ -29,10 +31,20 @@ export function ViewAsPreviewProvider({
 }: {
   readonly children: ReactNode
 }) {
+  const { user, role } = useAuth()
   const [previewRole, setPreviewRole] = useState<Role | null>(null)
 
   // 5e-III: clearing the preview returns the user to their real view.
   const clearPreview = useCallback(() => setPreviewRole(null), [])
+
+  // 5e-III: reset the in-memory preview when the signed-in identity or global
+  // role changes (an in-place sign-out/sign-in, or a mid-session claim change).
+  // Otherwise a stale 'crew' preview strands the next, lower-privilege user in
+  // the narrowed shell with no visible control to exit. Reset only — not a
+  // persistence write.
+  useEffect(() => {
+    setPreviewRole(null)
+  }, [user?.uid, role])
 
   const value = useMemo<ViewAsPreviewContextValue>(
     () => ({ previewRole, setPreviewRole, clearPreview }),

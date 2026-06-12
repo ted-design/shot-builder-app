@@ -456,9 +456,7 @@ export default function ShotListPage() {
         actions={
           <div className="flex items-center gap-2">
             <EffectiveRoleChip />
-            {/* 5e-III View-as: quiet preview menu, self-gated on the GLOBAL
-                admin/producer claim + featureShootSurface (renders null
-                otherwise). Adjacent to the chip so preview state reads together. */}
+            {/* 5e-III View-as: self-gated on the global claim + featureShootSurface. */}
             <ViewAsMenu />
             {canExport && (
               <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>

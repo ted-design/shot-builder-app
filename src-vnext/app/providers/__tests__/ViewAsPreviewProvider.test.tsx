@@ -4,6 +4,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import type { ReactNode } from "react"
+
+// The provider reads useAuth to reset the preview when the signed-in identity
+// or global role changes — mock it so tests can simulate a user swap.
+const authState = vi.hoisted(() => ({ uid: "u1", role: "admin" }))
+vi.mock("@/app/providers/AuthProvider", () => ({
+  useAuth: () => ({
+    user: authState.uid ? { uid: authState.uid } : null,
+    role: authState.role,
+  }),
+}))
+
 import {
   ViewAsPreviewProvider,
   useViewAsPreview,
@@ -17,6 +28,8 @@ describe("ViewAsPreviewProvider", () => {
   let setItemSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
+    authState.uid = "u1"
+    authState.role = "admin"
     setItemSpy = vi.spyOn(window.localStorage.__proto__, "setItem")
   })
 
@@ -48,5 +61,28 @@ describe("ViewAsPreviewProvider", () => {
     act(() => result.current.setPreviewRole("crew"))
     act(() => result.current.clearPreview())
     expect(setItemSpy).not.toHaveBeenCalled()
+  })
+
+  it("resets the preview when the signed-in user changes (no stale preview across an in-place sign-in)", () => {
+    const { result, rerender } = renderHook(() => useViewAsPreview(), { wrapper })
+    act(() => result.current.setPreviewRole("crew"))
+    expect(result.current.previewRole).toBe("crew")
+    // Simulate an in-place user swap (sign-out → sign-in as a different user).
+    act(() => {
+      authState.uid = "u2"
+      rerender()
+    })
+    expect(result.current.previewRole).toBeNull()
+  })
+
+  it("resets the preview when the global role changes (mid-session claim change)", () => {
+    const { result, rerender } = renderHook(() => useViewAsPreview(), { wrapper })
+    act(() => result.current.setPreviewRole("crew"))
+    expect(result.current.previewRole).toBe("crew")
+    act(() => {
+      authState.role = "viewer"
+      rerender()
+    })
+    expect(result.current.previewRole).toBeNull()
   })
 })
