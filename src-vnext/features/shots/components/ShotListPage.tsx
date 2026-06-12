@@ -47,6 +47,7 @@ import { useLanes } from "@/features/shots/hooks/useLanes"
 import { SceneHeader } from "@/features/shots/components/SceneHeader"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
+import { ShotMergeWizard } from "@/features/shots/components/ShotMergeWizard"
 import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { Skeleton } from "@/ui/skeleton"
@@ -91,6 +92,7 @@ export default function ShotListPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [renumberOpen, setRenumberOpen] = useState(false)
   const [groupSceneOpen, setGroupSceneOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
   const [deleteSceneTarget, setDeleteSceneTarget] = useState<{ id: string; name: string } | null>(null)
   const [editSceneId, setEditSceneId] = useState<string | null>(null)
   const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
@@ -469,6 +471,7 @@ export default function ShotListPage() {
           role={role}
           onShareOpen={() => setShareOpen(true)}
           onGroupSceneOpen={() => setGroupSceneOpen(true)}
+          onMergeOpen={() => setMergeOpen(true)}
           onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
@@ -977,6 +980,19 @@ export default function ShotListPage() {
         user={user}
         onDeleted={clearSelection}
       />
+
+      {selectedShots[0] && selectedShots[1] && selectedShots.length === 2 && (
+        <ShotMergeWizard
+          open={mergeOpen}
+          onOpenChange={setMergeOpen}
+          clientId={clientId}
+          user={user}
+          shotA={selectedShots[0]}
+          shotB={selectedShots[1]}
+          projectId={projectId}
+          onMerged={clearSelection}
+        />
+      )}
 
       <RenumberShotsDialog
         open={renumberOpen}
