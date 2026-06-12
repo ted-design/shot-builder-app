@@ -87,7 +87,7 @@ describe("TalentTable", () => {
 
     expect(screen.getByText("Male")).toBeInTheDocument()
     expect(screen.getByText("Female")).toBeInTheDocument()
-    expect(screen.getByText("Non-Binary")).toBeInTheDocument()
+    expect(screen.getByText("Non-binary")).toBeInTheDocument()
 
     expect(screen.getByText("IMG Models")).toBeInTheDocument()
     expect(screen.getByText("Elite")).toBeInTheDocument()

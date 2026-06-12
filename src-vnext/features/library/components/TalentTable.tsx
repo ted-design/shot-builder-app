@@ -13,6 +13,10 @@ import type { TalentRecord } from "@/shared/types"
 import { buildDisplayName, initials } from "@/features/library/components/talentUtils"
 import { formatMeasurement, type UnitSystem } from "@/features/library/lib/measurementUnits"
 import { useMeasurementUnits } from "@/shared/hooks/useMeasurementUnits"
+import {
+  genderBadgeClasses,
+  genderDisplayLabel,
+} from "@/features/library/lib/measurementOptions"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,10 +73,7 @@ function getMeasurementValue(
   return String(val)
 }
 
-/**
- * Display value for a measurement cell, converted to the active unit system.
- * Returns "" when there is no value so the caller can render a placeholder.
- */
+// Measurement cell value converted to the active unit system; "" when absent (caller renders a placeholder).
 function getDisplayMeasurement(
   talent: TalentRecord,
   key: string,
@@ -81,40 +82,6 @@ function getDisplayMeasurement(
   const raw = getMeasurementValue(talent.measurements, key)
   if (raw === "") return ""
   return formatMeasurement(key, raw, { system, gender: talent.gender })
-}
-
-function genderLabel(gender: string | null | undefined): string {
-  if (!gender) return ""
-  switch (gender.toLowerCase()) {
-    case "male":
-    case "men":
-      return "Male"
-    case "female":
-    case "women":
-      return "Female"
-    case "non-binary":
-      return "Non-Binary"
-    case "other":
-      return "Other"
-    default:
-      return gender
-  }
-}
-
-function genderBadgeClasses(gender: string | null | undefined): string {
-  if (!gender) return ""
-  switch (gender.toLowerCase()) {
-    case "male":
-    case "men":
-      return "border border-[var(--color-status-blue-border)] bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)]"
-    case "female":
-    case "women":
-      return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
-    case "non-binary":
-      return "border border-[var(--color-status-purple-border)] bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)]"
-    default:
-      return "border border-[var(--color-status-gray-border)] bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)]"
-  }
 }
 
 function sortValue(
@@ -230,7 +197,7 @@ function renderCell(
         <span
           className={`inline-block rounded-full px-2 py-0.5 text-2xs font-medium ${genderBadgeClasses(talent.gender)}`}
         >
-          {genderLabel(talent.gender)}
+          {genderDisplayLabel(talent.gender)}
         </span>
       ) : (
         <span className="text-[var(--color-text-subtle)]">--</span>

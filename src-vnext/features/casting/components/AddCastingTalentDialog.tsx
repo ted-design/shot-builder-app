@@ -11,26 +11,36 @@ import {
   DialogTitle,
 } from "@/ui/dialog"
 import { buildDisplayName, initials } from "@/features/library/components/talentUtils"
+import {
+  genderBadgeClasses,
+  genderDisplayLabel,
+} from "@/features/library/lib/measurementOptions"
+import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import type { TalentRecord } from "@/shared/types"
 
-function genderBadgeClasses(gender: string | null | undefined): string | null {
-  if (!gender) return null
-  const g = gender.toLowerCase().trim()
-  if (g === "male" || g === "m")
-    return "bg-[var(--color-status-blue-bg)] text-[var(--color-status-blue-text)] border-[var(--color-status-blue-border)]"
-  if (g === "female" || g === "f" || g === "non-binary" || g === "nb")
-    return "bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)] border-[var(--color-status-purple-border)]"
-  return "bg-[var(--color-status-gray-bg)] text-[var(--color-status-gray-text)] border-[var(--color-status-gray-border)]"
-}
-
-function genderLabel(gender: string | null | undefined): string | null {
-  if (!gender) return null
-  const g = gender.toLowerCase().trim()
-  if (g === "m") return "Male"
-  if (g === "f") return "Female"
-  if (g === "nb") return "Non-Binary"
-  // Capitalize first letter for display
-  return gender.charAt(0).toUpperCase() + gender.slice(1)
+// Resolves the headshot via useStorageUrl (like the library list/cards), not the often-empty
+// denormalized headshotUrl. Own component because useStorageUrl can't run inside .map().
+function CastingTalentAvatar({
+  talent,
+  name,
+}: {
+  readonly talent: TalentRecord
+  readonly name: string
+}) {
+  const path = talent.headshotPath || talent.imageUrl || undefined
+  const resolved = useStorageUrl(path)
+  const src = talent.headshotUrl ?? resolved ?? null
+  return (
+    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
+      {src ? (
+        <img src={src} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-2xs font-semibold text-[var(--color-text-muted)]">
+          {initials(name)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface AddCastingTalentDialogProps {
@@ -126,9 +136,8 @@ export function AddCastingTalentDialog({
                 <div className="divide-y divide-[var(--color-border)]">
                   {filtered.map((t) => {
                     const name = buildDisplayName(t)
-                    const headshotSrc = t.headshotUrl ?? null
                     const badgeClasses = genderBadgeClasses(t.gender)
-                    const badgeLabel = genderLabel(t.gender)
+                    const badgeLabel = genderDisplayLabel(t.gender)
                     const isSelected = draft.has(t.id)
 
                     return (
@@ -146,19 +155,7 @@ export function AddCastingTalentDialog({
                           className="shrink-0"
                         />
 
-                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
-                          {headshotSrc ? (
-                            <img
-                              src={headshotSrc}
-                              alt={name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-2xs font-semibold text-[var(--color-text-muted)]">
-                              {initials(name)}
-                            </div>
-                          )}
-                        </div>
+                        <CastingTalentAvatar talent={t} name={name} />
 
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm text-[var(--color-text)]">

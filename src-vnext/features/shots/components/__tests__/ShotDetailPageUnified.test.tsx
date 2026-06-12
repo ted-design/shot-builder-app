@@ -177,12 +177,6 @@ vi.mock("@/features/shots/components/ActiveEditorsBar", () => ({
   ActiveEditorsBar: () => null,
 }))
 
-// Stubbed: the real component mounts the project shots subscription. The
-// page-level gate (canDoOperational) is the subject here.
-vi.mock("@/features/shots/components/ShotDetailQuickAdd", () => ({
-  ShotDetailQuickAdd: () => <div data-testid="quick-add-stub">QuickAdd</div>,
-}))
-
 import { useShot } from "@/features/shots/hooks/useShot"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
@@ -722,33 +716,16 @@ describe("ShotDetailPageUnified", () => {
     expect(navigateSpy).not.toHaveBeenCalled()
   })
 
-  // -- in-editor quick-add gating (bottom of the right rail) --
+  // -- the in-editor quick-add was removed (#8): the shot editor's right rail must
+  // NOT host a shot-creation quick-add. That affordance lives on the shots list
+  // page (its natural home). --
 
-  it("producer: quick-add renders at the bottom of the rail", () => {
+  it("producer: no shot-creation quick-add lives in the shot editor rail", () => {
     mockShot()
 
     renderPage()
 
-    const rail = screen.getByTestId("shot-detail-sidebar")
-    const quickAdd = screen.getByTestId("quick-add-stub")
-    expect(rail.contains(quickAdd)).toBe(true)
-  })
-
-  it("viewer: quick-add does not mount", () => {
-    authState.role = "viewer"
-    mockShot()
-
-    renderPage()
-
-    expect(screen.queryByTestId("quick-add-stub")).not.toBeInTheDocument()
-  })
-
-  it("role resolving: quick-add does not mount (no write affordance during the gap)", () => {
-    effectiveState.resolving = true
-    mockShot()
-
-    renderPage()
-
-    expect(screen.queryByTestId("quick-add-stub")).not.toBeInTheDocument()
+    expect(screen.getByTestId("shot-detail-sidebar")).toBeInTheDocument()
+    expect(screen.queryByText(/quick add/i)).not.toBeInTheDocument()
   })
 })
