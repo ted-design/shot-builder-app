@@ -887,7 +887,7 @@ service cloud.firestore {
            hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
         allow create, update: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
-           hasProjectRole(projectId, ['producer', 'warehouse'])) &&
+           hasProjectRole(projectId, ['producer'])) &&
           (
             !('direction' in request.resource.data) ||
             request.resource.data.direction == null ||
@@ -909,7 +909,7 @@ service cloud.firestore {
           );
         allow delete: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
-           hasProjectRole(projectId, ['producer', 'warehouse']));
+           hasProjectRole(projectId, ['producer']));
       }
 
       // Wildcard catch-all for any other project sub-collections
@@ -918,12 +918,17 @@ service cloud.firestore {
       // together, so without the exclusion any team-visible-project producer
       // could write arbitrary members docs through this rule, bypassing the
       // explicit members rules (admin-only management + creation-time self-add).
+      // lanes is also excluded from the write arm: because matching rules OR
+      // together, the warehouse role in this wildcard would otherwise re-grant
+      // lane writes that the explicit /lanes/{laneId} rule now restricts to
+      // producers only. Lane reads stay available to warehouse via the read arm.
       match /{collectionId}/{docId} {
         allow read: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'crew', 'warehouse', 'viewer']));
         allow create, update, delete: if clientMatches(clientId) &&
           collectionId != 'members' &&
+          collectionId != 'lanes' &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||
            hasProjectRole(projectId, ['producer', 'warehouse']));
       }
