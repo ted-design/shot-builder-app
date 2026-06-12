@@ -209,11 +209,17 @@ export function buildShotMergePlan(args: {
     looks: mergedLooks,
     activeLookId,
     products: rootProductsMirror,
-    talent,
-    talentIds,
-    referenceLinks,
-    tags,
   }
+
+  // Only include the union fields when non-empty so the merge never writes `[]`
+  // to a field both shots lacked (which would change the document shape). The
+  // union is always a superset of the primary's, so omitting an empty result
+  // never drops existing data — the in-place primary update leaves its (also
+  // empty/absent) field untouched.
+  if (talent.length > 0) patch.talent = talent
+  if (talentIds.length > 0) patch.talentIds = talentIds
+  if (referenceLinks.length > 0) patch.referenceLinks = referenceLinks
+  if (tags.length > 0) patch.tags = tags
 
   // heroImage: primary ?? secondary. Omit the key entirely if both absent —
   // never write null over an existing image.
@@ -290,6 +296,11 @@ function unionTags(
 /**
  * Thin orchestrator — does the two writes.
  * Primary write FIRST; if it throws, the secondary is never soft-deleted (no orphan).
+ *
+ * NOTE: the two writes are sequential, not atomic. A successful primary write
+ * followed by a failed secondary soft-delete leaves both shots visible with
+ * duplicated products. Acceptable for v1 pairwise merge (the user can re-run);
+ * TODO(v2): wrap both in a single WriteBatch once version snapshots support it.
  */
 export async function executeShotMerge(args: {
   clientId: string

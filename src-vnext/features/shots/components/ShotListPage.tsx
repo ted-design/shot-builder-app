@@ -93,6 +93,12 @@ export default function ShotListPage() {
   const [renumberOpen, setRenumberOpen] = useState(false)
   const [groupSceneOpen, setGroupSceneOpen] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
+  // Snapshot the two merge candidates at open time. Hosting the wizard on the
+  // live `selectedShots` would unmount it mid-flow: a successful merge soft-
+  // deletes the loser, which drops it out of `displayShots` → `selectedShots`
+  // falls to 1 → the dialog unmounts before the Result step can render (and
+  // leaves `mergeOpen` true, re-popping next time two shots are selected).
+  const [mergeShots, setMergeShots] = useState<readonly [Shot, Shot] | null>(null)
   const [deleteSceneTarget, setDeleteSceneTarget] = useState<{ id: string; name: string } | null>(null)
   const [editSceneId, setEditSceneId] = useState<string | null>(null)
   const [collapsedScenes, setCollapsedScenes] = useState<ReadonlySet<string>>(new Set())
@@ -355,6 +361,15 @@ export default function ShotListPage() {
     return displayShots.filter((s) => selectedIds.has(s.id))
   }, [displayShots, selectedIds, selectionEnabled])
 
+  // Open the merge wizard on a snapshot of the current pair (see mergeShots).
+  const openMerge = () => {
+    const [a, b] = selectedShots
+    if (a && b && selectedShots.length === 2) {
+      setMergeShots([a, b])
+      setMergeOpen(true)
+    }
+  }
+
   // -- Loading / error states --
   const stuck = useStuckLoading(loading)
 
@@ -471,7 +486,7 @@ export default function ShotListPage() {
           role={role}
           onShareOpen={() => setShareOpen(true)}
           onGroupSceneOpen={() => setGroupSceneOpen(true)}
-          onMergeOpen={() => setMergeOpen(true)}
+          onMergeOpen={openMerge}
           onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
@@ -981,14 +996,17 @@ export default function ShotListPage() {
         onDeleted={clearSelection}
       />
 
-      {selectedShots[0] && selectedShots[1] && selectedShots.length === 2 && (
+      {mergeShots && (
         <ShotMergeWizard
           open={mergeOpen}
-          onOpenChange={setMergeOpen}
+          onOpenChange={(o) => {
+            setMergeOpen(o)
+            if (!o) setMergeShots(null)
+          }}
           clientId={clientId}
           user={user}
-          shotA={selectedShots[0]}
-          shotB={selectedShots[1]}
+          shotA={mergeShots[0]}
+          shotB={mergeShots[1]}
           projectId={projectId}
           onMerged={clearSelection}
         />

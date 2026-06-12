@@ -13,7 +13,8 @@ import { Checkbox } from "@/ui/checkbox"
 import { toast } from "sonner"
 import { cn } from "@/shared/lib/utils"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
-import type { AuthUser, Shot, ShotFirestoreStatus } from "@/shared/types"
+import { getShotStatusLabel } from "@/shared/lib/statusMappings"
+import type { AuthUser, Shot } from "@/shared/types"
 import {
   buildShotMergePlan,
   executeShotMerge,
@@ -42,13 +43,6 @@ const STEPS: ReadonlyArray<{ readonly key: WizardStep; readonly label: string }>
   { key: "preview", label: "Preview" },
   { key: "result", label: "Result" },
 ]
-
-const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
-  todo: "To do",
-  in_progress: "In progress",
-  complete: "Complete",
-  on_hold: "On hold",
-}
 
 const MODE_OPTIONS: ReadonlyArray<{
   readonly key: ShotMergeMode
@@ -196,7 +190,7 @@ function ShotCompareCard({
         </div>
         <div className="flex justify-between">
           <dt>Status</dt>
-          <dd className="font-medium text-[var(--color-text)]">{STATUS_LABELS[shot.status]}</dd>
+          <dd className="font-medium text-[var(--color-text)]">{getShotStatusLabel(shot.status)}</dd>
         </div>
         {shot.locationName && (
           <div className="flex items-center gap-1">

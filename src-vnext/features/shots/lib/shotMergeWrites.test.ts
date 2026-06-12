@@ -271,6 +271,27 @@ describe("buildShotMergePlan — talent / links / tags / meta", () => {
     expect((patch.tags as Array<{ id: string }>).map((t) => t.id)).toEqual(["tag1", "tag2"])
   })
 
+  it("omits union fields entirely when both shots lack them (no [] written to absent fields)", () => {
+    // Neither shot has talent / talentIds / referenceLinks / tags.
+    const primary = makeShot({ id: "A", title: "Shot A" })
+    const secondary = makeShot({ id: "B", title: "Shot B" })
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    for (const k of ["talent", "talentIds", "referenceLinks", "tags"]) {
+      expect(patch).not.toHaveProperty(k)
+    }
+  })
+
+  it("includes a union field when at least one shot has it", () => {
+    const primary = makeShot({ id: "A", title: "Shot A", talent: ["Alice"], talentIds: ["t1"] })
+    const secondary = makeShot({ id: "B", title: "Shot B" })
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    expect(patch.talent).toEqual(["Alice"])
+    expect(patch.talentIds).toEqual(["t1"])
+    // The fields the merge doesn't touch stay absent.
+    expect(patch).not.toHaveProperty("tags")
+    expect(patch).not.toHaveProperty("referenceLinks")
+  })
+
   it("leaves primary meta out of the patch (title/date/location/status/shotNumber/laneId/sortOrder)", () => {
     const primary = makeShot({
       id: "A",
