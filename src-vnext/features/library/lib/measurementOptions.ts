@@ -1,3 +1,5 @@
+import { formatMeasurement, type UnitSystem } from "./measurementUnits"
+
 export interface MeasurementField {
   readonly key: string
   readonly label: string
@@ -109,16 +111,19 @@ export function formatLabeledMeasurements(
   measurements: Record<string, string | number | null | undefined> | null | undefined,
   gender: string | null | undefined,
   mode: "compact",
+  system?: UnitSystem,
 ): string
 export function formatLabeledMeasurements(
   measurements: Record<string, string | number | null | undefined> | null | undefined,
   gender: string | null | undefined,
   mode: "labeled",
+  system?: UnitSystem,
 ): readonly LabeledMeasurement[]
 export function formatLabeledMeasurements(
   measurements: Record<string, string | number | null | undefined> | null | undefined,
   gender: string | null | undefined,
   mode: "compact" | "labeled",
+  system: UnitSystem = "imperial",
 ): string | readonly LabeledMeasurement[] {
   const safe = measurements ?? {}
   const orderedKeys = orderMeasurementKeys(safe, gender)
@@ -128,7 +133,8 @@ export function formatLabeledMeasurements(
     const raw = safe[key]
     if (raw === null || raw === undefined || raw === "") continue
     const label = MEASUREMENT_LABEL_MAP[key] ?? key
-    const value = String(raw)
+    const value = formatMeasurement(key, raw, { system, gender })
+    if (value === "") continue
     pairs.push({ label, value })
   }
 

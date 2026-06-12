@@ -11,6 +11,8 @@ import { Button } from "@/ui/button"
 import type { TableColumnConfig } from "@/shared/types/table"
 import type { TalentRecord } from "@/shared/types"
 import { buildDisplayName, initials } from "@/features/library/components/talentUtils"
+import { formatMeasurement, type UnitSystem } from "@/features/library/lib/measurementUnits"
+import { useMeasurementUnits } from "@/shared/hooks/useMeasurementUnits"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +67,20 @@ function getMeasurementValue(
     return String(obj["value"] ?? obj["v"] ?? "")
   }
   return String(val)
+}
+
+/**
+ * Display value for a measurement cell, converted to the active unit system.
+ * Returns "" when there is no value so the caller can render a placeholder.
+ */
+function getDisplayMeasurement(
+  talent: TalentRecord,
+  key: string,
+  system: UnitSystem,
+): string {
+  const raw = getMeasurementValue(talent.measurements, key)
+  if (raw === "") return ""
+  return formatMeasurement(key, raw, { system, gender: talent.gender })
 }
 
 function genderLabel(gender: string | null | undefined): string {
@@ -198,6 +214,7 @@ function SortableHeaderContent({
 function renderCell(
   talent: TalentRecord,
   columnKey: string,
+  system: UnitSystem,
 ): React.ReactNode {
   switch (columnKey) {
     case "avatar":
@@ -223,19 +240,19 @@ function renderCell(
         <span className="text-[var(--color-text-subtle)]">--</span>
       )
     case "height":
-      return getMeasurementValue(talent.measurements, "height") || (
+      return getDisplayMeasurement(talent, "height", system) || (
         <span className="text-[var(--color-text-subtle)]">--</span>
       )
     case "bust":
-      return getMeasurementValue(talent.measurements, "bust") || (
+      return getDisplayMeasurement(talent, "bust", system) || (
         <span className="text-[var(--color-text-subtle)]">--</span>
       )
     case "waist":
-      return getMeasurementValue(talent.measurements, "waist") || (
+      return getDisplayMeasurement(talent, "waist", system) || (
         <span className="text-[var(--color-text-subtle)]">--</span>
       )
     case "hips":
-      return getMeasurementValue(talent.measurements, "hips") || (
+      return getDisplayMeasurement(talent, "hips", system) || (
         <span className="text-[var(--color-text-subtle)]">--</span>
       )
     case "projects": {
@@ -259,6 +276,7 @@ function renderCell(
 
 export function TalentTable({ talent, onSelect, selectedId }: TalentTableProps) {
   const isMobile = useIsMobile()
+  const { system } = useMeasurementUnits()
   const [sort, setSort] = useState<SortState>({ field: "name", direction: "asc" })
 
   const {
@@ -382,7 +400,7 @@ export function TalentTable({ talent, onSelect, selectedId }: TalentTableProps) 
                           : ""
                     }`}
                   >
-                    {renderCell(t, col.key)}
+                    {renderCell(t, col.key, system)}
                   </td>
                 ))}
               </tr>

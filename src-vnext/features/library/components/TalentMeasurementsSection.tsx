@@ -3,8 +3,11 @@ import {
   MEASUREMENT_LABEL_MAP,
   normalizeGender,
 } from "@/features/library/lib/measurementOptions"
+import { formatMeasurement } from "@/features/library/lib/measurementUnits"
 import { MEASUREMENT_PLACEHOLDERS } from "@/features/library/components/talentUtils"
 import { InlineInput } from "@/features/library/components/TalentInlineEditors"
+import { MeasurementUnitToggle } from "@/features/library/components/MeasurementUnitToggle"
+import { useMeasurementUnits } from "@/shared/hooks/useMeasurementUnits"
 import type { TalentRecord } from "@/shared/types"
 
 interface TalentMeasurementsSectionProps {
@@ -22,10 +25,14 @@ export function TalentMeasurementsSection({
 }: TalentMeasurementsSectionProps) {
   const genderKey = normalizeGender(selected.gender)
   const measurements = selected.measurements ?? {}
+  const { system } = useMeasurementUnits()
 
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <div className="heading-subsection mb-3">Measurements</div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="heading-subsection">Measurements</div>
+        <MeasurementUnitToggle />
+      </div>
 
       <div className="flex flex-col gap-5">
         {MEASUREMENT_CATEGORY_GROUPS.map((group) => {
@@ -40,6 +47,13 @@ export function TalentMeasurementsSection({
                   const raw = (measurements as Record<string, unknown>)[key]
                   const display = typeof raw === "string" || typeof raw === "number" ? String(raw) : ""
                   const label = MEASUREMENT_LABEL_MAP[key] ?? key
+                  // Display-only converted read-out. The INPUT keeps the RAW
+                  // stored value; only this label reflects the unit toggle.
+                  const converted =
+                    display.trim() !== ""
+                      ? formatMeasurement(key, display, { system, gender: selected.gender })
+                      : ""
+                  const showConverted = converted !== "" && converted !== display.trim()
 
                   return (
                     <div key={key}>
@@ -56,6 +70,11 @@ export function TalentMeasurementsSection({
                           void savePatch(selected.id, { measurements: nextMeasurements })
                         }}
                       />
+                      {showConverted && (
+                        <div className="mt-1 text-xxs text-[var(--color-text-subtle)]">
+                          {converted}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
