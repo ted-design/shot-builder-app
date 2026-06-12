@@ -49,6 +49,13 @@ export async function resolveStoragePath(path: string): Promise<string> {
   return request
 }
 
+// Drop a path from the cache + in-flight map so the next resolve fetches a fresh URL.
+export function invalidateStoragePath(path: string | null | undefined): void {
+  if (!path || isUrl(path)) return
+  cache.delete(path)
+  pending.delete(path)
+}
+
 /**
  * Synchronously check the cache for a previously resolved URL.
  * Returns undefined if not cached or expired.

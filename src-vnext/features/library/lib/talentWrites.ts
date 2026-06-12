@@ -12,6 +12,13 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadBytes } from "fi
 import { db, storage } from "@/shared/lib/firebase"
 import { talentPath } from "@/shared/lib/paths"
 import { compressImageToWebp, validateImageFileForUpload } from "@/shared/lib/uploadImage"
+import { invalidateStoragePath } from "@/shared/lib/resolveStoragePath"
+
+// Unique filename per upload (like gallery/casting) — a fixed `headshot.webp` reused the same
+// download URL, so browser + resolve caches served the stale old image after a replace.
+function headshotStoragePath(talentId: string): string {
+  return `images/talent/${talentId}/headshot-${crypto.randomUUID()}.webp`
+}
 
 export interface TalentImageRecord {
   readonly id: string
@@ -126,7 +133,7 @@ export async function createTalent(args: {
   })
 
   if (args.headshotFile) {
-    const storagePath = `images/talent/${ref.id}/headshot.webp`
+    const storagePath = headshotStoragePath(ref.id)
     const uploaded = await uploadWebpImage(args.headshotFile, storagePath)
     await updateDoc(ref, {
       headshotPath: uploaded.path,
@@ -163,11 +170,11 @@ export async function setTalentHeadshot(args: {
   readonly talentId: string
   readonly file: File
   readonly previousPath?: string | null
-}) {
+}): Promise<{ path: string; url: string }> {
   const talentId = args.talentId.trim()
   if (!talentId) throw new Error("Missing talent id")
 
-  const storagePath = `images/talent/${talentId}/headshot.webp`
+  const storagePath = headshotStoragePath(talentId)
   const uploaded = await uploadWebpImage(args.file, storagePath)
 
   const path = talentPath(args.clientId)
@@ -180,9 +187,8 @@ export async function setTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
-  if (args.previousPath && args.previousPath !== uploaded.path) {
-    await deleteStoragePath(args.previousPath)
-  }
+  // No delete on replace: a published casting share snapshots the old headshot's URL — deleting breaks it. The old object is left orphaned on purpose (accepted storage tradeoff).
+  invalidateStoragePath(args.previousPath)
 
   return uploaded
 }
@@ -206,7 +212,8 @@ export async function removeTalentHeadshot(args: {
     updatedBy: args.userId ?? null,
   })
 
-  await deleteStoragePath(args.previousPath ?? null)
+  // Symmetric with replace: leave the old object so a casting share that snapshotted it keeps working; just clear the doc fields + cache.
+  invalidateStoragePath(args.previousPath)
 }
 
 export async function addTalentToProject(args: {
