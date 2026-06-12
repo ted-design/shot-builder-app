@@ -50,6 +50,17 @@ export async function resolveStoragePath(path: string): Promise<string> {
 }
 
 /**
+ * Drop a path from the in-memory URL cache (and any in-flight request).
+ * Call this after re-uploading or deleting the object at `path` so the next
+ * resolve fetches a fresh download URL instead of a stale cached one.
+ */
+export function invalidateStoragePath(path: string | null | undefined): void {
+  if (!path || isUrl(path)) return
+  cache.delete(path)
+  pending.delete(path)
+}
+
+/**
  * Synchronously check the cache for a previously resolved URL.
  * Returns undefined if not cached or expired.
  */
