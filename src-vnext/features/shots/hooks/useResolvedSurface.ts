@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { useViewAsPreview } from "@/app/providers/ViewAsPreviewProvider"
 import { useEffectiveRole } from "@/shared/hooks/useEffectiveRole"
 import { useIsMobile, useIsDesktop } from "@/shared/hooks/useMediaQuery"
 import { isFeatureEnabled } from "@/shared/lib/flags"
@@ -45,6 +46,11 @@ const RESOLVING_RESULT: UseResolvedSurfaceResult = {
 export function useResolvedSurface(): UseResolvedSurfaceResult {
   const { loading: authLoading } = useAuth()
   const { role, resolving: roleResolving } = useEffectiveRole()
+  // 5e-III View-as: the in-memory preview role (null = not previewing). It
+  // interposes ONLY at surface resolution below — it never flows through
+  // useEffectiveRole, so the real role above (and every rbac write-gate keyed
+  // off it) is unchanged. Preview can only NARROW the presentation surface.
+  const { previewRole } = useViewAsPreview()
   const isMobile = useIsMobile()
   const isDesktop = useIsDesktop()
 
@@ -63,9 +69,13 @@ export function useResolvedSurface(): UseResolvedSurfaceResult {
 
   return useMemo(() => {
     if (resolving) return RESOLVING_RESULT
-    // 5e-III View-as seam: the preview role interposes on effectiveRole HERE.
+    // 5e-III View-as seam (LIVE): when previewing, substitute the preview role
+    // for the real effective role at THIS resolveSurface call only. The
+    // url/stored view rungs stay null so the previewed shoot-surface default
+    // is never masked by the previewer's own stored view choice. This narrows
+    // presentation only — the real role term used by write-gates is untouched.
     const { surface, affordances, chrome } = resolveSurface({
-      effectiveRole: role,
+      effectiveRole: previewRole ?? role,
       device,
       // Capability consumers need no view resolution — the list page keeps
       // its own url/stored path through useShotListState.
@@ -75,5 +85,5 @@ export function useResolvedSurface(): UseResolvedSurfaceResult {
       shootSurfaceEnabled,
     })
     return { surface, affordances, chrome, resolving: false }
-  }, [resolving, role, device, shootSurfaceEnabled])
+  }, [resolving, previewRole, role, device, shootSurfaceEnabled])
 }

@@ -28,6 +28,12 @@ const flagState = vi.hoisted(() => ({
   shootSurface: false,
 }))
 
+// 5e-III: in-memory View-as preview. Default previewRole null = not previewing,
+// so every pre-5e-III pin below stays byte-identical.
+const previewState = vi.hoisted(() => ({
+  previewRole: null as Role | null,
+}))
+
 vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({
     role: "viewer",
@@ -44,6 +50,14 @@ vi.mock("@/shared/hooks/useEffectiveRole", () => ({
 vi.mock("@/shared/hooks/useMediaQuery", () => ({
   useIsMobile: () => deviceState.isMobile,
   useIsDesktop: () => deviceState.isDesktop,
+}))
+
+vi.mock("@/app/providers/ViewAsPreviewProvider", () => ({
+  useViewAsPreview: () => ({
+    previewRole: previewState.previewRole,
+    setPreviewRole: () => {},
+    clearPreview: () => {},
+  }),
 }))
 
 vi.mock("@/shared/lib/flags", async (importOriginal) => {
@@ -67,6 +81,7 @@ beforeEach(() => {
   roleState.role = "producer"
   roleState.resolving = false
   flagState.shootSurface = false
+  previewState.previewRole = null
   setDevice("desktop")
 })
 
@@ -297,5 +312,62 @@ describe("useResolvedSurface — featureShootSurface flag ON", () => {
     expect(result.current).not.toBe(off)
     expect(result.current.affordances?.fieldEditing).toBe(true)
     expect(result.current.chrome?.toolbar).toBe("minimal")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5e-III View-as preview — previewRole interposes at the resolveSurface call
+// only. previewRole "crew" => the shoot surface regardless of the real role;
+// previewRole null => byte-identical to pre-5e-III behavior.
+// ---------------------------------------------------------------------------
+
+describe("useResolvedSurface — 5e-III View-as preview", () => {
+  beforeEach(() => {
+    // The flag gates the whole 5e initiative; preview is exercised flag-ON.
+    flagState.shootSurface = true
+  })
+
+  it("resolves the shoot surface when previewing as crew even though the real role is producer", () => {
+    roleState.role = "producer"
+    previewState.previewRole = "crew"
+    setDevice("desktop")
+    const { result } = renderHook(() => useResolvedSurface())
+    // Real role is producer (plan-build); the preview narrows to the shoot shell.
+    expect(result.current.surface).toBe("shoot")
+    expect(result.current.chrome?.toolbar).toBe("minimal")
+    expect(result.current.chrome?.viewSwitcher).toBe(false)
+    expect(result.current.chrome?.statusControl).toBe("tap-row")
+  })
+
+  it("preview wins regardless of the real role passed (admin → crew shoot surface)", () => {
+    roleState.role = "admin"
+    previewState.previewRole = "crew"
+    const { result } = renderHook(() => useResolvedSurface())
+    expect(result.current.surface).toBe("shoot")
+  })
+
+  it("previewRole null is byte-identical to before — the real role drives the surface", () => {
+    roleState.role = "producer"
+    previewState.previewRole = null
+    const { result } = renderHook(() => useResolvedSurface())
+    expect(result.current.surface).toBe("plan-build")
+  })
+
+  it("recomputes when the preview is entered then cleared (previewRole is a memo dependency)", () => {
+    roleState.role = "producer"
+    setDevice("desktop")
+    previewState.previewRole = null
+    const { result, rerender } = renderHook(() => useResolvedSurface())
+    const real = result.current
+    expect(real.surface).toBe("plan-build")
+
+    previewState.previewRole = "crew"
+    rerender()
+    expect(result.current).not.toBe(real)
+    expect(result.current.surface).toBe("shoot")
+
+    previewState.previewRole = null
+    rerender()
+    expect(result.current.surface).toBe("plan-build")
   })
 })

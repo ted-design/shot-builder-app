@@ -186,6 +186,32 @@ describe("useShotListState — featureSurfaceResolver flag-ON integration", () =
     expect(view.result.current.viewMode).toBe("card") // inert: card, same as legacy
   })
 
+  // ── 5e-III View-as preview: previewActive suppresses url/stored rungs ──────
+
+  it("previewActive suppresses a stored 'table' choice: crew preview resolves the shoot surface (card), not the previewer's table", () => {
+    // The previewing producer has explicitly chosen 'table' for their own
+    // plan-build view. Under preview (previewActive) that stored choice must NOT
+    // outrank the previewed shoot surface default — otherwise the shell is
+    // masked by the previewer's own 'table'.
+    window.localStorage.setItem(VIEW_STORAGE_KEY, "table")
+    const { view, getSearch } = setup("", {
+      role: "crew",
+      device: "desktop",
+      previewActive: true,
+    })
+
+    expect(view.result.current.surface).toBe("shoot")
+    expect(view.result.current.viewMode).toBe("card") // stored 'table' suppressed
+    expect(view.result.current.groupKey).toBe("none")
+
+    // Still a pure derivation under preview — zero URL writes, zero localStorage
+    // writes (the stored key is untouched, NOT cleared).
+    view.rerender()
+    expect(mocks.setSearchParamsCalls).toHaveLength(0)
+    expect(getSearch()).toBe("")
+    expect(window.localStorage.getItem(VIEW_STORAGE_KEY)).toBe("table")
+  })
+
   it("setViewMode still writes URL + localStorage identically under flag-on (setters untouched)", () => {
     const { view, getSearch } = setup("", { role: "producer", device: "desktop" })
 

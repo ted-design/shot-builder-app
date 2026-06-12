@@ -126,6 +126,9 @@ export type ShotListState = {
 export type ShotListSurfaceContext = {
   readonly role: Role
   readonly device: SurfaceDevice
+  /** 5e-III — when true, the View-as preview suppresses url/stored view rungs
+   *  so the previewer's own stored choice can't mask the previewed surface. */
+  readonly previewActive?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -316,12 +319,17 @@ export function useShotListState(params: {
   // writes. Gated on surfaceContext (null while auth loads — no viewer-flash).
   const resolved = useMemo(() => {
     if (!surfaceResolverEnabled || !surfaceContext) return null
+    // 5e-III View-as seam: under an active preview, suppress the url/stored
+    // view rungs (pass null) so the previewer's own stored 'table' choice can't
+    // outrank — and thus mask — the previewed surface's default. Pure
+    // derivation either way: still zero setSearchParams / localStorage writes.
+    const previewActive = surfaceContext.previewActive === true
     return resolveSurface({
       effectiveRole: surfaceContext.role,
       device: surfaceContext.device,
-      urlView: viewParam,
-      urlGroup: groupParam,
-      storedView: storedExplicitView,
+      urlView: previewActive ? null : viewParam,
+      urlGroup: previewActive ? null : groupParam,
+      storedView: previewActive ? null : storedExplicitView,
       shootSurfaceEnabled,
     })
   }, [surfaceResolverEnabled, surfaceContext, viewParam, groupParam, storedExplicitView, shootSurfaceEnabled])
