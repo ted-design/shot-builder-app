@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth';
 import AxeBuilder from '@axe-core/playwright';
+import { SEED_PROJECT_ID } from './helpers/seedConstants';
 
 /**
  * Accessibility tests using axe-core.
@@ -59,36 +60,30 @@ test.describe('Accessibility Tests', () => {
   });
 
   test('shots page has no critical a11y violations', async ({ producerPage }) => {
-    // First need to have an active project
-    await producerPage.goto('/');
-    await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
-
-    // Try to navigate to shots
-    await producerPage.goto('/shots');
+    // Shots are project-scoped (/projects/:id/shots) — go straight to the seeded
+    // project's shot list, mirroring shots-toolbar.spec / shots-crud.spec. The
+    // legacy top-level /shots route no longer renders the list (the redesign
+    // moved it under the project), so the old goto('/shots') timed out waiting
+    // for <main> and the axe gate never ran.
+    await producerPage.goto(`/projects/${SEED_PROJECT_ID}/shots`);
     await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
-    const currentUrl = producerPage.url();
+    // Hardening (Phase 7 Decision 7): fail loudly if the shot list did not land,
+    // so the axe gate below can never silently no-op.
+    expect(producerPage.url()).toContain(`/projects/${SEED_PROJECT_ID}/shots`);
 
-    // Hardening (Phase 7 Decision 7): fail loudly if /shots navigation did not
-    // land — without this the conditional below silently no-ops and the axe
-    // gate passes without ever running, defeating the un-quarantine.
-    expect(currentUrl).toContain('/shots');
+    const results = await new AxeBuilder({ page: producerPage })
+      .withRules(['color-contrast'])
+      .analyze();
 
-    // Only run a11y test if we successfully loaded shots page
-    if (currentUrl.includes('/shots')) {
-      const results = await new AxeBuilder({ page: producerPage })
-        .withRules(['color-contrast'])
-        .analyze();
-
-      if (results.violations.length > 0) {
-        console.log('Accessibility violations found on Shots page:');
-        results.violations.forEach(violation => {
-          console.log(`- ${violation.id}: ${violation.description}`);
-        });
-      }
-
-      expect(results.violations).toEqual([]);
+    if (results.violations.length > 0) {
+      console.log('Accessibility violations found on Shots page:');
+      results.violations.forEach(violation => {
+        console.log(`- ${violation.id}: ${violation.description}`);
+      });
     }
+
+    expect(results.violations).toEqual([]);
   });
 
   test('admin page has no critical a11y violations', async ({ adminPage }) => {
