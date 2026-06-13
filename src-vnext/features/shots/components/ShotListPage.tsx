@@ -13,6 +13,7 @@ import { ShotLifecycleActionsMenu } from "@/features/shots/components/ShotLifecy
 import { ShotListToolbar } from "@/features/shots/components/ShotListToolbar"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShootShotList } from "@/features/shots/components/ShootShotList"
+import { ReviewClientGallery } from "@/features/shots/components/ReviewClientGallery"
 import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
 import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
@@ -163,6 +164,16 @@ export default function ShotListPage() {
   // global-role guess. Flag OFF: isShootShell is always false — every render
   // below is byte-identical to 5e-I.
   const isShootShell = isFeatureEnabled("featureShootSurface") && surface === "shoot"
+  // -- 5f-II Client review gallery (spec §PR partition 5f-II) --
+  // Same surface-keyed mount idiom as isShootShell: structurally keyed off the
+  // RESOLVED surface, never the flag alone. surface is null while auth/role
+  // resolve, so the gallery never mounts off the global-role guess. Flag OFF:
+  // isReviewClient is always false — every render below is byte-identical.
+  // The gallery is the read-only client list fork (image-led tiles); it
+  // replaces the producer table/card forks, not the Shoot shell (5f-III adds
+  // the warehouse surface separately).
+  const isReviewClient =
+    isFeatureEnabled("featureReviewSurface") && surface === "review-client"
   // chrome.toolbar consumer: 'minimal' (shoot shell) drops the full
   // search/sort/filter toolbar block; flag-off resolves 'full' on every
   // surface (byte-identical). Falls back to 'full' while chrome resolves —
@@ -516,7 +527,7 @@ export default function ShotListPage() {
       {/* Toolbar: search + sort + inline filters + view. chrome.toolbar
           drives the mount: 'minimal' (Shoot shell) drops the whole block —
           no ShotListToolbar, no view switcher, no filter/reorder banners. */}
-      {showFullToolbar && shots.length > 0 && (
+      {showFullToolbar && !isReviewClient && shots.length > 0 && (
         <>
           <ShotListToolbar
             queryDraft={queryDraft}
@@ -638,7 +649,7 @@ export default function ShotListPage() {
       {/* Quick-add inline input — the shell's create affordance too
           (chrome.quickAdd, spec §FAB ownership): the Shoot shell keeps this
           one minimal showCreate-gated input instead of growing its own. */}
-      {showCreate && quickAdd && shots.length > 0 && (
+      {showCreate && quickAdd && !isReviewClient && shots.length > 0 && (
         <ShotQuickAdd
           shots={shots}
           onCreated={(shotId, title) => {
@@ -673,7 +684,7 @@ export default function ShotListPage() {
 
       {/* Sort override banner — full-toolbar chrome only (the shell has no
           sort controls to restore from) */}
-      {showFullToolbar && !isCustomSort && shots.length > 0 && (
+      {showFullToolbar && !isReviewClient && !isCustomSort && shots.length > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
           <Info className="h-3.5 w-3.5 flex-shrink-0" />
           <span>
@@ -703,6 +714,18 @@ export default function ShotListPage() {
           description="Try adjusting your search, filters, or sort."
           actionLabel={hasActiveFilters ? "Clear filters" : undefined}
           onAction={hasActiveFilters ? clearFilters : undefined}
+        />
+      ) : isReviewClient ? (
+        /* 5f-II Client review gallery — REPLACES the producer table/card forks
+           below (surface-keyed, not device-keyed). Image-led read-only tiles:
+           the client's job is to decide/approve, so hero + status + product
+           context lead. No bulk actions, no quick-add, no FAB — those producer
+           affordances are simply not rendered on this surface. Reuses the same
+           displayShots + handleShotClick contract as the producer list. */
+        <ReviewClientGallery
+          shots={displayShots}
+          familyById={familyById}
+          onOpenShot={handleShotClick}
         />
       ) : isShootShell ? (
         /* 5e-II Shoot shell list — REPLACES the isMobile/card/table forks

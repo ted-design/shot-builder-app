@@ -30,6 +30,7 @@ import { SceneContextBanner } from "@/features/shots/components/SceneContextBann
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { ShotDetailSidebar } from "@/features/shots/components/ShotDetailSidebar"
 import { ShootShotDetail } from "@/features/shots/components/ShootShotDetail"
+import { ReviewShotDetail } from "@/features/shots/components/ReviewShotDetail"
 import { ProductColorwayStrip } from "@/features/shots/components/ProductColorwayStrip"
 import { readShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersion"
@@ -107,6 +108,18 @@ export function ShotDetailPageUnified() {
   const { surface } = useResolvedSurface()
   if (isFeatureEnabled("featureShootSurface") && surface === "shoot") {
     return <ShootShotDetail />
+  }
+  // 5f-II Review-client mount fork — the read-only approval gallery shell
+  // replaces the editor body when `featureReviewSurface` is ON and the resolved
+  // surface is 'review-client' (client/viewer; surface-keyed, mirrors the shoot
+  // fork above). Like the shoot shell it sources its own data via hooks
+  // (useParams/useShotDetailBundle/useTalent/useProjectScope) — no props
+  // plumbed in. 'review-warehouse' (5f-III) deliberately falls through to the
+  // editor for now. Flag OFF (or any non-review-client surface, or while the
+  // surface resolves): the body renders byte-identically — the existing test
+  // suite is the contract.
+  if (isFeatureEnabled("featureReviewSurface") && surface === "review-client") {
+    return <ReviewShotDetail variant="review-client" />
   }
   return <ShotDetailEditorBody />
 }

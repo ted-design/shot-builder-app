@@ -9,10 +9,13 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn() },
 }))
 
+// Role is mutable per-test so the 5f-II Q4 collapse can flip producer ↔ viewer.
+// Default is "producer" — every pre-existing test below relies on it.
+const authState = vi.hoisted(() => ({ role: "producer" as string }))
 vi.mock("@/app/providers/AuthProvider", () => ({
   useAuth: () => ({
     clientId: "c1",
-    role: "producer",
+    role: authState.role,
     user: {
       uid: "u1",
       email: "alex@example.com",
@@ -53,6 +56,7 @@ function makeComment(overrides: Partial<ShotComment>): ShotComment {
 describe("ShotCommentsSection", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.role = "producer"
   })
 
   it("shows an empty state when no comments exist", () => {
@@ -220,5 +224,103 @@ describe("ShotCommentsSection", () => {
       commentId: "cm-1",
       deleted: true,
     })
+  })
+
+  // ── Q4 / 5f-II — the writeAuthoritative composer-authority collapse ───────
+  // writeAuthoritative bypasses the internal canManageShots(role) term so a
+  // viewer/client (whom canManageShots excludes) gets an OPEN composer. Passed
+  // ONLY by the Review shell; every other call site omits it, so the default
+  // double gate (canComment prop AND canManageShots) is byte-identical. The
+  // clientId / user?.uid guards still run; author-only delete is unaffected.
+
+  it("writeAuthoritative + canComment: a VIEWER gets an ENABLED composer (no Read-only badge)", () => {
+    authState.role = "viewer"
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment writeAuthoritative />)
+
+    // The composer is open and the Read-only badge is gone — the canManageShots
+    // term (which excludes viewer) was bypassed by writeAuthoritative.
+    expect(
+      screen.getByPlaceholderText("Leave a note for your team…"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Read-only")).not.toBeInTheDocument()
+  })
+
+  it("writeAuthoritative respects canComment=false: still read-only (the prop only RELAXES toward canComment, never widens past it)", () => {
+    authState.role = "viewer"
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment={false} writeAuthoritative />)
+
+    expect(screen.getByText("Read-only")).toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText("Leave a note for your team…"),
+    ).not.toBeInTheDocument()
+  })
+
+  it("WITHOUT writeAuthoritative a VIEWER stays read-only — the default double gate is byte-identical (canManageShots excludes viewer)", () => {
+    authState.role = "viewer"
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    // canComment=true but the prop is omitted → canManageShots('viewer') === false
+    // keeps the composer closed (the producer editor + Shoot shell path).
+    render(<ShotCommentsSection shotId="s1" canComment />)
+
+    expect(screen.getByText("Read-only")).toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText("Leave a note for your team…"),
+    ).not.toBeInTheDocument()
+  })
+
+  it("WITHOUT writeAuthoritative a PRODUCER stays ENABLED — the shared producer/shoot callers are unaffected", () => {
+    authState.role = "producer"
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment />)
+
+    expect(
+      screen.getByPlaceholderText("Leave a note for your team…"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Read-only")).not.toBeInTheDocument()
+  })
+
+  it("a client (writeAuthoritative viewer) can still only post as themselves — author-only delete invariant unchanged", () => {
+    authState.role = "viewer"
+    ;(useShotComments as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      // A comment authored by SOMEONE ELSE — the viewer must NOT see a
+      // delete/remove affordance on it (only admins or the author do).
+      data: [makeComment({ id: "cm-x", body: "Not yours", createdBy: "other-uid" })],
+      loading: false,
+      error: null,
+    })
+
+    render(<ShotCommentsSection shotId="s1" canComment writeAuthoritative />)
+
+    // Composer is open (Q4)…
+    expect(
+      screen.getByPlaceholderText("Leave a note for your team…"),
+    ).toBeInTheDocument()
+    // …but no delete/remove control on another user's comment.
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument()
+    // Guard against an accidental no-op assertion: the comment IS rendered.
+    expect(screen.getByText("Not yours")).toBeInTheDocument()
   })
 })

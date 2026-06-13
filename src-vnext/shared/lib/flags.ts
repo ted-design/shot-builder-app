@@ -38,12 +38,26 @@ export interface FeatureFlags {
    * define it. No URL/localStorage override layer.
    */
   readonly featureShootSurface: boolean
+  /**
+   * Phase 5f — the Review surfaces (client + warehouse). Gates the read-only
+   * Review shell render (ReviewShotDetail) and the client gallery list fork.
+   * Like featureShootSurface, structurally requires resolver output — the
+   * shell mounts only off a resolved `surface === 'review-client'` (5f-II) /
+   * `'review-warehouse'` (5f-III), never off this flag alone. NO rules change
+   * rides on this flag (5f-I owns rules; the comment rules already permit
+   * viewers). Default OFF (flag-off path is byte-identical to the 5f-I trunk).
+   * Enabled ONLY via `VITE_REVIEW_SURFACE=1` (or `true`) at build/dev time
+   * (featureShootSurface env-parse precedent). CI build env must never define
+   * it. No URL/localStorage override layer.
+   */
+  readonly featureReviewSurface: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
   featurePublishing: false,
   featureSurfaceResolver: true,
   featureShootSurface: false,
+  featureReviewSurface: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -69,6 +83,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureShootSurface:
       DEFAULT_FLAGS.featureShootSurface ||
       parseEnvFlag(import.meta.env.VITE_SHOOT_SURFACE),
+    featureReviewSurface:
+      DEFAULT_FLAGS.featureReviewSurface ||
+      parseEnvFlag(import.meta.env.VITE_REVIEW_SURFACE),
   }
 }
 
