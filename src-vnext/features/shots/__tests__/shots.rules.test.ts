@@ -39,6 +39,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   serverTimestamp,
   setDoc,
   Timestamp,
@@ -59,6 +60,7 @@ const VIEWER_UID = "viewer-uid"
 const CREW_UID = "crew-uid"
 const MEMBER_CREW_UID = "member-crew-uid"
 const MEMBER_VIEWER_UID = "member-viewer-uid"
+const MEMBER_WAREHOUSE_UID = "member-warehouse-uid"
 const MEMBER_PRIVATE_PRODUCER_UID = "member-private-producer-uid"
 const PRODUCER_UID = "producer-uid"
 const ADMIN_UID = "admin-uid"
@@ -102,6 +104,16 @@ const SHOT_ADMIN_EMPTY_UPDATE = "shot-admin-empty-update"
 const SHOT_VERSIONS = "shot-versions"
 const SHOT_VERSIONS_SEQ = "shot-versions-seq"
 
+// Seeded lanes (Scenes) for the 5f-I warehouse read-only Review surface:
+// warehouse keeps lane READ but loses lane WRITE (explicit arm narrowed to
+// ['producer'] AND the wildcard write arm excludes 'lanes' so the
+// overlapping-OR can't re-grant it).
+const LANE_WAREHOUSE_UPDATE = "lane-warehouse-update"
+const LANE_WAREHOUSE_READ = "lane-warehouse-read"
+const LANE_PRODUCER_UPDATE = "lane-producer-update"
+const LANE_PRODUCER_DELETE = "lane-producer-delete"
+const LANE_CREW_UPDATE = "lane-crew-update"
+
 /** Shot create payload — mirrors CreateShotDialog.tsx handleCreate. */
 function makeShotCreate(projectId: string, createdBy: string) {
   return {
@@ -143,6 +155,30 @@ function makeSeedShot(projectId: string) {
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     createdBy: OWNER_UID,
+  }
+}
+
+/** Seed-side lane (Scene) doc — passes the size/int validation arm. */
+function makeSeedLane() {
+  return {
+    sceneNumber: 1,
+    direction: "Seeded scene direction",
+    notes: "Seeded scene notes",
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    createdBy: OWNER_UID,
+  }
+}
+
+/** Lane create payload — satisfies the direction/notes/sceneNumber arm. */
+function makeLaneCreate(createdBy: string) {
+  return {
+    sceneNumber: 2,
+    direction: "New scene direction",
+    notes: "New scene notes",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy,
   }
 }
 
@@ -230,6 +266,12 @@ function memberCrewDb() {
 function memberViewerDb() {
   return testEnv!
     .authenticatedContext(MEMBER_VIEWER_UID, { role: "viewer", clientId: CLIENT_ID })
+    .firestore()
+}
+
+function memberWarehouseDb() {
+  return testEnv!
+    .authenticatedContext(MEMBER_WAREHOUSE_UID, { role: "warehouse", clientId: CLIENT_ID })
     .firestore()
 }
 
@@ -326,12 +368,32 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
         doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", MEMBER_VIEWER_UID),
         { role: "viewer", addedAt: Timestamp.now(), addedBy: OWNER_UID },
       )
+      // Warehouse membership on the team project — read-only Review surface
+      // (5f-I): keeps lane READ, loses lane WRITE on both arms.
+      await setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", MEMBER_WAREHOUSE_UID),
+        { role: "warehouse", addedAt: Timestamp.now(), addedBy: OWNER_UID },
+      )
       // Producer membership on the PRIVATE project — the hasProjectRole arm
       // of the shotShares create rule.
       await setDoc(
         doc(db, "clients", CLIENT_ID, "projects", PROJ_PRIVATE, "members", MEMBER_PRIVATE_PRODUCER_UID),
         { role: "producer", addedAt: Timestamp.now(), addedBy: OWNER_UID },
       )
+
+      // Lane (Scene) fixtures on the team project — one per lane mutation test.
+      for (const laneId of [
+        LANE_WAREHOUSE_UPDATE,
+        LANE_WAREHOUSE_READ,
+        LANE_PRODUCER_UPDATE,
+        LANE_PRODUCER_DELETE,
+        LANE_CREW_UPDATE,
+      ]) {
+        await setDoc(
+          doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", laneId),
+          makeSeedLane(),
+        )
+      }
 
       for (const shotId of [
         SHOT_VIEWER_UPDATE,
@@ -712,6 +774,97 @@ describeOrSkip("firestore.rules — shots write surfaces (hardened, 5b)", () => 
       updateDoc(
         doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "members", MEMBER_CREW_UID),
         { role: "producer" },
+      ),
+    )
+  })
+
+  // The same wildcard write arm now ALSO excludes 'lanes' (5f-I). Without the
+  // exclusion the warehouse role in the wildcard would re-grant lane writes
+  // that the explicit /lanes rule restricts to producers — this pins the
+  // generalized exclusion (members + lanes) on the wildcard write arm.
+  it("warehouse-member CANNOT create an arbitrary lane via the wildcard write arm (excludes lanes)", async () => {
+    const db = memberWarehouseDb()
+    await assertFails(
+      setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", "lane-warehouse-wildcard-create"),
+        makeLaneCreate(MEMBER_WAREHOUSE_UID),
+      ),
+    )
+  })
+
+  // --- (5f-I) warehouse lane writes revoked; lane READ preserved ---
+  // Warehouse becomes a read-only product-forward Review role: the explicit
+  // /lanes create/update/delete arms narrow to ['producer'] AND the wildcard
+  // write arm excludes 'lanes', closing the overlapping-OR re-grant.
+
+  it("[w1] warehouse-member CANNOT create a lane (explicit arm narrowed to producer)", async () => {
+    const db = memberWarehouseDb()
+    await assertFails(
+      setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", "lane-warehouse-create"),
+        makeLaneCreate(MEMBER_WAREHOUSE_UID),
+      ),
+    )
+  })
+
+  // Regression-catcher for A3: a lane UPDATE by a warehouse member can only be
+  // granted by the wildcard write arm (the explicit arm is producer-only now).
+  // If the wildcard still listed 'warehouse' without the 'lanes' exclusion this
+  // would SUCCEED — so asserting DENY proves the overlapping-OR trap is closed.
+  it("[w2] warehouse-member CANNOT update a lane reached via the wildcard path", async () => {
+    const db = memberWarehouseDb()
+    await assertFails(
+      updateDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", LANE_WAREHOUSE_UPDATE),
+        {
+          direction: "Warehouse edited direction",
+          updatedAt: serverTimestamp(),
+          updatedBy: MEMBER_WAREHOUSE_UID,
+        },
+      ),
+    )
+  })
+
+  it("[w3] warehouse-member CAN still read a lane (read arm keeps warehouse)", async () => {
+    const db = memberWarehouseDb()
+    await assertSucceeds(
+      getDoc(doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", LANE_WAREHOUSE_READ)),
+    )
+  })
+
+  it("[w4] producer-member CAN create / update / delete a lane", async () => {
+    const db = producerDb()
+    await assertSucceeds(
+      setDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", "lane-producer-create"),
+        makeLaneCreate(PRODUCER_UID),
+      ),
+    )
+    await assertSucceeds(
+      updateDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", LANE_PRODUCER_UPDATE),
+        {
+          direction: "Producer edited direction",
+          updatedAt: serverTimestamp(),
+          updatedBy: PRODUCER_UID,
+        },
+      ),
+    )
+    await assertSucceeds(
+      deleteDoc(doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", LANE_PRODUCER_DELETE)),
+    )
+  })
+
+  it("[w5] crew-member CANNOT write a lane (never in any lane write arm)", async () => {
+    const db = memberCrewDb()
+    await assertFails(
+      updateDoc(
+        doc(db, "clients", CLIENT_ID, "projects", PROJ_TEAM, "lanes", LANE_CREW_UPDATE),
+        {
+          direction: "Crew edited direction",
+          updatedAt: serverTimestamp(),
+          updatedBy: MEMBER_CREW_UID,
+        },
       ),
     )
   })
