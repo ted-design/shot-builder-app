@@ -60,6 +60,23 @@ describe("buildWarehousePullList", () => {
     expect(buildWarehousePullList([makeShot()])).toEqual([])
   })
 
+  it("includes legacy top-level shot.products for shots with no look rows", () => {
+    // legacy/imported shots carry assignments in shot.products with no looks
+    const shot = makeShot({ products: [shorts], looks: [] })
+    const rows = buildWarehousePullList([shot])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.label).toContain("Merino Flex Shorts")
+    expect(rows[0]!.neededByShots.map((r) => r.shotId)).toEqual(["shot-1"])
+  })
+
+  it("prefers look products over legacy shot.products when both exist (no double-count)", () => {
+    // a shot with looks should NOT also pull from the legacy fallback
+    const shot = makeShot({ products: [tee], looks: [makeLook("l", [shorts])] })
+    const rows = buildWarehousePullList([shot])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.label).toContain("Merino Flex Shorts")
+  })
+
   it("aggregates products across ALL looks of a shot, not just the primary", () => {
     const shot = makeShot({
       shotNumber: "1",

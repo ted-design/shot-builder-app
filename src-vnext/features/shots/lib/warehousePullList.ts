@@ -13,6 +13,7 @@
 // the warehouse needs to FIND the item (label, colourway, size, style/SKU) and
 // the shots that need it.
 import type { ProductAssignment, ProductFamily, Shot } from "@/shared/types"
+import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { formatProductAssignmentLabel } from "./shotListSummaries"
 
 /** A shot that requires a given pull-list product. */
@@ -128,10 +129,19 @@ export function buildWarehousePullList(
       shotId: shot.id,
       shotLabel: shotLabelFor(shot),
     }
+    // Aggregate across ALL looks. For legacy/imported shots that carry no look
+    // rows but still hold top-level `shot.products` assignments (the app maps
+    // and renders these via extractShotAssignedProducts), fall back to the
+    // shared extractor so the pull list never silently omits required items.
+    // Dedup-by-compositeKey makes the fallback safe even if a shot had both.
+    const lookProducts: ProductAssignment[] = []
     for (const look of shot.looks ?? []) {
-      for (const product of look.products ?? []) {
-        collectAssignment(rows, product, shotRef, familyById)
-      }
+      for (const product of look.products ?? []) lookProducts.push(product)
+    }
+    const assignments =
+      lookProducts.length > 0 ? lookProducts : extractShotAssignedProducts(shot)
+    for (const product of assignments) {
+      collectAssignment(rows, product, shotRef, familyById)
     }
   }
 

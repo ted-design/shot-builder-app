@@ -483,36 +483,44 @@ export default function ShotListPage() {
             <EffectiveRoleChip />
             {/* 5e-III View-as: self-gated on the global claim + featureShootSurface. */}
             <ViewAsMenu />
-            {canExport && (
-              <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
-                Export
-              </Button>
+            {/* 5f: the Review surfaces (review-client / review-warehouse) are
+                read-only — suppress the plan-build header affordances here so the
+                producer chrome can't leak onto the client/warehouse Review views
+                regardless of the viewer's effective capability flags. */}
+            {!isReviewSurface && (
+              <>
+                {canExport && (
+                  <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
+                    Export
+                  </Button>
+                )}
+                {canShare && (
+                  <Button variant="outline" onClick={() => setShareOpen(true)}>
+                    Share
+                  </Button>
+                )}
+                {canBulkPull && (
+                  <Button
+                    variant={selectionEnabled ? "default" : "outline"}
+                    onClick={() => {
+                      if (selectionEnabled) {
+                        clearSelection()
+                      } else {
+                        setSelectionMode(true)
+                      }
+                    }}
+                  >
+                    {selectionEnabled ? "Done" : "Select"}
+                  </Button>
+                )}
+                {showCreate && quickAdd ? (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Shot
+                  </Button>
+                ) : null}
+              </>
             )}
-            {canShare && (
-              <Button variant="outline" onClick={() => setShareOpen(true)}>
-                Share
-              </Button>
-            )}
-            {canBulkPull && (
-              <Button
-                variant={selectionEnabled ? "default" : "outline"}
-                onClick={() => {
-                  if (selectionEnabled) {
-                    clearSelection()
-                  } else {
-                    setSelectionMode(true)
-                  }
-                }}
-              >
-                {selectionEnabled ? "Done" : "Select"}
-              </Button>
-            )}
-            {showCreate && quickAdd ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Shot
-              </Button>
-            ) : null}
           </div>
         }
       />
@@ -737,10 +745,12 @@ export default function ShotListPage() {
            below (surface-keyed, not device-keyed). Image-led read-only tiles:
            the client's job is to decide/approve, so hero + status + product
            context lead. No bulk actions, no quick-add, no FAB — those producer
-           affordances are simply not rendered on this surface. Reuses the same
-           displayShots + handleShotClick contract as the producer list. */
+           affordances are simply not rendered on this surface. Feeds from
+           unfilteredSortedShots (not displayShots): the filter/sort toolbar is
+           suppressed here, so a lingering deep-link filter must NOT silently
+           hide shots with no visible control to clear it (the Shoot-shell rule). */
         <ReviewClientGallery
-          shots={displayShots}
+          shots={unfilteredSortedShots}
           familyById={familyById}
           onOpenShot={handleShotClick}
         />
@@ -750,10 +760,12 @@ export default function ShotListPage() {
            the warehouse's job is to PULL, so each row leads with WHAT to pull
            (product + colourway + size + style/SKU) and the shots that need it.
            No bulk actions, no quick-add, no FAB — those producer affordances
-           are simply not rendered. Reuses the same displayShots + familyById +
-           handleShotClick contract as the producer list. */
+           are simply not rendered. Feeds from unfilteredSortedShots (not
+           displayShots): the pull list must aggregate ALL shots' products, and
+           with the filter toolbar suppressed a lingering deep-link filter would
+           otherwise silently omit required items (the Shoot-shell rule). */
         <ReviewWarehouseList
-          shots={displayShots}
+          shots={unfilteredSortedShots}
           familyById={familyById}
           onOpenShot={handleShotClick}
         />
