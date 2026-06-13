@@ -95,7 +95,7 @@
   /* --- Text --- */
   --color-text: #18181b;              /* Primary text (zinc-900) */
   --color-text-secondary: #52525b;    /* Secondary (zinc-600) */
-  --color-text-muted: #52525b;        /* Muted floor — re-pointed to zinc-600 for AA (was #71717a, failed 4.5:1 on every light surface) */
+  --color-text-muted: #52525b;        /* Re-pointed to zinc-600 for AA (was #71717a, failed 4.5:1 on every light surface). INTENTIONALLY == --color-text-secondary now: the old lighter muted tier is retired for AA; primary/secondary/tertiary hierarchy comes from type weight+size, not color (DESIGN.md). Per-tier color is re-established only if Phase 7b type-tiering needs it. */
   --color-text-subtle: #5b5b60;       /* Tertiary text — darkened for AA on all light surfaces incl. worst-case #e0e0e0 5.11:1 (was #a1a1aa) */
   --color-text-disabled: #a1a1aa;     /* NEW — DECORATIVE ONLY: the literal "--" placeholder glyph / non-text decoration. Fails 4.5:1 AND 3:1 on light surfaces — must NEVER style readable text. */
   --color-text-inverted: #f5f5f5;     /* Immediate White — on dark backgrounds */
