@@ -46,8 +46,9 @@ This file is referenced from `CLAUDE.md` Hard Rule #3 and must be consulted befo
 
 | Instead of | Use |
 |------------|-----|
-| `text-gray-400` | `text-[var(--color-text-subtle)]` |
-| `text-gray-500` | `text-[var(--color-text-muted)]` |
+| `text-gray-500`/`-600` (secondary text) | `text-[var(--color-text-secondary)]` (post-Phase-7 `--color-text-muted` is an alias of this — same `#52525b`, AA-safe) |
+| `text-gray-400` (tertiary text) | `text-[var(--color-text-subtle)]` (`#5b5b60`, AA-safe on light surfaces) |
+| `text-gray-400` (decorative `--` placeholder, non-text only) | `text-[var(--color-text-disabled)]` |
 | `text-white` | `text-[var(--color-text)]` |
 | `bg-zinc-800` | `bg-[var(--color-surface-subtle)]` |
 | `bg-zinc-900` | `bg-[var(--color-surface)]` |
@@ -176,7 +177,7 @@ Our tables must match Saturation's level of interactivity. Reference: `app.satur
 
 ### Cell Content
 - Text values: `text-[var(--color-text-muted)]` for secondary data
-- Empty values: `<span className="text-[var(--color-text-subtle)]">--</span>`
+- Empty values: `<span className="text-[var(--color-text-disabled)]">--</span>` (decorative `--` placeholder; `--color-text-disabled` is reserved for this, never for readable text)
 - Never display `[object Object]` — always extract primitive values from nested objects
 - Measurement objects: extract `.value` property when type is object
 
