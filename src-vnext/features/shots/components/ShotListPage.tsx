@@ -14,6 +14,7 @@ import { ShotListToolbar } from "@/features/shots/components/ShotListToolbar"
 import { ShotQuickAdd } from "@/features/shots/components/ShotQuickAdd"
 import { ShootShotList } from "@/features/shots/components/ShootShotList"
 import { ReviewClientGallery } from "@/features/shots/components/ReviewClientGallery"
+import { ReviewWarehouseList } from "@/features/shots/components/ReviewWarehouseList"
 import { ShotsTable, REORDER_SHOT_LIMIT } from "@/features/shots/components/ShotsTable"
 import { resolveReorderDisabledReason } from "@/features/shots/components/DisabledDragHandle"
 import { useShotListState } from "@/features/shots/hooks/useShotListState"
@@ -174,6 +175,22 @@ export default function ShotListPage() {
   // the warehouse surface separately).
   const isReviewClient =
     isFeatureEnabled("featureReviewSurface") && surface === "review-client"
+  // -- 5f-III Warehouse pull list (spec §PR partition 5f-III) --
+  // Same surface-keyed mount idiom: structurally keyed off the RESOLVED
+  // surface, never the flag alone. surface is null while auth/role resolve, so
+  // it never mounts off the global-role guess. Flag OFF: isReviewWarehouse is
+  // always false — every render below is byte-identical. The warehouse list is
+  // the read-only product-LED pull list (buildWarehousePullList rows); like the
+  // client gallery it replaces the producer table/card forks, not the Shoot
+  // shell, and suppresses the same producer affordances (toolbar, quick-add,
+  // FAB, banners) via isReviewSurface below.
+  const isReviewWarehouse =
+    isFeatureEnabled("featureReviewSurface") && surface === "review-warehouse"
+  // Both review surfaces are strictly read-only — they suppress the same
+  // producer affordance blocks (toolbar / quick-add / reorder + filter
+  // banners). Folding them into one alias keeps those gates DRY; flag OFF both
+  // are false so the alias is false (byte-identical).
+  const isReviewSurface = isReviewClient || isReviewWarehouse
   // chrome.toolbar consumer: 'minimal' (shoot shell) drops the full
   // search/sort/filter toolbar block; flag-off resolves 'full' on every
   // surface (byte-identical). Falls back to 'full' while chrome resolves —
@@ -466,36 +483,44 @@ export default function ShotListPage() {
             <EffectiveRoleChip />
             {/* 5e-III View-as: self-gated on the global claim + featureShootSurface. */}
             <ViewAsMenu />
-            {canExport && (
-              <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
-                Export
-              </Button>
+            {/* 5f: the Review surfaces (review-client / review-warehouse) are
+                read-only — suppress the plan-build header affordances here so the
+                producer chrome can't leak onto the client/warehouse Review views
+                regardless of the viewer's effective capability flags. */}
+            {!isReviewSurface && (
+              <>
+                {canExport && (
+                  <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
+                    Export
+                  </Button>
+                )}
+                {canShare && (
+                  <Button variant="outline" onClick={() => setShareOpen(true)}>
+                    Share
+                  </Button>
+                )}
+                {canBulkPull && (
+                  <Button
+                    variant={selectionEnabled ? "default" : "outline"}
+                    onClick={() => {
+                      if (selectionEnabled) {
+                        clearSelection()
+                      } else {
+                        setSelectionMode(true)
+                      }
+                    }}
+                  >
+                    {selectionEnabled ? "Done" : "Select"}
+                  </Button>
+                )}
+                {showCreate && quickAdd ? (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Shot
+                  </Button>
+                ) : null}
+              </>
             )}
-            {canShare && (
-              <Button variant="outline" onClick={() => setShareOpen(true)}>
-                Share
-              </Button>
-            )}
-            {canBulkPull && (
-              <Button
-                variant={selectionEnabled ? "default" : "outline"}
-                onClick={() => {
-                  if (selectionEnabled) {
-                    clearSelection()
-                  } else {
-                    setSelectionMode(true)
-                  }
-                }}
-              >
-                {selectionEnabled ? "Done" : "Select"}
-              </Button>
-            )}
-            {showCreate && quickAdd ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                New Shot
-              </Button>
-            ) : null}
           </div>
         }
       />
@@ -527,7 +552,7 @@ export default function ShotListPage() {
       {/* Toolbar: search + sort + inline filters + view. chrome.toolbar
           drives the mount: 'minimal' (Shoot shell) drops the whole block —
           no ShotListToolbar, no view switcher, no filter/reorder banners. */}
-      {showFullToolbar && !isReviewClient && shots.length > 0 && (
+      {showFullToolbar && !isReviewSurface && shots.length > 0 && (
         <>
           <ShotListToolbar
             queryDraft={queryDraft}
@@ -649,7 +674,7 @@ export default function ShotListPage() {
       {/* Quick-add inline input — the shell's create affordance too
           (chrome.quickAdd, spec §FAB ownership): the Shoot shell keeps this
           one minimal showCreate-gated input instead of growing its own. */}
-      {showCreate && quickAdd && !isReviewClient && shots.length > 0 && (
+      {showCreate && quickAdd && !isReviewSurface && shots.length > 0 && (
         <ShotQuickAdd
           shots={shots}
           onCreated={(shotId, title) => {
@@ -684,7 +709,7 @@ export default function ShotListPage() {
 
       {/* Sort override banner — full-toolbar chrome only (the shell has no
           sort controls to restore from) */}
-      {showFullToolbar && !isReviewClient && !isCustomSort && shots.length > 0 && (
+      {showFullToolbar && !isReviewSurface && !isCustomSort && shots.length > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded-md bg-[var(--color-surface-subtle)] px-3 py-2 text-xs text-[var(--color-text-subtle)]">
           <Info className="h-3.5 w-3.5 flex-shrink-0" />
           <span>
@@ -720,10 +745,27 @@ export default function ShotListPage() {
            below (surface-keyed, not device-keyed). Image-led read-only tiles:
            the client's job is to decide/approve, so hero + status + product
            context lead. No bulk actions, no quick-add, no FAB — those producer
-           affordances are simply not rendered on this surface. Reuses the same
-           displayShots + handleShotClick contract as the producer list. */
+           affordances are simply not rendered on this surface. Feeds from
+           unfilteredSortedShots (not displayShots): the filter/sort toolbar is
+           suppressed here, so a lingering deep-link filter must NOT silently
+           hide shots with no visible control to clear it (the Shoot-shell rule). */
         <ReviewClientGallery
-          shots={displayShots}
+          shots={unfilteredSortedShots}
+          familyById={familyById}
+          onOpenShot={handleShotClick}
+        />
+      ) : isReviewWarehouse ? (
+        /* 5f-III Warehouse pull list — REPLACES the producer table/card forks
+           below (surface-keyed, not device-keyed). Product-LED read-only rows:
+           the warehouse's job is to PULL, so each row leads with WHAT to pull
+           (product + colourway + size + style/SKU) and the shots that need it.
+           No bulk actions, no quick-add, no FAB — those producer affordances
+           are simply not rendered. Feeds from unfilteredSortedShots (not
+           displayShots): the pull list must aggregate ALL shots' products, and
+           with the filter toolbar suppressed a lingering deep-link filter would
+           otherwise silently omit required items (the Shoot-shell rule). */
+        <ReviewWarehouseList
+          shots={unfilteredSortedShots}
           familyById={familyById}
           onOpenShot={handleShotClick}
         />
