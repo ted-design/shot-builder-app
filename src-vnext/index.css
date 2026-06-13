@@ -29,8 +29,9 @@
   /* Text */
   --color-text: #18181b;
   --color-text-secondary: #52525b;
-  --color-text-muted: #71717a;
-  --color-text-subtle: #a1a1aa;
+  --color-text-muted: #52525b;
+  --color-text-subtle: #5b5b60;
+  --color-text-disabled: #a1a1aa; /* DECORATIVE ONLY ("--" placeholder); mirrors :root for print-doc parity */
 
   /* Borders */
   --color-border: #e4e4e7;
@@ -185,7 +186,7 @@
   .callsheet-key-time-label {
     font-size: var(--text-3xs);
     font-weight: 400;
-    color: var(--color-text-muted, #71717a);
+    color: var(--color-text-muted, #52525b);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     display: block;
@@ -247,7 +248,7 @@
 
   .callsheet-header-schedule {
     font-size: var(--text-2xs);
-    color: var(--color-text-muted, #71717a);
+    color: var(--color-text-muted, #52525b);
   }
 
   .callsheet-header-crew-call {
@@ -263,7 +264,7 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--color-text-subtle, #a1a1aa);
+    color: var(--color-text-subtle, #5b5b60);
   }
 
   .callsheet-header-day {
@@ -294,7 +295,7 @@
   .callsheet-header-weather-summary {
     font-size: var(--text-3xs);
     font-weight: 400;
-    color: var(--color-text-muted, #71717a);
+    color: var(--color-text-muted, #52525b);
   }
 
   .callsheet-location-strip {
@@ -308,7 +309,7 @@
 
   .callsheet-location-label {
     font-weight: 600;
-    color: var(--color-text-muted, #71717a);
+    color: var(--color-text-muted, #52525b);
     font-size: var(--text-3xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -325,7 +326,7 @@
     display: none;
     font-size: var(--text-3xs);
     font-weight: 500;
-    color: var(--color-text-muted, #71717a);
+    color: var(--color-text-muted, #52525b);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     justify-content: space-between;
@@ -342,7 +343,7 @@
     bottom: var(--space-2-5);
     left: var(--space-5);
     font-size: var(--text-3xs);
-    color: var(--color-text-subtle, #a1a1aa);
+    color: var(--color-text-subtle, #5b5b60);
     letter-spacing: 0.02em;
   }
 

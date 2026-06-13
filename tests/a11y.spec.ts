@@ -3,7 +3,17 @@ import AxeBuilder from '@axe-core/playwright';
 
 /**
  * Accessibility tests using axe-core.
- * Tests WCAG 2.0 Level A and AA compliance.
+ *
+ * Phase 7 scope (Decision 4): this suite is un-quarantined as the guard for the
+ * contrast token fix and is therefore SCOPED TO THE `color-contrast` RULE ONLY.
+ * The phase owns the muted/subtle text-token contrast fix; pre-existing
+ * NON-contrast violations (link-name, region, form labels, aria, etc.) are
+ * tracked as Phase 8 rows, not Phase 7 blockers — so the gate tests exactly
+ * what this phase fixes and cannot red on unrelated debt.
+ *
+ * Phase 8 follow-up (owner: Phase 8): broaden back to the full
+ * `.withTags(['wcag2a','wcag2aa'])` ruleset once the pre-existing non-contrast
+ * violations are inventoried + fixed. See tests/QUARANTINE.md.
  */
 
 test.describe('Accessibility Tests', () => {
@@ -13,7 +23,7 @@ test.describe('Accessibility Tests', () => {
     await producerPage.locator('nav, [role="navigation"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: producerPage })
-      .withTags(['wcag2a', 'wcag2aa'])
+      .withRules(['color-contrast'])
       .analyze();
 
     // Log violations for debugging
@@ -35,7 +45,7 @@ test.describe('Accessibility Tests', () => {
     await producerPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: producerPage })
-      .withTags(['wcag2a', 'wcag2aa'])
+      .withRules(['color-contrast'])
       .analyze();
 
     if (results.violations.length > 0) {
@@ -59,10 +69,15 @@ test.describe('Accessibility Tests', () => {
 
     const currentUrl = producerPage.url();
 
+    // Hardening (Phase 7 Decision 7): fail loudly if /shots navigation did not
+    // land — without this the conditional below silently no-ops and the axe
+    // gate passes without ever running, defeating the un-quarantine.
+    expect(currentUrl).toContain('/shots');
+
     // Only run a11y test if we successfully loaded shots page
     if (currentUrl.includes('/shots')) {
       const results = await new AxeBuilder({ page: producerPage })
-        .withTags(['wcag2a', 'wcag2aa'])
+        .withRules(['color-contrast'])
         .analyze();
 
       if (results.violations.length > 0) {
@@ -82,7 +97,7 @@ test.describe('Accessibility Tests', () => {
     await adminPage.locator('main, [role="main"]').first().waitFor({ state: 'visible', timeout: 10000 });
 
     const results = await new AxeBuilder({ page: adminPage })
-      .withTags(['wcag2a', 'wcag2aa'])
+      .withRules(['color-contrast'])
       .analyze();
 
     if (results.violations.length > 0) {
