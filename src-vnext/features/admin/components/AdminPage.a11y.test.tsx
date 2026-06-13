@@ -113,9 +113,7 @@ function contrastRatio(fg: string, bg: string): number {
 const TOKENS = {
   "color-text": "#18181b",            // zinc-900
   "color-text-secondary": "#52525b",  // zinc-600
-  // muted is INTENTIONALLY aliased to secondary (#52525b) post-Phase-7: the old
-  // lighter muted tier (#71717a) failed AA so it was retired; hierarchy now comes
-  // from type weight/size, not color (DESIGN.md). The collision is deliberate.
+  // muted intentionally aliased to secondary post-Phase-7 (old #71717a failed AA; tiering via type, not color)
   "color-text-muted": "#52525b",      // re-pointed to zinc-600 for AA (Phase 7; was #71717a)
   "color-text-subtle": "#5b5b60",     // darkened for AA on all light surfaces (Phase 7; was #a1a1aa)
   "color-surface": "#f5f5f5",         // Immediate White (top of ramp; no pure #fff)
