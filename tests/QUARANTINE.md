@@ -268,12 +268,28 @@ quarantine, and it runs on **every PR**:
 
 | Spec | Category | Failure | Fix needed |
 |---|---|---|---|
-| `a11y.spec.ts` | App a11y | 93+ genuine WCAG AA contrast violations (e.g. muted `#71717a` on `#f4f4f5` = 4.39 vs 4.5) | Fix app contrast tokens (touches brand palette — product/design decision) or adjust the assertion threshold |
 | `visual.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines on the CI runner image |
 | `e2e/richtext-bubble.spec.ts` | Snapshots | Baselines missing/mismatched | Regenerate baselines |
 
 (`diagnose-sticky.spec.js` was a scratch ad-hoc diagnostic with no assertions —
 **deleted 2026-06-06** rather than quarantined; nothing of value lost.)
+
+### Un-quarantined (resolved)
+
+- ~~`a11y.spec.ts` — App a11y contrast (was: 93+ WCAG AA contrast violations,
+  root cause muted `#71717a` failing 4.5:1 on light surfaces).~~ **Resolved
+  2026-06-13 (Phase 7 PR-A).** The contrast token fix re-pointed
+  `--color-text-muted` `#71717a`→`#52525b` and `--color-text-subtle`
+  `#a1a1aa`→`#5b5b60` (both clear AA on every live light surface incl. the
+  worst case `#e0e0e0`), and the `testIgnore` line was removed so the spec runs
+  in CI. **Scoped to the `color-contrast` rule only** (Phase 7 Decision 4): the
+  phase owns the contrast fix; pre-existing non-contrast violations are NOT
+  Phase 7 blockers.
+  - **Phase 8 follow-up — owner: Phase 8, condition: after Phases 1–7 freeze.**
+    Inventory + fix the pre-existing NON-contrast wcag2a/aa violations
+    (link-name, region, form labels, aria, etc.) on the four tested pages
+    (`/`, `/products`, `/shots`, `/admin`), then broaden `a11y.spec.ts` back to
+    `.withTags(['wcag2a','wcag2aa'])`. Until then the suite guards contrast only.
 
 ### Single-test quarantine
 
@@ -299,12 +315,15 @@ quarantine, and it runs on **every PR**:
 
 ## Sign-off (CLAUDE.md Rule 6b)
 
-The a11y quarantine covers genuine WCAG AA violations (HIGH). Per Rule 6b these
-require explicit user approval to defer rather than fix in-sprint. **Approved by
+The a11y quarantine covered genuine WCAG AA violations (HIGH). Per Rule 6b these
+required explicit user approval to defer rather than fix in-sprint. **Approved by
 Ted on 2026-06-04** as the "stabilize the gate now, fix the dormant backlog
 incrementally" path — the white-screen root cause (the months-long blocker) was
-fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
-(below), not a merge blocker.
+fixed; the unmasked a11y/CRUD/visual backlog was accepted as tracked follow-up
+(below), not a merge blocker. **The a11y contrast quarantine is now RESOLVED
+(2026-06-13, Phase 7 PR-A)** — see "Un-quarantined (resolved)" above; the suite
+runs in CI scoped to `color-contrast` (Decision 4), with the full-ruleset
+broadening tracked as a Phase 8 row.
 
 ## Follow-up backlog (separate work)
 
@@ -335,7 +354,11 @@ fixed; the unmasked a11y/CRUD/visual backlog is accepted as tracked follow-up
    seed (read-only summary on `SEED_SHOT_AURORA`; status mutation + reload
    persistence + Notes autosave on `SEED_SHOT_EDITABLE`). Un-quarantined. See
    "Sidebar-summary rewrite" above.
-6. **App a11y contrast** — product/design pass on muted-text tokens (review with Ted).
+6. ~~**App a11y contrast** — product/design pass on muted-text tokens (review with Ted).~~
+   **Done 2026-06-13 (Phase 7 PR-A).** 4-step text ramp landed (`--color-text-muted`
+   → `#52525b`, `--color-text-subtle` → `#5b5b60`, new fenced `--color-text-disabled`);
+   `a11y.spec.ts` un-quarantined, scoped to `color-contrast`. Phase 8 broadens to the
+   full wcag2a/aa ruleset (see "Un-quarantined (resolved)").
 7. **Visual baselines** — regenerate on the CI runner image; un-quarantines
    `visual` + `richtext-bubble`.
 8. **Cross-browser job** — re-add firefox/webkit as a separate, non-blocking job

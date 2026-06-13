@@ -17,7 +17,9 @@ import AdminPage from "./AdminPage"
  * typography class (design-tokens.js). It is used on every table header of
  * the AdminPage team roster, and previously pointed at --color-text-subtle
  * (#a1a1aa / zinc-400), which gives only 2.56:1 on white — failing AA. H-2
- * moved it to --color-text-muted (#71717a / zinc-500), 4.83:1 on white.
+ * moved it to --color-text-secondary (#52525b / zinc-600), 7.73:1 on white
+ * (design-tokens.js:120). This guard reads that token name from the plugin
+ * source at runtime, so it stays correct as token values evolve.
  *
  * If this fails, either the token was reverted or a new axe-relevant text
  * element on the Admin page is rendering with insufficient contrast.
@@ -111,8 +113,9 @@ function contrastRatio(fg: string, bg: string): number {
 const TOKENS = {
   "color-text": "#18181b",            // zinc-900
   "color-text-secondary": "#52525b",  // zinc-600
-  "color-text-muted": "#71717a",      // zinc-500
-  "color-text-subtle": "#a1a1aa",     // zinc-400
+  // muted intentionally aliased to secondary post-Phase-7 (old #71717a failed AA; tiering via type, not color)
+  "color-text-muted": "#52525b",      // re-pointed to zinc-600 for AA (Phase 7; was #71717a)
+  "color-text-subtle": "#5b5b60",     // darkened for AA on all light surfaces (Phase 7; was #a1a1aa)
   "color-surface": "#f5f5f5",         // Immediate White (top of ramp; no pure #fff)
   "color-surface-subtle": "#ebebeb",
   "color-bg": "#eaeaea",              // App background — light grey
@@ -125,13 +128,14 @@ const AA_LARGE = 3.0
 
 describe("WCAG contrast math sanity", () => {
   it("matches known zinc-on-white reference ratios within rounding", () => {
-    // Cross-checked against the WebAIM calculator. These reference ratios are
-    // for zinc text on pure WHITE (#ffffff), so they pin the contrastRatio math
-    // to a fixed reference — independent of the app's actual surface token
-    // (which is the off-white Immediate #f5f5f5, exercised by the H-2 tests).
+    // These reference ratios pin the contrastRatio math to fixed values for the
+    // post-Phase-7 token hexes on pure WHITE (#ffffff), independent of the app's
+    // actual surface token (the off-white Immediate #f5f5f5, exercised by the
+    // H-2 tests). Subtle/muted were re-pointed in Phase 7 for AA, so the prior
+    // zinc-400 (2.56:1) / zinc-500 (4.83:1) references no longer apply.
     const WHITE = "#ffffff"
-    expect(contrastRatio(TOKENS["color-text-subtle"], WHITE)).toBeCloseTo(2.56, 1)
-    expect(contrastRatio(TOKENS["color-text-muted"], WHITE)).toBeCloseTo(4.83, 1)
+    expect(contrastRatio(TOKENS["color-text-subtle"], WHITE)).toBeCloseTo(6.75, 1)  // #5b5b60
+    expect(contrastRatio(TOKENS["color-text-muted"], WHITE)).toBeCloseTo(7.73, 1)   // #52525b (== secondary)
     expect(contrastRatio(TOKENS["color-text-secondary"], WHITE)).toBeCloseTo(7.73, 1)
   })
 })
@@ -179,16 +183,18 @@ describe("Admin page color-contrast (H-2 regression)", () => {
     }
   })
 
-  it("refuses any .label-meta rendering on a white-ish surface that fails AA", () => {
-    // Defensive: assert directly that --color-text-subtle is NOT a valid
-    // choice for .label-meta, since that was the H-2 offender.
-    const badRatio = contrastRatio(
+  it("--color-text-subtle now clears AA on the surface (Phase 7 re-point)", () => {
+    // Pre-Phase-7 this test asserted the OPPOSITE: --color-text-subtle (#a1a1aa,
+    // zinc-400) was the H-2 offender and FAILED AA on white-ish surfaces. Phase 7
+    // darkened subtle to #5b5b60, which now clears AA on every light surface incl.
+    // the worst case #e0e0e0. The original "this token fails AA" guard is therefore
+    // retired (the bad contrast no longer exists). We keep the check, inverted, so
+    // a future revert of subtle back toward zinc-400 trips it.
+    const ratio = contrastRatio(
       TOKENS["color-text-subtle"],
       TOKENS["color-surface"],
     )
-    expect(badRatio).toBeLessThan(AA_NORMAL)
-    // If this assertion flips (i.e. zinc-400 ever clears AA on white) the
-    // H-2 guard becomes redundant, which is a fine problem to have.
+    expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL)
   })
 
   it("renders the admin page with every table header using the fixed token", () => {

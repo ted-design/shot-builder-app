@@ -15,7 +15,6 @@ export default defineConfig({
   // smoke suite (storageState auth), which guards against the white-screen
   // regression. DO NOT add specs here without a tracking entry in QUARANTINE.md.
   testIgnore: [
-    '**/a11y.spec.ts',            // real WCAG AA contrast violations in the app
     // auth.spec.ts un-quarantined 2026-06-06: interactive-login helper fixed
     // (authed-signal wait + domcontentloaded + real sign-out + emulator-only
     // submit selector). See QUARANTINE.md "Interactive-login helper fix".

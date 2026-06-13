@@ -54,7 +54,7 @@ function PrintDoc({
 
   // bg-white is intentional: print portal always renders on white paper
   return (
-    <div data-talent-casting-print-root className="min-h-screen bg-white">
+    <div data-talent-casting-print-root data-callsheet-doc-light className="min-h-screen bg-white">
       <div className="mx-auto w-full max-w-5xl p-8">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
