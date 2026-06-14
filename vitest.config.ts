@@ -11,19 +11,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
-    // Auto-restore every `vi.stubGlobal` / `vi.stubEnv` before each test.
-    // Without this, a test that stubs a global in a `beforeEach` and never
-    // unstubs (e.g. `vi.stubGlobal("localStorage", {...})` in useExportTemplates
-    // / documentPersistence) leaks the stub into later files that share a
-    // worker. The committed pool is `forks` (below) — one process per file — so
-    // CI never saw it. But the local dev wrapper (scripts/run-vitest.cjs) forces
-    // `--pool threads --singleThread`, where all files share ONE jsdom global:
-    // the leaked stub left `window.localStorage` a plain object whose prototype
-    // has no `setItem`, so ViewAsPreviewProvider's
-    // `vi.spyOn(localStorage.__proto__, "setItem")` threw "setItem does not
-    // exist" (6 false local-only failures). Restoring stubs before each test
-    // makes the suite correct under ANY pool and kills the whole class. (Both
-    // flags set for symmetry: every stubGlobal/stubEnv usage today is per-test.)
+    // Auto-restore vi.stubGlobal/vi.stubEnv before each test: a stub left set in
+    // one file (e.g. localStorage in documentPersistence/useExportTemplates) must
+    // not leak into later files under the local shared-jsdom-global pool.
     unstubGlobals: true,
     unstubEnvs: true,
     // CI runners (GitHub free-tier) are significantly slower than local dev
