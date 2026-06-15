@@ -18,6 +18,7 @@ import { LoadingState } from "@/shared/components/LoadingState"
 import { ListPageSkeleton } from "@/shared/components/Skeleton"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { useTalentLibrary } from "@/features/library/hooks/useTalentLibrary"
+import { useTalentDialogs } from "@/features/library/hooks/useTalentDialogs"
 import { Button } from "@/ui/button"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
@@ -92,19 +93,29 @@ export default function LibraryTalentPage() {
   ])
 
   const [busy, setBusy] = useState(false)
-  const [headshotRemoveOpen, setHeadshotRemoveOpen] = useState(false)
-  const [galleryRemoveOpen, setGalleryRemoveOpen] = useState(false)
-  const [galleryRemoveTarget, setGalleryRemoveTarget] = useState<TalentImage | null>(null)
-  const [sessionRemoveOpen, setSessionRemoveOpen] = useState(false)
-  const [sessionRemoveTarget, setSessionRemoveTarget] = useState<CastingSession | null>(null)
   const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [createSessionOpen, setCreateSessionOpen] = useState(false)
-  const [printSessionId, setPrintSessionId] = useState<string | null>(null)
-  const [createSessionDate, setCreateSessionDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  )
-  const [createSessionTitle, setCreateSessionTitle] = useState("")
+  const {
+    headshotRemoveOpen,
+    setHeadshotRemoveOpen,
+    galleryRemoveOpen,
+    setGalleryRemoveOpen,
+    galleryRemoveTarget,
+    setGalleryRemoveTarget,
+    sessionRemoveOpen,
+    setSessionRemoveOpen,
+    sessionRemoveTarget,
+    setSessionRemoveTarget,
+    deleteOpen,
+    setDeleteOpen,
+    createSessionOpen,
+    setCreateSessionOpen,
+    createSessionDate,
+    setCreateSessionDate,
+    createSessionTitle,
+    setCreateSessionTitle,
+    printSessionId,
+    setPrintSessionId,
+  } = useTalentDialogs()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
