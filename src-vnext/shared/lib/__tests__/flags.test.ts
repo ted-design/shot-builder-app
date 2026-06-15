@@ -50,4 +50,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureShootSurface")).toBe(false)
     }
   })
+
+  it("defaults featureTalentRosterIA to false (Talent redesign Phase 1a is dark on main)", () => {
+    expect(getFeatureFlags().featureTalentRosterIA).toBe(false)
+    expect(isFeatureEnabled("featureTalentRosterIA")).toBe(false)
+  })
+
+  it("VITE_TALENT_ROSTER_IA='1' or 'true' enables featureTalentRosterIA", () => {
+    vi.stubEnv("VITE_TALENT_ROSTER_IA", "1")
+    expect(isFeatureEnabled("featureTalentRosterIA")).toBe(true)
+
+    vi.stubEnv("VITE_TALENT_ROSTER_IA", "true")
+    expect(isFeatureEnabled("featureTalentRosterIA")).toBe(true)
+  })
+
+  it("any other VITE_TALENT_ROSTER_IA value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_TALENT_ROSTER_IA", value)
+      expect(isFeatureEnabled("featureTalentRosterIA")).toBe(false)
+    }
+  })
 })

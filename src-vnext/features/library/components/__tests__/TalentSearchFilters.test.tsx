@@ -1,7 +1,13 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { TalentSearchFilterSheet, TalentFilterToolbar } from "@/features/library/components/TalentSearchFilters"
+import {
+  TalentSearchFilterSheet,
+  TalentFilterToolbar,
+  TalentToolbarRangeFilters,
+  applyMeasurementRange,
+  rangeSummary,
+} from "@/features/library/components/TalentSearchFilters"
 import { EMPTY_TALENT_FILTERS } from "@/features/library/lib/talentFilters"
 import type { TalentSearchFilters } from "@/features/library/lib/talentFilters"
 import type { TalentRecord } from "@/shared/types"
@@ -212,5 +218,80 @@ describe("TalentFilterToolbar", () => {
     expect(onFiltersChange).toHaveBeenCalledWith(
       expect.objectContaining({ gender: null }),
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 1a — surfaced toolbar range filters
+// ---------------------------------------------------------------------------
+
+describe("applyMeasurementRange", () => {
+  it("sets a range under the given key", () => {
+    const next = applyMeasurementRange(EMPTY_TALENT_FILTERS, "height", { min: 64, max: 70 })
+    expect(next.measurementRanges).toEqual({ height: { min: 64, max: 70 } })
+  })
+
+  it("clears the key when the range is fully empty", () => {
+    const seeded = applyMeasurementRange(EMPTY_TALENT_FILTERS, "waist", { min: 26, max: null })
+    const cleared = applyMeasurementRange(seeded, "waist", { min: null, max: null })
+    expect(cleared.measurementRanges).toEqual({})
+  })
+
+  it("leaves other ranges untouched", () => {
+    const a = applyMeasurementRange(EMPTY_TALENT_FILTERS, "height", { min: 64, max: null })
+    const b = applyMeasurementRange(a, "waist", { min: null, max: 30 })
+    expect(b.measurementRanges).toEqual({
+      height: { min: 64, max: null },
+      waist: { min: null, max: 30 },
+    })
+  })
+
+  it("does not mutate the input filters", () => {
+    const before = JSON.stringify(EMPTY_TALENT_FILTERS)
+    applyMeasurementRange(EMPTY_TALENT_FILTERS, "height", { min: 64, max: 70 })
+    expect(JSON.stringify(EMPTY_TALENT_FILTERS)).toBe(before)
+  })
+})
+
+describe("rangeSummary", () => {
+  it("returns 'any' for undefined or empty ranges", () => {
+    expect(rangeSummary(undefined)).toBe("any")
+    expect(rangeSummary({ min: null, max: null })).toBe("any")
+  })
+
+  it("formats a full range with an en-dash", () => {
+    expect(rangeSummary({ min: 64, max: 70 })).toBe("64–70")
+  })
+
+  it("shows 'any' for an open bound", () => {
+    expect(rangeSummary({ min: null, max: 70 })).toBe("any–70")
+    expect(rangeSummary({ min: 64, max: null })).toBe("64–any")
+  })
+
+  it("renders one decimal place for fractional values", () => {
+    expect(rangeSummary({ min: 25.5, max: null })).toBe("25.5–any")
+  })
+})
+
+describe("TalentToolbarRangeFilters", () => {
+  it("renders Height and Waist triggers showing 'any' when unset", () => {
+    render(
+      <TalentToolbarRangeFilters
+        filters={EMPTY_TALENT_FILTERS}
+        onFiltersChange={() => {}}
+        talent={TALENT}
+      />,
+    )
+    expect(screen.getByRole("button", { name: "Height range filter" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Waist range filter" })).toBeInTheDocument()
+    expect(screen.getAllByText("any").length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("reflects an active range in the trigger summary", () => {
+    const active = applyMeasurementRange(EMPTY_TALENT_FILTERS, "height", { min: 64, max: 70 })
+    render(
+      <TalentToolbarRangeFilters filters={active} onFiltersChange={() => {}} talent={TALENT} />,
+    )
+    expect(screen.getByText("64–70")).toBeInTheDocument()
   })
 })

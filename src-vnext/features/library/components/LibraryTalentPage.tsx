@@ -40,7 +40,8 @@ import {
 } from "@/features/library/lib/talentWrites"
 import type { TalentSearchFilters } from "@/features/library/lib/talentFilters"
 import { EMPTY_TALENT_FILTERS, filterTalent } from "@/features/library/lib/talentFilters"
-import { TalentSearchFilterSheet, TalentFilterToolbar } from "@/features/library/components/TalentSearchFilters"
+import { TalentSearchFilterSheet, TalentFilterToolbar, TalentToolbarRangeFilters } from "@/features/library/components/TalentSearchFilters"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts"
 import {
   buildDisplayName,
@@ -75,6 +76,7 @@ export default function LibraryTalentPage() {
   // (firestore.rules:363-365) — a project promotion never unlocks these.
   const canCreate = canManageTalent(role)
   const canEdit = canCreate && !isMobile
+  const rosterIA = isFeatureEnabled("featureTalentRosterIA")
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
   const projectIds = useMemo(() => projects.map((p) => p.id), [projects])
@@ -582,13 +584,20 @@ export default function LibraryTalentPage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
+          <div className={rosterIA ? "flex flex-wrap items-center gap-2" : "flex items-center gap-2"}>
             <SearchBar
               value={query}
               onChange={setQuery}
               placeholder="Search talent…"
               className="max-w-sm flex-1"
             />
+            {rosterIA ? (
+              <TalentToolbarRangeFilters
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                talent={talent}
+              />
+            ) : null}
             <TalentFilterToolbar
               filters={filters}
               onFiltersChange={handleFiltersChange}
@@ -616,6 +625,17 @@ export default function LibraryTalentPage() {
             matchCount={castingResults.length}
             results={castingResults}
           />
+
+          {rosterIA ? (
+            <div
+              className="text-xs text-[var(--color-text-muted)]"
+              data-testid="talent-result-count"
+            >
+              {filtered.length === talent.length
+                ? `${talent.length} talent`
+                : `Showing ${filtered.length} of ${talent.length} talent`}
+            </div>
+          ) : null}
 
           {filtered.length === 0 ? (
             <EmptyState
