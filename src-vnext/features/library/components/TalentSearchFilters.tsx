@@ -13,6 +13,7 @@ import { Input } from "@/ui/input"
 import { Checkbox } from "@/ui/checkbox"
 import { Separator } from "@/ui/separator"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { cn } from "@/shared/lib/utils"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -374,6 +375,12 @@ const TOOLBAR_RANGE_FIELDS: readonly { key: string; label: string }[] = [
   { key: "waist", label: "Waist" },
 ]
 
+/** Domain-sensible fallback bounds (inches) — defensive; useMeasurementBounds already returns defaults for empty data. */
+const FALLBACK_BOUNDS: Readonly<Record<string, { min: number; max: number; step: number }>> = {
+  height: { min: 58, max: 82, step: 1 },
+  waist: { min: 22, max: 44, step: 0.5 },
+}
+
 /** Immutably set or clear one measurement range; clears the key when fully empty. */
 export function applyMeasurementRange(
   filters: Filters,
@@ -416,14 +423,14 @@ export function TalentToolbarRangeFilters({
       {TOOLBAR_RANGE_FIELDS.map((field) => {
         const range = filters.measurementRanges[field.key]
         const active = !!range && (range.min !== null || range.max !== null)
-        const b = bounds[field.key] ?? { min: 0, max: 100, step: 0.5 }
+        const b = bounds[field.key] ?? FALLBACK_BOUNDS[field.key] ?? { min: 0, max: 100, step: 0.5 }
         return (
           <Popover key={field.key}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className={active ? "gap-1.5 border-[var(--color-primary)]" : "gap-1.5"}
+                className={cn("gap-1.5", active && "border-[var(--color-primary)]")}
                 aria-label={`${field.label} range filter`}
               >
                 <span className="font-medium">{field.label}</span>
