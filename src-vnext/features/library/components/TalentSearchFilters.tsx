@@ -423,7 +423,7 @@ export function TalentToolbarRangeFilters({
               <Button
                 variant="outline"
                 size="sm"
-                className={`gap-1.5 ${active ? "border-[var(--color-primary)]" : ""}`}
+                className={active ? "gap-1.5 border-[var(--color-primary)]" : "gap-1.5"}
                 aria-label={`${field.label} range filter`}
               >
                 <span className="font-medium">{field.label}</span>
