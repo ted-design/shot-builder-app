@@ -11,6 +11,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    // Auto-restore vi.stubGlobal/vi.stubEnv before each test: a stub left set in
+    // one file (e.g. localStorage in documentPersistence/useExportTemplates) must
+    // not leak into later files under the local shared-jsdom-global pool.
+    unstubGlobals: true,
+    unstubEnvs: true,
     // CI runners (GitHub free-tier) are significantly slower than local dev
     // machines. 60s prevents false negatives from integration-heavy component
     // tests (AdminPage, InviteUserDialog, LibraryTalentPage, etc.).
