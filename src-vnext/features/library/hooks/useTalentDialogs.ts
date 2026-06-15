@@ -1,16 +1,7 @@
 import { useMemo, useReducer, type Dispatch, type SetStateAction } from "react"
 import type { CastingSession, TalentImage } from "@/features/library/components/talentUtils"
 
-/**
- * Consolidated state for the six removal / create-session / print dialogs that
- * LibraryTalentPage drives. Phase 0b of the Talent redesign replaces ten loose
- * `useState` cells in the orchestrator with this single reducer-backed hook.
- *
- * Pure refactor: the returned setters are faithful `Dispatch<SetStateAction<T>>`
- * drop-ins for the prior `useState` setters, so consumer behaviour is identical.
- * (`busy`, `sessionExpanded`, and `createOpen` are intentionally NOT here — they
- * are not removal/create-session dialog state and move in later phases.)
- */
+/** Reducer-backed state + setters for the talent removal / create-session / print dialogs. */
 export interface TalentDialogsState {
   readonly headshotRemoveOpen: boolean
   readonly galleryRemoveOpen: boolean
@@ -57,8 +48,7 @@ export function talentDialogsReducer(
   action: TalentDialogsAction,
 ): TalentDialogsState {
   const prev = state[action.field]
-  // The per-field action union guarantees `value` matches the field's type, but
-  // TypeScript can't correlate the two across the union, so we re-narrow here.
+  // Re-narrow: TS can't correlate the union's field+value after the lookup above.
   const next = applySetStateAction(action.value as SetStateAction<typeof prev>, prev)
   if (Object.is(prev, next)) return state
   return { ...state, [action.field]: next }

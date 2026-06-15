@@ -94,8 +94,6 @@ export default function LibraryTalentPage() {
 
   const [busy, setBusy] = useState(false)
   const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
-  // Phase 0b: the six removal / create-session / print dialogs are consolidated
-  // into one reducer-backed hook (was ten loose useState cells). Drop-in setters.
   const {
     headshotRemoveOpen,
     setHeadshotRemoveOpen,
