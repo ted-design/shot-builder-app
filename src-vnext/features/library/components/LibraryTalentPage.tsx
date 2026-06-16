@@ -83,6 +83,7 @@ export default function LibraryTalentPage() {
   const canCreate = canManageTalent(role)
   const canEdit = canCreate && !isMobile
   const rosterIA = isFeatureEnabled("featureTalentRosterIA")
+  const matcherSurface = isFeatureEnabled("featureCastingMatcherSurface")
   const { data: talent, loading, error } = useTalentLibrary()
   const { data: projects } = useProjects()
   const projectIds = useMemo(() => projects.map((p) => p.id), [projects])
@@ -160,7 +161,9 @@ export default function LibraryTalentPage() {
     return m
   }, [castingResults])
 
-  const castingMode = castingPanelOpen && castingHasRequirements
+  // Flag-on: the matcher is a dedicated surface, not an in-place roster re-sort.
+  const castingMode = !matcherSurface && castingPanelOpen && castingHasRequirements
+  const castingSurfaceActive = matcherSurface && castingPanelOpen
 
   const displayTalent = useMemo(() => {
     if (!castingMode) return filtered
@@ -594,119 +597,134 @@ export default function LibraryTalentPage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className={cn("flex items-center gap-2", rosterIA && "flex-wrap")}>
-            <SearchBar
-              value={query}
-              onChange={setQuery}
-              placeholder="Search talent…"
-              className="max-w-sm flex-1"
-            />
-            {rosterIA ? (
-              <TalentToolbarRangeFilters
-                filters={filters}
-                onFiltersChange={handleFiltersChange}
-                talent={talent}
-              />
-            ) : null}
-            <TalentFilterToolbar
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onOpenSheet={() => setFilterSheetOpen(true)}
-            />
-            <ViewModeToggle
-              modes={TALENT_VIEW_OPTIONS}
-              activeMode={viewMode}
-              onChange={(mode) => setViewMode(mode as "grid" | "table")}
-            />
-            <CastingModeButton
-              active={castingPanelOpen}
-              onToggle={() => setCastingPanelOpen((prev) => !prev)}
+          {castingSurfaceActive ? (
+            <CastingBriefPanel
+              open
+              onToggle={() => setCastingPanelOpen(false)}
+              talent={talent}
+              brief={castingBrief}
+              onBriefChange={setCastingBrief}
+              hasRequirements={castingHasRequirements}
               matchCount={castingResults.length}
-            />
-          </div>
-
-          <CastingBriefPanel
-            open={castingPanelOpen}
-            onToggle={() => setCastingPanelOpen(false)}
-            talent={talent}
-            brief={castingBrief}
-            onBriefChange={setCastingBrief}
-            hasRequirements={castingHasRequirements}
-            matchCount={castingResults.length}
-            results={castingResults}
-          />
-
-          {rosterIA ? (
-            <div
-              className="text-xs text-[var(--color-text-muted)]"
-              data-testid="talent-result-count"
-            >
-              {filtered.length === talent.length
-                ? `${talent.length} talent`
-                : `Showing ${filtered.length} of ${talent.length} talent`}
-            </div>
-          ) : null}
-
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon={<Search className="h-12 w-12" />}
-              title="No matching talent"
-              description="Try adjusting your search."
-              actionLabel="Clear search"
-              onAction={() => setQuery("")}
+              results={castingResults}
             />
           ) : (
             <>
-              {viewMode === "table" ? (
-                <TalentTable
-                  talent={displayTalent}
-                  selectedId={selectedId}
-                  onSelect={(id) => {
-                    setSelectedId((prev) => (prev === id ? null : id))
-                    setActiveTab("detail")
-                  }}
+              <div className={cn("flex items-center gap-2", rosterIA && "flex-wrap")}>
+                <SearchBar
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search talent…"
+                  className="max-w-sm flex-1"
+                />
+                {rosterIA ? (
+                  <TalentToolbarRangeFilters
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    talent={talent}
+                  />
+                ) : null}
+                <TalentFilterToolbar
+                  filters={filters}
+                  onFiltersChange={handleFiltersChange}
+                  onOpenSheet={() => setFilterSheetOpen(true)}
+                />
+                <ViewModeToggle
+                  modes={TALENT_VIEW_OPTIONS}
+                  activeMode={viewMode}
+                  onChange={(mode) => setViewMode(mode as "grid" | "table")}
+                />
+                <CastingModeButton
+                  active={castingPanelOpen}
+                  onToggle={() => setCastingPanelOpen((prev) => !prev)}
+                  matchCount={castingResults.length}
+                />
+              </div>
+
+              <CastingBriefPanel
+                open={castingPanelOpen}
+                onToggle={() => setCastingPanelOpen(false)}
+                talent={talent}
+                brief={castingBrief}
+                onBriefChange={setCastingBrief}
+                hasRequirements={castingHasRequirements}
+                matchCount={castingResults.length}
+                results={castingResults}
+              />
+
+              {rosterIA ? (
+                <div
+                  className="text-xs text-[var(--color-text-muted)]"
+                  data-testid="talent-result-count"
+                >
+                  {filtered.length === talent.length
+                    ? `${talent.length} talent`
+                    : `Showing ${filtered.length} of ${talent.length} talent`}
+                </div>
+              ) : null}
+
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<Search className="h-12 w-12" />}
+                  title="No matching talent"
+                  description="Try adjusting your search."
+                  actionLabel="Clear search"
+                  onAction={() => setQuery("")}
                 />
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {displayTalent.map((t) => {
-                    const isSelected = selectedId === t.id
-                    const score = castingMode ? castingScoreMap.get(t.id) : undefined
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedId((prev) => (prev === t.id ? null : t.id))
-                          setActiveTab("detail")
-                        }}
-                        className={`relative rounded-md border p-3 text-left transition-[colors,box-shadow] ${
-                          isSelected
-                            ? "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
-                            : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
-                        }`}
-                      >
-                        {score !== undefined ? <ScoreBadge score={score} /> : null}
-                        <div className="flex items-center gap-3">
-                          <HeadshotThumb talent={t} />
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-[var(--color-text)]">
-                              {buildDisplayName(t)}
+                <>
+                  {viewMode === "table" ? (
+                    <TalentTable
+                      talent={displayTalent}
+                      selectedId={selectedId}
+                      onSelect={(id) => {
+                        setSelectedId((prev) => (prev === id ? null : id))
+                        setActiveTab("detail")
+                      }}
+                    />
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {displayTalent.map((t) => {
+                        const isSelected = selectedId === t.id
+                        const score = castingMode ? castingScoreMap.get(t.id) : undefined
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedId((prev) => (prev === t.id ? null : t.id))
+                              setActiveTab("detail")
+                            }}
+                            className={`relative rounded-md border p-3 text-left transition-[colors,box-shadow] ${
+                              isSelected
+                                ? "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface-subtle)]"
+                                : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)] hover:shadow-md"
+                            }`}
+                          >
+                            {score !== undefined ? <ScoreBadge score={score} /> : null}
+                            <div className="flex items-center gap-3">
+                              <HeadshotThumb talent={t} />
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-[var(--color-text)]">
+                                  {buildDisplayName(t)}
+                                </div>
+                                {t.agency ? (
+                                  <div className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
+                                    {t.agency}
+                                  </div>
+                                ) : (
+                                  <div className="mt-1 text-xs text-[var(--color-text-muted)]">
+                                    —
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {t.agency ? (
-                              <div className="mt-1 truncate text-xs text-[var(--color-text-muted)]">
-                                {t.agency}
-                              </div>
-                            ) : (
-                              <div className="mt-1 text-xs text-[var(--color-text-muted)]">
-                                —
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
