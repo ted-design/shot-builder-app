@@ -1,0 +1,156 @@
+import { useMemo, useState } from "react"
+import { Check, ChevronsUpDown, Plus, X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/ui/command"
+import { cn } from "@/shared/lib/utils"
+
+interface AgencyComboboxProps {
+  readonly value: string | null
+  readonly knownAgencies: readonly string[]
+  readonly onChange: (next: string | null) => void
+  readonly disabled?: boolean
+  readonly placeholder?: string
+  readonly triggerClassName?: string
+}
+
+/**
+ * Trim + collapse internal whitespace runs to a single space. Intentionally
+ * duplicated as `normalizeKey` in scripts/normalize-agency-names.ts — that
+ * script runs server-side via Firebase Admin and can't import the client bundle.
+ */
+function collapseWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ")
+}
+
+/**
+ * Single-value, type-to-filter agency picker built on cmdk + Popover. Shows
+ * existing agencies first to curb duplicate variants, but allows free entry of
+ * a new name (an "Add …" row appears for a non-matching query). Trims before
+ * emitting — updateTalent does not trim.
+ */
+export function AgencyCombobox({
+  value,
+  knownAgencies,
+  onChange,
+  disabled,
+  placeholder = "Add agency",
+  triggerClassName,
+}: AgencyComboboxProps) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+
+  // Collapse internal whitespace too (not just trim) so "IMG  Models" matches
+  // and persists as "IMG Models" — the exact-equality filter won't merge them.
+  const typed = collapseWhitespace(search)
+  const normalized = typed.toLowerCase()
+
+  const filtered = useMemo(() => {
+    if (!normalized) return knownAgencies
+    // Collapse `a` too (consistent with hasExactMatch) so a pre-migration
+    // double-spaced agency stays selectable for a collapsed query.
+    return knownAgencies.filter((a) => collapseWhitespace(a).toLowerCase().includes(normalized))
+  }, [knownAgencies, normalized])
+
+  const hasExactMatch = useMemo(
+    () => knownAgencies.some((a) => collapseWhitespace(a).toLowerCase() === normalized),
+    [knownAgencies, normalized],
+  )
+
+  const commit = (next: string | null) => {
+    const cleaned = next ? collapseWhitespace(next) || null : null
+    setSearch("")
+    setOpen(false)
+    // Mirror InlineEdit's no-write-on-unchanged guard — avoid a redundant
+    // updatedAt/updatedBy bump when re-selecting the current value.
+    if (cleaned === value) return
+    onChange(cleaned)
+  }
+
+  const handleOpenChange = (next: boolean) => {
+    if (disabled) return
+    setOpen(next)
+    if (!next) setSearch("")
+  }
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label="Agency"
+          className={cn(
+            "inline-flex items-center gap-1 rounded text-sm transition-colors",
+            value ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-subtle)]",
+            disabled && "cursor-default",
+            triggerClassName,
+          )}
+        >
+          <span className="truncate">{value || placeholder}</span>
+          <ChevronsUpDown className="h-3 w-3 flex-shrink-0 text-[var(--color-text-subtle)]" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-64 p-0"
+        align="start"
+        onEscapeKeyDown={(event) => event.stopPropagation()}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search or add agency…"
+          />
+          <CommandList>
+            {filtered.length === 0 && !typed ? (
+              <CommandEmpty>No agencies yet.</CommandEmpty>
+            ) : null}
+            {filtered.length > 0 ? (
+              <CommandGroup heading="Agencies">
+                {filtered.map((agency) => (
+                  <CommandItem key={agency} value={agency} onSelect={() => commit(agency)}>
+                    <Check
+                      className={cn("h-4 w-4", value === agency ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="truncate">{agency}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
+            {typed && !hasExactMatch ? (
+              <CommandGroup heading="Add new">
+                <CommandItem
+                  value={`__add__:${typed}`}
+                  data-testid="agency-add-new"
+                  onSelect={() => commit(typed)}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="truncate">Add &ldquo;{typed}&rdquo;</span>
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
+            {value && !typed ? (
+              <CommandGroup>
+                <CommandItem
+                  value="__clear__"
+                  data-testid="agency-clear"
+                  onSelect={() => commit(null)}
+                >
+                  <X className="h-4 w-4" />
+                  <span>Clear agency</span>
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}

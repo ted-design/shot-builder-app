@@ -77,6 +77,17 @@ export interface FeatureFlags {
    * time (featureTalentDetailIA env-parse precedent). No URL/localStorage layer.
    */
   readonly featureShotFilterTalentScope: boolean
+  /**
+   * Maintenance — talent agency controlled input. Gates the AgencyCombobox
+   * (type-to-filter over known agencies + create-new) that replaces the
+   * free-text agency InlineEdit on TalentHeroZone and the agency Input on
+   * CreateTalentDialog. Default OFF; the flag-off path is the byte-identical
+   * free-text InlineEdit / Input. Enabled via `VITE_TALENT_AGENCY_COMBOBOX=1`
+   * (or `true`) at build/dev time (featureShotFilterTalentScope env-parse
+   * precedent). No URL/localStorage layer. Run scripts/normalize-agency-names.ts
+   * before the prod flip — the agency filter is exact-equality.
+   */
+  readonly featureTalentAgencyCombobox: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -87,6 +98,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureTalentRosterIA: false,
   featureTalentDetailIA: false,
   featureShotFilterTalentScope: false,
+  featureTalentAgencyCombobox: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -124,6 +136,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureShotFilterTalentScope:
       DEFAULT_FLAGS.featureShotFilterTalentScope ||
       parseEnvFlag(import.meta.env.VITE_SHOT_FILTER_TALENT_SCOPE),
+    featureTalentAgencyCombobox:
+      DEFAULT_FLAGS.featureTalentAgencyCombobox ||
+      parseEnvFlag(import.meta.env.VITE_TALENT_AGENCY_COMBOBOX),
   }
 }
 

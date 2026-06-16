@@ -26,6 +26,7 @@ interface TalentDetailPanelProps {
   readonly setActiveTab: (tab: "detail" | "history") => void
   readonly selectedHeadshotUrl: string | null
   readonly selectedHeadshotPath: string | null
+  readonly knownAgencies: readonly string[]
   readonly portfolioImages: TalentImage[]
   readonly castingSessions: CastingSession[]
   readonly projects: Array<{ id: string; name?: string | null }>
@@ -69,6 +70,7 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
   setActiveTab,
   selectedHeadshotUrl,
   selectedHeadshotPath,
+  knownAgencies,
   portfolioImages,
   castingSessions,
   projects,
@@ -101,6 +103,7 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
         busy={busy}
         selectedHeadshotUrl={selectedHeadshotUrl}
         selectedHeadshotPath={selectedHeadshotPath}
+        knownAgencies={knownAgencies}
         savePatch={savePatch}
         onHeadshotFile={onHeadshotFile}
         setHeadshotRemoveOpen={setHeadshotRemoveOpen}

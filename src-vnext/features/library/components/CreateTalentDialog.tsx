@@ -17,6 +17,8 @@ import {
   SelectValue,
 } from "@/ui/select"
 import { SELECT_NONE } from "@/features/library/components/talentUtils"
+import { AgencyCombobox } from "@/features/library/components/AgencyCombobox"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 
 export interface CreateTalentFields {
   readonly name: string
@@ -32,6 +34,7 @@ interface CreateTalentDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly busy: boolean
+  readonly knownAgencies: readonly string[]
   readonly onSubmit: (fields: CreateTalentFields) => Promise<boolean>
 }
 
@@ -39,8 +42,10 @@ export function CreateTalentDialog({
   open,
   onOpenChange,
   busy,
+  knownAgencies,
   onSubmit,
 }: CreateTalentDialogProps) {
+  const agencyCombobox = isFeatureEnabled("featureTalentAgencyCombobox")
   const [createName, setCreateName] = useState("")
   const [createAgency, setCreateAgency] = useState("")
   const [createEmail, setCreateEmail] = useState("")
@@ -94,12 +99,23 @@ export function CreateTalentDialog({
             <div className="label-meta">
               Agency
             </div>
-            <Input
-              value={createAgency}
-              onChange={(e) => setCreateAgency(e.target.value)}
-              placeholder="Optional"
-              disabled={busy}
-            />
+            {agencyCombobox ? (
+              <AgencyCombobox
+                value={createAgency || null}
+                knownAgencies={knownAgencies}
+                disabled={busy}
+                onChange={(next) => setCreateAgency(next ?? "")}
+                placeholder="Optional"
+                triggerClassName="h-9 w-full justify-between rounded-md border border-input bg-transparent px-3 py-1"
+              />
+            ) : (
+              <Input
+                value={createAgency}
+                onChange={(e) => setCreateAgency(e.target.value)}
+                placeholder="Optional"
+                disabled={busy}
+              />
+            )}
           </div>
           <div>
             <div className="label-meta">
