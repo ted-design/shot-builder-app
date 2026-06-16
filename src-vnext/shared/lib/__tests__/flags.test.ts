@@ -110,4 +110,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureShotFilterTalentScope")).toBe(false)
     }
   })
+
+  it("defaults featureTalentAgencyCombobox to false (agency stays free-text on main; normalize before flip)", () => {
+    expect(getFeatureFlags().featureTalentAgencyCombobox).toBe(false)
+    expect(isFeatureEnabled("featureTalentAgencyCombobox")).toBe(false)
+  })
+
+  it("VITE_TALENT_AGENCY_COMBOBOX='1' or 'true' enables featureTalentAgencyCombobox", () => {
+    vi.stubEnv("VITE_TALENT_AGENCY_COMBOBOX", "1")
+    expect(isFeatureEnabled("featureTalentAgencyCombobox")).toBe(true)
+
+    vi.stubEnv("VITE_TALENT_AGENCY_COMBOBOX", "true")
+    expect(isFeatureEnabled("featureTalentAgencyCombobox")).toBe(true)
+  })
+
+  it("any other VITE_TALENT_AGENCY_COMBOBOX value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_TALENT_AGENCY_COMBOBOX", value)
+      expect(isFeatureEnabled("featureTalentAgencyCombobox")).toBe(false)
+    }
+  })
 })

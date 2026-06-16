@@ -20,6 +20,11 @@ interface AgencyComboboxProps {
   readonly triggerClassName?: string
 }
 
+/** Trim + collapse internal whitespace runs to a single space. */
+function collapseWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ")
+}
+
 /**
  * Single-value, type-to-filter agency picker built on cmdk + Popover. Shows
  * existing agencies first to curb duplicate variants, but allows free entry of
@@ -37,8 +42,10 @@ export function AgencyCombobox({
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
 
-  const trimmed = search.trim()
-  const normalized = trimmed.toLowerCase()
+  // Collapse internal whitespace too (not just trim) so "IMG  Models" matches
+  // and persists as "IMG Models" — the exact-equality filter won't merge them.
+  const typed = collapseWhitespace(search)
+  const normalized = typed.toLowerCase()
 
   const filtered = useMemo(() => {
     if (!normalized) return knownAgencies
@@ -46,12 +53,12 @@ export function AgencyCombobox({
   }, [knownAgencies, normalized])
 
   const hasExactMatch = useMemo(
-    () => knownAgencies.some((a) => a.toLowerCase() === normalized),
+    () => knownAgencies.some((a) => collapseWhitespace(a).toLowerCase() === normalized),
     [knownAgencies, normalized],
   )
 
   const commit = (next: string | null) => {
-    const cleaned = next?.trim() || null
+    const cleaned = next ? collapseWhitespace(next) || null : null
     setSearch("")
     setOpen(false)
     // Mirror InlineEdit's no-write-on-unchanged guard — avoid a redundant
@@ -96,7 +103,7 @@ export function AgencyCombobox({
             placeholder="Search or add agency…"
           />
           <CommandList>
-            {filtered.length === 0 && !trimmed ? (
+            {filtered.length === 0 && !typed ? (
               <CommandEmpty>No agencies yet.</CommandEmpty>
             ) : null}
             {filtered.length > 0 ? (
@@ -111,15 +118,15 @@ export function AgencyCombobox({
                 ))}
               </CommandGroup>
             ) : null}
-            {trimmed && !hasExactMatch ? (
+            {typed && !hasExactMatch ? (
               <CommandGroup heading="Add new">
                 <CommandItem
-                  value={`__add__:${trimmed}`}
+                  value={`__add__:${typed}`}
                   data-testid="agency-add-new"
-                  onSelect={() => commit(trimmed)}
+                  onSelect={() => commit(typed)}
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="truncate">Add &ldquo;{trimmed}&rdquo;</span>
+                  <span className="truncate">Add &ldquo;{typed}&rdquo;</span>
                 </CommandItem>
               </CommandGroup>
             ) : null}

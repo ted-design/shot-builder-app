@@ -90,6 +90,21 @@ describe("AgencyCombobox", () => {
     expect(screen.queryByTestId("agency-add-new")).not.toBeInTheDocument()
   })
 
+  it("collapses internal whitespace before emitting a new value", async () => {
+    const { onChange } = renderCombobox()
+    await openCombobox()
+    type("Next   Models")
+    fireEvent.click(screen.getByTestId("agency-add-new"))
+    expect(onChange).toHaveBeenCalledWith("Next Models")
+  })
+
+  it("treats an internal-whitespace variant of a known agency as a match (no Add row)", async () => {
+    renderCombobox()
+    await openCombobox()
+    type("IMG  Models")
+    expect(screen.queryByTestId("agency-add-new")).not.toBeInTheDocument()
+  })
+
   it("offers Clear only when a value is set, and clearing emits null", async () => {
     const { onChange } = renderCombobox({ value: "Elite" })
     await openCombobox()
