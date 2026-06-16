@@ -408,7 +408,7 @@ export function useShotListState(params: {
   }, [searchParams, setSearchParams])
 
   const addCondition = useCallback((condition: Omit<FilterCondition, "id">) => {
-    writeConditions([...conditions, { ...condition, id: crypto.randomUUID() }])
+    writeConditions([...conditions, { ...condition, id: `${condition.field}.${condition.operator}` }])
   }, [conditions, writeConditions])
 
   const removeCondition = useCallback((conditionId: string) => {

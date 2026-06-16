@@ -84,6 +84,7 @@ export function deserializeFilters(raw: string | null): readonly FilterCondition
   if (!raw || !raw.trim()) return []
 
   const result: FilterCondition[] = []
+  const seen = new Set<string>()
 
   for (const segment of raw.split(";")) {
     const colonIdx = segment.indexOf(":")
@@ -102,8 +103,12 @@ export function deserializeFilters(raw: string | null): readonly FilterCondition
     if (!meta) continue
     if (!meta.operators.includes(operator)) continue
 
+    const id = makeId(field, operator)
+    if (seen.has(id)) continue
+    seen.add(id)
+
     const value = decodeValue(rawValue, field, operator)
-    result.push({ id: makeId(field, operator), field, operator, value })
+    result.push({ id, field, operator, value })
   }
 
   return result

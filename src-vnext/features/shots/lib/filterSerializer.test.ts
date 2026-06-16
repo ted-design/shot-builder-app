@@ -356,4 +356,10 @@ describe("deserializeFilters — stable ids", () => {
     const ids = deserializeFilters("status.in:todo;talent.in:t1;location.in:l1").map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  it("drops a duplicate field.operator segment (no id collision from a crafted URL)", () => {
+    const result = deserializeFilters("talent.in:t1;talent.in:t2")
+    expect(result).toHaveLength(1)
+    expect(result[0]!.value).toEqual(["t1"])
+  })
 })
