@@ -5,10 +5,12 @@ import { Button } from "@/ui/button"
 import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
 import { TalentHeroZone } from "@/features/library/components/TalentHeroZone"
 import { TalentContactSection } from "@/features/library/components/TalentContactSection"
+import { TalentContactMetaLine } from "@/features/library/components/TalentContactMetaLine"
 import { TalentMeasurementsSection } from "@/features/library/components/TalentMeasurementsSection"
 import { TalentNotesSection } from "@/features/library/components/TalentNotesSection"
 import { TalentPortfolioSection } from "@/features/library/components/TalentPortfolioSection"
 import { CastingSessionList } from "@/features/library/components/CastingSessionList"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import type { TalentRecord } from "@/shared/types"
 import type { TalentImage, CastingSession } from "@/features/library/components/talentUtils"
 
@@ -89,6 +91,8 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
   setCreateSessionOpen,
   setPrintSessionId,
 }: TalentDetailPanelProps) {
+  // Phase-2 detail IA (flag OFF in prod; flag-off path is byte-identical to trunk).
+  const detailIA = isFeatureEnabled("featureTalentDetailIA")
   return (
     <div className="flex flex-col">
       {/* Hero zone: headshot + name + agency + gender */}
@@ -158,101 +162,206 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
 
       {/* Profile tab */}
       {activeTab === "detail" ? (
-        <div className="flex flex-col gap-5 p-5">
-          <TalentContactSection
-            selected={selected}
-            canEdit={canEdit}
-            busy={busy}
-            savePatch={savePatch}
-          />
+        detailIA ? (
+          <div className="flex flex-col gap-6 p-5">
+            {/* Contact — inline editorial meta-line, demoted from a card (Decision #3) */}
+            <TalentContactMetaLine
+              selected={selected}
+              canEdit={canEdit}
+              busy={busy}
+              savePatch={savePatch}
+            />
 
-          <TalentMeasurementsSection
-            selected={selected}
-            canEdit={canEdit}
-            busy={busy}
-            savePatch={savePatch}
-          />
+            {/* Fit signals — the "does she fit?" zone (Decision #4) */}
+            <section className="flex flex-col gap-4">
+              <div className="heading-section">Fit signals</div>
+              <TalentMeasurementsSection
+                selected={selected}
+                canEdit={canEdit}
+                busy={busy}
+                savePatch={savePatch}
+              />
+              <TalentNotesSection
+                selected={selected}
+                canEdit={canEdit}
+                busy={busy}
+                savePatch={savePatch}
+              />
+            </section>
 
-          <TalentNotesSection
-            selected={selected}
-            canEdit={canEdit}
-            busy={busy}
-            savePatch={savePatch}
-          />
+            {/* Creative assets — image-heavy group */}
+            <section className="flex flex-col gap-4">
+              <div className="heading-section">Creative assets</div>
+              <TalentPortfolioSection
+                canEdit={canEdit}
+                busy={busy}
+                portfolioImages={portfolioImages}
+                sensors={sensors}
+                updateGallery={updateGallery}
+                onPortfolioFiles={onPortfolioFiles}
+                setGalleryRemoveOpen={setGalleryRemoveOpen}
+                setGalleryRemoveTarget={setGalleryRemoveTarget}
+              />
+              <CastingSessionList
+                castingSessions={castingSessions}
+                canEdit={canEdit}
+                isMobile={isMobile}
+                busy={busy}
+                projects={projects}
+                sensors={sensors}
+                sessionExpanded={sessionExpanded}
+                setSessionExpanded={setSessionExpanded}
+                updateCastingSessions={updateCastingSessions}
+                onCastingFiles={onCastingFiles}
+                setGalleryRemoveOpen={setGalleryRemoveOpen}
+                setGalleryRemoveTarget={setGalleryRemoveTarget}
+                setSessionRemoveOpen={setSessionRemoveOpen}
+                setSessionRemoveTarget={setSessionRemoveTarget}
+                setCreateSessionOpen={setCreateSessionOpen}
+                setPrintSessionId={setPrintSessionId}
+              />
+            </section>
 
-          {/* Projects */}
-          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <div className="heading-subsection mb-3">Projects</div>
-            {(selected.projectIds ?? []).length === 0 ? (
-              <div className="text-sm text-[var(--color-text-muted)]">
-                Not linked to any projects.
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {(selected.projectIds ?? []).map((pid) => {
-                  const projectName = projectLookup.get(pid) ?? pid
-                  return (
-                    <Link
-                      key={pid}
-                      to={`/projects/${pid}/assets`}
-                      className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
-                      title={projectName}
+            {/* Meta / actions — read-only project tags (demoted) + isolated destructive action */}
+            {(selected.projectIds ?? []).length > 0 || canEdit ? (
+              <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4">
+                {(selected.projectIds ?? []).length > 0 ? (
+                  <div
+                    data-testid="talent-projects-tags"
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <span className="label-meta shrink-0">Projects</span>
+                    {(selected.projectIds ?? []).map((pid) => {
+                      const projectName = projectLookup.get(pid) ?? pid
+                      return (
+                        <Link
+                          key={pid}
+                          to={`/projects/${pid}/assets`}
+                          className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
+                          title={projectName}
+                        >
+                          {projectName}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {canEdit ? (
+                  <div>
+                    <Button
+                      variant="ghost"
+                      className="text-[var(--color-error)] hover:text-[var(--color-error)]"
+                      disabled={busy}
+                      onClick={() => setDeleteOpen(true)}
                     >
-                      {projectName}
-                    </Link>
-                  )
-                })}
+                      Delete talent
+                    </Button>
+                    <p className="caption mt-1 text-[var(--color-text-subtle)]">
+                      Permanently removes this profile.
+                    </p>
+                  </div>
+                ) : null}
               </div>
-            )}
+            ) : null}
           </div>
+        ) : (
+          <div className="flex flex-col gap-5 p-5">
+            <TalentContactSection
+              selected={selected}
+              canEdit={canEdit}
+              busy={busy}
+              savePatch={savePatch}
+            />
 
-          <TalentPortfolioSection
-            canEdit={canEdit}
-            busy={busy}
-            portfolioImages={portfolioImages}
-            sensors={sensors}
-            updateGallery={updateGallery}
-            onPortfolioFiles={onPortfolioFiles}
-            setGalleryRemoveOpen={setGalleryRemoveOpen}
-            setGalleryRemoveTarget={setGalleryRemoveTarget}
-          />
+            <TalentMeasurementsSection
+              selected={selected}
+              canEdit={canEdit}
+              busy={busy}
+              savePatch={savePatch}
+            />
 
-          <CastingSessionList
-            castingSessions={castingSessions}
-            canEdit={canEdit}
-            isMobile={isMobile}
-            busy={busy}
-            projects={projects}
-            sensors={sensors}
-            sessionExpanded={sessionExpanded}
-            setSessionExpanded={setSessionExpanded}
-            updateCastingSessions={updateCastingSessions}
-            onCastingFiles={onCastingFiles}
-            setGalleryRemoveOpen={setGalleryRemoveOpen}
-            setGalleryRemoveTarget={setGalleryRemoveTarget}
-            setSessionRemoveOpen={setSessionRemoveOpen}
-            setSessionRemoveTarget={setSessionRemoveTarget}
-            setCreateSessionOpen={setCreateSessionOpen}
-            setPrintSessionId={setPrintSessionId}
-          />
+            <TalentNotesSection
+              selected={selected}
+              canEdit={canEdit}
+              busy={busy}
+              savePatch={savePatch}
+            />
 
-          {/* Delete zone */}
-          {canEdit ? (
-            <div className="mt-2 border-t border-[var(--color-border)] pt-4">
-              <Button
-                variant="ghost"
-                className="text-[var(--color-error)] hover:text-[var(--color-error)]"
-                disabled={busy}
-                onClick={() => setDeleteOpen(true)}
-              >
-                Delete talent
-              </Button>
-              <p className="caption mt-1 text-[var(--color-text-subtle)]">
-                Permanently removes this profile.
-              </p>
+            {/* Projects */}
+            <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <div className="heading-subsection mb-3">Projects</div>
+              {(selected.projectIds ?? []).length === 0 ? (
+                <div className="text-sm text-[var(--color-text-muted)]">
+                  Not linked to any projects.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(selected.projectIds ?? []).map((pid) => {
+                    const projectName = projectLookup.get(pid) ?? pid
+                    return (
+                      <Link
+                        key={pid}
+                        to={`/projects/${pid}/assets`}
+                        className="inline-block max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-1 text-xs text-[var(--color-text)] transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)]"
+                        title={projectName}
+                      >
+                        {projectName}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          ) : null}
-        </div>
+
+            <TalentPortfolioSection
+              canEdit={canEdit}
+              busy={busy}
+              portfolioImages={portfolioImages}
+              sensors={sensors}
+              updateGallery={updateGallery}
+              onPortfolioFiles={onPortfolioFiles}
+              setGalleryRemoveOpen={setGalleryRemoveOpen}
+              setGalleryRemoveTarget={setGalleryRemoveTarget}
+            />
+
+            <CastingSessionList
+              castingSessions={castingSessions}
+              canEdit={canEdit}
+              isMobile={isMobile}
+              busy={busy}
+              projects={projects}
+              sensors={sensors}
+              sessionExpanded={sessionExpanded}
+              setSessionExpanded={setSessionExpanded}
+              updateCastingSessions={updateCastingSessions}
+              onCastingFiles={onCastingFiles}
+              setGalleryRemoveOpen={setGalleryRemoveOpen}
+              setGalleryRemoveTarget={setGalleryRemoveTarget}
+              setSessionRemoveOpen={setSessionRemoveOpen}
+              setSessionRemoveTarget={setSessionRemoveTarget}
+              setCreateSessionOpen={setCreateSessionOpen}
+              setPrintSessionId={setPrintSessionId}
+            />
+
+            {/* Delete zone */}
+            {canEdit ? (
+              <div className="mt-2 border-t border-[var(--color-border)] pt-4">
+                <Button
+                  variant="ghost"
+                  className="text-[var(--color-error)] hover:text-[var(--color-error)]"
+                  disabled={busy}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Delete talent
+                </Button>
+                <p className="caption mt-1 text-[var(--color-text-subtle)]">
+                  Permanently removes this profile.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        )
       ) : null}
     </div>
   )
