@@ -4,6 +4,8 @@ import { updateShotWithVersion } from "@/features/shots/lib/updateShotWithVersio
 import { useAuth } from "@/app/providers/AuthProvider"
 import { Button } from "@/ui/button"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { useProductFamilyDoc, useProductSkuDoc } from "@/features/shots/hooks/usePickerData"
+import { findExplicitCoverAssignment } from "@/features/shots/lib/coverProductImage"
 import { ImagePlus, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
@@ -41,7 +43,22 @@ export function HeroImageSection({
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
-  const heroCandidate = heroImage?.downloadURL ?? heroImage?.path
+  // Catalog-image fallback for an explicit cover product whose URL was never denormalized.
+  const coverAssignment = heroImage ? null : findExplicitCoverAssignment(shot)
+  const coverFamilyId = coverAssignment?.familyId ?? null
+  const coverSkuId = coverAssignment ? (coverAssignment.skuId ?? coverAssignment.colourId ?? null) : null
+  const { data: coverFamily } = useProductFamilyDoc(coverFamilyId)
+  const { data: coverSku } = useProductSkuDoc(coverFamilyId, coverSkuId)
+  const coverFallbackSrc = coverAssignment
+    ? (coverAssignment.thumbUrl ??
+       coverAssignment.skuImageUrl ??
+       coverAssignment.familyImageUrl ??
+       coverSku?.imagePath ??
+       coverFamily?.thumbnailImagePath ??
+       coverFamily?.headerImagePath)
+    : undefined
+
+  const heroCandidate = heroImage?.downloadURL ?? heroImage?.path ?? coverFallbackSrc
   const resolvedHeroUrl = useStorageUrl(heroCandidate)
   const canResetManual = !!heroImage?.path && heroImage.path.includes("/hero.webp")
 
