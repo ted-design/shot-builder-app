@@ -224,10 +224,13 @@ describe("computeSuggestedShootWindow", () => {
 
 describe("sortByUrgency", () => {
   it("sorts by launch date ascending, then readiness ascending", () => {
+    // Shared `now` so the two same-window items get an identical launch date.
+    const now = Date.now()
+    const at = (offsetMs: number) => Timestamp.fromDate(new Date(now + offsetMs))
     const items = [
-      { familyId: "a", familyName: "Late", launchDate: ts(30 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 0, samplesTotal: 1, readinessPct: 50, shootWindow: null },
-      { familyId: "b", familyName: "Soon", launchDate: ts(5 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 1, samplesTotal: 1, readinessPct: 100, shootWindow: null },
-      { familyId: "c", familyName: "Soon2", launchDate: ts(5 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 0, samplesTotal: 2, readinessPct: 0, shootWindow: null },
+      { familyId: "a", familyName: "Late", launchDate: at(30 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 0, samplesTotal: 1, readinessPct: 50, shootWindow: null },
+      { familyId: "b", familyName: "Soon", launchDate: at(5 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 1, samplesTotal: 1, readinessPct: 100, shootWindow: null },
+      { familyId: "c", familyName: "Soon2", launchDate: at(5 * DAY_MS), totalSkus: 1, skusWithFlags: 0, samplesArrived: 0, samplesTotal: 2, readinessPct: 0, shootWindow: null },
     ]
 
     const sorted = sortByUrgency(items)
