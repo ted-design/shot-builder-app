@@ -332,3 +332,21 @@ describe("migrateLegacyParams", () => {
     expect(fields).toContain("tag")
   })
 })
+
+// ---------------------------------------------------------------------------
+// Multi-use fields — repeatable filters (talent/tag/location/product) must each
+// survive deserialization as a distinct condition (not deduped).
+// ---------------------------------------------------------------------------
+
+describe("deserializeFilters — repeatable fields", () => {
+  it("keeps two conditions on the same field+operator (multi-use fields)", () => {
+    const result = deserializeFilters("talent.in:t1;talent.in:t2")
+    expect(result).toHaveLength(2)
+    expect(result.map((c) => c.value)).toEqual([["t1"], ["t2"]])
+  })
+
+  it("gives each condition a unique id even when field+operator repeat", () => {
+    const ids = deserializeFilters("talent.in:t1;talent.in:t2").map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})

@@ -90,4 +90,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureTalentDetailIA")).toBe(false)
     }
   })
+
+  it("defaults featureShotFilterTalentScope to false (shot-list talent filter stays full-library on main)", () => {
+    expect(getFeatureFlags().featureShotFilterTalentScope).toBe(false)
+    expect(isFeatureEnabled("featureShotFilterTalentScope")).toBe(false)
+  })
+
+  it("VITE_SHOT_FILTER_TALENT_SCOPE='1' or 'true' enables featureShotFilterTalentScope", () => {
+    vi.stubEnv("VITE_SHOT_FILTER_TALENT_SCOPE", "1")
+    expect(isFeatureEnabled("featureShotFilterTalentScope")).toBe(true)
+
+    vi.stubEnv("VITE_SHOT_FILTER_TALENT_SCOPE", "true")
+    expect(isFeatureEnabled("featureShotFilterTalentScope")).toBe(true)
+  })
+
+  it("any other VITE_SHOT_FILTER_TALENT_SCOPE value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_SHOT_FILTER_TALENT_SCOPE", value)
+      expect(isFeatureEnabled("featureShotFilterTalentScope")).toBe(false)
+    }
+  })
 })

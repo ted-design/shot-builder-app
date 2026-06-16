@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { Checkbox } from "@/ui/checkbox"
 import { Switch } from "@/ui/switch"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { STATUS_LABELS } from "../lib/shotListFilters"
 import type {
   FilterCondition,
@@ -18,9 +20,10 @@ interface FilterValuePickerProps {
   readonly onChange: (value: FilterValue) => void
   readonly statusOptions: readonly { value: string; label: string }[]
   readonly tagOptions: readonly { id: string; label: string }[]
-  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
   readonly locationRecords: readonly { id: string; name: string }[]
   readonly productFamilies: readonly { id: string; styleName: string }[]
+  readonly projectId: string
 }
 
 // ---------------------------------------------------------------------------
@@ -111,18 +114,104 @@ function TagPicker({
   return <CheckboxList options={options} selected={[...selected]} onChange={onChange} />
 }
 
+function TalentGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+  emptyHint,
+}: {
+  readonly label: string
+  readonly options: readonly { id: string; name: string }[]
+  readonly selected: readonly string[]
+  readonly onToggle: (id: string) => void
+  readonly emptyHint: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="px-1 text-2xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">{label}</p>
+      {options.length === 0 ? (
+        <p className="px-1 text-xs text-[var(--color-text-subtle)]">{emptyHint}</p>
+      ) : (
+        options.map((t) => (
+          <label key={t.id} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={selected.includes(t.id)}
+              onCheckedChange={(v) => {
+                if (v === "indeterminate") return
+                onToggle(t.id)
+              }}
+            />
+            <span className="truncate">{t.name}</span>
+          </label>
+        ))
+      )}
+    </div>
+  )
+}
+
 function TalentPicker({
   condition,
   onChange,
   talentRecords,
+  projectId,
 }: {
   readonly condition: FilterCondition
   readonly onChange: (v: FilterValue) => void
-  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
+  readonly projectId: string
 }) {
+  const [query, setQuery] = useState("")
   const selected = asStringArray(condition.value)
-  const options = talentRecords.map((t) => ({ value: t.id, label: t.name }))
-  return <CheckboxList options={options} selected={[...selected]} onChange={onChange} />
+
+  if (!isFeatureEnabled("featureShotFilterTalentScope")) {
+    const options = talentRecords.map((t) => ({ value: t.id, label: t.name }))
+    return <CheckboxList options={options} selected={[...selected]} onChange={onChange} />
+  }
+
+  const onToggle = (id: string) => onChange(toggleInArray(selected, id))
+
+  const q = query.trim().toLowerCase()
+  const isProjectTalent = (t: { projectIds?: readonly string[] }) => t.projectIds?.includes(projectId) ?? false
+  const nameMatches = (t: { name: string }) => t.name.toLowerCase().includes(q)
+  const isSelected = (t: { id: string }) => selected.includes(t.id)
+
+  // Selected talent stay visible regardless of search/scope — you can't uncheck what you can't see.
+  const projectTalent = talentRecords.filter((t) => isProjectTalent(t) && (q === "" || nameMatches(t) || isSelected(t)))
+  const otherTalent = talentRecords.filter((t) => !isProjectTalent(t) && ((q !== "" && nameMatches(t)) || isSelected(t)))
+  const showOtherGroup = q !== "" || otherTalent.length > 0
+
+  return (
+    <div className="space-y-2">
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search talent…"
+        className="h-8 text-sm"
+        aria-label="Search talent"
+      />
+      <div className="max-h-44 space-y-2.5 overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+        <TalentGroup
+          label="Project talent"
+          options={projectTalent}
+          selected={selected}
+          onToggle={onToggle}
+          emptyHint={q === "" ? "No talent assigned to this project" : "No project talent matches"}
+        />
+        {showOtherGroup ? (
+          <TalentGroup
+            label="Other talent"
+            options={otherTalent}
+            selected={selected}
+            onToggle={onToggle}
+            emptyHint="No other talent matches"
+          />
+        ) : (
+          <p className="px-1 text-xs text-[var(--color-text-subtle)]">Search to filter by other talent…</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function LocationPicker({
@@ -224,6 +313,7 @@ export function FilterValuePicker({
   talentRecords,
   locationRecords,
   productFamilies,
+  projectId,
 }: FilterValuePickerProps) {
   switch (condition.field) {
     case "status":
@@ -233,7 +323,7 @@ export function FilterValuePicker({
     case "missing":
       return <MissingPicker condition={condition} onChange={onChange} />
     case "talent":
-      return <TalentPicker condition={condition} onChange={onChange} talentRecords={talentRecords} />
+      return <TalentPicker condition={condition} onChange={onChange} talentRecords={talentRecords} projectId={projectId} />
     case "location":
       return <LocationPicker condition={condition} onChange={onChange} locationRecords={locationRecords} />
     case "product":

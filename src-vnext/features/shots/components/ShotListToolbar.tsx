@@ -71,9 +71,10 @@ type ShotListToolbarProps = {
   readonly onUpdateCondition: (conditionId: string, updates: Partial<Omit<FilterCondition, "id">>) => void
   readonly onRemoveCondition: (conditionId: string) => void
   readonly tagOptions: readonly { id: string; label: string }[]
-  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
   readonly locationRecords: readonly { id: string; name: string }[]
   readonly productFamilies: readonly { id: string; styleName: string }[]
+  readonly projectId: string
   readonly onClearFilters: () => void
   readonly canRepair: boolean
   readonly onRepairOpen: () => void
@@ -128,6 +129,7 @@ export function ShotListToolbar({
   talentRecords,
   locationRecords,
   productFamilies,
+  projectId,
   onClearFilters,
   canRepair,
   onRepairOpen,
@@ -292,6 +294,7 @@ export function ShotListToolbar({
             talentRecords={talentRecords}
             locationRecords={locationRecords}
             productFamilies={productFamilies}
+            projectId={projectId}
             hasActiveFilters={hasActiveFilters}
             onClearFilters={onClearFilters}
             canRepair={canRepair}
