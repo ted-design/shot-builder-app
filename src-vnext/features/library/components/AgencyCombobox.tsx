@@ -49,7 +49,9 @@ export function AgencyCombobox({
 
   const filtered = useMemo(() => {
     if (!normalized) return knownAgencies
-    return knownAgencies.filter((a) => a.toLowerCase().includes(normalized))
+    // Collapse `a` too (consistent with hasExactMatch) so a pre-migration
+    // double-spaced agency stays selectable for a collapsed query.
+    return knownAgencies.filter((a) => collapseWhitespace(a).toLowerCase().includes(normalized))
   }, [knownAgencies, normalized])
 
   const hasExactMatch = useMemo(
@@ -130,7 +132,7 @@ export function AgencyCombobox({
                 </CommandItem>
               </CommandGroup>
             ) : null}
-            {value ? (
+            {value && !typed ? (
               <CommandGroup>
                 <CommandItem
                   value="__clear__"

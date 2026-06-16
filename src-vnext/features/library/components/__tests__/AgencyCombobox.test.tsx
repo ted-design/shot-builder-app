@@ -118,6 +118,28 @@ describe("AgencyCombobox", () => {
     expect(screen.queryByTestId("agency-clear")).not.toBeInTheDocument()
   })
 
+  it("hides the Clear row while searching (avoids an accidental clear)", async () => {
+    renderCombobox({ value: "Elite" })
+    await openCombobox()
+    expect(screen.getByTestId("agency-clear")).toBeInTheDocument()
+    type("img")
+    expect(screen.queryByTestId("agency-clear")).not.toBeInTheDocument()
+  })
+
+  it("keeps a double-spaced known agency selectable for a collapsed query", async () => {
+    const onChange = vi.fn()
+    render(
+      <AgencyCombobox value={null} knownAgencies={["IMG  Models"]} onChange={onChange} />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Agency" }))
+    await screen.findByPlaceholderText("Search or add agency…")
+    type("img models")
+    expect(screen.queryByTestId("agency-add-new")).not.toBeInTheDocument()
+    // Testing Library collapses the rendered double-space, so match the single-space form.
+    fireEvent.click(itemFor("IMG Models"))
+    expect(onChange).toHaveBeenCalledWith("IMG Models")
+  })
+
   it("does not open when disabled", () => {
     renderCombobox({ disabled: true })
     fireEvent.click(screen.getByRole("button", { name: "Agency" }))
