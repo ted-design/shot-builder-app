@@ -200,7 +200,7 @@ function TalentPicker({
         />
         {showOtherGroup ? (
           <TalentGroup
-            label="All talent"
+            label="Other talent"
             options={otherTalent}
             selected={selected}
             onToggle={onToggle}

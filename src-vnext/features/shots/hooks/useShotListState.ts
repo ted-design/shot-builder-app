@@ -408,7 +408,6 @@ export function useShotListState(params: {
   }, [searchParams, setSearchParams])
 
   const addCondition = useCallback((condition: Omit<FilterCondition, "id">) => {
-    // id is transient — dropped on serialize; rendered conditions get a stable id from deserializeFilters.
     writeConditions([...conditions, { ...condition, id: crypto.randomUUID() }])
   }, [conditions, writeConditions])
 
