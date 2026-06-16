@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import type { ChangeEvent } from "react"
+import { memo, type ChangeEvent } from "react"
 import type { useSensors } from "@dnd-kit/core"
 import { Button } from "@/ui/button"
 import { TalentShotHistory } from "@/features/library/components/TalentShotHistory"
@@ -55,7 +55,7 @@ interface TalentDetailPanelProps {
   readonly setPrintSessionId: (id: string | null) => void
 }
 
-export function TalentDetailPanel({
+export const TalentDetailPanel = memo(function TalentDetailPanel({
   selected,
   canEdit,
   isMobile,
@@ -256,4 +256,4 @@ export function TalentDetailPanel({
       ) : null}
     </div>
   )
-}
+})
