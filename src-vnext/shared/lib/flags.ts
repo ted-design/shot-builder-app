@@ -59,6 +59,15 @@ export interface FeatureFlags {
    * (featureReviewSurface env-parse precedent). No URL/localStorage layer.
    */
   readonly featureTalentRosterIA: boolean
+  /**
+   * Talent redesign Phase 2 — detail IA. Gates the regrouped talent detail
+   * panel (inline contact meta-line + Fit-signals / Creative-assets zones +
+   * Projects demoted to a read-only tag row) on TalentDetailPanel. Default
+   * OFF; the flag-off path is byte-identical to trunk. Enabled via
+   * `VITE_TALENT_DETAIL_IA=1` (or `true`) at build/dev time
+   * (featureTalentRosterIA env-parse precedent). No URL/localStorage layer.
+   */
+  readonly featureTalentDetailIA: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -67,6 +76,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShootSurface: false,
   featureReviewSurface: false,
   featureTalentRosterIA: false,
+  featureTalentDetailIA: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -98,6 +108,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentRosterIA:
       DEFAULT_FLAGS.featureTalentRosterIA ||
       parseEnvFlag(import.meta.env.VITE_TALENT_ROSTER_IA),
+    featureTalentDetailIA:
+      DEFAULT_FLAGS.featureTalentDetailIA ||
+      parseEnvFlag(import.meta.env.VITE_TALENT_DETAIL_IA),
   }
 }
 

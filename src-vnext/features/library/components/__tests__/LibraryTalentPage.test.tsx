@@ -103,6 +103,38 @@ describe("LibraryTalentPage", { timeout: 60_000 }, () => {
     expect(screen.queryByRole("button", { name: /range filter/i })).toBeNull()
   })
 
+  it("renders the Contact card (not the Phase-2 detail meta-line) when the detail IA flag is off", () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage()
+    fireEvent.click(screen.getByText("Alex Rivera"))
+    // Flag-off detail keeps the bordered Contact card and the unzoned flat stack.
+    expect(screen.getByText("Contact")).toBeInTheDocument()
+    expect(screen.queryByTestId("talent-contact-metaline")).toBeNull()
+    expect(screen.queryByText("Fit signals")).toBeNull()
+    expect(screen.queryByText("Creative assets")).toBeNull()
+  })
+
   it("creates a talent from the dialog", async () => {
     ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],

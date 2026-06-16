@@ -20,7 +20,7 @@ interface ReferenceUrlFieldProps {
 }
 
 // Reference URL row: clickable hostname link as the display; full URL only while editing.
-function ReferenceUrlField({ url, canEdit, busy, onSave }: ReferenceUrlFieldProps) {
+export function ReferenceUrlField({ url, canEdit, busy, onSave }: ReferenceUrlFieldProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(url ?? "")
   const inputRef = useRef<HTMLInputElement>(null)
