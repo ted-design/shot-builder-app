@@ -161,9 +161,7 @@ export default function LibraryTalentPage() {
     return m
   }, [castingResults])
 
-  // Flag-off keeps the legacy in-place re-sort mode. Flag-on (Phase 3) routes
-  // ranking to the dedicated matcher surface, so the roster never re-sorts or
-  // shows score badges.
+  // Flag-on: the matcher is a dedicated surface, not an in-place roster re-sort.
   const castingMode = !matcherSurface && castingPanelOpen && castingHasRequirements
   const castingSurfaceActive = matcherSurface && castingPanelOpen
 
