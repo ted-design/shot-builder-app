@@ -51,8 +51,6 @@ interface TalentDetailPanelProps {
   readonly setGalleryRemoveTarget: (target: TalentImage | null) => void
   readonly setSessionRemoveOpen: (open: boolean) => void
   readonly setSessionRemoveTarget: (target: CastingSession | null) => void
-  readonly sessionExpanded: Record<string, boolean>
-  readonly setSessionExpanded: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void
   readonly setDeleteOpen: (open: boolean) => void
   readonly setCreateSessionOpen: (open: boolean) => void
   readonly setPrintSessionId: (id: string | null) => void
@@ -87,8 +85,6 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
   setGalleryRemoveTarget,
   setSessionRemoveOpen,
   setSessionRemoveTarget,
-  sessionExpanded,
-  setSessionExpanded,
   setDeleteOpen,
   setCreateSessionOpen,
   setPrintSessionId,
@@ -211,8 +207,6 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
                 busy={busy}
                 projects={projects}
                 sensors={sensors}
-                sessionExpanded={sessionExpanded}
-                setSessionExpanded={setSessionExpanded}
                 updateCastingSessions={updateCastingSessions}
                 onCastingFiles={onCastingFiles}
                 setGalleryRemoveOpen={setGalleryRemoveOpen}
@@ -334,8 +328,6 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
               busy={busy}
               projects={projects}
               sensors={sensors}
-              sessionExpanded={sessionExpanded}
-              setSessionExpanded={setSessionExpanded}
               updateCastingSessions={updateCastingSessions}
               onCastingFiles={onCastingFiles}
               setGalleryRemoveOpen={setGalleryRemoveOpen}

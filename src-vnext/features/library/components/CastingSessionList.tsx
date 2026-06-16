@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react"
-import type { ChangeEvent } from "react"
+import { useState, type ChangeEvent } from "react"
 import {
   DndContext,
   closestCenter,
@@ -37,8 +37,6 @@ interface CastingSessionListProps {
   readonly busy: boolean
   readonly projects: Array<{ id: string; name?: string | null }>
   readonly sensors: ReturnType<typeof useSensors>
-  readonly sessionExpanded: Record<string, boolean>
-  readonly setSessionExpanded: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void
   readonly updateCastingSessions: (
     next: CastingSession[],
     removedPaths?: readonly (string | null | undefined)[],
@@ -60,8 +58,6 @@ export function CastingSessionList({
   busy,
   projects,
   sensors,
-  sessionExpanded,
-  setSessionExpanded,
   updateCastingSessions,
   onCastingFiles,
   setGalleryRemoveOpen,
@@ -71,6 +67,8 @@ export function CastingSessionList({
   setCreateSessionOpen,
   setPrintSessionId,
 }: CastingSessionListProps) {
+  const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
+
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <div className="flex items-center justify-between gap-3">
