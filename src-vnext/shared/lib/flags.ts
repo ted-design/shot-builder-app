@@ -88,6 +88,17 @@ export interface FeatureFlags {
    * before the prod flip — the agency filter is exact-equality.
    */
   readonly featureTalentAgencyCombobox: boolean
+  /**
+   * Talent redesign Phase 3 — casting matcher = its own ranked surface. Gates
+   * promoting the casting brief from an in-place roster re-sort mode to a
+   * dedicated score-first surface on LibraryTalentPage (brief + ranked
+   * results replace the roster; no in-place re-sort or roster score badges).
+   * Default OFF; the flag-off path is the byte-identical panel-above-roster
+   * mode. Enabled via `VITE_CASTING_MATCHER_SURFACE=1` (or `true`) at
+   * build/dev time (featureTalentAgencyCombobox env-parse precedent). No
+   * URL/localStorage layer.
+   */
+  readonly featureCastingMatcherSurface: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -99,6 +110,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureTalentDetailIA: false,
   featureShotFilterTalentScope: false,
   featureTalentAgencyCombobox: false,
+  featureCastingMatcherSurface: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -139,6 +151,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentAgencyCombobox:
       DEFAULT_FLAGS.featureTalentAgencyCombobox ||
       parseEnvFlag(import.meta.env.VITE_TALENT_AGENCY_COMBOBOX),
+    featureCastingMatcherSurface:
+      DEFAULT_FLAGS.featureCastingMatcherSurface ||
+      parseEnvFlag(import.meta.env.VITE_CASTING_MATCHER_SURFACE),
   }
 }
 

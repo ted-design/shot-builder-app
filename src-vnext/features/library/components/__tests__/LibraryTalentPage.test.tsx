@@ -103,6 +103,37 @@ describe("LibraryTalentPage", { timeout: 60_000 }, () => {
     expect(screen.queryByRole("button", { name: /range filter/i })).toBeNull()
   })
 
+  it("keeps the casting brief above the roster (not a dedicated surface) when the matcher flag is off", () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage()
+    expect(screen.getByText("Alex Rivera")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Open casting brief" }))
+    // Flag-off legacy mode: the brief panel opens above the roster, which stays visible.
+    expect(screen.getByRole("heading", { name: "Casting Brief" })).toBeInTheDocument()
+    expect(screen.getByText("Alex Rivera")).toBeInTheDocument()
+  })
+
   it("renders the Contact card (not the Phase-2 detail meta-line) when the detail IA flag is off", () => {
     ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [

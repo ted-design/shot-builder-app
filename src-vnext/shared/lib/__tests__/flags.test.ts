@@ -130,4 +130,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureTalentAgencyCombobox")).toBe(false)
     }
   })
+
+  it("defaults featureCastingMatcherSurface to false (Talent redesign Phase 3 is dark on main)", () => {
+    expect(getFeatureFlags().featureCastingMatcherSurface).toBe(false)
+    expect(isFeatureEnabled("featureCastingMatcherSurface")).toBe(false)
+  })
+
+  it("VITE_CASTING_MATCHER_SURFACE='1' or 'true' enables featureCastingMatcherSurface", () => {
+    vi.stubEnv("VITE_CASTING_MATCHER_SURFACE", "1")
+    expect(isFeatureEnabled("featureCastingMatcherSurface")).toBe(true)
+
+    vi.stubEnv("VITE_CASTING_MATCHER_SURFACE", "true")
+    expect(isFeatureEnabled("featureCastingMatcherSurface")).toBe(true)
+  })
+
+  it("any other VITE_CASTING_MATCHER_SURFACE value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_CASTING_MATCHER_SURFACE", value)
+      expect(isFeatureEnabled("featureCastingMatcherSurface")).toBe(false)
+    }
+  })
 })
