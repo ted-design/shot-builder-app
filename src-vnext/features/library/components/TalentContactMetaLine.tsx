@@ -11,12 +11,11 @@ interface TalentContactMetaLineProps {
 }
 
 // One inline editorial meta-line segment: an uppercase micro-label + its value.
-// The value is width-capped so the edit-mode input can't balloon the wrapping row.
 function Segment({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
     <span className="inline-flex min-w-0 items-baseline gap-1.5">
       <span className="label-meta shrink-0">{label}</span>
-      <span className="min-w-0 max-w-[220px]">{children}</span>
+      <span className="min-w-0">{children}</span>
     </span>
   )
 }
