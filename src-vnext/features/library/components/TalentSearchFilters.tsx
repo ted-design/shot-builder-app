@@ -1,15 +1,19 @@
 import { useMemo, useState } from "react"
-import { Filter, X } from "lucide-react"
+import { ChevronDown, Filter, X } from "lucide-react"
 import type { TalentRecord } from "@/shared/types"
 import type { TalentSearchFilters as Filters, MeasurementRange } from "@/features/library/lib/talentFilters"
 import { EMPTY_TALENT_FILTERS, extractUniqueAgencies } from "@/features/library/lib/talentFilters"
-import { getMeasurementOptionsForGender } from "@/features/library/lib/measurementOptions"
+import { getMeasurementOptionsForGender, normalizeGender } from "@/features/library/lib/measurementOptions"
+import { useMeasurementBounds } from "@/features/library/hooks/useMeasurementBounds"
+import { MeasurementRangeSlider } from "@/features/library/components/MeasurementRangeSlider"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Checkbox } from "@/ui/checkbox"
 import { Separator } from "@/ui/separator"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { cn } from "@/shared/lib/utils"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -358,5 +362,96 @@ export function TalentFilterToolbar({
         </div>
       ) : null}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Surfaced toolbar range filters (Talent redesign Phase 1a, flag-gated)
+// ---------------------------------------------------------------------------
+
+/** The fixed pair promoted onto the roster toolbar; both exist for all genders. */
+const TOOLBAR_RANGE_FIELDS: readonly { key: string; label: string }[] = [
+  { key: "height", label: "Height" },
+  { key: "waist", label: "Waist" },
+]
+
+/** Domain-sensible fallback bounds (inches) — defensive; useMeasurementBounds already returns defaults for empty data. */
+const FALLBACK_BOUNDS: Readonly<Record<string, { min: number; max: number; step: number }>> = {
+  height: { min: 58, max: 82, step: 1 },
+  waist: { min: 22, max: 44, step: 0.5 },
+}
+
+/** Immutably set or clear one measurement range; clears the key when fully empty. */
+export function applyMeasurementRange(
+  filters: Filters,
+  key: string,
+  range: MeasurementRange,
+): Filters {
+  if (range.min === null && range.max === null) {
+    const { [key]: _removed, ...rest } = filters.measurementRanges
+    return { ...filters, measurementRanges: rest }
+  }
+  return {
+    ...filters,
+    measurementRanges: { ...filters.measurementRanges, [key]: range },
+  }
+}
+
+/** Compact trigger summary for a range; "any" when unset. */
+export function rangeSummary(range: MeasurementRange | undefined): string {
+  if (!range || (range.min === null && range.max === null)) return "any"
+  const fmt = (v: number | null) =>
+    v === null ? "any" : Number.isInteger(v) ? String(v) : v.toFixed(1)
+  return `${fmt(range.min)}–${fmt(range.max)}`
+}
+
+interface TalentToolbarRangeFiltersProps {
+  readonly filters: Filters
+  readonly onFiltersChange: (next: Filters) => void
+  readonly talent: readonly TalentRecord[]
+}
+
+export function TalentToolbarRangeFilters({
+  filters,
+  onFiltersChange,
+  talent,
+}: TalentToolbarRangeFiltersProps) {
+  const bounds = useMeasurementBounds(talent, normalizeGender(filters.gender))
+
+  return (
+    <>
+      {TOOLBAR_RANGE_FIELDS.map((field) => {
+        const range = filters.measurementRanges[field.key]
+        const active = !!range && (range.min !== null || range.max !== null)
+        const b = bounds[field.key] ?? FALLBACK_BOUNDS[field.key] ?? { min: 0, max: 100, step: 0.5 }
+        return (
+          <Popover key={field.key}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("gap-1.5", active && "border-[var(--color-primary)]")}
+                aria-label={`${field.label} range filter`}
+              >
+                <span className="font-medium">{field.label}</span>
+                <span className="text-[var(--color-text-muted)]">{rangeSummary(range)}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-[var(--color-text-subtle)]" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64">
+              <MeasurementRangeSlider
+                label={field.label}
+                fieldKey={field.key}
+                boundsMin={b.min}
+                boundsMax={b.max}
+                step={b.step}
+                value={range ?? { min: null, max: null }}
+                onChange={(next) => onFiltersChange(applyMeasurementRange(filters, field.key, next))}
+              />
+            </PopoverContent>
+          </Popover>
+        )
+      })}
+    </>
   )
 }

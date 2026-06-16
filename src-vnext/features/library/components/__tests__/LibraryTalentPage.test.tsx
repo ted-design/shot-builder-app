@@ -75,6 +75,34 @@ describe("LibraryTalentPage", { timeout: 60_000 }, () => {
     expect(screen.getByRole("button", { name: "Create talent" })).toBeInTheDocument()
   })
 
+  it("does not surface the roster IA (Height/Waist controls, result count) when the flag is off", () => {
+    ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        {
+          id: "t1",
+          name: "Alex Rivera",
+          agency: "IMG",
+          email: null,
+          phone: null,
+          url: null,
+          gender: null,
+          notes: "",
+          measurements: null,
+          headshotPath: null,
+          headshotUrl: null,
+          galleryImages: [],
+          castingSessions: [],
+        },
+      ],
+      loading: false,
+      error: null,
+    })
+
+    renderPage()
+    expect(screen.queryByTestId("talent-result-count")).toBeNull()
+    expect(screen.queryByRole("button", { name: /range filter/i })).toBeNull()
+  })
+
   it("creates a talent from the dialog", async () => {
     ;(useTalentLibrary as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],

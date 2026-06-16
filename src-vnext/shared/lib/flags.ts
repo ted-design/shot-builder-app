@@ -51,6 +51,14 @@ export interface FeatureFlags {
    * it. No URL/localStorage override layer.
    */
   readonly featureReviewSurface: boolean
+  /**
+   * Talent redesign Phase 1a — roster IA. Gates the surfaced Height/Waist
+   * toolbar range controls + the result count on LibraryTalentPage. Default
+   * OFF; the flag-off path is byte-identical to trunk. Enabled via
+   * `VITE_TALENT_ROSTER_IA=1` (or `true`) at build/dev time
+   * (featureReviewSurface env-parse precedent). No URL/localStorage layer.
+   */
+  readonly featureTalentRosterIA: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -58,6 +66,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureSurfaceResolver: true,
   featureShootSurface: false,
   featureReviewSurface: false,
+  featureTalentRosterIA: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -86,6 +95,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureReviewSurface:
       DEFAULT_FLAGS.featureReviewSurface ||
       parseEnvFlag(import.meta.env.VITE_REVIEW_SURFACE),
+    featureTalentRosterIA:
+      DEFAULT_FLAGS.featureTalentRosterIA ||
+      parseEnvFlag(import.meta.env.VITE_TALENT_ROSTER_IA),
   }
 }
 
