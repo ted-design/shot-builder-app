@@ -20,7 +20,11 @@ interface AgencyComboboxProps {
   readonly triggerClassName?: string
 }
 
-/** Trim + collapse internal whitespace runs to a single space. */
+/**
+ * Trim + collapse internal whitespace runs to a single space. Intentionally
+ * duplicated as `normalizeKey` in scripts/normalize-agency-names.ts — that
+ * script runs server-side via Firebase Admin and can't import the client bundle.
+ */
 function collapseWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ")
 }
