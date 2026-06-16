@@ -83,7 +83,20 @@ describe("FilterValuePicker talent picker — flag ON (scoped + searchable)", ()
 
   it("toggles a talent id through onChange", () => {
     const { onChange } = renderTalentPicker()
-    fireEvent.click(screen.getByText("Anna"))
+    fireEvent.click(screen.getByRole("checkbox", { name: "Anna" }))
     expect(onChange).toHaveBeenCalledWith(["t1"])
+  })
+
+  it("deselects an already-selected talent", () => {
+    const { onChange } = renderTalentPicker({ value: ["t1"] })
+    fireEvent.click(screen.getByRole("checkbox", { name: "Anna" }))
+    expect(onChange).toHaveBeenCalledWith([])
+  })
+
+  it("keeps a selected off-project talent visible with an empty query", () => {
+    renderTalentPicker({ value: ["t3"] }) // Cara: projectIds ['pX'], not in p1
+    expect(screen.getByText("Cara")).toBeInTheDocument()
+    expect(screen.getByText("Anna")).toBeInTheDocument() // project talent
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument() // unselected off-project, empty query
   })
 })

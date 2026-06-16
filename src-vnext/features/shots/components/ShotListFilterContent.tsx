@@ -80,7 +80,7 @@ export function ShotListFilterContent({
         <div className="space-y-3">
           {conditions.map((condition) => (
             <FilterConditionRow
-              key={condition.id}
+              key={condition.field}
               condition={condition}
               onUpdate={onUpdateCondition}
               onRemove={onRemoveCondition}

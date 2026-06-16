@@ -172,11 +172,14 @@ function TalentPicker({
   const onToggle = (id: string) => onChange(toggleInArray(selected, id))
 
   const q = query.trim().toLowerCase()
-  const matches = (name: string) => q === "" || name.toLowerCase().includes(q)
   const isProjectTalent = (t: { projectIds?: readonly string[] }) => t.projectIds?.includes(projectId) ?? false
+  const nameMatches = (t: { name: string }) => t.name.toLowerCase().includes(q)
+  const isSelected = (t: { id: string }) => selected.includes(t.id)
 
-  const projectTalent = talentRecords.filter((t) => isProjectTalent(t) && matches(t.name))
-  const otherTalent = talentRecords.filter((t) => !isProjectTalent(t) && matches(t.name))
+  // Selected talent stay visible regardless of search/scope — you can't uncheck what you can't see.
+  const projectTalent = talentRecords.filter((t) => isProjectTalent(t) && (q === "" || nameMatches(t) || isSelected(t)))
+  const otherTalent = talentRecords.filter((t) => !isProjectTalent(t) && ((q !== "" && nameMatches(t)) || isSelected(t)))
+  const showOtherGroup = q !== "" || otherTalent.length > 0
 
   return (
     <div className="space-y-2">
@@ -195,9 +198,7 @@ function TalentPicker({
           onToggle={onToggle}
           emptyHint={q === "" ? "No talent assigned to this project" : "No project talent matches"}
         />
-        {q === "" ? (
-          <p className="px-1 text-xs text-[var(--color-text-subtle)]">Search to filter by other talent…</p>
-        ) : (
+        {showOtherGroup ? (
           <TalentGroup
             label="All talent"
             options={otherTalent}
@@ -205,6 +206,8 @@ function TalentPicker({
             onToggle={onToggle}
             emptyHint="No other talent matches"
           />
+        ) : (
+          <p className="px-1 text-xs text-[var(--color-text-subtle)]">Search to filter by other talent…</p>
         )}
       </div>
     </div>
