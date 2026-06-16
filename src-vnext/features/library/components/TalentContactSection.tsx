@@ -20,8 +20,6 @@ interface ReferenceUrlFieldProps {
 }
 
 // Reference URL row: clickable hostname link as the display; full URL only while editing.
-// Exported so the Phase-2 detail-IA contact meta-line (TalentContactMetaLine) can
-// reuse the exact same edit/display affordance instead of duplicating it.
 export function ReferenceUrlField({ url, canEdit, busy, onSave }: ReferenceUrlFieldProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(url ?? "")

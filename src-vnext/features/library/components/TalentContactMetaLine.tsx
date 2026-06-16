@@ -28,12 +28,7 @@ function MetaDot() {
   )
 }
 
-/**
- * Phase-2 detail IA — the contact block demoted from a bordered card to a single
- * inline editorial meta-line below the hero (locked Decision #3). Email / Phone /
- * Web stay individually editable (same InlineEdit + ReferenceUrlField wiring as
- * the flag-off TalentContactSection), just laid out as one wrapping line.
- */
+// Inline editable contact meta-line — email · phone · web.
 export function TalentContactMetaLine({
   selected,
   canEdit,

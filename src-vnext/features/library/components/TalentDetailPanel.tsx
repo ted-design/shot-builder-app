@@ -91,7 +91,6 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
   setCreateSessionOpen,
   setPrintSessionId,
 }: TalentDetailPanelProps) {
-  // Phase-2 detail IA (flag OFF in prod; flag-off path is byte-identical to trunk).
   const detailIA = isFeatureEnabled("featureTalentDetailIA")
   return (
     <div className="flex flex-col">
@@ -164,7 +163,7 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
       {activeTab === "detail" ? (
         detailIA ? (
           <div className="flex flex-col gap-6 p-5">
-            {/* Contact — inline editorial meta-line, demoted from a card (Decision #3) */}
+            {/* Contact meta-line */}
             <TalentContactMetaLine
               selected={selected}
               canEdit={canEdit}
@@ -172,8 +171,8 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
               savePatch={savePatch}
             />
 
-            {/* Fit signals — the "does she fit?" zone (Decision #4) */}
-            <section className="flex flex-col gap-4">
+            {/* Fit signals */}
+            <div className="flex flex-col gap-4">
               <div className="heading-section">Fit signals</div>
               <TalentMeasurementsSection
                 selected={selected}
@@ -187,10 +186,10 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
                 busy={busy}
                 savePatch={savePatch}
               />
-            </section>
+            </div>
 
-            {/* Creative assets — image-heavy group */}
-            <section className="flex flex-col gap-4">
+            {/* Creative assets */}
+            <div className="flex flex-col gap-4">
               <div className="heading-section">Creative assets</div>
               <TalentPortfolioSection
                 canEdit={canEdit}
@@ -220,9 +219,9 @@ export const TalentDetailPanel = memo(function TalentDetailPanel({
                 setCreateSessionOpen={setCreateSessionOpen}
                 setPrintSessionId={setPrintSessionId}
               />
-            </section>
+            </div>
 
-            {/* Meta / actions — read-only project tags (demoted) + isolated destructive action */}
+            {/* Meta / actions */}
             {(selected.projectIds ?? []).length > 0 || canEdit ? (
               <div className="flex flex-col gap-4 border-t border-[var(--color-border)] pt-4">
                 {(selected.projectIds ?? []).length > 0 ? (
