@@ -585,6 +585,7 @@ export default function ShotListPage() {
             talentRecords={talentRecords}
             locationRecords={locationRecords}
             productFamilies={productFamilies}
+            projectId={projectId}
             onClearFilters={clearFilters}
             canRepair={canRepair}
             onRepairOpen={() => setRepairOpen(true)}

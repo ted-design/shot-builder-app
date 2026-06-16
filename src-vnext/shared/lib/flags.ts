@@ -68,6 +68,15 @@ export interface FeatureFlags {
    * (featureTalentRosterIA env-parse precedent). No URL/localStorage layer.
    */
   readonly featureTalentDetailIA: boolean
+  /**
+   * Maintenance — shot-list "filter by talent". Gates scoping the talent
+   * filter options to project-attached talent (talent.projectIds) plus a
+   * search box and Project/All grouping on FilterValuePicker. Default OFF;
+   * the flag-off path is the byte-identical full-library CheckboxList.
+   * Enabled via `VITE_SHOT_FILTER_TALENT_SCOPE=1` (or `true`) at build/dev
+   * time (featureTalentDetailIA env-parse precedent). No URL/localStorage layer.
+   */
+  readonly featureShotFilterTalentScope: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -77,6 +86,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureReviewSurface: false,
   featureTalentRosterIA: false,
   featureTalentDetailIA: false,
+  featureShotFilterTalentScope: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -111,6 +121,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentDetailIA:
       DEFAULT_FLAGS.featureTalentDetailIA ||
       parseEnvFlag(import.meta.env.VITE_TALENT_DETAIL_IA),
+    featureShotFilterTalentScope:
+      DEFAULT_FLAGS.featureShotFilterTalentScope ||
+      parseEnvFlag(import.meta.env.VITE_SHOT_FILTER_TALENT_SCOPE),
   }
 }
 
