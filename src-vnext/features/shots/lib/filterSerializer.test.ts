@@ -334,32 +334,19 @@ describe("migrateLegacyParams", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Stable ids — condition ids must survive URL round-trips so filter rows keyed
-// by id are not remounted on every value update.
+// Multi-use fields — repeatable filters (talent/tag/location/product) must each
+// survive deserialization as a distinct condition (not deduped).
 // ---------------------------------------------------------------------------
 
-describe("deserializeFilters — stable ids", () => {
-  it("yields identical ids for the same input across calls", () => {
-    const raw = "status.in:todo,in_progress;talent.in:t1"
-    const a = deserializeFilters(raw)
-    const b = deserializeFilters(raw)
-    expect(a.map((c) => c.id)).toEqual(b.map((c) => c.id))
-  })
-
-  it("derives the id from field+operator", () => {
-    const [status, talent] = deserializeFilters("status.in:todo;talent.in:t1")
-    expect(status!.id).toBe("status.in")
-    expect(talent!.id).toBe("talent.in")
-  })
-
-  it("gives each condition a unique id within a result set", () => {
-    const ids = deserializeFilters("status.in:todo;talent.in:t1;location.in:l1").map((c) => c.id)
-    expect(new Set(ids).size).toBe(ids.length)
-  })
-
-  it("drops a duplicate field.operator segment (no id collision from a crafted URL)", () => {
+describe("deserializeFilters — repeatable fields", () => {
+  it("keeps two conditions on the same field+operator (multi-use fields)", () => {
     const result = deserializeFilters("talent.in:t1;talent.in:t2")
-    expect(result).toHaveLength(1)
-    expect(result[0]!.value).toEqual(["t1"])
+    expect(result).toHaveLength(2)
+    expect(result.map((c) => c.value)).toEqual([["t1"], ["t2"]])
+  })
+
+  it("gives each condition a unique id even when field+operator repeat", () => {
+    const ids = deserializeFilters("talent.in:t1;talent.in:t2").map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })
