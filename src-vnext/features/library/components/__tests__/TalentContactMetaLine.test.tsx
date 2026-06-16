@@ -43,4 +43,20 @@ describe("TalentContactMetaLine", () => {
     expect(screen.getByText("No contact details")).toBeInTheDocument()
     expect(screen.queryByText("Email")).toBeNull()
   })
+
+  it("places exactly one separator between two shown fields for a viewer", () => {
+    render(
+      <TalentContactMetaLine
+        selected={talent({ email: "a@b.co", url: "https://behance.net/x" })}
+        canEdit={false}
+        busy={false}
+        savePatch={vi.fn()}
+      />,
+    )
+    expect(screen.getByText("Email")).toBeInTheDocument()
+    expect(screen.getByText("Web")).toBeInTheDocument()
+    expect(screen.queryByText("Phone")).toBeNull()
+    // One dot between the two shown fields — no leading, trailing, or doubled separator.
+    expect(screen.getAllByText("·")).toHaveLength(1)
+  })
 })
