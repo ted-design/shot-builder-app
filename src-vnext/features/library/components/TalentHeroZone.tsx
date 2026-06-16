@@ -4,6 +4,8 @@ import { Upload } from "lucide-react"
 import { Button } from "@/ui/button"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { ImageLightbox } from "@/shared/components/ImageLightbox"
+import { AgencyCombobox } from "@/features/library/components/AgencyCombobox"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import {
   genderBadgeClasses,
   genderDisplayLabel,
@@ -28,6 +30,7 @@ interface TalentHeroZoneProps {
   readonly busy: boolean
   readonly selectedHeadshotUrl: string | null
   readonly selectedHeadshotPath: string | null
+  readonly knownAgencies: readonly string[]
   readonly savePatch: (id: string, patch: Record<string, unknown>) => Promise<void>
   readonly onHeadshotFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>
   readonly setHeadshotRemoveOpen: (open: boolean) => void
@@ -39,12 +42,14 @@ export function TalentHeroZone({
   busy,
   selectedHeadshotUrl,
   selectedHeadshotPath,
+  knownAgencies,
   savePatch,
   onHeadshotFile,
   setHeadshotRemoveOpen,
 }: TalentHeroZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const agencyCombobox = isFeatureEnabled("featureTalentAgencyCombobox")
 
   const displayName = buildDisplayName(selected)
 
@@ -138,14 +143,24 @@ export function TalentHeroZone({
 
           {/* Agency */}
           {canEdit ? (
-            <InlineEdit
-              value={selected.agency ?? ""}
-              disabled={busy}
-              placeholder="Add agency"
-              onSave={(next) => void savePatch(selected.id, { agency: next || null })}
-              className="text-sm text-[var(--color-text-muted)]"
-              showEditIcon
-            />
+            agencyCombobox ? (
+              <AgencyCombobox
+                value={selected.agency ?? null}
+                knownAgencies={knownAgencies}
+                disabled={busy}
+                onChange={(next) => void savePatch(selected.id, { agency: next })}
+                triggerClassName="px-1 py-0.5 hover:bg-[var(--color-surface-subtle)]"
+              />
+            ) : (
+              <InlineEdit
+                value={selected.agency ?? ""}
+                disabled={busy}
+                placeholder="Add agency"
+                onSave={(next) => void savePatch(selected.id, { agency: next || null })}
+                className="text-sm text-[var(--color-text-muted)]"
+                showEditIcon
+              />
+            )
           ) : selected.agency ? (
             <span className="text-sm text-[var(--color-text-muted)]">{selected.agency}</span>
           ) : null}

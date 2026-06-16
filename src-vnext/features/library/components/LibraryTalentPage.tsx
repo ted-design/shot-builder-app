@@ -39,7 +39,7 @@ import {
   updateTalent,
 } from "@/features/library/lib/talentWrites"
 import type { TalentSearchFilters } from "@/features/library/lib/talentFilters"
-import { EMPTY_TALENT_FILTERS, filterTalent } from "@/features/library/lib/talentFilters"
+import { EMPTY_TALENT_FILTERS, extractUniqueAgencies, filterTalent } from "@/features/library/lib/talentFilters"
 import { TalentSearchFilterSheet, TalentFilterToolbar, TalentToolbarRangeFilters } from "@/features/library/components/TalentSearchFilters"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { cn } from "@/shared/lib/utils"
@@ -139,6 +139,10 @@ export default function LibraryTalentPage() {
     () => filterTalent(talent, filtersWithQuery),
     [talent, filtersWithQuery],
   )
+
+  // Distinct agency options for the controlled agency input (memoized so the
+  // referentially-stable array doesn't defeat React.memo(TalentDetailPanel)).
+  const knownAgencies = useMemo(() => extractUniqueAgencies(talent), [talent])
 
   const castingHasRequirements = useMemo(
     () => Object.values(castingBrief.requirements).some((r) => r.min !== null || r.max !== null),
@@ -746,6 +750,7 @@ export default function LibraryTalentPage() {
                   setActiveTab={setActiveTab}
                   selectedHeadshotUrl={selectedHeadshotUrl ?? null}
                   selectedHeadshotPath={selectedHeadshotPath}
+                  knownAgencies={knownAgencies}
                   portfolioImages={portfolioImages}
                   castingSessions={castingSessions}
                   projects={projects}
@@ -786,6 +791,7 @@ export default function LibraryTalentPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         busy={busy}
+        knownAgencies={knownAgencies}
         onSubmit={submitCreate}
       />
 
