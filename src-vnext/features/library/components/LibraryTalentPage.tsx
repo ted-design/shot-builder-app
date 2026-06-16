@@ -102,7 +102,6 @@ export default function LibraryTalentPage() {
   ])
 
   const [busy, setBusy] = useState(false)
-  const [sessionExpanded, setSessionExpanded] = useState<Record<string, boolean>>({})
   const {
     headshotRemoveOpen,
     setHeadshotRemoveOpen,
@@ -785,8 +784,6 @@ export default function LibraryTalentPage() {
                   setGalleryRemoveTarget={setGalleryRemoveTarget}
                   setSessionRemoveOpen={setSessionRemoveOpen}
                   setSessionRemoveTarget={setSessionRemoveTarget}
-                  sessionExpanded={sessionExpanded}
-                  setSessionExpanded={setSessionExpanded}
                   setDeleteOpen={setDeleteOpen}
                   setCreateSessionOpen={setCreateSessionOpen}
                   setPrintSessionId={setPrintSessionId}
