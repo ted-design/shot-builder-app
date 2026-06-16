@@ -4,8 +4,8 @@ import { HeroImageSection } from "../HeroImageSection"
 import type { Shot } from "@/shared/types"
 
 const catalogMocks = vi.hoisted(() => ({
-  family: { data: undefined as undefined | { thumbnailImagePath?: string; headerImagePath?: string } },
-  sku: { data: undefined as undefined | { imagePath?: string } },
+  family: { data: undefined as undefined | { id?: string; thumbnailImagePath?: string; headerImagePath?: string } },
+  sku: { data: undefined as undefined | { id?: string; imagePath?: string } },
 }))
 
 vi.mock("@/app/providers/AuthProvider", () => ({
@@ -116,11 +116,18 @@ describe("HeroImageSection frame variants", () => {
 
 describe("HeroImageSection cover-product fallback", () => {
   it("renders the explicit cover product's catalog image when no hero image is resolved", () => {
-    catalogMocks.family = { data: { thumbnailImagePath: "clients/c1/products/fam-X/thumb.webp" } }
+    catalogMocks.family = { data: { id: "fam-X", thumbnailImagePath: "clients/c1/products/fam-X/thumb.webp" } }
     render(<HeroImageSection heroImage={undefined} shot={coverShot} shotId="shot-1" canUpload={true} />)
     const img = screen.getByAltText("Hero")
     expect(img).toHaveAttribute("src", "clients/c1/products/fam-X/thumb.webp")
     expect(screen.queryByText("Add hero image")).not.toBeInTheDocument()
+  })
+
+  it("ignores stale catalog doc data carried over from a different product id", () => {
+    catalogMocks.family = { data: { id: "fam-OTHER", thumbnailImagePath: "clients/c1/products/fam-OTHER/thumb.webp" } }
+    render(<HeroImageSection heroImage={undefined} shot={coverShot} shotId="shot-1" canUpload={true} />)
+    expect(screen.queryByAltText("Hero")).not.toBeInTheDocument()
+    expect(screen.getByText("Add hero image")).toBeInTheDocument()
   })
 
   it("does not fall back when the cover product was explicitly cleared", () => {

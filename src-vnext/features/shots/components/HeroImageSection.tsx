@@ -45,18 +45,20 @@ export function HeroImageSection({
 
   // Catalog-image fallback for an explicit cover product whose URL was never denormalized.
   const coverAssignment = heroImage ? null : findExplicitCoverAssignment(shot)
-  const coverFamilyId = coverAssignment?.familyId ?? null
-  const coverSkuId = coverAssignment ? (coverAssignment.skuId ?? coverAssignment.colourId ?? null) : null
+  const coverDenormalized = coverAssignment
+    ? (coverAssignment.thumbUrl ?? coverAssignment.skuImageUrl ?? coverAssignment.familyImageUrl)
+    : undefined
+  // Only read catalog docs when the assignment carries no denormalized URL.
+  const coverFamilyId = coverAssignment && !coverDenormalized ? coverAssignment.familyId : null
+  const coverSkuId =
+    coverAssignment && !coverDenormalized ? (coverAssignment.skuId ?? coverAssignment.colourId ?? null) : null
   const { data: coverFamily } = useProductFamilyDoc(coverFamilyId)
   const { data: coverSku } = useProductSkuDoc(coverFamilyId, coverSkuId)
-  const coverFallbackSrc = coverAssignment
-    ? (coverAssignment.thumbUrl ??
-       coverAssignment.skuImageUrl ??
-       coverAssignment.familyImageUrl ??
-       coverSku?.imagePath ??
-       coverFamily?.thumbnailImagePath ??
-       coverFamily?.headerImagePath)
-    : undefined
+  // Ignore doc data still carried over from a prior id.
+  const coverSkuImage = coverSku?.id === coverSkuId ? coverSku?.imagePath : undefined
+  const coverFamilyImage =
+    coverFamily?.id === coverFamilyId ? (coverFamily?.thumbnailImagePath ?? coverFamily?.headerImagePath) : undefined
+  const coverFallbackSrc = coverDenormalized ?? coverSkuImage ?? coverFamilyImage
 
   const heroCandidate = heroImage?.downloadURL ?? heroImage?.path ?? coverFallbackSrc
   const resolvedHeroUrl = useStorageUrl(heroCandidate)
