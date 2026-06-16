@@ -70,8 +70,9 @@ export function serializeFilters(conditions: readonly FilterCondition[]): string
     .join(";")
 }
 
-function makeId(): string {
-  return crypto.randomUUID()
+/** Stable, deterministic id — one condition per field+operator, so it survives URL round-trips. */
+function makeId(field: FilterField, operator: FilterOperator): string {
+  return `${field}.${operator}`
 }
 
 /**
@@ -102,7 +103,7 @@ export function deserializeFilters(raw: string | null): readonly FilterCondition
     if (!meta.operators.includes(operator)) continue
 
     const value = decodeValue(rawValue, field, operator)
-    result.push({ id: makeId(), field, operator, value })
+    result.push({ id: makeId(field, operator), field, operator, value })
   }
 
   return result
@@ -127,30 +128,30 @@ export function migrateLegacyParams(searchParams: URLSearchParams): readonly Fil
   if (statusCsv) {
     const statuses = statusCsv.split(",").filter(Boolean)
     if (statuses.length > 0) {
-      conditions.push({ id: makeId(), field: "status", operator: "in", value: statuses })
+      conditions.push({ id: makeId("status", "in"), field: "status", operator: "in", value: statuses })
     }
   }
 
   const talentId = searchParams.get("talent")
   if (talentId?.trim()) {
-    conditions.push({ id: makeId(), field: "talent", operator: "in", value: [talentId.trim()] })
+    conditions.push({ id: makeId("talent", "in"), field: "talent", operator: "in", value: [talentId.trim()] })
   }
 
   const locationId = searchParams.get("location")
   if (locationId?.trim()) {
-    conditions.push({ id: makeId(), field: "location", operator: "in", value: [locationId.trim()] })
+    conditions.push({ id: makeId("location", "in"), field: "location", operator: "in", value: [locationId.trim()] })
   }
 
   const productId = searchParams.get("product")
   if (productId?.trim()) {
-    conditions.push({ id: makeId(), field: "product", operator: "in", value: [productId.trim()] })
+    conditions.push({ id: makeId("product", "in"), field: "product", operator: "in", value: [productId.trim()] })
   }
 
   const tagCsv = searchParams.get("tag")
   if (tagCsv) {
     const tagIds = tagCsv.split(",").filter(Boolean)
     if (tagIds.length > 0) {
-      conditions.push({ id: makeId(), field: "tag", operator: "in", value: tagIds })
+      conditions.push({ id: makeId("tag", "in"), field: "tag", operator: "in", value: tagIds })
     }
   }
 
@@ -158,7 +159,7 @@ export function migrateLegacyParams(searchParams: URLSearchParams): readonly Fil
   if (missingCsv) {
     const keys = missingCsv.split(",").filter(Boolean)
     if (keys.length > 0) {
-      conditions.push({ id: makeId(), field: "missing", operator: "in", value: keys })
+      conditions.push({ id: makeId("missing", "in"), field: "missing", operator: "in", value: keys })
     }
   }
 

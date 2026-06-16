@@ -332,3 +332,28 @@ describe("migrateLegacyParams", () => {
     expect(fields).toContain("tag")
   })
 })
+
+// ---------------------------------------------------------------------------
+// Stable ids — condition ids must survive URL round-trips so filter rows keyed
+// by id are not remounted on every value update.
+// ---------------------------------------------------------------------------
+
+describe("deserializeFilters — stable ids", () => {
+  it("yields identical ids for the same input across calls", () => {
+    const raw = "status.in:todo,in_progress;talent.in:t1"
+    const a = deserializeFilters(raw)
+    const b = deserializeFilters(raw)
+    expect(a.map((c) => c.id)).toEqual(b.map((c) => c.id))
+  })
+
+  it("derives the id from field+operator", () => {
+    const [status, talent] = deserializeFilters("status.in:todo;talent.in:t1")
+    expect(status!.id).toBe("status.in")
+    expect(talent!.id).toBe("talent.in")
+  })
+
+  it("gives each condition a unique id within a result set", () => {
+    const ids = deserializeFilters("status.in:todo;talent.in:t1;location.in:l1").map((c) => c.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
