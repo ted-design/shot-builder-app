@@ -68,6 +68,11 @@ const TALENT_VIEW_OPTIONS = [
   { key: "table", icon: Table2, label: "Table view" },
 ] as const
 
+// Module-level: stable identity so @dnd-kit's useSensor memo holds and the `sensors`
+// array stays referentially stable, letting React.memo(TalentDetailPanel) skip re-renders.
+const POINTER_SENSOR_OPTIONS = { activationConstraint: { distance: 8 } }
+const KEYBOARD_SENSOR_OPTIONS = { coordinateGetter: sortableKeyboardCoordinates }
+
 export default function LibraryTalentPage() {
   const { clientId, role, user } = useAuth()
   const isMobile = useIsMobile()
@@ -121,8 +126,8 @@ export default function LibraryTalentPage() {
   } = useTalentDialogs()
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(PointerSensor, POINTER_SENSOR_OPTIONS),
+    useSensor(KeyboardSensor, KEYBOARD_SENSOR_OPTIONS),
   )
 
   const filtersWithQuery = useMemo(
@@ -226,7 +231,7 @@ export default function LibraryTalentPage() {
     return () => window.removeEventListener("keydown", handler)
   }, [selectedId, navigatePrev, navigateNext])
 
-  const updateGallery = async (
+  const updateGallery = useCallback(async (
     next: TalentImage[],
     removedPaths: readonly (string | null | undefined)[] = [],
     successLabel?: string,
@@ -253,9 +258,9 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, selected, user])
 
-  const updateCastingSessions = async (
+  const updateCastingSessions = useCallback(async (
     next: CastingSession[],
     removedPaths: readonly (string | null | undefined)[] = [],
     successLabel?: string,
@@ -284,9 +289,9 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, selected, user])
 
-  const savePatch = async (id: string, patch: Record<string, unknown>) => {
+  const savePatch = useCallback(async (id: string, patch: Record<string, unknown>) => {
     if (!clientId) return
     setBusy(true)
     try {
@@ -303,14 +308,14 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, user])
 
   useEffect(() => {
     if (!printSessionId) return
     if (!selected || !printSession) setPrintSessionId(null)
   }, [printSession, printSessionId, selected])
 
-  const onHeadshotFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onHeadshotFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!clientId || !selected) return
     const file = event.target.files?.[0] ?? null
     event.target.value = ""
@@ -333,9 +338,9 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, selected, user, selectedHeadshotPath])
 
-  const onPortfolioFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onPortfolioFiles = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!clientId || !selected) return
     const files = Array.from(event.target.files ?? [])
     event.target.value = ""
@@ -371,9 +376,9 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, selected, user, portfolioImages])
 
-  const onCastingFiles = async (sessionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const onCastingFiles = useCallback(async (sessionId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     if (!clientId || !selected) return
     const files = Array.from(event.target.files ?? [])
     event.target.value = ""
@@ -418,7 +423,7 @@ export default function LibraryTalentPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [clientId, selected, user, castingSessions])
 
   const confirmRemoveHeadshot = async () => {
     if (!clientId || !selected) return
