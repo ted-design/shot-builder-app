@@ -99,6 +99,17 @@ export interface FeatureFlags {
    * URL/localStorage layer.
    */
   readonly featureCastingMatcherSurface: boolean
+  /**
+   * Talent redesign Phase 6 — lazy images. Gates `loading="lazy"` on the
+   * portfolio / casting-session image grids (the shared SortableImageTile).
+   * Default OFF; the flag-off path omits the attribute (byte-identical).
+   * Enabled via `VITE_TALENT_LAZY=1` (or `true`) at build/dev time
+   * (featureCastingMatcherSurface env-parse precedent). No URL/localStorage
+   * layer. (The React.lazy code-split half of Phase 6 was dropped: a bundler
+   * can't split a still-statically-imported module, so it can't be both
+   * flag-gated and flag-off byte-identical.)
+   */
+  readonly featureTalentLazy: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -111,6 +122,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShotFilterTalentScope: false,
   featureTalentAgencyCombobox: false,
   featureCastingMatcherSurface: false,
+  featureTalentLazy: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -154,6 +166,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureCastingMatcherSurface:
       DEFAULT_FLAGS.featureCastingMatcherSurface ||
       parseEnvFlag(import.meta.env.VITE_CASTING_MATCHER_SURFACE),
+    featureTalentLazy:
+      DEFAULT_FLAGS.featureTalentLazy ||
+      parseEnvFlag(import.meta.env.VITE_TALENT_LAZY),
   }
 }
 

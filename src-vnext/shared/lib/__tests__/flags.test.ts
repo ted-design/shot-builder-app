@@ -150,4 +150,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureCastingMatcherSurface")).toBe(false)
     }
   })
+
+  it("defaults featureTalentLazy to false (Talent redesign Phase 6 is dark on main)", () => {
+    expect(getFeatureFlags().featureTalentLazy).toBe(false)
+    expect(isFeatureEnabled("featureTalentLazy")).toBe(false)
+  })
+
+  it("VITE_TALENT_LAZY='1' or 'true' enables featureTalentLazy", () => {
+    vi.stubEnv("VITE_TALENT_LAZY", "1")
+    expect(isFeatureEnabled("featureTalentLazy")).toBe(true)
+
+    vi.stubEnv("VITE_TALENT_LAZY", "true")
+    expect(isFeatureEnabled("featureTalentLazy")).toBe(true)
+  })
+
+  it("any other VITE_TALENT_LAZY value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_TALENT_LAZY", value)
+      expect(isFeatureEnabled("featureTalentLazy")).toBe(false)
+    }
+  })
 })
