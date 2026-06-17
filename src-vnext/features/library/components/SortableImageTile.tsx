@@ -3,14 +3,16 @@ import { CSS } from "@dnd-kit/utilities"
 import { GripVertical, Trash2 } from "lucide-react"
 import { InlineEdit } from "@/shared/components/InlineEdit"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import type { TalentImage } from "@/features/library/components/talentUtils"
 
 function ImageThumb({ image, alt }: { readonly image: TalentImage; readonly alt: string }) {
   const url = useStorageUrl(image.downloadURL ?? image.path)
+  const loading = isFeatureEnabled("featureTalentLazy") ? "lazy" : undefined
   return (
     <div className="aspect-square overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
       {url ? (
-        <img src={url} alt={alt} className="h-full w-full object-cover" />
+        <img src={url} alt={alt} loading={loading} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-xs text-[var(--color-text-muted)]">
           —
