@@ -105,9 +105,7 @@ export interface FeatureFlags {
    * Default OFF; the flag-off path omits the attribute (byte-identical).
    * Enabled via `VITE_TALENT_LAZY=1` (or `true`) at build/dev time
    * (featureCastingMatcherSurface env-parse precedent). No URL/localStorage
-   * layer. (The React.lazy code-split half of Phase 6 was dropped: a bundler
-   * can't split a still-statically-imported module, so it can't be both
-   * flag-gated and flag-off byte-identical.)
+   * layer.
    */
   readonly featureTalentLazy: boolean
 }

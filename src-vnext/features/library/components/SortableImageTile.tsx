@@ -8,8 +8,6 @@ import type { TalentImage } from "@/features/library/components/talentUtils"
 
 function ImageThumb({ image, alt }: { readonly image: TalentImage; readonly alt: string }) {
   const url = useStorageUrl(image.downloadURL ?? image.path)
-  // Phase 6 (featureTalentLazy): defer offscreen portfolio / casting-session
-  // grid images. Flag-off omits the attribute (byte-identical).
   const loading = isFeatureEnabled("featureTalentLazy") ? "lazy" : undefined
   return (
     <div className="aspect-square overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-subtle)]">
