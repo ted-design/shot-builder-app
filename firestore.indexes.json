@@ -101,6 +101,14 @@
       ]
     },
     {
+      "collectionGroup": "captureOneShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "projectId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "callSheetShares",
       "queryScope": "COLLECTION",
       "fields": [

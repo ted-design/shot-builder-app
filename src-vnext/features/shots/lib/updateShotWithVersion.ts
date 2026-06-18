@@ -4,6 +4,7 @@ import { shotPath } from "@/shared/lib/paths"
 import type { AuthUser, Shot } from "@/shared/types"
 import { buildShotWritePayload } from "@/features/shots/lib/updateShot"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
+import { refreshCaptureOneSharesForProject } from "@/features/captureone/lib/captureOneShareWrites"
 
 /**
  * Update a shot document and (best-effort) write a version snapshot.
@@ -30,6 +31,11 @@ export async function updateShotWithVersion(args: {
     ...payload,
     updatedAt: serverTimestamp(),
     ...(user?.uid ? { updatedBy: user.uid } : {}),
+  })
+
+  // Keep public Capture One share filenames current (best-effort, never blocks the save).
+  void refreshCaptureOneSharesForProject({ clientId, projectId: shot.projectId }).catch((err) => {
+    console.error(`[updateShotWithVersion] Capture One share refresh failed (source=${source})`, err)
   })
 
   if (!user?.uid) return
