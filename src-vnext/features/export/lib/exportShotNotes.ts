@@ -1,24 +1,11 @@
 import { textPreview } from "@/shared/lib/textPreview"
 import type { Shot } from "@/shared/types"
 
-/** textPreview truncates to a card-preview length by default; exports want the
- *  full note, so we pass an effectively-unbounded max. */
-const NO_TRUNCATE = Number.MAX_SAFE_INTEGER
+const NO_TRUNCATE = Number.MAX_SAFE_INTEGER // exports want the full note, not a card preview
 
-/**
- * Resolve the producer-facing notes text for export surfaces.
- *
- * The app writes producer notes to `notesAddendum`; `shot.notes` is a legacy
- * HTML field that is never written anymore (see `NotesSection`). Every other
- * read surface — shot cards (`getShotNotesPreview`) and the public share page —
- * prioritizes `notesAddendum`; the export was the lone outlier reading the dead
- * `notes` field, so shots that visibly had notes exported blank.
- *
- * This mirrors `getShotNotesPreview` (notesAddendum first, legacy notes
- * fallback) but without the preview-length truncation, and always strips HTML
- * so legacy markup never leaks into a table cell or PDF. Returns `""` when there
- * are no notes.
- */
+// Producer notes for export surfaces: notesAddendum first, legacy `notes` fallback,
+// HTML-stripped, untruncated. The app stopped writing `notes` (see NotesSection);
+// mirrors getShotNotesPreview so exports match the cards + share page. "" when empty.
 export function resolveExportShotNotes(
   shot: Pick<Shot, "notes" | "notesAddendum">,
 ): string {
