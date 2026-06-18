@@ -1,0 +1,422 @@
+[
+  {
+    "file": "src-vnext/app/providers/AuthProvider.tsx",
+    "code": "TS2769",
+    "count": 1,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/admin/components/UserDetailPanel.tsx",
+    "code": "TS2769",
+    "count": 1,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/admin/lib/adminWrites.test.ts",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/admin/lib/adminWrites.ts",
+    "code": "TS2769",
+    "count": 4,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/assets/lib/projectAssetsWrites.test.ts",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/dashboard/components/ExpandedFamilySkus.test.tsx",
+    "code": "TS2353",
+    "count": 8,
+    "sample": "Object literal may only specify known properties, and 'filterByRequirements' does not exist in type 'Partial<{ readonly familyId: \"f1\"; readonly familyName: \"Test Family\"; readonly selectionMode: false; readonly selection: { readonly isSelected: () => boolean; readonly toggle: Mock<Procedure>; ... 5 more ...; readonly getSelectedSkus: () => Array<{ familyId: string; familyName: string; skuId: string; skuName: strin...'."
+  },
+  {
+    "file": "src-vnext/features/export/components/ExportBuilderPage.tsx",
+    "code": "TS2304",
+    "count": 1,
+    "sample": "Cannot find name 'BUILT_IN_TEMPLATES'."
+  },
+  {
+    "file": "src-vnext/features/export/components/ExportBuilderPage.tsx",
+    "code": "TS7006",
+    "count": 1,
+    "sample": "Parameter 't' implicitly has an 'any' type."
+  },
+  {
+    "file": "src-vnext/features/export/hooks/__tests__/useExportTemplates.test.tsx",
+    "code": "TS2493",
+    "count": 1,
+    "sample": "Tuple type '[]' of length '0' has no element at index '1'."
+  },
+  {
+    "file": "src-vnext/features/export/hooks/__tests__/useExportTemplates.test.tsx",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/library/components/__tests__/LocationsTable.test.tsx",
+    "code": "TS2345",
+    "count": 2,
+    "sample": "Argument of type 'HTMLElement | undefined' is not assignable to parameter of type 'HTMLElement'."
+  },
+  {
+    "file": "src-vnext/features/library/components/LocationDetailPage.tsx",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'string | null | undefined' is not assignable to type 'string | null'."
+  },
+  {
+    "file": "src-vnext/features/library/components/LocationsTable.tsx",
+    "code": "TS2532",
+    "count": 1,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/products/components/__tests__/ProductVersionHistorySection.test.tsx",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type '{ id: string; styleName: string; styleNumber?: string; previousStyleNumber?: string; styleNumbers?: ReadonlyArray<string>; gender?: string | null; productType?: string; productSubcategory?: string; ... 25 more ...; clientId?: string | undefined; }' is not assignable to type 'ProductFamily'."
+  },
+  {
+    "file": "src-vnext/features/products/components/ProductRequirementsSection.tsx",
+    "code": "TS2345",
+    "count": 2,
+    "sample": "Argument of type 'string' is not assignable to parameter of type 'ProductAssetType'."
+  },
+  {
+    "file": "src-vnext/features/products/lib/mapProductWorkspace.ts",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'string | null' is not assignable to type 'ProductSampleCondition | null | undefined'."
+  },
+  {
+    "file": "src-vnext/features/projects/components/__tests__/CreateProjectDialog.test.tsx",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/projects/components/home/__tests__/StatusLedger.test.tsx",
+    "code": "TS18048",
+    "count": 1,
+    "sample": "'gatedExport' is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/projects/components/home/__tests__/StatusLedger.test.tsx",
+    "code": "TS2322",
+    "count": 6,
+    "sample": "Type 'LedgerRow | undefined' is not assignable to type 'LedgerRow'."
+  },
+  {
+    "file": "src-vnext/features/projects/components/home/lib/__tests__/ledgerData.test.ts",
+    "code": "TS2532",
+    "count": 7,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/pulls/components/WarehousePickStep.tsx",
+    "code": "TS2345",
+    "count": 1,
+    "sample": "Argument of type 'null' is not assignable to parameter of type 'string | undefined'."
+  },
+  {
+    "file": "src-vnext/features/requests/hooks/useShotRequest.test.ts",
+    "code": "TS2556",
+    "count": 2,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/requests/hooks/useShotRequest.ts",
+    "code": "TS2769",
+    "count": 1,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/requests/lib/__tests__/requestNotification.test.ts",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/requests/lib/__tests__/requestNotification.test.ts",
+    "code": "TS2769",
+    "count": 4,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/requests/lib/requestWrites.test.ts",
+    "code": "TS2556",
+    "count": 2,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/requests/lib/requestWrites.ts",
+    "code": "TS2556",
+    "count": 4,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/requests/lib/requestWrites.ts",
+    "code": "TS2769",
+    "count": 4,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/__tests__/CallSheetBuilderPage.test.tsx",
+    "code": "TS2353",
+    "count": 1,
+    "sample": "Object literal may only specify known properties, and 'clientId' does not exist in type 'Schedule'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/__tests__/CallSheetBuilderPage.test.tsx",
+    "code": "TS2561",
+    "count": 1,
+    "sample": "Object literal may only specify known properties, but 'location' does not exist in type 'DayDetails'. Did you mean to write 'locations'?"
+  },
+  {
+    "file": "src-vnext/features/schedules/components/__tests__/ScheduleListPage.test.tsx",
+    "code": "TS2353",
+    "count": 1,
+    "sample": "Object literal may only specify known properties, and 'clientId' does not exist in type 'Schedule'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/DayDetailsEditor.test.tsx",
+    "code": "TS2550",
+    "count": 5,
+    "sample": "Property 'at' does not exist on type 'any[][]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2022' or later."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/OnSetViewerPage.test.tsx",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'null' is not assignable to type 'string | undefined'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/OnSetViewerPage.test.tsx",
+    "code": "TS2345",
+    "count": 5,
+    "sample": "Argument of type '{ data: Schedule; loading: false; error: null; }' is not assignable to parameter of type 'FirestoreDocResult<Schedule>'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/OnSetViewerPage.test.tsx",
+    "code": "TS2353",
+    "count": 1,
+    "sample": "Object literal may only specify known properties, and 'clientId' does not exist in type 'Schedule'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/OnSetViewerPage.test.tsx",
+    "code": "TS2561",
+    "count": 1,
+    "sample": "Object literal may only specify known properties, but 'location' does not exist in type 'DayDetails'. Did you mean to write 'locations'?"
+  },
+  {
+    "file": "src-vnext/features/schedules/components/TimelineGridView.tsx",
+    "code": "TS18048",
+    "count": 3,
+    "sample": "'last' is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/TimelineGridView.tsx",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'OverlapBand | undefined' is not assignable to type 'OverlapBand'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/TimelineGridView.tsx",
+    "code": "TS2345",
+    "count": 1,
+    "sample": "Argument of type 'OverlapBand | undefined' is not assignable to parameter of type 'OverlapBand'."
+  },
+  {
+    "file": "src-vnext/features/schedules/components/TimelineGridView.tsx",
+    "code": "TS2532",
+    "count": 4,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/schedules/lib/__tests__/trackFiltering.test.ts",
+    "code": "TS2532",
+    "count": 1,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/schedules/lib/callSheetConfig.ts",
+    "code": "TS2440",
+    "count": 1,
+    "sample": "Import declaration conflicts with local declaration of 'DEFAULT_SECTION_ORDER'."
+  },
+  {
+    "file": "src-vnext/features/schedules/lib/callSheetLayouts.test.ts",
+    "code": "TS2532",
+    "count": 5,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/schedules/lib/mapSchedule.ts",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type '({ id: string; title: \"Production Office\" | \"Hospital\" | \"Basecamp\" | \"Parking\"; ref: { readonly locationId?: string | null | undefined; readonly label?: string | null | undefined; readonly notes?: string | ... 1 more ... | undefined; } | null; showName: true; showPhone: boolean; } | { ...; } | null)[]' is not assignable to type 'readonly LocationBlock[]'."
+  },
+  {
+    "file": "src-vnext/features/schedules/lib/mapSchedule.ts",
+    "code": "TS2677",
+    "count": 2,
+    "sample": "A type predicate's type must be assignable to its parameter's type."
+  },
+  {
+    "file": "src-vnext/features/shots/components/__tests__/CreateShotDialog.test.tsx",
+    "code": "TS2352",
+    "count": 1,
+    "sample": "Conversion of type '{ id: string; title: string; description: null; projectId: string; clientId: string; status: \"todo\"; talent: never[]; products: never[]; sortOrder: number; shotNumber: null; date: null; deleted: false; notes: null; referenceLinks: never[]; createdAt: null; updatedAt: null; createdBy: string; }' to type 'Shot' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  },
+  {
+    "file": "src-vnext/features/shots/components/__tests__/ShotQuickAdd.test.tsx",
+    "code": "TS2345",
+    "count": 2,
+    "sample": "Argument of type '(call: [unknown, Record<string, unknown>]) => unknown' is not assignable to parameter of type '(value: any[], index: number, array: any[][]) => unknown'."
+  },
+  {
+    "file": "src-vnext/features/shots/components/ActiveEditorsBar.tsx",
+    "code": "TS2532",
+    "count": 1,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/features/shots/components/ShotListPage.tsx",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'AuthUser | null' is not assignable to type 'User | null'."
+  },
+  {
+    "file": "src-vnext/features/shots/hooks/useHeroProductData.ts",
+    "code": "TS2556",
+    "count": 2,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/__tests__/sceneGrouping.test.ts",
+    "code": "TS2352",
+    "count": 1,
+    "sample": "Conversion of type '{ id: string; name: string; projectId: string; clientId: string; sortOrder: number; sceneNumber: number; createdAt: null; updatedAt: null; createdBy: string; }' to type 'Lane' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/laneActions.ts",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/laneActions.ts",
+    "code": "TS2769",
+    "count": 3,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/shotNumbering.test.ts",
+    "code": "TS2322",
+    "count": 4,
+    "sample": "Type 'null' is not assignable to type 'string | undefined'."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/shotProductReadiness.test.ts",
+    "code": "TS2353",
+    "count": 14,
+    "sample": "Object literal may only specify known properties, and 'familyId' does not exist in type 'ProductSku'."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/shotTableColumns.test.ts",
+    "code": "TS2741",
+    "count": 1,
+    "sample": "Property 'scene' is missing in type '{ heroThumb: false; shotNumber: false; description: false; notes: false; readiness: false; tags: false; date: false; location: false; products: false; links: false; talent: false; launch: false; reqs: false; samples: false; updated: false; }' but required in type 'ShotsListFields'."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/shotVersioning.test.ts",
+    "code": "TS2556",
+    "count": 1,
+    "sample": "A spread argument must either have a tuple type or be passed to a rest parameter."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/warehousePullList.test.ts",
+    "code": "TS2322",
+    "count": 2,
+    "sample": "Type 'null' is not assignable to type 'string | undefined'."
+  },
+  {
+    "file": "src-vnext/features/shots/lib/warehousePullList.test.ts",
+    "code": "TS2769",
+    "count": 1,
+    "sample": "No overload matches this call."
+  },
+  {
+    "file": "src-vnext/shared/components/sidebar/nav-config.test.ts",
+    "code": "TS2532",
+    "count": 2,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/shared/hooks/__tests__/useTableColumns.test.ts",
+    "code": "TS2339",
+    "count": 1,
+    "sample": "Property 'toSorted' does not exist on type 'readonly TableColumnConfig[]'."
+  },
+  {
+    "file": "src-vnext/shared/hooks/__tests__/useTableColumns.test.ts",
+    "code": "TS7006",
+    "count": 3,
+    "sample": "Parameter 'a' implicitly has an 'any' type."
+  },
+  {
+    "file": "src-vnext/shared/hooks/useTableColumns.ts",
+    "code": "TS2550",
+    "count": 1,
+    "sample": "Property 'toSorted' does not exist on type 'TableColumnConfig[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2023' or later."
+  },
+  {
+    "file": "src-vnext/shared/hooks/useTableColumns.ts",
+    "code": "TS7006",
+    "count": 2,
+    "sample": "Parameter 'a' implicitly has an 'any' type."
+  },
+  {
+    "file": "src-vnext/shared/lib/__tests__/callFunction.test.ts",
+    "code": "TS18046",
+    "count": 2,
+    "sample": "'error' is of type 'unknown'."
+  },
+  {
+    "file": "src-vnext/shared/lib/sizeRange.ts",
+    "code": "TS2322",
+    "count": 3,
+    "sample": "Type 'string | undefined' is not assignable to type 'string | null'."
+  },
+  {
+    "file": "src-vnext/shared/lib/sizeRange.ts",
+    "code": "TS2345",
+    "count": 7,
+    "sample": "Argument of type 'string | undefined' is not assignable to parameter of type '\"M\" | \"S\" | \"L\" | \"XL\" | \"XS\" | \"XXS\" | \"XXL\" | \"2XL\" | \"3XL\"'."
+  },
+  {
+    "file": "src-vnext/shared/lib/sizeRange.ts",
+    "code": "TS2532",
+    "count": 1,
+    "sample": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "src-vnext/shared/types/presence.ts",
+    "code": "TS2322",
+    "count": 1,
+    "sample": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "src-vnext/shared/types/presence.ts",
+    "code": "TS2532",
+    "count": 5,
+    "sample": "Object is possibly 'undefined'."
+  }
+]
