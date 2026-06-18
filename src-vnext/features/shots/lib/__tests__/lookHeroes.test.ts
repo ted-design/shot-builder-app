@@ -119,6 +119,14 @@ describe("reconcileHeroProductId", () => {
     expect(reconcileHeroProductId([p({ familyId: "a" })], null)).toBeNull()
   })
 
+  it("keeps an explicit NONE (null) hidden even when a product is starred (hide-header stays hidden)", () => {
+    // Regression: hiding the header sets heroProductId=null while leaving isHero
+    // stars; a later product edit must NOT resurrect the cover from the star.
+    expect(
+      reconcileHeroProductId([p({ familyId: "a", skuId: "sku-a", isHero: true })], null),
+    ).toBeNull()
+  })
+
   it("stays AUTO (undefined) when there is no pointer and nothing is starred", () => {
     expect(reconcileHeroProductId([p({ familyId: "a" })], undefined)).toBeUndefined()
   })

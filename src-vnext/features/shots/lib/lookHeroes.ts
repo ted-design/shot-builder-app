@@ -61,6 +61,10 @@ export function reconcileHeroProductId(
   products: ReadonlyArray<ProductAssignment>,
   prevHeroProductId: string | null | undefined,
 ): string | null | undefined {
+  // An explicit NONE (null) — set by "hide header" — stays hidden across product
+  // edits; only an explicit star toggle (handleToggleHero, which calls
+  // firstHeroProductId directly) re-enables the cover.
+  if (prevHeroProductId === null) return null
   const starred = firstHeroProductId(products)
   if (starred !== undefined) return starred
   if (typeof prevHeroProductId === "string" && prevHeroProductId.length > 0) {
