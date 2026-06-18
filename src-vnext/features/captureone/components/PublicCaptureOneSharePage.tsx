@@ -8,8 +8,12 @@ import { DetailPageSkeleton } from "@/shared/components/Skeleton"
 import { Input } from "@/ui/input"
 import { Button } from "@/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
-import { AlertTriangle, Copy, Search } from "lucide-react"
+import { AlertTriangle, Copy, Download, Search } from "lucide-react"
 import { toast } from "sonner"
+import {
+  buildCaptureOneXlsxBuffer,
+  captureOneXlsxFilename,
+} from "@/features/captureone/lib/exportCaptureOneXlsx"
 
 interface PublicHeroFilename {
   readonly name: string
@@ -81,6 +85,7 @@ export default function PublicCaptureOneSharePage() {
   const [loading, setLoading] = useState(true)
   const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
   const [query, setQuery] = useState("")
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -162,6 +167,33 @@ export default function PublicCaptureOneSharePage() {
     [filtered],
   )
 
+  // Exports the full snapshot (all shots), not the search-filtered view.
+  const downloadXlsx = async () => {
+    if (shots.length === 0) return
+    setDownloading(true)
+    try {
+      const buffer = await buildCaptureOneXlsxBuffer({ projectName, shots })
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+      const filename = captureOneXlsxFilename(projectName)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success(`Downloaded ${filename}`)
+    } catch (err) {
+      console.error("[PublicCaptureOneSharePage] xlsx export failed:", err)
+      toast.error("Couldn’t generate the .xlsx")
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   if (loading) return <LoadingState loading skeleton={<DetailPageSkeleton />} />
 
   if (errorInfo) {
@@ -195,6 +227,15 @@ export default function PublicCaptureOneSharePage() {
                 >
                   <Copy className="mr-1.5 h-3.5 w-3.5" />
                   Copy all
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={shots.length === 0 || downloading}
+                  onClick={() => void downloadXlsx()}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  {downloading ? "Preparing…" : "Download .xlsx"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => window.print()}>
                   Print

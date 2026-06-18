@@ -91,6 +91,13 @@ export default defineConfig({
             return 'dnd';
           }
 
+          // exceljs - only loaded when a digi-tech downloads the Capture One .xlsx
+          // (dynamic import). Heavy (~900 kB); imports only INTO vendor, never the
+          // reverse, so the chunk graph stays a DAG.
+          if (id.includes('node_modules/exceljs/')) {
+            return 'exceljs';
+          }
+
           // Everything else from node_modules — including React and all its eager
           // consumers — shares ONE acyclic vendor chunk.
           if (id.includes('node_modules')) {
