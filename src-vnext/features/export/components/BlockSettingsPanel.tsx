@@ -4,9 +4,11 @@ import { Button } from "@/ui/button"
 import type { BlockLayout, ExportBlock } from "../types/exportBuilder"
 import { TextSettings } from "./settings/TextSettings"
 import { ShotGridSettings } from "./settings/ShotGridSettings"
+import { ShotDetailSettings } from "./settings/ShotDetailSettings"
 import { DividerSettings } from "./settings/DividerSettings"
 import { ImageSettings } from "./settings/ImageSettings"
 import { ProductTableSettings } from "./settings/ProductTableSettings"
+import { PullSheetSettings } from "./settings/PullSheetSettings"
 import { BlockLayoutSettings } from "./settings/BlockLayoutSettings"
 
 interface BlockSettingsPanelProps {
@@ -87,6 +89,12 @@ export function BlockSettingsPanel({
         {block.type === "shot-grid" && (
           <ShotGridSettings block={block} onUpdate={handleUpdate} />
         )}
+        {block.type === "shot-detail" && (
+          <ShotDetailSettings block={block} onUpdate={handleUpdate} />
+        )}
+        {block.type === "pull-sheet" && (
+          <PullSheetSettings block={block} onUpdate={handleUpdate} />
+        )}
         {block.type === "divider" && (
           <DividerSettings block={block} onUpdate={handleUpdate} />
         )}
@@ -103,9 +111,11 @@ export function BlockSettingsPanel({
         )}
         {block.type !== "text" &&
           block.type !== "shot-grid" &&
+          block.type !== "shot-detail" &&
           block.type !== "divider" &&
           block.type !== "image" &&
-          block.type !== "product-table" && (
+          block.type !== "product-table" &&
+          block.type !== "pull-sheet" && (
             <p className="text-2xs text-[var(--color-text-muted)]">
               No additional settings for this block type.
             </p>
