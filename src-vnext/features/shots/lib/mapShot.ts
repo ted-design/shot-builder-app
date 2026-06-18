@@ -57,6 +57,8 @@ function normalizeProducts(raw: unknown): ProductAssignment[] {
       thumbUrl: asString(p["thumbUrl"]) ?? legacyThumbPath,
       skuImageUrl: asString(p["skuImageUrl"]) ?? asString(p["colourImagePath"]),
       familyImageUrl: asString(p["familyImageUrl"]) ?? asString(p["thumbnailImagePath"]),
+      // Absent/false stays undefined so the write-side sanitizer omits the key.
+      isHero: p["isHero"] === true ? true : undefined,
     }
   })
 }

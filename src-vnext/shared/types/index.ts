@@ -50,6 +50,8 @@ export interface ProductAssignment {
   readonly thumbUrl?: string
   readonly skuImageUrl?: string
   readonly familyImageUrl?: string
+  /** Marks this product as a hero (Capture One filename source). Multiple per look allowed; absent = not a hero. */
+  readonly isHero?: boolean
 }
 
 export type ShotTagCategory = "priority" | "gender" | "media" | "other"

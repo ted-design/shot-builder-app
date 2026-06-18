@@ -95,6 +95,58 @@ describe("ProductAssignmentPicker", () => {
     expect(img).toHaveAttribute("src", "https://img.test/thumb.jpg")
   })
 
+  describe("hero star", () => {
+    it("does not render the star when onToggleHero is omitted", () => {
+      render(<ProductAssignmentPicker selected={EXISTING} onSave={vi.fn()} />)
+      expect(
+        screen.queryByRole("button", { name: /hero product/i }),
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders a pressed star for hero indices and toggles by index on click", () => {
+      const onToggleHero = vi.fn()
+      render(
+        <ProductAssignmentPicker
+          selected={EXISTING}
+          onSave={vi.fn()}
+          heroIndexes={new Set([0])}
+          onToggleHero={onToggleHero}
+        />,
+      )
+      const star = screen.getByRole("button", { name: "Unmark hero product" })
+      expect(star).toHaveAttribute("aria-pressed", "true")
+      fireEvent.click(star)
+      expect(onToggleHero).toHaveBeenCalledWith(0)
+    })
+
+    it("renders an unpressed star for non-hero rows", () => {
+      render(
+        <ProductAssignmentPicker
+          selected={EXISTING}
+          onSave={vi.fn()}
+          heroIndexes={new Set()}
+          onToggleHero={vi.fn()}
+        />,
+      )
+      expect(
+        screen.getByRole("button", { name: "Mark as hero product" }),
+      ).toHaveAttribute("aria-pressed", "false")
+    })
+
+    it("disables the star when the picker is read-only", () => {
+      render(
+        <ProductAssignmentPicker
+          selected={EXISTING}
+          onSave={vi.fn()}
+          disabled
+          heroIndexes={new Set([0])}
+          onToggleHero={vi.fn()}
+        />,
+      )
+      expect(screen.getByRole("button", { name: "Unmark hero product" })).toBeDisabled()
+    })
+  })
+
   describe("save-gated confirm", () => {
     it("keeps dialog open and retains selections when onSave resolves false", async () => {
       onSave.mockResolvedValue(false)
