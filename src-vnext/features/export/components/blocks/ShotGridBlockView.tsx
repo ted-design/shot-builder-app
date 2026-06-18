@@ -31,8 +31,15 @@ function getCellValue(
   switch (columnKey) {
     case "shotNumber":
       return shot.shotNumber || "\u2014"
-    case "thumbnail":
-      return <div className="h-8 w-12 rounded bg-[var(--color-surface-muted)]" />
+    case "thumbnail": {
+      // heroImage.downloadURL is synchronous on the shot — no async resolution needed in the DOM.
+      const src = shot.heroImage?.downloadURL
+      return src ? (
+        <img src={src} alt="" className="h-8 w-12 rounded object-cover" />
+      ) : (
+        <div className="h-8 w-12 rounded bg-[var(--color-surface-muted)]" />
+      )
+    }
     case "title":
       return shot.title
     case "status": {

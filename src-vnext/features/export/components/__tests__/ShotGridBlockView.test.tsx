@@ -25,6 +25,7 @@ const MOCK_SHOTS: readonly Shot[] = [
     description: "Hero shot description",
     tags: [{ id: "tag1", label: "Hero", color: "#000" }],
     notes: "Handle with care",
+    heroImage: { path: "shots/s1/hero.jpg", downloadURL: "https://example.com/hero.jpg" },
     projectId: "p1",
     clientId: "c1",
     sortOrder: 1,
@@ -209,5 +210,22 @@ describe("ShotGridBlockView", () => {
 
     expect(screen.getByText("Showing 1 shot")).toBeInTheDocument()
     expect(screen.getByText("LS Merino Crew - Hero")).toBeInTheDocument()
+  })
+
+  it("renders a hero thumbnail image for shots that have one, placeholder otherwise", () => {
+    // P0-2: the thumbnail cell was a gray <div> with no image code.
+    const block = buildBlock({
+      columns: [
+        { key: "shotNumber", label: "#", visible: true, width: "xs" },
+        { key: "thumbnail", label: "Thumbnail", visible: true, width: "sm" },
+      ],
+    })
+    const { container } = render(<ShotGridBlockView block={block} />)
+
+    // Only s1 carries a heroImage.downloadURL -> exactly one <img>; the other
+    // four shots fall back to the gray placeholder (no broken <img>).
+    const imgs = container.querySelectorAll("img")
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0]?.getAttribute("src")).toBe("https://example.com/hero.jpg")
   })
 })
