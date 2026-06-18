@@ -20,7 +20,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing"
-import { deleteDoc, doc, getDoc, collection, getDocs, setDoc, updateDoc, Timestamp } from "firebase/firestore"
+import { deleteDoc, doc, getDoc, collection, getDocs, query, where, setDoc, updateDoc, Timestamp } from "firebase/firestore"
 
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST
 const skipSuite = !EMULATOR_HOST
@@ -210,6 +210,30 @@ describeOrSkip("firestore.rules — captureOneShares", () => {
 
   it("[15] authed producer DELETE succeeds for own clientId", async () => {
     await assertSucceeds(deleteDoc(doc(authed("prod-a", CLIENT_A, "producer"), "captureOneShares", SHARE_DELETABLE)))
+  })
+
+  it("[16] authed producer LIST query (refresh-on-save scope) succeeds for own clientId+projectId", async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(authed("prod-a", CLIENT_A, "producer"), "captureOneShares"),
+          where("clientId", "==", CLIENT_A),
+          where("projectId", "==", PROJ_TEAM),
+        ),
+      ),
+    )
+  })
+
+  it("[17] authed producer LIST query for a foreign clientId is denied", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(authed("prod-a", CLIENT_A, "producer"), "captureOneShares"),
+          where("clientId", "==", CLIENT_B),
+          where("projectId", "==", PROJ_TEAM),
+        ),
+      ),
+    )
   })
 })
 

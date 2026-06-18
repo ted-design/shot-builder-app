@@ -4,6 +4,7 @@ import { shotPath } from "@/shared/lib/paths"
 import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 import { buildShotWritePayload } from "@/features/shots/lib/updateShot"
 import { createShotVersionSnapshot } from "@/features/shots/lib/shotVersioning"
+import { refreshCaptureOneSharesForProject } from "@/features/captureone/lib/captureOneShareWrites"
 import type {
   AuthUser,
   ProductAssignment,
@@ -376,6 +377,12 @@ export async function executeShotMerge(args: {
     ...auditFields,
   })
   await batch.commit()
+
+  // A merge rewrites the primary's looks/hero products — re-denormalize the project's
+  // public Capture One shares (best-effort; same project for both shots).
+  void refreshCaptureOneSharesForProject({ clientId, projectId: primary.projectId }).catch((err) => {
+    console.error("[executeShotMerge] Capture One share refresh failed", err)
+  })
 
   // Best-effort version snapshots (audit, not core state) — never block or fail
   // the merge if they error.
