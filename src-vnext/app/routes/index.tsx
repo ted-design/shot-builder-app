@@ -24,6 +24,9 @@ const ShotDetailPage = lazy(
 const PublicShotSharePage = lazy(
   () => import("@/features/shots/components/PublicShotSharePage"),
 )
+const PublicCaptureOneSharePage = lazy(
+  () => import("@/features/captureone/components/PublicCaptureOneSharePage"),
+)
 const TagManagementPage = lazy(
   () => import("@/features/shots/components/TagManagementPage"),
 )
@@ -125,6 +128,7 @@ export function AppRoutes() {
         <Route path="/pulls/shared/:shareToken/guide" element={<WarehousePickGuidePage />} />
         <Route path="/shots/shared/:shareToken" element={<PublicShotSharePage />} />
         <Route path="/casting/shared/:shareToken" element={<PublicCastingReviewPage />} />
+        <Route path="/captureone/shared/:shareToken" element={<PublicCaptureOneSharePage />} />
         <Route
           element={
             <RequireAuth>

@@ -89,6 +89,7 @@ describe("breadcrumbsConfig", () => {
       "/pulls/shared/:shareToken/guide",
       "/shots/shared/:shareToken",
       "/casting/shared/:shareToken",
+      "/captureone/shared/:shareToken",
       "*",
       // Dev-only imports — unreachable in production, not worth wiring.
       "dev/import-q2",

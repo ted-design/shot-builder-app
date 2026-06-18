@@ -95,6 +95,12 @@
         ]
       },
       {
+        "source": "/captureone/shared/**",
+        "headers": [
+          { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+        ]
+      },
+      {
         "source": "/index.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-store, max-age=0" },
