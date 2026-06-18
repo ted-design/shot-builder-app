@@ -8,6 +8,7 @@ import {
   filterShots,
   sortShots,
 } from "../../lib/blockDataResolvers"
+import { resolveExportShotNotes } from "../../lib/exportShotNotes"
 import {
   getShotStatusLabel,
   getShotStatusColor,
@@ -57,7 +58,7 @@ function getCellValue(
         ? shot.tags.map((t) => t.label).join(", ")
         : "\u2014"
     case "notes":
-      return shot.notes ?? "\u2014"
+      return resolveExportShotNotes(shot) || "\u2014"
     default:
       return "\u2014"
   }
