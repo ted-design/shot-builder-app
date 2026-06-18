@@ -1,11 +1,9 @@
 import { StyleSheet } from "@react-pdf/renderer"
+import { PAGE_DIMENSIONS_PT } from "../pageDimensions"
 
-/** Page size dimensions in points */
-export const PAGE_SIZES = {
-  letter: { width: 612, height: 792 },
-  a4: { width: 595.28, height: 841.89 },
-  legal: { width: 612, height: 1008 },
-} as const
+/** Page size dimensions in points. Re-exported from the shared `pageDimensions`
+ *  module so the PDF and the on-screen preview share one source of truth. */
+export const PAGE_SIZES = PAGE_DIMENSIONS_PT
 
 export const styles = StyleSheet.create({
   page: {

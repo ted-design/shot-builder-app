@@ -1,7 +1,29 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { BlockSettingsPanel } from "../BlockSettingsPanel"
-import type { TextBlock, ShotGridBlock, DividerBlock } from "../../types/exportBuilder"
+import type {
+  TextBlock,
+  ShotGridBlock,
+  ShotDetailBlock,
+  PullSheetBlock,
+  DividerBlock,
+} from "../../types/exportBuilder"
+
+// ShotDetailSettings / PullSheetSettings read the export data context; provide it.
+vi.mock("../ExportDataProvider", () => ({
+  useExportDataContext: () => ({
+    project: null,
+    shots: [
+      { id: "s1", title: "Hero Shot", shotNumber: "1", status: "todo" },
+      { id: "s2", title: "Detail Shot", status: "todo" }, // no shotNumber (production allows undefined)
+    ],
+    productFamilies: [],
+    pulls: [{ id: "pl1", name: "Day 1 Pull", items: [] }],
+    crew: [],
+    talent: [],
+    loading: false,
+  }),
+}))
 
 describe("BlockSettingsPanel", () => {
   it("shows empty state when no block is selected", () => {
@@ -120,6 +142,61 @@ describe("BlockSettingsPanel", () => {
     expect(onUpdateBlock).toHaveBeenCalledWith("t1", {
       typography: { fontSize: 14, textAlign: "center" },
     })
+  })
+
+  it("shows a shot picker for shot-detail blocks (no longer a dead block)", () => {
+    const block: ShotDetailBlock = {
+      id: "sd1",
+      type: "shot-detail",
+      showHeroImage: true,
+      showDescription: true,
+      showNotes: false,
+      showProducts: true,
+    }
+    render(
+      <BlockSettingsPanel
+        block={block}
+        onUpdateBlock={vi.fn()}
+        onDeleteBlock={vi.fn()}
+      />,
+    )
+    expect(screen.getByText("Shot Detail")).toBeInTheDocument()
+    expect(screen.getByTestId("shot-detail-shot-select")).toBeInTheDocument()
+    expect(
+      screen.queryByText(/no additional settings for this block type/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it("writes shotId when a shot is picked", () => {
+    const onUpdateBlock = vi.fn()
+    const block: ShotDetailBlock = { id: "sd1", type: "shot-detail" }
+    render(
+      <BlockSettingsPanel
+        block={block}
+        onUpdateBlock={onUpdateBlock}
+        onDeleteBlock={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByTestId("shot-detail-shot-select"), {
+      target: { value: "s2" },
+    })
+    expect(onUpdateBlock).toHaveBeenCalledWith("sd1", { shotId: "s2" })
+  })
+
+  it("shows a pull picker for pull-sheet blocks", () => {
+    const block: PullSheetBlock = { id: "ps1", type: "pull-sheet" }
+    render(
+      <BlockSettingsPanel
+        block={block}
+        onUpdateBlock={vi.fn()}
+        onDeleteBlock={vi.fn()}
+      />,
+    )
+    expect(screen.getByText("Pull Sheet")).toBeInTheDocument()
+    expect(screen.getByTestId("pull-sheet-pull-select")).toBeInTheDocument()
+    expect(
+      screen.queryByText(/no additional settings for this block type/i),
+    ).not.toBeInTheDocument()
   })
 
   it("shows image settings for image block type", () => {

@@ -5,6 +5,7 @@ import type { ShotFirestoreStatus } from "@/shared/types"
 import { getShotStatusLabel, getShotStatusColor } from "@/shared/lib/statusMappings"
 import { styles, PDF_STATUS_COLORS } from "../pdfStyles"
 import { resolveProductNamesList } from "../../blockDataResolvers"
+import { resolveExportShotNotes } from "../../exportShotNotes"
 
 interface ShotDetailBlockPdfProps {
   readonly block: ShotDetailBlock
@@ -25,6 +26,7 @@ export function ShotDetailBlockPdf({ block, data, imageMap }: ShotDetailBlockPdf
   const showProducts = block.showProducts !== false
   const heroSrc = showHero && shot.heroImage?.path ? imageMap.get(shot.heroImage.path) : undefined
   const productNames = showProducts ? resolveProductNamesList(shot).join(", ") : ""
+  const notesText = showNotes ? resolveExportShotNotes(shot) : ""
 
   return (
     <View wrap={false} style={{ flexDirection: "row", gap: 10, marginVertical: 4 }}>
@@ -46,9 +48,9 @@ export function ShotDetailBlockPdf({ block, data, imageMap }: ShotDetailBlockPdf
           <Text style={styles.bodyText}>{shot.description}</Text>
         ) : null}
 
-        {showNotes && shot.notes ? (
+        {notesText ? (
           <Text style={{ ...styles.bodyText, fontSize: 8, color: "#9CA3AF", marginTop: 2 }}>
-            {shot.notes}
+            {notesText}
           </Text>
         ) : null}
 

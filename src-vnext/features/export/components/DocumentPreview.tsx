@@ -14,6 +14,7 @@ import type { ExportDocument, ExportVariable, ExportBlock, PageItem } from "../t
 import { isHStackRow } from "../types/exportBuilder"
 import { SortableBlock } from "./SortableBlock"
 import { HStackRowView } from "./HStackRowView"
+import { getPreviewPageDimensions } from "../lib/pageDimensions"
 
 interface DocumentPreviewProps {
   readonly document: ExportDocument
@@ -219,6 +220,12 @@ export function DocumentPreview({
   const totalPages = visualPages.length
   const canDeletePage = doc.pages.length > 1
 
+  // Drive the on-screen page frame from the document's page settings so
+  // orientation/size changes are visible in the preview (not just the PDF).
+  // Fit-to-width: fixed max width, aspect-correct min-height. Shared with the
+  // PDF via getPageDimensionsPt so the preview can't drift from the export.
+  const pageDims = getPreviewPageDimensions(doc.settings.size, doc.settings.layout)
+
   // Collect all non-page-break block IDs for the sortable context
   const allBlocks = doc.pages.flatMap((page) => flattenItems(page.items))
   const sortableIds = allBlocks
@@ -270,7 +277,8 @@ export function DocumentPreview({
             return (
               <div key={visualKey}>
                 <div
-                  className="doc-page relative w-full max-w-[960px] min-h-[1243px]"
+                  className="doc-page relative w-full"
+                  style={{ maxWidth: pageDims.width, minHeight: pageDims.minHeight }}
                   onClick={() => onPageClick?.(currentPageId)}
                 >
                   {/* Page actions menu */}

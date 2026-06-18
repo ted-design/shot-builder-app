@@ -6,7 +6,8 @@ import type {
 } from "../../types/exportBuilder"
 import { isHStackRow } from "../../types/exportBuilder"
 import type { ExportData } from "../../hooks/useExportData"
-import { styles, PAGE_SIZES } from "./pdfStyles"
+import { styles } from "./pdfStyles"
+import { getPageDimensionsPt } from "../pageDimensions"
 import { mapFontFamilyBase } from "./fontMapping"
 import { WatermarkOverlay } from "./WatermarkOverlay"
 import { ExportPdfBlockMapper } from "./ExportPdfBlockMapper"
@@ -60,13 +61,7 @@ export function ExportPdfDocument({
   documentName,
   authorName,
 }: ExportPdfDocumentProps) {
-  const sizeKey = settings.size ?? "letter"
-  const dims = PAGE_SIZES[sizeKey] ?? PAGE_SIZES.letter
-
-  const pageSize =
-    settings.layout === "landscape"
-      ? { width: dims.height, height: dims.width }
-      : { width: dims.width, height: dims.height }
+  const pageSize = getPageDimensionsPt(settings.size, settings.layout)
 
   return (
     <Document

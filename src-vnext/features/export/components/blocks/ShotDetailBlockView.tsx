@@ -4,6 +4,7 @@ import type { ShotDetailBlock } from "../../types/exportBuilder"
 import type { Shot, ShotFirestoreStatus } from "@/shared/types"
 import { getShotStatusLabel, getShotStatusColor } from "@/shared/lib/statusMappings"
 import { resolveProductNamesList } from "../../lib/blockDataResolvers"
+import { resolveExportShotNotes } from "../../lib/exportShotNotes"
 
 interface ShotDetailBlockViewProps {
   readonly block: ShotDetailBlock
@@ -53,6 +54,7 @@ export function ShotDetailBlockView({ block }: ShotDetailBlockViewProps) {
   const showNotes = block.showNotes !== false
   const showProducts = block.showProducts !== false
   const productNames = showProducts ? resolveProductNamesList(shot) : []
+  const notesText = showNotes ? resolveExportShotNotes(shot) : ""
 
   return (
     <div data-testid="shot-detail-block" className="flex gap-4">
@@ -83,8 +85,8 @@ export function ShotDetailBlockView({ block }: ShotDetailBlockViewProps) {
           <p className="text-sm text-[var(--color-text-muted)]">{shot.description}</p>
         )}
 
-        {showNotes && shot.notes && (
-          <p className="text-xs text-[var(--color-text-subtle)]">{shot.notes}</p>
+        {notesText && (
+          <p className="text-xs text-[var(--color-text-subtle)]">{notesText}</p>
         )}
 
         {showProducts && productNames.length > 0 && (
