@@ -9,15 +9,31 @@ const VARIABLES: readonly ExportVariable[] = [
 
 function buildDocument(
   items: ExportDocument["pages"][0]["items"] = [],
+  settings: Partial<ExportDocument["settings"]> = {},
 ): ExportDocument {
   return {
     id: "doc-1",
     name: "Test Doc",
     pages: [{ id: "page-1", items }],
-    settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
+    settings: { layout: "portrait", size: "letter", fontFamily: "Inter", ...settings },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+}
+
+function renderPreview(doc: ExportDocument): HTMLElement {
+  const { container } = render(
+    <DocumentPreview
+      document={doc}
+      selectedBlockId={null}
+      onSelectBlock={vi.fn()}
+      onAddTextBlock={vi.fn()}
+      variables={VARIABLES}
+    />,
+  )
+  const page = container.querySelector(".doc-page")
+  if (!(page instanceof HTMLElement)) throw new Error("no .doc-page rendered")
+  return page
 }
 
 describe("DocumentPreview", () => {
@@ -118,5 +134,49 @@ describe("DocumentPreview", () => {
       />,
     )
     expect(screen.getByText("Page 1 of 1")).toBeInTheDocument()
+  })
+
+  describe("page orientation & size (P0-1)", () => {
+    it("keeps portrait Letter at its historical ~960×1242 frame", () => {
+      const page = renderPreview(buildDocument([], { layout: "portrait", size: "letter" }))
+      expect(page.style.maxWidth).toBe("960px")
+      // 960 * 792/612 ≈ 1242
+      expect(page.style.minHeight).toBe("1242px")
+    })
+
+    it("makes a landscape page shorter than its portrait counterpart", () => {
+      const portrait = renderPreview(buildDocument([], { layout: "portrait", size: "letter" }))
+      const portraitMinH = parseInt(portrait.style.minHeight, 10)
+
+      const landscape = renderPreview(buildDocument([], { layout: "landscape", size: "letter" }))
+      const landscapeMinH = parseInt(landscape.style.minHeight, 10)
+
+      // Same fit-to-width canvas width, but landscape is wider-than-tall → shorter frame.
+      expect(landscape.style.maxWidth).toBe("960px")
+      expect(landscapeMinH).toBeLessThan(portraitMinH)
+      // 960 * 612/792 ≈ 742
+      expect(landscape.style.minHeight).toBe("742px")
+    })
+
+    it("renders A4 and Legal with distinct aspect ratios", () => {
+      const a4 = renderPreview(buildDocument([], { layout: "portrait", size: "a4" }))
+      const legal = renderPreview(buildDocument([], { layout: "portrait", size: "legal" }))
+      expect(a4.style.minHeight).not.toBe(legal.style.minHeight)
+      // 960 * 841.89/595.28 ≈ 1358 ; 960 * 1008/612 ≈ 1581
+      expect(a4.style.minHeight).toBe("1358px")
+      expect(legal.style.minHeight).toBe("1581px")
+    })
+
+    it("falls back to Letter portrait when size/layout are absent", () => {
+      // Legacy docs may omit size/layout; mirror the PDF's defensive defaulting.
+      const doc = buildDocument([])
+      const loose = {
+        ...doc,
+        settings: { ...doc.settings, layout: undefined, size: undefined },
+      } as unknown as ExportDocument
+      const page = renderPreview(loose)
+      expect(page.style.maxWidth).toBe("960px")
+      expect(page.style.minHeight).toBe("1242px")
+    })
   })
 })
