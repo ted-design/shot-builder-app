@@ -1,4 +1,4 @@
-import { Text, View } from "@react-pdf/renderer"
+import { Text, View, Image } from "@react-pdf/renderer"
 import type { ShotGridBlock, ShotGridColumn } from "../../../types/exportBuilder"
 import { COLUMN_WIDTH_PRESETS } from "../../../types/exportBuilder"
 import type { ExportData } from "../../../hooks/useExportData"
@@ -42,12 +42,12 @@ function colFlex(col: ShotGridColumn): number {
   return COLUMN_WIDTH_PRESETS[col.width ?? "md"].flex
 }
 
-export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
+export function ShotGridBlockPdf({ block, data, imageMap }: ShotGridBlockPdfProps) {
   const filtered = filterShots(data.shots, block.filter)
   const sorted = sortShots(filtered, block.sortBy, block.sortDirection)
   const cols = [...block.columns]
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .filter((c) => c.visible && c.key !== "thumbnail")
+    .filter((c) => c.visible)
 
   if (sorted.length === 0) return null
 
@@ -67,7 +67,7 @@ export function ShotGridBlockPdf({ block, data }: ShotGridBlockPdfProps) {
         wrap={false}
         style={stripe && i % 2 === 1 ? styles.tableRowStriped : styles.tableRow}
       >
-        {cols.map((col) => renderCell(col, shot, data))}
+        {cols.map((col) => renderCell(col, shot, data, imageMap))}
       </View>
     )
   }
@@ -95,7 +95,16 @@ function renderCell(
   col: ShotGridColumn,
   shot: Shot,
   data: ExportData,
+  imageMap: ReadonlyMap<string, string>,
 ): React.ReactNode {
+  if (col.key === "thumbnail") {
+    const src = shot.heroImage?.path ? imageMap.get(shot.heroImage.path) : undefined
+    return (
+      <View key={col.key} style={{ ...styles.tableCell, flex: colFlex(col) }}>
+        {src ? <Image src={src} style={{ width: 36, height: 24, objectFit: "cover" }} /> : null}
+      </View>
+    )
+  }
   if (col.key === "status") {
     const color = getShotStatusColor(shot.status as ShotFirestoreStatus)
     const sc = PDF_STATUS_COLORS[color] ?? { bg: "#F3F4F6", text: "#374151" }

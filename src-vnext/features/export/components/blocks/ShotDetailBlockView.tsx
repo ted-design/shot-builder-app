@@ -58,11 +58,18 @@ export function ShotDetailBlockView({ block }: ShotDetailBlockViewProps) {
 
   return (
     <div data-testid="shot-detail-block" className="flex gap-4">
-      {showHeroImage && (
-        <div className="flex h-24 w-36 shrink-0 items-center justify-center rounded bg-[var(--color-surface-muted)]">
-          <span className="text-xs text-[var(--color-text-subtle)]">Hero Image</span>
-        </div>
-      )}
+      {showHeroImage &&
+        (shot.heroImage?.downloadURL ? (
+          <img
+            src={shot.heroImage.downloadURL}
+            alt=""
+            className="h-24 w-36 shrink-0 rounded object-cover"
+          />
+        ) : (
+          <div className="flex h-24 w-36 shrink-0 items-center justify-center rounded bg-[var(--color-surface-muted)]">
+            <span className="text-xs text-[var(--color-text-subtle)]">Hero Image</span>
+          </div>
+        ))}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-center gap-2">
