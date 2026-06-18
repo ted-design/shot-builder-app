@@ -26,7 +26,7 @@ import {
 } from "@/features/shots/hooks/usePickerData"
 import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import { ProductQuickViewPopover } from "@/features/shots/components/ProductQuickViewPopover"
-import { Package, Plus, X, ChevronLeft, Loader2, Search } from "lucide-react"
+import { Package, Plus, X, ChevronLeft, Loader2, Search, Star } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { getTagColorClasses } from "@/shared/lib/tagColors"
@@ -39,6 +39,10 @@ interface ProductAssignmentPickerProps {
   readonly onSave: (products: ProductAssignment[]) => Promise<boolean>
   readonly disabled?: boolean
   readonly canManageCatalog?: boolean
+  /** Indices of `selected` that are heroes. Renders the always-on star only when paired with onToggleHero. */
+  readonly heroIndexes?: ReadonlySet<number>
+  /** Toggle a product's hero (Capture One filename) state by its index in `selected`. */
+  readonly onToggleHero?: (index: number) => void
 }
 
 type AddStep = "family" | "sku" | "details"
@@ -108,6 +112,8 @@ export function ProductAssignmentPicker({
   onSave,
   disabled,
   canManageCatalog = false,
+  heroIndexes,
+  onToggleHero,
 }: ProductAssignmentPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [step, setStep] = useState<AddStep>("family")
@@ -226,6 +232,8 @@ export function ProductAssignmentPicker({
               key={`${p.familyId}-${p.colourId ?? ""}-${index}`}
               assignment={p}
               disabled={disabled}
+              isHero={heroIndexes?.has(index) ?? false}
+              onToggleHero={onToggleHero ? () => onToggleHero(index) : undefined}
               onEdit={() => openEdit(index)}
               onRemove={() => handleRemove(index)}
             />
@@ -342,11 +350,15 @@ export function ProductAssignmentPicker({
 function AssignmentRow({
   assignment,
   disabled,
+  isHero = false,
+  onToggleHero,
   onEdit,
   onRemove,
 }: {
   readonly assignment: ProductAssignment
   readonly disabled?: boolean
+  readonly isHero?: boolean
+  readonly onToggleHero?: () => void
   readonly onEdit: () => void
   readonly onRemove: () => void
 }) {
@@ -423,6 +435,29 @@ function AssignmentRow({
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        {onToggleHero && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            disabled={disabled}
+            aria-pressed={isHero}
+            aria-label={isHero ? "Unmark hero product" : "Mark as hero product"}
+            title={isHero ? "Hero product — used for the Capture One filename" : "Mark as hero product"}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleHero()
+            }}
+          >
+            <Star
+              className={
+                isHero
+                  ? "h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                  : "h-3.5 w-3.5 text-[var(--color-text-subtle)]"
+              }
+            />
+          </Button>
+        )}
         <ProductQuickViewPopover assignment={assignment}>
           <Button
             variant="ghost"

@@ -9,13 +9,7 @@ import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { canManageProducts } from "@/shared/lib/rbac"
 import { Button } from "@/ui/button"
 import { Badge } from "@/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/select"
+import { firstHeroProductId, lookHeroIndexes, reconcileHeroProductId } from "@/features/shots/lib/lookHeroes"
 import { Image, ImagePlus, Plus, Star, Trash2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { InlineEmpty } from "@/shared/components/InlineEmpty"
@@ -32,9 +26,6 @@ function formatUploadError(err: unknown): string {
   if (typeof err === "string") return err
   return "Unknown error"
 }
-
-const HERO_AUTO_VALUE = "__auto__"
-const HERO_NONE_VALUE = "__none__"
 
 function getLookLabel(order: number): string {
   if (order === 0) return "Primary"
@@ -60,19 +51,6 @@ function normalizeLooksForWrite(looks: ReadonlyArray<ShotLook>): ShotLook[] {
     references: look.references ?? [],
     displayImageId: look.displayImageId ?? null,
   }))
-}
-
-function productHeroOptions(products: ReadonlyArray<ProductAssignment>) {
-  const options: Array<{ readonly id: string; readonly label: string }> = []
-  for (const p of products) {
-    const id = p.skuId ?? p.colourId ?? p.familyId
-    if (!id) continue
-    const base = p.familyName ?? p.skuName ?? p.colourName ?? id
-    const color = p.colourName && p.familyName ? ` — ${p.colourName}` : ""
-    options.push({ id, label: `${base}${color}` })
-  }
-  options.sort((a, b) => a.label.localeCompare(b.label))
-  return options
 }
 
 export function ShotLooksSection({
@@ -119,14 +97,10 @@ export function ShotLooksSection({
 
   const [saving, setSaving] = useState(false)
 
-  const selectedHeroValue = useMemo(() => {
-    if (!selectedLook) return HERO_AUTO_VALUE
-    if (selectedLook.heroProductId === null) return HERO_NONE_VALUE
-    if (typeof selectedLook.heroProductId === "string" && selectedLook.heroProductId.length > 0) {
-      return selectedLook.heroProductId
-    }
-    return HERO_AUTO_VALUE
-  }, [selectedLook])
+  const heroIndexes = useMemo<ReadonlySet<number>>(
+    () => new Set(selectedLook ? lookHeroIndexes(selectedLook) : []),
+    [selectedLook],
+  )
 
   const saveLooks = async (
     nextLooks: ReadonlyArray<ShotLook>,
@@ -152,6 +126,25 @@ export function ShotLooksSection({
     } finally {
       setSaving(false)
     }
+  }
+
+  // Toggle a product's hero star, persist explicit isHero flags, and keep the
+  // legacy cover pointer (heroProductId) following the first star.
+  const handleToggleHero = async (index: number) => {
+    if (!selectedLook) return
+    const nextHeroes = new Set(lookHeroIndexes(selectedLook))
+    if (nextHeroes.has(index)) nextHeroes.delete(index)
+    else nextHeroes.add(index)
+    const nextProducts: ProductAssignment[] = selectedLook.products.map((p, i) => ({
+      ...p,
+      isHero: nextHeroes.has(i) ? true : undefined,
+    }))
+    const nextLooks = looks.map((l) =>
+      l.id === selectedLook.id
+        ? { ...l, products: nextProducts, heroProductId: firstHeroProductId(nextProducts) }
+        : l,
+    )
+    await saveLooks(nextLooks)
   }
 
   const [confirmDeleteLookOpen, setConfirmDeleteLookOpen] = useState(false)
@@ -334,56 +327,26 @@ export function ShotLooksSection({
 
           <ProductAssignmentPicker
             selected={selectedLook.products ?? []}
-            disabled={!canEdit}
+            disabled={!canEdit || saving}
             canManageCatalog={canManageCatalog}
+            heroIndexes={heroIndexes}
+            onToggleHero={handleToggleHero}
             onSave={async (products) => {
               const next = looks.map((l) =>
-                l.id === selectedLook.id ? { ...l, products } : l,
+                l.id === selectedLook.id
+                  ? { ...l, products, heroProductId: reconcileHeroProductId(products, l.heroProductId) }
+                  : l,
               )
               return saveLooks(next)
             }}
           />
 
-          {/* Hero product */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-[var(--color-text-subtle)]" />
-              <p className="text-xs font-medium text-[var(--color-text-subtle)]">Cover product (optional)</p>
-            </div>
-
-            {selectedLook.products.length === 0 ? (
-              <p className="text-xs text-[var(--color-text-subtle)]">Add products to enable hero selection.</p>
-            ) : (
-              <Select
-                value={selectedHeroValue}
-                onValueChange={async (value) => {
-                  const heroProductId =
-                    value === HERO_AUTO_VALUE ? undefined : value === HERO_NONE_VALUE ? null : value
-                  const next = looks.map((l) =>
-                    l.id === selectedLook.id ? { ...l, heroProductId } : l,
-                  )
-                  await saveLooks(next)
-                }}
-                disabled={!canEdit}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Auto (first product)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={HERO_AUTO_VALUE}>Auto (first product)</SelectItem>
-                  <SelectItem value={HERO_NONE_VALUE}>None</SelectItem>
-                  {productHeroOptions(selectedLook.products).map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <p className="text-xxs text-[var(--color-text-subtle)]">
-              Cover prefers a selected reference image; otherwise it uses the chosen cover product (or auto).
+          {selectedLook.products.length > 0 && (
+            <p className="flex items-center gap-1.5 text-xxs text-[var(--color-text-subtle)]">
+              <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+              Star hero product(s) — used for the Capture One filename. The cover image follows the first starred product.
             </p>
-          </div>
+          )}
 
           {/* References live in the hero/header rail for this layout mode. */}
           {showReferencesSection && (

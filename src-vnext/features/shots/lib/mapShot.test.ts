@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { mapShot } from "@/features/shots/lib/mapShot"
+import { sanitizeForFirestore } from "@/shared/lib/firestoreSanitize"
 
 describe("mapShot", () => {
   it("falls back to legacy name when title is missing", () => {
@@ -313,6 +314,44 @@ describe("mapShot", () => {
     })
 
     expect(shot.heroImage).toBeUndefined()
+  })
+
+  it("round-trips ProductAssignment.isHero through the write sanitizer and read mapper", () => {
+    const sanitizedLooks = sanitizeForFirestore([
+      {
+        id: "look-1",
+        order: 0,
+        products: [
+          { familyId: "fam-1", skuId: "sku-1", isHero: true },
+          { familyId: "fam-2", skuId: "sku-2", isHero: undefined },
+          { familyId: "fam-3", skuId: "sku-3" },
+        ],
+        references: [],
+      },
+    ]) as unknown[]
+
+    const shot = mapShot("s1", {
+      title: "Shot A",
+      projectId: "p1",
+      clientId: "c1",
+      createdAt: { seconds: 1, nanoseconds: 0 },
+      updatedAt: { seconds: 1, nanoseconds: 0 },
+      createdBy: "u1",
+      deleted: false,
+      looks: sanitizedLooks,
+    })
+
+    // Write side: the sanitizer keeps literal true and omits the undefined/absent key.
+    const writtenProducts = (sanitizedLooks[0] as { products: Record<string, unknown>[] }).products
+    expect(writtenProducts[0]?.isHero).toBe(true)
+    expect("isHero" in (writtenProducts[1] ?? {})).toBe(false)
+    expect("isHero" in (writtenProducts[2] ?? {})).toBe(false)
+
+    // Read side: true survives; undefined/absent read back as undefined.
+    const products = shot.looks?.[0]?.products ?? []
+    expect(products[0]?.isHero).toBe(true)
+    expect(products[1]?.isHero).toBeUndefined()
+    expect(products[2]?.isHero).toBeUndefined()
   })
 
   it("maps looks into typed structure", () => {
