@@ -85,6 +85,11 @@ describeOrSkip("firestore.rules — captureOneShares", () => {
       // Projects gate the project-scoped create rule (producerCanAccessProject).
       await setDoc(doc(db, "clients", CLIENT_A, "projects", PROJ_TEAM), { visibility: "team" })
       await setDoc(doc(db, "clients", CLIENT_A, "projects", PROJ_PRIVATE), { visibility: "private" })
+      // A crew member with an explicit project role — gates the crew refresh arm
+      // (hasProjectRole). Crew gets project access only via an explicit member doc.
+      await setDoc(doc(db, "clients", CLIENT_A, "projects", PROJ_TEAM, "members", "crew-member"), {
+        role: "crew",
+      })
 
       await setDoc(doc(db, "captureOneShares", SHARE_OK), makeShare())
       await setDoc(doc(db, "captureOneShares", SHARE_DISABLED), makeShare({ enabled: false }))
@@ -233,6 +238,76 @@ describeOrSkip("firestore.rules — captureOneShares", () => {
           where("projectId", "==", PROJ_TEAM),
         ),
       ),
+    )
+  })
+
+  it("[18] crew WITH a project role can LIST its project's shares (crew refresh-on-save)", async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(authed("crew-member", CLIENT_A, "crew"), "captureOneShares"),
+          where("clientId", "==", CLIENT_A),
+          where("projectId", "==", PROJ_TEAM),
+        ),
+      ),
+    )
+  })
+
+  it("[19] crew WITH a project role can UPDATE a share in that project (crew refresh denormalize)", async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed("crew-member", CLIENT_A, "crew"), "captureOneShares", SHARE_OK), {
+        projectName: "Updated by crew",
+      }),
+    )
+  })
+
+  it("[20] crew WITHOUT a project role is denied the LIST (no member doc)", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(authed("crew-a", CLIENT_A, "crew"), "captureOneShares"),
+          where("clientId", "==", CLIENT_A),
+          where("projectId", "==", PROJ_TEAM),
+        ),
+      ),
+    )
+  })
+
+  it("[21] crew (even with a project role) cannot DELETE a share — delete stays admin/producer", async () => {
+    await assertFails(deleteDoc(doc(authed("crew-member", CLIENT_A, "crew"), "captureOneShares", SHARE_OK)))
+  })
+
+  it("[22] crew UPDATE limited to the refresh payload (projectName + shots) succeeds", async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed("crew-member", CLIENT_A, "crew"), "captureOneShares", SHARE_OK), {
+        projectName: "Refreshed",
+        shots: [{ id: "s1", shotNumber: "1", title: "Look", filenames: [] }],
+      }),
+    )
+  })
+
+  it("[23] crew UPDATE of a management field (enabled) is denied — can't disable a public link", async () => {
+    await assertFails(
+      updateDoc(doc(authed("crew-member", CLIENT_A, "crew"), "captureOneShares", SHARE_OK), {
+        enabled: false,
+      }),
+    )
+  })
+
+  it("[24] crew UPDATE mixing a refresh field with a management field is denied", async () => {
+    await assertFails(
+      updateDoc(doc(authed("crew-member", CLIENT_A, "crew"), "captureOneShares", SHARE_OK), {
+        projectName: "Sneaky",
+        shotIds: ["s9"],
+      }),
+    )
+  })
+
+  it("[25] global producer UPDATE of a management field (enabled) still succeeds — management unchanged", async () => {
+    await assertSucceeds(
+      updateDoc(doc(authed("prod-a", CLIENT_A, "producer"), "captureOneShares", SHARE_OK), {
+        enabled: true,
+      }),
     )
   })
 })

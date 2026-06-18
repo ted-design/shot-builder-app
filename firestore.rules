@@ -293,10 +293,13 @@ service cloud.firestore {
       allow get: if resource.data.enabled == true
         && (!('expiresAt' in resource.data) || resource.data.expiresAt == null || resource.data.expiresAt > request.time);
 
-      // Authenticated admin/producer reads (management UI + refresh-on-save query).
+      // Authenticated reads (management UI + refresh-on-save query): admin/producer
+      // tenant-wide, plus project members (crew/producer) on the share's project —
+      // mirrors the shots-update permission so a crew hero-edit can refresh the share.
+      // (|| short-circuits, so admin/producer pay no extra get().)
       allow get, list: if isAuthed() &&
-        (isAdmin() || isProducer()) &&
-        resource.data.clientId == userClient();
+        resource.data.clientId == userClient() &&
+        (isAdmin() || isProducer() || hasProjectRole(resource.data.projectId, ['producer', 'crew']));
 
       // Create is project-scoped (mirrors shotShares): a non-admin producer must hold
       // producer access on the share's projectId — a global claim alone cannot mint an
@@ -312,7 +315,18 @@ service cloud.firestore {
            (producerCanAccessProject(userClient(), request.resource.data.projectId) ||
             hasProjectRole(request.resource.data.projectId, ['producer']))));
 
-      allow update, delete: if isAuthed() &&
+      // Update: admin/global-producer manage the link (any field). A project member
+      // (crew/producer) may ONLY write the refresh-on-save denormalization fields
+      // (projectName, shots) — so a crew editor can refresh filenames but cannot
+      // disable/expire/re-scope a public link (create + delete stay producer-only).
+      allow update: if isAuthed() &&
+        resource.data.clientId == userClient() &&
+        (isAdmin() || isProducer() ||
+          (hasProjectRole(resource.data.projectId, ['producer', 'crew']) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['projectName', 'shots'])));
+
+      // Delete stays admin/producer — crew can refresh a share but not remove the link.
+      allow delete: if isAuthed() &&
         (isAdmin() || isProducer()) &&
         resource.data.clientId == userClient();
     }
