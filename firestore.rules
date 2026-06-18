@@ -283,6 +283,40 @@ service cloud.firestore {
       }
     }
 
+    // Public Capture One digi-tech sharing — share docs at /captureOneShares/{shareToken}
+    // (doc id = token). Resolved hero filenames are denormalized at creation time so the
+    // public page reads only the one share doc. Read-only: no subcollections.
+    match /captureOneShares/{shareToken} {
+      // Allow unauthenticated get when sharing is enabled and not expired.
+      // Security: requires knowledge of the exact share token (UUID / 32+ chars).
+      // Note: must check field existence before access — missing fields throw in rules.
+      allow get: if resource.data.enabled == true
+        && (!('expiresAt' in resource.data) || resource.data.expiresAt == null || resource.data.expiresAt > request.time);
+
+      // Authenticated admin/producer reads (management UI + refresh-on-save query).
+      allow get, list: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+
+      // Create is project-scoped (mirrors shotShares): a non-admin producer must hold
+      // producer access on the share's projectId — a global claim alone cannot mint an
+      // enabled public link for an arbitrary project in the tenant.
+      allow create: if isAuthed() &&
+        request.resource.data.clientId == userClient() &&
+        request.resource.data.projectId is string &&
+        (request.resource.data.shotIds == null || request.resource.data.shotIds is list) &&
+        request.resource.data.enabled is bool &&
+        (isAdmin() ||
+          (isProducer() &&
+           request.resource.data.projectId != '' &&
+           (producerCanAccessProject(userClient(), request.resource.data.projectId) ||
+            hasProjectRole(request.resource.data.projectId, ['producer']))));
+
+      allow update, delete: if isAuthed() &&
+        (isAdmin() || isProducer()) &&
+        resource.data.clientId == userClient();
+    }
+
     // Public call-sheet sharing — Phase 3 publishing.
     // Root-level share docs at /callSheetShares/{shareGroupId} hold a
     // denormalized snapshot of a published call sheet. Each share has a

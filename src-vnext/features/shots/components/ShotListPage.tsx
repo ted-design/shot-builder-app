@@ -43,6 +43,7 @@ import { persistShotOrder } from "@/features/shots/lib/reorderShots"
 import { useLocations, useTalent, useProductFamilies } from "@/features/shots/hooks/usePickerData"
 import { KeyboardShortcutsDialog } from "@/features/shots/components/KeyboardShortcutsDialog"
 import { ShotsShareDialog } from "@/features/shots/components/ShotsShareDialog"
+import { CaptureOneShareDialog } from "@/features/captureone/components/CaptureOneShareDialog"
 import { BulkActionBar } from "@/features/shots/components/BulkActionBar"
 import { BulkDeleteShotsDialog } from "@/features/shots/components/BulkDeleteShotsDialog"
 import { RenumberShotsDialog } from "@/features/shots/components/RenumberShotsDialog"
@@ -94,6 +95,7 @@ export default function ShotListPage() {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [createPullOpen, setCreatePullOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [captureShareOpen, setCaptureShareOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [repairOpen, setRepairOpen] = useState(false)
   const [repairing, setRepairing] = useState(false)
@@ -497,6 +499,11 @@ export default function ShotListPage() {
                 {canShare && (
                   <Button variant="outline" onClick={() => setShareOpen(true)}>
                     Share
+                  </Button>
+                )}
+                {canShare && (
+                  <Button variant="outline" onClick={() => setCaptureShareOpen(true)}>
+                    Capture One names
                   </Button>
                 )}
                 {canBulkPull && (
@@ -1114,6 +1121,18 @@ export default function ShotListPage() {
           projectId={projectId}
           projectName={projectName || "Project"}
           user={user}
+          selectedShotIds={selectedShots.map((s) => s.id)}
+        />
+      )}
+
+      {canShare && (
+        <CaptureOneShareDialog
+          open={captureShareOpen}
+          onOpenChange={setCaptureShareOpen}
+          clientId={clientId}
+          projectId={projectId}
+          projectName={projectName || "Project"}
+          userId={user?.uid ?? ""}
           selectedShotIds={selectedShots.map((s) => s.id)}
         />
       )}

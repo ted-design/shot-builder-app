@@ -29,7 +29,7 @@ function normalizeDate(value: unknown): Timestamp | undefined {
  * Legacy uses productId/productName; vNext uses familyId/familyName.
  * Defaults missing sizeScope to "pending".
  */
-function normalizeProducts(raw: unknown): ProductAssignment[] {
+export function normalizeProducts(raw: unknown): ProductAssignment[] {
   if (!Array.isArray(raw)) return []
 
   const asString = (value: unknown): string | undefined =>

@@ -329,6 +329,15 @@ export const castingShareVoteDocPath = (
   voteId: string,
 ): string[] => ["castingShares", shareToken, "votes", voteId]
 
+// --- Capture One Shares (root-level, like shotShares) ---
+
+export const captureOneSharesPath = (): string[] => ["captureOneShares"]
+
+export const captureOneShareDocPath = (shareToken: string): string[] => [
+  "captureOneShares",
+  shareToken,
+]
+
 // --- Call Sheet Shares (root-level, Phase 3 publishing) ---
 //
 // Per-recipient tokens (Q1 = B) mean we need a doc path per recipient under
