@@ -25,6 +25,7 @@ const MOCK_SHOTS: readonly Shot[] = [
     description: "Hero shot description",
     tags: [{ id: "tag1", label: "Hero", color: "#000" }],
     notes: "Handle with care",
+    notesAddendum: "Bring the blue jacket",
     projectId: "p1",
     clientId: "c1",
     sortOrder: 1,
@@ -209,5 +210,20 @@ describe("ShotGridBlockView", () => {
 
     expect(screen.getByText("Showing 1 shot")).toBeInTheDocument()
     expect(screen.getByText("LS Merino Crew - Hero")).toBeInTheDocument()
+  })
+
+  it("renders notesAddendum (not the legacy notes field) in the notes column", () => {
+    // P0-4: the app writes producer notes to notesAddendum; shot.notes is legacy.
+    const block = buildBlock({
+      columns: [
+        { key: "shotNumber", label: "#", visible: true, width: "xs" },
+        { key: "notes", label: "Notes", visible: true, width: "lg" },
+      ],
+    })
+    render(<ShotGridBlockView block={block} />)
+
+    // s1 has notesAddendum "Bring the blue jacket" + legacy notes "Handle with care".
+    expect(screen.getByText("Bring the blue jacket")).toBeInTheDocument()
+    expect(screen.queryByText("Handle with care")).not.toBeInTheDocument()
   })
 })

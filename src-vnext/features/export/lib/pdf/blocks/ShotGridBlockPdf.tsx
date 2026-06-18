@@ -14,6 +14,7 @@ import {
   resolveProductNamesString,
   resolveTalentNames,
 } from "../../blockDataResolvers"
+import { resolveExportShotNotes } from "../../exportShotNotes"
 import { computeOrphanGroupIndex } from "../widowOrphan"
 
 interface ShotGridBlockPdfProps {
@@ -31,7 +32,7 @@ function cellText(shot: Shot, key: string, data: ExportData): string {
     case "location": return shot.locationName ?? "\u2014"
     case "description": return shot.description ?? "\u2014"
     case "tags": return shot.tags?.map((t) => t.label).join(", ") || "\u2014"
-    case "notes": return shot.notes ?? "\u2014"
+    case "notes": return resolveExportShotNotes(shot) || "\u2014"
     case "thumbnail": return ""
     default: return "\u2014"
   }
