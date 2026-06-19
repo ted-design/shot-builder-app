@@ -65,6 +65,14 @@ jobs:
           create_credentials_file: true
           export_environment_variables: true
 
+      # Ship Firestore rules + indexes with every prod deploy so they never drift
+      # behind main (hosting-only deploys silently left captureOneShares rules
+      # undeployed → "Missing or insufficient permissions"). Additive only:
+      # --non-interactive (no --force) means orphan prod indexes are warned, never
+      # deleted. Requires the deploy SA to hold firebaserules.admin + datastore.indexAdmin.
+      - name: Deploy Firestore rules + indexes
+        run: npx firebase-tools deploy --only firestore:rules,firestore:indexes --project um-shotbuilder --non-interactive
+
       # Capture deploy JSON so we can extract the live URL robustly
       - name: Deploy to Firebase Hosting (live)
         env:
