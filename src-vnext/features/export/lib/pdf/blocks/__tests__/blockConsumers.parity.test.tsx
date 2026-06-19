@@ -35,7 +35,7 @@ import { render } from "@testing-library/react"
 import { DividerBlockView } from "../../../../components/blocks/DividerBlockView"
 import { DividerBlockPdf } from "../DividerBlockPdf"
 import { deriveDividerSpec } from "../../../blockSpec"
-import { pxToPt } from "../../specAdapters/pdf"
+import { pxToPt } from "../../../units"
 import type { DividerBlock } from "../../../../types/exportBuilder"
 
 function parseStyle(el: Element | null): Record<string, unknown> {
@@ -69,6 +69,8 @@ describe("Divider consumer parity — preview and pdf consume the same spec", ()
     expect(hr).not.toBeNull()
     expect(hr?.style.borderTopStyle).toBe(spec.lineStyle)
     expect(hr?.style.borderTopWidth).toBe(`${String(spec.thicknessPx)}px`)
+    expect(hr?.style.marginTop).toBe(`${String(spec.marginYPx)}px`)
+    expect(hr?.style.marginBottom).toBe(`${String(spec.marginYPx)}px`)
     expect(normColor(hr?.style.borderTopColor ?? "")).toBe(
       normColor(hexToRgb(spec.color)),
     )

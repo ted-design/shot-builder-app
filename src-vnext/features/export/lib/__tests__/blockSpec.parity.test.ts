@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { deriveDividerSpec } from "../blockSpec"
+import { pxToPt } from "../units"
 import type { DividerBlock } from "../../types/exportBuilder"
 
 // Layer 1 — spec unit. The resolved spec is the single source of truth both
@@ -30,8 +31,18 @@ describe("deriveDividerSpec", () => {
     })
   })
 
-  it("is pure — equal input yields an equal spec", () => {
+  it("does not mutate the input block", () => {
     const block: DividerBlock = { id: "d3", type: "divider", style: "dotted" }
-    expect(deriveDividerSpec(block)).toEqual(deriveDividerSpec(block))
+    const before = structuredClone(block)
+    deriveDividerSpec(block)
+    expect(block).toEqual(before)
+  })
+})
+
+describe("pxToPt", () => {
+  it("converts against the physical constant (96px = 72pt = 1in)", () => {
+    expect(pxToPt(96)).toBe(72)
+    expect(pxToPt(1)).toBeCloseTo(0.75)
+    expect(pxToPt(8)).toBeCloseTo(6)
   })
 })

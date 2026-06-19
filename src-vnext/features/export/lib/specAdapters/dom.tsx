@@ -1,10 +1,9 @@
 import type { ResolvedBlockSpec } from "../blockSpec"
 
-// DOM presenter for resolved block specs (the preview tree). The explicit
-// ReactElement return type makes the switch exhaustive over ResolvedBlockSpec:
-// an added variant with no case leaves a non-returning path -> tsc error
-// (caught by typecheck:baseline) = red build. Promote to a `never` default once
-// the union is multi-variant (single-member unions don't narrow to never).
+// DOM presenter for ResolvedBlockSpec. Exhaustive via the explicit return type
+// (unhandled variant -> tsc error = red build); promote to a `never` default
+// once the union is multi-variant. Spacing is rendered inline from the spec
+// (not a Tailwind class) so the DOM and PDF consume one source and can't drift.
 
 /** Render a resolved block spec to DOM primitives. */
 export function renderBlockSpecDom(spec: ResolvedBlockSpec): React.ReactElement {

@@ -1,10 +1,7 @@
 import type { DividerBlock } from "../types/exportBuilder"
 
-// Renderer-agnostic block specs. A pure `derive*Spec` resolver turns a block +
-// data into a serializable, presentation-free spec (px-canonical sizes, author
-// colors, no CSS classes / no pt). The DOM and @react-pdf adapters are thin
-// presenters over the SAME spec, so the two renderers cannot drift — the parity
-// tests assert on the spec. One variant is added per migrated block type.
+// Pure, px-canonical, presentation-free block specs. The DOM + @react-pdf
+// adapters both present the SAME spec, so the two renderers can't drift.
 
 export type DividerLineStyle = NonNullable<DividerBlock["style"]>
 
