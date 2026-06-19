@@ -3,6 +3,7 @@ import {
   computeShareLinkStatus,
   mapShotShareDoc,
   mapCastingShareDoc,
+  mapCaptureOneShareDoc,
   mapPullToShareLink,
 } from "../shareLinkTypes"
 
@@ -360,5 +361,101 @@ describe("mapCastingShareDoc", () => {
     })
 
     expect(result.type).toBe("casting")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// mapCaptureOneShareDoc
+// ---------------------------------------------------------------------------
+
+describe("mapCaptureOneShareDoc", () => {
+  it("sets type, url and default title", () => {
+    const result = mapCaptureOneShareDoc("co-1", {
+      enabled: true,
+      projectId: "proj-1",
+      clientId: "client-1",
+    })
+
+    expect(result.type).toBe("captureone")
+    expect(result.url).toBe("/captureone/shared/co-1")
+    expect(result.title).toBe("Capture One Names")
+  })
+
+  it("extracts contentCount and per-shot filename counts from the shots array", () => {
+    const result = mapCaptureOneShareDoc("co-2", {
+      enabled: true,
+      shots: [
+        { shotNumber: "001", title: "Opening", filenames: [{ name: "M_Jogger_Forest" }] },
+        {
+          shotNumber: "002",
+          title: "Close-up",
+          filenames: [{ name: "W_Tee_Black" }, { name: "W_Tee_White" }],
+        },
+      ],
+      shotIds: ["a", "b", "c"],
+      projectId: "proj-1",
+      clientId: "client-1",
+    })
+
+    // shots takes precedence over shotIds for the count
+    expect(result.contentCount).toBe(2)
+    expect(result.contentItems).toHaveLength(2)
+    expect(result.contentItems![0]).toEqual({ label: "001", sublabel: "1 filename" })
+    expect(result.contentItems![1]).toEqual({ label: "002", sublabel: "2 filenames" })
+  })
+
+  it("falls back to shotIds length when shots is absent", () => {
+    const result = mapCaptureOneShareDoc("co-3", {
+      enabled: true,
+      shotIds: ["a", "b"],
+      projectId: "proj-1",
+      clientId: "client-1",
+    })
+
+    expect(result.contentCount).toBe(2)
+    expect(result.contentItems).toBeNull()
+  })
+
+  it("uses the shot title as label when shotNumber is absent, and omits sublabel for zero filenames", () => {
+    const result = mapCaptureOneShareDoc("co-4", {
+      enabled: true,
+      shots: [{ title: "Hero Look", filenames: [] }],
+      projectId: "proj-1",
+      clientId: "client-1",
+    })
+
+    const items = result.contentItems!
+    expect(items[0]!.label).toBe("Hero Look")
+    expect(items[0]!.sublabel).toBeUndefined()
+  })
+
+  it("caps contentItems at 10", () => {
+    const shots = Array.from({ length: 12 }, (_, i) => ({ shotNumber: `${i + 1}` }))
+
+    const result = mapCaptureOneShareDoc("co-5", {
+      enabled: true,
+      shots,
+      projectId: "proj-1",
+      clientId: "client-1",
+    })
+
+    expect(result.contentCount).toBe(12)
+    expect(result.contentItems).toHaveLength(10)
+  })
+
+  it("computes disabled/expired status like the other share types", () => {
+    expect(
+      mapCaptureOneShareDoc("co-6", { enabled: false, projectId: "p", clientId: "c" }).status,
+    ).toBe("disabled")
+
+    const past = { toDate: () => new Date(Date.now() - 1_000) }
+    expect(
+      mapCaptureOneShareDoc("co-7", {
+        enabled: true,
+        expiresAt: past,
+        projectId: "p",
+        clientId: "c",
+      }).status,
+    ).toBe("expired")
   })
 })

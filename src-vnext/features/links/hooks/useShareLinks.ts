@@ -1,6 +1,6 @@
 /**
- * Hook that subscribes to all three share link sources (shots, casting, pulls)
- * and merges them into a single sorted array.
+ * Hook that subscribes to all four share link sources (shots, casting,
+ * captureone, pulls) and merges them into a single sorted array.
  */
 
 import { useEffect, useMemo, useState } from "react"
@@ -16,6 +16,7 @@ import { pullsPath } from "@/shared/lib/paths"
 import {
   mapShotShareDoc,
   mapCastingShareDoc,
+  mapCaptureOneShareDoc,
   mapPullToShareLink,
   type ShareLink,
 } from "../lib/shareLinkTypes"
@@ -32,10 +33,12 @@ export function useShareLinks(
 ): UseShareLinksResult {
   const [shotLinks, setShotLinks] = useState<readonly ShareLink[]>([])
   const [castingLinks, setCastingLinks] = useState<readonly ShareLink[]>([])
+  const [captureOneLinks, setCaptureOneLinks] = useState<readonly ShareLink[]>([])
   const [pullLinks, setPullLinks] = useState<readonly ShareLink[]>([])
 
   const [shotLoading, setShotLoading] = useState(true)
   const [castingLoading, setCastingLoading] = useState(true)
+  const [captureOneLoading, setCaptureOneLoading] = useState(true)
   const [pullLoading, setPullLoading] = useState(true)
 
   const [error, setError] = useState<Error | null>(null)
@@ -136,6 +139,42 @@ export function useShareLinks(
   }, [enabled, clientId, projectId])
 
   // -----------------------------------------------------------------------
+  // Capture One shares subscription
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    if (!enabled) {
+      setCaptureOneLinks([])
+      setCaptureOneLoading(false)
+      return
+    }
+
+    setCaptureOneLoading(true)
+    const q = query(
+      collection(db, "captureOneShares"),
+      where("clientId", "==", clientId),
+      where("projectId", "==", projectId),
+    )
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const mapped = snap.docs.map((d) =>
+          mapCaptureOneShareDoc(d.id, d.data() as Record<string, unknown>),
+        )
+        setCaptureOneLinks(mapped)
+        setCaptureOneLoading(false)
+      },
+      (err) => {
+        console.error("[useShareLinks] captureOneShares error:", err)
+        setError(err)
+        setCaptureOneLoading(false)
+      },
+    )
+
+    return unsub
+  }, [enabled, clientId, projectId])
+
+  // -----------------------------------------------------------------------
   // Pulls subscription (project-scoped, filtered client-side by shareToken presence)
   // -----------------------------------------------------------------------
   useEffect(() => {
@@ -174,16 +213,16 @@ export function useShareLinks(
   // -----------------------------------------------------------------------
   // Merge + sort (newest first)
   // -----------------------------------------------------------------------
-  const loading = shotLoading || castingLoading || pullLoading
+  const loading = shotLoading || castingLoading || captureOneLoading || pullLoading
 
   const links = useMemo(() => {
-    const all = [...shotLinks, ...castingLinks, ...pullLinks]
+    const all = [...shotLinks, ...castingLinks, ...captureOneLinks, ...pullLinks]
     return all.sort((a, b) => {
       const aTime = a.createdAt?.getTime() ?? 0
       const bTime = b.createdAt?.getTime() ?? 0
       return bTime - aTime
     })
-  }, [shotLinks, castingLinks, pullLinks])
+  }, [shotLinks, castingLinks, captureOneLinks, pullLinks])
 
   return { links, loading, error }
 }

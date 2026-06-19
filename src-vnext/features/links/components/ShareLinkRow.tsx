@@ -26,6 +26,11 @@ const TYPE_STYLES: Record<ShareLink["type"], { label: string; className: string 
     className:
       "bg-[var(--color-status-purple-bg)] text-[var(--color-status-purple-text)] border border-[var(--color-status-purple-border)]",
   },
+  captureone: {
+    label: "Capture One",
+    className:
+      "bg-[var(--color-status-green-bg)] text-[var(--color-status-green-text)] border border-[var(--color-status-green-border)]",
+  },
   pull: {
     label: "Pull",
     className:
@@ -91,7 +96,7 @@ function formatEngagement(link: ShareLink): string {
     return "--"
   }
 
-  if (type === "shots") {
+  if (type === "shots" || type === "captureone") {
     return contentCount !== null ? `${contentCount} shot${contentCount === 1 ? "" : "s"}` : "--"
   }
 
