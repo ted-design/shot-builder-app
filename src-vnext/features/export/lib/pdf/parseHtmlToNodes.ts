@@ -24,6 +24,9 @@ export function isPdfListNode(node: PdfNode): node is PdfListNode {
   return "type" in node && (node.type === "ul" || node.type === "ol")
 }
 
+// NOTE: these px sizes are deprecated/unused — both spec adapters size headings
+// from blockSpec.HEADING_FONT_SIZE_PX (the single source of truth). Kept only so
+// PdfTextNode.heading carries its level; do not re-read node.fontSize.
 const HEADING_FONT_SIZES: Record<string, { fontSize: number; heading: 1 | 2 | 3 }> = {
   H1: { fontSize: 18, heading: 1 },
   H2: { fontSize: 14, heading: 2 },

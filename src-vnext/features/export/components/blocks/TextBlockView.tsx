@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import type { TextBlock, ExportVariable } from "../../types/exportBuilder"
 import { sanitizeHtml } from "@/shared/lib/sanitizeHtml"
 import { FloatingTextToolbar } from "../FloatingTextToolbar"
+import { deriveTextSpec } from "../../lib/blockSpec"
+import { renderBlockSpecDom } from "../../lib/specAdapters/dom"
 
 interface TextBlockViewProps {
   readonly block: TextBlock
@@ -20,7 +22,7 @@ function escapeHtml(str: string): string {
 
 const PDF_RENDER_TIME_TOKENS = new Set(["pageNumber", "pageCount"])
 
-/** Replace {{variableKey}} tokens with styled chip spans for display */
+/** Replace {{variableKey}} tokens with styled chip spans for the edit surface. */
 function renderContentWithChips(
   content: string,
   variables: readonly ExportVariable[],
@@ -63,27 +65,9 @@ export function TextBlockView({
   } | null>(null)
   const editableRef = useRef<HTMLDivElement>(null)
 
-  const fontSize = block.typography?.fontSize ?? 14
-  const textAlign = block.typography?.textAlign ?? "left"
-  const fontColor = block.typography?.fontColor ?? "#000000"
-  const fontFamily = block.typography?.fontFamily ?? "Inter"
-  const highlightColor = block.typography?.highlightColor
-  const blockType = block.typography?.blockType ?? "p"
-
-  const blockTypeFontSize =
-    blockType === "h1"
-      ? 24
-      : blockType === "h2"
-        ? 20
-        : blockType === "h3"
-          ? 16
-          : fontSize
-  const blockTypeFontWeight =
-    blockType === "h1" || blockType === "h2" || blockType === "h3"
-      ? 700
-      : undefined
-
-  const isEmpty = !block.content
+  // Display renders from the shared spec (resolved variables, WYSIWYG-to-PDF).
+  const spec = deriveTextSpec(block, { variables })
+  const t = spec.typography
 
   const handleDoubleClick = useCallback(() => {
     if (!onUpdateBlock) return
@@ -146,15 +130,16 @@ export function TextBlockView({
     }
   }, [isEditing])
 
-  const baseStyle: React.CSSProperties = {
-    fontSize: `${String(blockTypeFontSize)}px`,
-    fontWeight: blockTypeFontWeight,
-    textAlign: textAlign as React.CSSProperties["textAlign"],
-    color: fontColor,
-    fontFamily,
-    lineHeight: 1.5,
+  // Edit surface mirrors the spec typography so editing looks like display.
+  const editBaseStyle: React.CSSProperties = {
+    fontSize: `${String(t.fontSizePx)}px`,
+    fontWeight: t.fontWeight,
+    textAlign: t.textAlign,
+    color: t.color,
+    fontFamily: t.fontFamily,
+    lineHeight: t.lineHeight,
     minHeight: "1.5em",
-    backgroundColor: highlightColor,
+    backgroundColor: t.highlightColor,
   }
 
   if (isEditing) {
@@ -175,7 +160,7 @@ export function TextBlockView({
           suppressContentEditableWarning
           onBlur={handleBlur}
           style={{
-            ...baseStyle,
+            ...editBaseStyle,
             outline: "none",
             cursor: "text",
           }}
@@ -186,25 +171,18 @@ export function TextBlockView({
     )
   }
 
-  const displayHtml = isEmpty
-    ? ""
-    : renderContentWithChips(sanitizeHtml(block.content), variables)
-
   return (
     <div
       data-testid="text-block"
       onDoubleClick={handleDoubleClick}
-      style={{
-        ...baseStyle,
-        cursor: onUpdateBlock ? "pointer" : "default",
-      }}
+      style={{ cursor: onUpdateBlock ? "pointer" : "default" }}
     >
-      {isEmpty ? (
+      {spec.isEmpty ? (
         <span className="text-[var(--color-text-subtle)] italic">
           Double-click to add text...
         </span>
       ) : (
-        <div dangerouslySetInnerHTML={{ __html: displayHtml }} />
+        renderBlockSpecDom(spec)
       )}
     </div>
   )
