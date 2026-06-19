@@ -31,6 +31,7 @@ const FILTER_OPTIONS: readonly { key: TypeFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "shots", label: "Shots" },
   { key: "casting", label: "Casting" },
+  { key: "captureone", label: "Capture One" },
   { key: "pull", label: "Pulls" },
 ]
 

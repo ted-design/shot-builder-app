@@ -1,9 +1,10 @@
 /**
  * Firestore write operations for share link management.
  *
- * Handles three share link sources:
+ * Handles four share link sources:
  *   - shotShares/{token} (root collection)
  *   - castingShares/{token} (root collection)
+ *   - captureOneShares/{token} (root collection)
  *   - pulls/{pullId} (project-scoped subcollection)
  */
 
@@ -30,6 +31,10 @@ function castingShareRef(token: string) {
   return doc(db, "castingShares", token)
 }
 
+function captureOneShareRef(token: string) {
+  return doc(db, "captureOneShares", token)
+}
+
 function pullDocRef(link: ShareLink) {
   const path = pullPath(link.sourceDocId, link.projectId, link.clientId)
   return doc(db, path[0]!, ...path.slice(1))
@@ -46,6 +51,8 @@ export async function toggleShareLink(link: ShareLink): Promise<void> {
     await updateDoc(shotShareRef(link.id), { enabled: newEnabled })
   } else if (link.type === "casting") {
     await updateDoc(castingShareRef(link.id), { enabled: newEnabled })
+  } else if (link.type === "captureone") {
+    await updateDoc(captureOneShareRef(link.id), { enabled: newEnabled })
   } else {
     await updateDoc(pullDocRef(link), {
       shareEnabled: newEnabled,
@@ -68,6 +75,8 @@ export async function setShareLinkExpiry(
     await updateDoc(shotShareRef(link.id), { expiresAt: tsValue })
   } else if (link.type === "casting") {
     await updateDoc(castingShareRef(link.id), { expiresAt: tsValue })
+  } else if (link.type === "captureone") {
+    await updateDoc(captureOneShareRef(link.id), { expiresAt: tsValue })
   } else {
     await updateDoc(pullDocRef(link), {
       shareExpireAt: tsValue,
@@ -85,6 +94,8 @@ export async function deleteShareLink(link: ShareLink): Promise<void> {
     await deleteDoc(shotShareRef(link.id))
   } else if (link.type === "casting") {
     await deleteDoc(castingShareRef(link.id))
+  } else if (link.type === "captureone") {
+    await deleteDoc(captureOneShareRef(link.id))
   } else {
     await updateDoc(pullDocRef(link), {
       shareEnabled: false,

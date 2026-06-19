@@ -1,15 +1,16 @@
 /**
  * Unified share link types and mappers.
  *
- * Three share link sources are normalized into a single ShareLink shape:
+ * Four share link sources are normalized into a single ShareLink shape:
  *   - shotShares (root collection, doc id = token)
  *   - castingShares (root collection, doc id = token)
+ *   - captureOneShares (root collection, doc id = token)
  *   - pulls (project-scoped, shareToken field on pull doc)
  */
 
 import type { Timestamp } from "firebase/firestore"
 
-export type ShareLinkType = "shots" | "casting" | "pull"
+export type ShareLinkType = "shots" | "casting" | "captureone" | "pull"
 export type ShareLinkStatus = "active" | "disabled" | "expired"
 
 export interface ShareLinkContentItem {
@@ -173,6 +174,69 @@ export function mapCastingShareDoc(
     createdAt,
     createdBy: typeof data["createdBy"] === "string" ? data["createdBy"] : null,
     engagement: voteCount ?? null,
+    projectId,
+    clientId,
+    sourceDocId: id,
+    contentCount,
+    contentItems,
+  }
+}
+
+export function mapCaptureOneShareDoc(
+  id: string,
+  data: Record<string, unknown>,
+): ShareLink {
+  const enabled = data["enabled"] === true
+  const expiresAt = timestampToDate(data["expiresAt"])
+  const createdAt = timestampToDate(data["createdAt"])
+  const projectId = (typeof data["projectId"] === "string" ? data["projectId"] : "") as string
+  const clientId = (typeof data["clientId"] === "string" ? data["clientId"] : "") as string
+  const title =
+    (typeof data["title"] === "string" && data["title"].length > 0
+      ? data["title"]
+      : "Capture One Names") as string
+
+  // Created docs denormalize resolved shots into `shots`; fall back to `shotIds`
+  // for the count if an older doc predates that field.
+  const shots = Array.isArray(data["shots"]) ? (data["shots"] as unknown[]) : null
+  const shotIds = Array.isArray(data["shotIds"]) ? (data["shotIds"] as unknown[]) : null
+
+  const contentCount = shots !== null
+    ? shots.length
+    : shotIds !== null
+      ? shotIds.length
+      : null
+
+  const contentItems: ShareLinkContentItem[] | null = shots !== null
+    ? shots.slice(0, MAX_CONTENT_ITEMS).map((shot) => {
+        const s = shot as Record<string, unknown>
+        const filenames = Array.isArray(s["filenames"]) ? (s["filenames"] as unknown[]) : []
+        const label =
+          typeof s["shotNumber"] === "string" && s["shotNumber"].length > 0
+            ? (s["shotNumber"] as string)
+            : typeof s["title"] === "string" && s["title"].length > 0
+              ? (s["title"] as string)
+              : "Shot"
+        return {
+          label,
+          sublabel: filenames.length > 0
+            ? `${filenames.length} filename${filenames.length === 1 ? "" : "s"}`
+            : undefined,
+        }
+      })
+    : null
+
+  return {
+    id,
+    type: "captureone",
+    title,
+    url: `/captureone/shared/${id}`,
+    status: computeShareLinkStatus(enabled, expiresAt),
+    enabled,
+    expiresAt,
+    createdAt,
+    createdBy: typeof data["createdBy"] === "string" ? data["createdBy"] : null,
+    engagement: null,
     projectId,
     clientId,
     sourceDocId: id,
