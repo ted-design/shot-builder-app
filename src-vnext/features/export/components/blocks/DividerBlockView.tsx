@@ -1,25 +1,11 @@
 import type { DividerBlock } from "../../types/exportBuilder"
+import { deriveDividerSpec } from "../../lib/blockSpec"
+import { renderBlockSpecDom } from "../../lib/specAdapters/dom"
 
 interface DividerBlockViewProps {
   readonly block: DividerBlock
 }
 
 export function DividerBlockView({ block }: DividerBlockViewProps) {
-  const borderStyle = block.style ?? "solid"
-  const color = block.color ?? "#d1d5db"
-
-  return (
-    <hr
-      data-testid="divider-block"
-      style={{
-        borderTopStyle: borderStyle,
-        borderTopWidth: "1px",
-        borderTopColor: color,
-        borderBottom: "none",
-        borderLeft: "none",
-        borderRight: "none",
-      }}
-      className="my-2"
-    />
-  )
+  return renderBlockSpecDom(deriveDividerSpec(block))
 }
