@@ -2,6 +2,8 @@ import { Text, View } from "@react-pdf/renderer"
 import type { Style } from "@react-pdf/types"
 import {
   HEADING_FONT_SIZE_PX,
+  WARNING_BG,
+  WARNING_FG,
   type ResolvedBlockSpec,
   type TextRun,
   type TextSegment,
@@ -19,9 +21,6 @@ import {
 // @react-pdf, so it stays in the lazy pdf chunk. The text path consumes the
 // same resolved spec the DOM does; @react-pdf's no-View-inside-Text rule is a
 // rendering constraint handled here only (the spec stays presentation-free).
-
-const WARNING_BG = "#FEF3C7"
-const WARNING_FG = "#92400E"
 
 /** Render a resolved block spec to @react-pdf primitives. */
 export function renderBlockSpecPdf(spec: ResolvedBlockSpec): React.ReactElement {

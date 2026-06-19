@@ -83,10 +83,17 @@ const TEXT_DEFAULT_COLOR = "#111827" // page house gray-900
 const TEXT_DEFAULT_FONT_FAMILY = "Inter"
 const TEXT_LINE_HEIGHT = 1.5
 
+// Shared warning palette both adapters paint on unresolved {{tokens}} — one
+// source so the two presenters can't drift on the color.
+export const WARNING_BG = "#FEF3C7"
+export const WARNING_FG = "#92400E"
+
 const RENDER_TOKENS = new Set(["pageNumber", "pageCount"])
 const RENDER_TOKEN_SPLIT = /(\{\{pageNumber\}\}|\{\{pageCount\}\})/g
-const TOKEN_SPLIT = /(\{\{\w+\}\})/g
-const TOKEN_EXACT = /^\{\{(\w+)\}\}$/
+// [^}]+ (not \w+) so deleted custom-variable tokens — whose keys are
+// crypto.randomUUID() with hyphens — still split + flag as unresolved.
+const TOKEN_SPLIT = /(\{\{[^}]+\}\})/g
+const TOKEN_EXACT = /^\{\{([^}]+)\}\}$/
 
 /** Environment a text spec resolves against (the variables in scope). */
 export interface TextSpecEnv {

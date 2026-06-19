@@ -121,6 +121,20 @@ describe("deriveTextSpec", () => {
     ])
   })
 
+  it("flags a deleted custom-variable token (hyphenated UUID key) as unresolved", () => {
+    // Custom vars use crypto.randomUUID() keys; a stale one is {{<uuid>}}.
+    const spec = deriveTextSpec(textBlock("X {{a1b2-c3d4-e5}}"), { variables: VARS })
+    expect(spec.segments).toEqual([
+      {
+        kind: "plainText",
+        runs: [
+          { text: "X ", unresolved: false },
+          { text: "{{a1b2-c3d4-e5}}", unresolved: true },
+        ],
+      },
+    ])
+  })
+
   it("parses HTML content into rich nodes", () => {
     const spec = deriveTextSpec(textBlock("<b>bold</b>"), { variables: [] })
     expect(spec.segments).toHaveLength(1)

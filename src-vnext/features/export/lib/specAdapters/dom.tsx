@@ -1,5 +1,7 @@
 import {
   HEADING_FONT_SIZE_PX,
+  WARNING_BG,
+  WARNING_FG,
   type ResolvedBlockSpec,
   type TextSegment,
   type TextSpec,
@@ -14,10 +16,6 @@ import {
 // from the spec (not Tailwind classes) so the DOM and PDF consume one source
 // and can't drift. The text display path mirrors the PDF: variables resolved to
 // values, render tokens shown as a sentinel, unresolved tokens warning-painted.
-
-// Same warning palette the PDF adapter paints, so the two stay in parity.
-const WARNING_BG = "#FEF3C7"
-const WARNING_FG = "#92400E"
 
 /** Render a resolved block spec to DOM primitives. */
 export function renderBlockSpecDom(spec: ResolvedBlockSpec): React.ReactElement {

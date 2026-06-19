@@ -278,12 +278,16 @@ describe("Text consumer parity — preview display and pdf consume the same spec
     expect(pdf.container.querySelector('pdf-text[data-has-render="true"]')).not.toBeNull()
   })
 
-  it("warning-paints an unresolved token in both trees", () => {
+  it("warning-paints an unresolved token with the same palette in both trees", () => {
     const block = tBlock("Hi {{bogus}}")
     const dom = render(<TextBlockView block={block} variables={TEXT_VARS} />)
     const flagged = dom.container.querySelector('[data-unresolved-token="true"]')
     expect(flagged).not.toBeNull()
     expect((flagged as HTMLElement).textContent).toBe("{{bogus}}")
+    // Lock the single-source palette: DOM warning bg must equal the PDF's.
+    expect(normColor((flagged as HTMLElement).style.backgroundColor)).toBe(
+      normColor(hexToRgb(WARNING_BG)),
+    )
 
     const pdf = render(<TextBlockPdf block={block} variables={TEXT_VARS} />)
     const painted = Array.from(pdf.container.querySelectorAll("pdf-text")).find(
