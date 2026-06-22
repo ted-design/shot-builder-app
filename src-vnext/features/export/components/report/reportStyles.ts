@@ -8,6 +8,12 @@
 
 export const REPORT_STYLES = `
 .sb-report-root {
+  /* Product table columns — SIZE + QTY are FIXED tracks (not auto) so columns
+     align across every row AND the (sibling) header; an auto track is sized
+     per-grid, which shifted the fr columns row-to-row. Defined here so both
+     .sb-prod-list rows and .sb-prod-colhead inherit one source. */
+  --sb-prod-cols: 14px minmax(0, 1.55fr) minmax(0, 1fr) 4.5rem 2.5rem;
+
   /* Type families (app loads typekit gph3jzg) */
   --sb-font-display: "ivypresto-headline", Georgia, serif;
   --sb-font-body: "neue-haas-grotesk-text", "Helvetica Neue", Arial, sans-serif;
@@ -245,7 +251,7 @@ export const REPORT_STYLES = `
 .sb-prod-list { display: flex; flex-direction: column; gap: 9px; }
 .sb-prod {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1.55fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--sb-prod-cols);
   align-items: baseline; column-gap: 14px; row-gap: 2px;
 }
 .sb-prod-hero-mark {
@@ -281,7 +287,7 @@ export const REPORT_STYLES = `
 }
 .sb-prod-colhead {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1.55fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--sb-prod-cols);
   column-gap: 14px; padding-bottom: 7px; margin-bottom: 9px; border-bottom: 1px solid var(--sb-rule);
 }
 .sb-prod-colhead span {
