@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Copy, FileText, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
+import { badgeVariants } from "@/ui/badge"
 import { Button, buttonVariants } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
@@ -157,7 +158,7 @@ export default function ShotReportListPage() {
                 {(recipesEnabled || r.updatedAt) && (
                   <span className="block text-xs text-[var(--color-text-muted)]">
                     {recipesEnabled && (
-                      <span className="mr-2 rounded-sm bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[var(--color-text-secondary)]">
+                      <span className={`${badgeVariants({ variant: "secondary" })} mr-2`}>
                         {REPORT_LAYOUT_LABEL[r.layout]}
                       </span>
                     )}

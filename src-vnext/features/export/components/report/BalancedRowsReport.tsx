@@ -297,12 +297,15 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
 
 export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
   // Continuous zebra across groups (matches comp-c rhythm) — precomputed so the
-  // render body stays pure.
+  // render body stays pure. Counts printable shots only, so the screen rhythm
+  // matches the paged/PDF stream (which filters excluded). Excluded (struck) rows
+  // fall through to false.
   const zebraById = useMemo(() => {
     const m = new Map<string, boolean>()
     let i = 0
     for (const g of model.groups)
       for (const s of g.shots) {
+        if (s.excluded) continue
         m.set(s.id, i % 2 === 1)
         i += 1
       }
