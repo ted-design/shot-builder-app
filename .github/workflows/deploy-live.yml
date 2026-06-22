@@ -49,6 +49,7 @@ jobs:
           VITE_CASTING_MATCHER_SURFACE:      1   # Talent redesign: casting matcher = its own ranked surface
           VITE_TALENT_AGENCY_COMBOBOX:       1   # Talent redesign: agency combobox (data already normalized)
           VITE_TALENT_LAZY:                  1   # Talent redesign: lazy portfolio/casting images
+          VITE_SHOT_REPORT:                  1   # Export reimagine: image-led Shot Report + reports list/recipe/looksMode live
         run: npm run build
 
       - name: Auth to Google Cloud (WIF)
@@ -91,6 +92,7 @@ jobs:
           VITE_CASTING_MATCHER_SURFACE:      1   # Talent redesign: casting matcher = its own ranked surface
           VITE_TALENT_AGENCY_COMBOBOX:       1   # Talent redesign: agency combobox (data already normalized)
           VITE_TALENT_LAZY:                  1   # Talent redesign: lazy portfolio/casting images
+          VITE_SHOT_REPORT:                  1   # Export reimagine: image-led Shot Report + reports list/recipe/looksMode live
         run: npx firebase-tools deploy --only hosting --project um-shotbuilder --json > deploy-live.json
 
       - name: Output live URL
