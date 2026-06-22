@@ -156,4 +156,74 @@ describe("deriveShotReportModel", () => {
     expect(model.groups[0]?.key).toBe("all")
     expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["live"])
   })
+
+  const twoLookShot = () =>
+    data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, products: [{ familyId: "fM" }] },
+            { id: "l1", order: 1, label: "Alt A", products: [{ familyId: "fM" }] },
+          ],
+        }),
+      ],
+    })
+
+  it("looksMode 'primary-only' shows only the primary look; 'all' shows every look", () => {
+    const d = twoLookShot()
+    const all = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "all" })
+    const primary = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "primary-only" })
+    expect(all.groups.flatMap((g) => g.shots)[0]?.looks.map((l) => l.label)).toEqual(["Primary", "Alt A"])
+    const pLooks = primary.groups.flatMap((g) => g.shots)[0]?.looks
+    expect(pLooks?.map((l) => l.label)).toEqual(["Primary"])
+    expect(pLooks?.[0]?.isAlt).toBe(false)
+  })
+
+  it("default looksMode (omitted) shows all looks", () => {
+    const model = deriveShotReportModel(twoLookShot(), { groupBy: "none", excludedShotIds: [] })
+    expect(model.groups.flatMap((g) => g.shots)[0]?.looks).toHaveLength(2)
+  })
+
+  it("hasImage recomputes on the filtered looks (no masthead overcount)", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, products: [{ familyId: "fM" }] }, // primary: no image
+            { id: "l1", order: 1, references: [{ id: "r", path: "u" }], products: [{ familyId: "fM" }] },
+          ],
+        }),
+      ],
+    })
+    const all = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const primary = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "primary-only" })
+    expect(all.groups[0]?.shots[0]?.hasImage).toBe(true)
+    expect(primary.groups[0]?.shots[0]?.hasImage).toBe(false)
+  })
+
+  it("looksMode does not change grouping (gender resolves from all looks)", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, products: [{ familyId: "unknown" }] }, // primary: ungendered
+            { id: "l1", order: 1, products: [{ familyId: "fM" }] }, // alt: men
+          ],
+        }),
+      ],
+    })
+    const all = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "all" })
+    const primary = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "primary-only" })
+    expect(all.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
+    expect(primary.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
+  })
 })

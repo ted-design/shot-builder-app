@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildNavConfig, getMobileNavConfig } from "./nav-config"
+import { buildNavConfig, getMobileNavConfig, withShotReportsNav, type NavConfig } from "./nav-config"
 
 describe("buildNavConfig", () => {
   it("returns org variant when no projectId", () => {
@@ -193,5 +193,43 @@ describe("getMobileNavConfig", () => {
       (e) => e.type === "item" && e.item.label === "Admin",
     )
     expect(admin).toBeUndefined()
+  })
+})
+
+describe("withShotReportsNav", () => {
+  const itemLabels = (config: NavConfig) =>
+    config.entries
+      .filter((e) => e.type === "item")
+      .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
+
+  it("inserts a Shot Reports item right after Export", () => {
+    const labels = itemLabels(withShotReportsNav(buildNavConfig("p1"), "p1"))
+    const exportIdx = labels.indexOf("Export")
+    expect(exportIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[exportIdx + 1]).toBe("Shot Reports")
+  })
+
+  it("points the item at the project-scoped reports route", () => {
+    const next = withShotReportsNav(buildNavConfig("p1"), "p1")
+    const item = next.entries.find((e) => e.type === "item" && e.item.label === "Shot Reports")
+    expect(item && item.type === "item" ? item.item.to : null).toBe("/projects/p1/export/reports")
+  })
+
+  it("appends Shot Reports when no Export entry exists (fallback)", () => {
+    const stub: NavConfig = {
+      variant: "project",
+      entries: [{ type: "item", item: { label: "Shots", to: "/projects/p1/shots", iconName: "camera" } }],
+    }
+    const next = withShotReportsNav(stub, "p1")
+    const last = next.entries[next.entries.length - 1]
+    expect(last && last.type === "item" ? last.item.label : null).toBe("Shot Reports")
+  })
+
+  it("does not mutate the input config", () => {
+    const base = buildNavConfig("p1")
+    const beforeLen = base.entries.length
+    withShotReportsNav(base, "p1")
+    expect(base.entries.length).toBe(beforeLen)
+    expect(base.entries.some((e) => e.type === "item" && e.item.label === "Shot Reports")).toBe(false)
   })
 })

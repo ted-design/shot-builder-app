@@ -6,16 +6,22 @@
 
 export type ReportGroupBy = "gender" | "none"
 
-/** Light, in-memory report config (MVP). Persistence comes later. */
+/** Which looks each shot shows: every look, or only the primary (alts hidden). */
+export type ReportLooksMode = "all" | "primary-only"
+
+/** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
   /** Shots the user has excluded — kept visible+struck on screen, omitted from the PDF. */
   readonly excludedShotIds: readonly string[]
+  /** "primary-only" shows just each shot's primary look. Defaults to "all". */
+  readonly looksMode?: ReportLooksMode
 }
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   groupBy: "gender",
   excludedShotIds: [],
+  looksMode: "all",
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */

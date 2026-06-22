@@ -58,6 +58,9 @@ const ExportBuilderPage = lazy(
 const ShotReportPage = lazy(
   () => import("@/features/export/components/report/ShotReportPage"),
 )
+const ShotReportListPage = lazy(
+  () => import("@/features/export/components/report/ShotReportListPage"),
+)
 const OnSetViewerPage = lazy(
   () => import("@/features/schedules/components/OnSetViewerPage"),
 )
@@ -265,6 +268,20 @@ export function AppRoutes() {
               </RouteBoundary>
             }
           />
+          {isFeatureEnabled("featureShotReport") && (
+            <Route
+              path="projects/:id/export/reports"
+              element={
+                <RouteBoundary featureName="Shot reports">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Shot reports">
+                      <ShotReportListPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
           {isFeatureEnabled("featureShotReport") && (
             <Route
               path="projects/:id/export/report"

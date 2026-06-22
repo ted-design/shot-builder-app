@@ -12,6 +12,7 @@ import type {
   ReportConfig,
   ReportGroup,
   ReportGroupBy,
+  ReportLooksMode,
   ReportLook,
   ReportModel,
   ReportProduct,
@@ -452,6 +453,8 @@ function ControlBar({
   onSetPrintMode,
   groupBy,
   onSetGroupBy,
+  looksMode,
+  onSetLooksMode,
   onExportPdf,
   exporting,
 }: {
@@ -459,11 +462,14 @@ function ControlBar({
   readonly onSetPrintMode: (v: boolean) => void
   readonly groupBy: ReportGroupBy
   readonly onSetGroupBy: (v: ReportGroupBy) => void
+  readonly looksMode: ReportLooksMode
+  readonly onSetLooksMode: (v: ReportLooksMode) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
 }): JSX.Element {
   const viewLabelId = useId()
   const groupLabelId = useId()
+  const looksLabelId = useId()
   return (
     <div className="sb-controlbar no-print" role="region" aria-label="Report controls">
       <div className="sb-control-group" role="group" aria-labelledby={viewLabelId}>
@@ -514,6 +520,30 @@ function ControlBar({
         </div>
       </div>
 
+      <div className="sb-control-group" role="group" aria-labelledby={looksLabelId}>
+        <span id={looksLabelId} className="sb-control-label">
+          Looks
+        </span>
+        <div className="sb-seg">
+          <button
+            type="button"
+            className="sb-seg-btn"
+            aria-pressed={looksMode === "all"}
+            onClick={() => onSetLooksMode("all")}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className="sb-seg-btn"
+            aria-pressed={looksMode === "primary-only"}
+            onClick={() => onSetLooksMode("primary-only")}
+          >
+            Primary only
+          </button>
+        </div>
+      </div>
+
       <button
         type="button"
         className="sb-export-btn"
@@ -556,6 +586,12 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, groupBy })
   }
 
+  const looksMode: ReportLooksMode = config.looksMode ?? "all"
+  const setLooksMode = (next: ReportLooksMode): void => {
+    if (next === looksMode) return
+    onConfigChange({ ...config, looksMode: next })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
 
   return (
@@ -567,6 +603,8 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         onSetPrintMode={setPrintMode}
         groupBy={config.groupBy}
         onSetGroupBy={setGroupBy}
+        looksMode={looksMode}
+        onSetLooksMode={setLooksMode}
         onExportPdf={onExportPdf}
         exporting={exporting}
       />

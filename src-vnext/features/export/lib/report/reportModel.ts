@@ -141,12 +141,16 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const talentById = new Map(data.talent.map((t) => [t.id, t]))
   const excluded = new Set(config.excludedShotIds)
+  const primaryOnly = config.looksMode === "primary-only"
 
   const shots: ReportShot[] = data.shots
     .filter((s) => !s.deleted)
     .map((shot): ReportShot => {
       const looks = resolveLooks(shot, familyById)
+      // Gender resolves from ALL looks so grouping stays stable across looksMode.
       const gender = resolveShotGender(shot, looks)
+      // primary-only is a display filter: keep only the primary look (looks[0]).
+      const visibleLooks = primaryOnly ? looks.slice(0, 1) : looks
       return {
         id: shot.id,
         number: shot.shotNumber ?? "",
@@ -156,9 +160,9 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
         gender,
         notes: shot.notesAddendum ?? shot.notes ?? null,
         talent: resolveTalent(shot, talentById),
-        looks,
+        looks: visibleLooks,
         excluded: excluded.has(shot.id),
-        hasImage: looks.some((l) => l.image != null),
+        hasImage: visibleLooks.some((l) => l.image != null),
       }
     })
     .sort((a, b) => {
