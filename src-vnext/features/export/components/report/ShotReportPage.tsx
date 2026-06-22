@@ -28,15 +28,22 @@ export default function ShotReportPage() {
   const [imagesLoading, setImagesLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  // Hydrate config from a saved shot-report doc when ?reportId= is present.
-  // Default-merge so a stored blob lacking a later-added field still parses.
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hydrate config from a saved shot-report doc when ?reportId= is present, else
+  // reset to defaults. Switching reports (or clearing reportId) also cancels any
+  // pending write from the previous report. Default-merge so an older blob parses.
   useEffect(() => {
-    if (!reportId) return
+    if (persistTimer.current) clearTimeout(persistTimer.current)
+    if (!reportId) {
+      setConfig(DEFAULT_REPORT_CONFIG)
+      return
+    }
     let cancelled = false
     void loadReport(reportId)
       .then((full) => {
-        if (cancelled || !full?.config) return
-        setConfig({ ...DEFAULT_REPORT_CONFIG, ...full.config })
+        if (cancelled) return
+        setConfig(full?.config ? { ...DEFAULT_REPORT_CONFIG, ...full.config } : DEFAULT_REPORT_CONFIG)
       })
       .catch(() => {
         /* keep defaults on a transient load failure */
@@ -48,14 +55,15 @@ export default function ShotReportPage() {
 
   // User edits persist (debounced) only when editing a saved report. Hydration
   // uses setConfig directly, so it never triggers a write-back.
-  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleConfigChange = useCallback(
     (next: ReportConfig) => {
       setConfig(next)
       if (!reportId) return
       if (persistTimer.current) clearTimeout(persistTimer.current)
       persistTimer.current = setTimeout(() => {
-        void saveReportConfig(reportId, next)
+        void saveReportConfig(reportId, next).catch(() => {
+          /* offline cache retries; save status surfaced in the report UI (PR-B) */
+        })
       }, 800)
     },
     [reportId, saveReportConfig],

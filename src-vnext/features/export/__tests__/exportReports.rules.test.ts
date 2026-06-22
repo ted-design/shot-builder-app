@@ -118,6 +118,16 @@ describeOrSkip("firestore.rules — exportReports (shot-report docs)", () => {
   it("[6] anon CREATE fails", async () => {
     await assertFails(setDoc(reportRef(anon(), "report-anon"), shotReportDoc("nobody")))
   })
+
+  it("[7] same-tenant producer can UPDATE another producer's report (reports are tenant-editable; createdBy preserved)", async () => {
+    const db = authed("prod-b", CLIENT_A, "producer")
+    await assertSucceeds(
+      updateDoc(reportRef(db, REPORT_OWNED), {
+        config: { groupBy: "gender", excludedShotIds: [] },
+        updatedBy: "prod-b",
+      }),
+    )
+  })
 })
 
 // Visible skip notice so developers know why zero rules tests ran locally.

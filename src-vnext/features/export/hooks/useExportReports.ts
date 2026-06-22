@@ -26,12 +26,12 @@ import type { ReportConfig } from "../lib/report/reportTypes"
 // Discriminates a saved shot-report doc from a legacy block-canvas doc. Absent
 // on disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so
 // no existing doc is ever migrated.
-export type ReportReportType = "block-canvas" | "shot-report"
+export type ExportReportType = "block-canvas" | "shot-report"
 
 export interface ExportReport {
   readonly id: string
   readonly name: string
-  readonly reportType: ReportReportType
+  readonly reportType: ExportReportType
   readonly schemaVersion: number
   readonly updatedAt: Date | null
   readonly createdBy: string
@@ -81,7 +81,7 @@ export function mapReport(
     id,
     name: (data.name as string) ?? "Untitled",
     // Missing reportType => a legacy block-canvas doc (no migration).
-    reportType: (data.reportType as ReportReportType) ?? "block-canvas",
+    reportType: (data.reportType as ExportReportType) ?? "block-canvas",
     schemaVersion: (data.schemaVersion as number) ?? 1,
     updatedAt: ts?.toDate?.() ?? null,
     createdBy: (data.createdBy as string) ?? "",
@@ -241,7 +241,7 @@ export function useExportReports(
           fontFamily: "Inter",
         },
         customVariables: (data.customVariables as readonly CustomVariable[]) ?? [],
-        config: (data.config as ReportConfig | undefined) ?? undefined,
+        config: data.config as ReportConfig | undefined,
       }
     },
     [clientId, projectId],
