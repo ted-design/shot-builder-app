@@ -101,6 +101,14 @@ export const breadcrumbsConfig: Record<string, BreadcrumbResolver> = {
     ...projectCrumbs(ctx),
     { label: "Export" },
   ],
+  "/projects/:id/export/report": (ctx) => [
+    ...projectCrumbs(ctx),
+    {
+      label: "Export",
+      to: ctx.params["id"] ? `/projects/${ctx.params["id"]}/export` : undefined,
+    },
+    { label: "Shot Report" },
+  ],
   "/projects/:id/schedules/:scheduleId/onset": () => [],
 
   "/requests": () => [{ label: "Shot Requests" }],

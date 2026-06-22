@@ -7,6 +7,7 @@ import { RequireDesktop } from "@/app/routes/guards/RequireDesktop"
 import { ProjectScopeProvider } from "@/app/providers/ProjectScopeProvider"
 import { AppShell } from "@/shared/components/AppShell"
 import { RouteBoundary } from "@/app/routes/RouteBoundary"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 
 const LoginPage = lazy(() => import("@/features/auth/components/LoginPage"))
 const ProjectDashboard = lazy(
@@ -53,6 +54,9 @@ const ScheduleListPage = lazy(
 )
 const ExportBuilderPage = lazy(
   () => import("@/features/export/components/ExportBuilderPage"),
+)
+const ShotReportPage = lazy(
+  () => import("@/features/export/components/report/ShotReportPage"),
 )
 const OnSetViewerPage = lazy(
   () => import("@/features/schedules/components/OnSetViewerPage"),
@@ -261,6 +265,20 @@ export function AppRoutes() {
               </RouteBoundary>
             }
           />
+          {isFeatureEnabled("featureShotReport") && (
+            <Route
+              path="projects/:id/export/report"
+              element={
+                <RouteBoundary featureName="Shot report">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Shot report">
+                      <ShotReportPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
           <Route
             path="projects/:id/schedules"
             element={
