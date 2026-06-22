@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import {
@@ -123,6 +123,14 @@ function ExportBuilderPageInner() {
     importReport,
   } = useExportReports(clientId, projectId)
 
+  // Shot-report docs share this collection but must never enter the block editor:
+  // the auto-select + debounced auto-save below would clobber them to an empty
+  // canvas. A missing reportType reads as "block-canvas", so all legacy docs stay.
+  const blockCanvasReports = useMemo(
+    () => reports.filter((r) => r.reportType === "block-canvas"),
+    [reports],
+  )
+
   // --- Firestore workspace templates ---
   const {
     workspaceTemplates,
@@ -212,9 +220,9 @@ function ExportBuilderPageInner() {
         }
       }
 
-      if (reports.length > 0) {
+      if (blockCanvasReports.length > 0) {
         // Select first (most recently updated) report
-        const first = reports[0]!
+        const first = blockCanvasReports[0]!
         const full = await loadReport(first.id)
         if (full) {
           setDocument({
@@ -244,7 +252,7 @@ function ExportBuilderPageInner() {
     initialize().catch(() => {
       setHasInitialized(true)
     })
-  }, [reportsLoading, hasInitialized, reports, loadReport, projectId, searchParams, setSearchParams])
+  }, [reportsLoading, hasInitialized, blockCanvasReports, loadReport, projectId, searchParams, setSearchParams])
 
   // --- Switch report ---
   const handleSelectReport = useCallback(
@@ -346,7 +354,7 @@ function ExportBuilderPageInner() {
         toast.success("Report deleted")
         // If we deleted the active report, switch to first remaining
         if (reportId === activeReportId) {
-          const remaining = reports.filter((r) => r.id !== reportId)
+          const remaining = blockCanvasReports.filter((r) => r.id !== reportId)
           if (remaining.length > 0) {
             const first = remaining[0]!
             void handleSelectReport(first.id)
@@ -359,7 +367,7 @@ function ExportBuilderPageInner() {
         toast.error("Failed to delete report")
       }
     },
-    [deleteReport, activeReportId, reports, handleSelectReport],
+    [deleteReport, activeReportId, blockCanvasReports, handleSelectReport],
   )
 
   // --- Auto-save to Firestore (debounced) ---
@@ -715,7 +723,7 @@ function ExportBuilderPageInner() {
         onOpenVariables={() => setShowVariables(true)}
         onOpenPageSettings={() => setShowPageSettings(true)}
         onExport={handleExport}
-        reports={reports}
+        reports={blockCanvasReports}
         activeReportId={activeReportId}
         onSelectReport={handleSelectReport}
         onCreateReport={handleCreateReport}
