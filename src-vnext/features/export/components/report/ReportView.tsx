@@ -23,7 +23,7 @@ import type {
 } from "../../lib/report/reportTypes"
 import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
 import { REPORT_STYLES } from "./reportStyles"
-import { resolveSrc, statusMeta } from "./reportShared"
+import { resolveSrc, statusMetaLegacy } from "./reportShared"
 import { ProductionSheetReport } from "./ProductionSheetReport"
 import { BalancedRowsReport } from "./BalancedRowsReport"
 
@@ -207,7 +207,7 @@ function PlateCaption({
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
-  const st = statusMeta(shot.status)
+  const st = statusMetaLegacy(shot.status)
   return (
     <div className="sb-plate-caption">
       <div className="sb-caption-topline">
