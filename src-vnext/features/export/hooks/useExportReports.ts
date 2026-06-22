@@ -21,10 +21,17 @@ import type {
   PageSettings,
   CustomVariable,
 } from "../types/exportBuilder"
+import type { ReportConfig } from "../lib/report/reportTypes"
+
+// Discriminates a saved shot-report doc from a legacy block-canvas doc. Absent
+// on disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so
+// no existing doc is ever migrated.
+export type ReportReportType = "block-canvas" | "shot-report"
 
 export interface ExportReport {
   readonly id: string
   readonly name: string
+  readonly reportType: ReportReportType
   readonly schemaVersion: number
   readonly updatedAt: Date | null
   readonly createdBy: string
@@ -35,6 +42,8 @@ export interface ExportReportFull extends ExportReport {
   readonly pages: readonly ExportPage[]
   readonly settings: PageSettings
   readonly customVariables: readonly CustomVariable[]
+  /** Present only on shot-report docs. */
+  readonly config?: ReportConfig
 }
 
 interface SaveReportData {
@@ -57,9 +66,13 @@ export interface UseExportReportsReturn {
     settings: PageSettings,
     customVariables?: readonly CustomVariable[],
   ) => Promise<string>
+  /** Create a saved shot-report doc whose config IS the recipe. */
+  readonly createShotReport: (name: string, config: ReportConfig) => Promise<string>
+  /** Persist a shot-report's config blob (partial merge; preserves the rest). */
+  readonly saveReportConfig: (reportId: string, config: ReportConfig) => Promise<void>
 }
 
-function mapReport(
+export function mapReport(
   id: string,
   data: Record<string, unknown>,
 ): ExportReport {
@@ -67,6 +80,8 @@ function mapReport(
   return {
     id,
     name: (data.name as string) ?? "Untitled",
+    // Missing reportType => a legacy block-canvas doc (no migration).
+    reportType: (data.reportType as ReportReportType) ?? "block-canvas",
     schemaVersion: (data.schemaVersion as number) ?? 1,
     updatedAt: ts?.toDate?.() ?? null,
     createdBy: (data.createdBy as string) ?? "",
@@ -129,6 +144,21 @@ export function useExportReports(
     [clientId, projectId, user?.uid],
   )
 
+  const saveReportConfig = useCallback(
+    async (reportId: string, config: ReportConfig) => {
+      if (!clientId || !projectId) return
+      const pathSegments = exportReportDocPath(clientId, projectId, reportId)
+      const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
+      // Top-level merge: preserves name/pages/createdBy; replaces the small config blob whole.
+      await updateDoc(docRef, {
+        config,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid ?? "",
+      })
+    },
+    [clientId, projectId, user?.uid],
+  )
+
   const createReport = useCallback(
     async (name: string): Promise<string> => {
       if (!clientId || !projectId) throw new Error("Missing clientId or projectId")
@@ -144,6 +174,31 @@ export function useExportReports(
           size: "letter",
           fontFamily: "Inter",
         },
+        customVariables: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: user?.uid ?? "",
+        updatedBy: user?.uid ?? "",
+      })
+      return newDocRef.id
+    },
+    [clientId, projectId, user?.uid],
+  )
+
+  const createShotReport = useCallback(
+    async (name: string, config: ReportConfig): Promise<string> => {
+      if (!clientId || !projectId) throw new Error("Missing clientId or projectId")
+      const pathSegments = exportReportsPath(clientId, projectId)
+      const collRef = collection(db, pathSegments[0]!, ...pathSegments.slice(1))
+      const newDocRef = doc(collRef)
+      await setDoc(newDocRef, {
+        name,
+        reportType: "shot-report",
+        schemaVersion: 2,
+        config,
+        // Empty pages keep the doc inert if it ever reaches the legacy block loader.
+        pages: [],
+        settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
         customVariables: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -186,6 +241,7 @@ export function useExportReports(
           fontFamily: "Inter",
         },
         customVariables: (data.customVariables as readonly CustomVariable[]) ?? [],
+        config: (data.config as ReportConfig | undefined) ?? undefined,
       }
     },
     [clientId, projectId],
@@ -228,5 +284,15 @@ export function useExportReports(
     [clientId, projectId],
   )
 
-  return { reports, loading, saveReport, deleteReport, createReport, loadReport, importReport }
+  return {
+    reports,
+    loading,
+    saveReport,
+    deleteReport,
+    createReport,
+    loadReport,
+    importReport,
+    createShotReport,
+    saveReportConfig,
+  }
 }

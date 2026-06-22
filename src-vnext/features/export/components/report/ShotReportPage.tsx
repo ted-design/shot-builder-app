@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useParams, useSearchParams } from "react-router-dom"
+import { useAuth } from "@/app/providers/AuthProvider"
 import { useExportData } from "../../hooks/useExportData"
+import { useExportReports } from "../../hooks/useExportReports"
 import { deriveShotReportModel } from "../../lib/report/reportModel"
 import {
   collectReportImageCandidates,
@@ -14,10 +17,57 @@ import { ReportView } from "./ReportView"
 
 export default function ShotReportPage() {
   const data = useExportData()
+  const { id: projectId } = useParams<{ id: string }>()
+  const { clientId } = useAuth()
+  const [searchParams] = useSearchParams()
+  const reportId = searchParams.get("reportId")
+  const { loadReport, saveReportConfig } = useExportReports(clientId, projectId)
+
   const [config, setConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG)
   const [imageMap, setImageMap] = useState<ReadonlyMap<string, string>>(new Map())
   const [imagesLoading, setImagesLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // Hydrate config from a saved shot-report doc when ?reportId= is present.
+  // Default-merge so a stored blob lacking a later-added field still parses.
+  useEffect(() => {
+    if (!reportId) return
+    let cancelled = false
+    void loadReport(reportId)
+      .then((full) => {
+        if (cancelled || !full?.config) return
+        setConfig({ ...DEFAULT_REPORT_CONFIG, ...full.config })
+      })
+      .catch(() => {
+        /* keep defaults on a transient load failure */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reportId, loadReport])
+
+  // User edits persist (debounced) only when editing a saved report. Hydration
+  // uses setConfig directly, so it never triggers a write-back.
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleConfigChange = useCallback(
+    (next: ReportConfig) => {
+      setConfig(next)
+      if (!reportId) return
+      if (persistTimer.current) clearTimeout(persistTimer.current)
+      persistTimer.current = setTimeout(() => {
+        void saveReportConfig(reportId, next)
+      }, 800)
+    },
+    [reportId, saveReportConfig],
+  )
+
+  // Cancel a pending config write if we unmount inside the debounce window.
+  useEffect(
+    () => () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current)
+    },
+    [],
+  )
 
   const model = useMemo(() => deriveShotReportModel(data, config), [data, config])
 
@@ -84,7 +134,7 @@ export default function ShotReportPage() {
         model={model}
         imageMap={imageMap}
         config={config}
-        onConfigChange={setConfig}
+        onConfigChange={handleConfigChange}
         onExportPdf={handleExportPdf}
         exporting={exporting}
       />
