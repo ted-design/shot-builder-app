@@ -170,4 +170,24 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureTalentLazy")).toBe(false)
     }
   })
+
+  it("defaults featureShotReportRecipes to false (R3 recipes dark on main; flag-off forces image-led)", () => {
+    expect(getFeatureFlags().featureShotReportRecipes).toBe(false)
+    expect(isFeatureEnabled("featureShotReportRecipes")).toBe(false)
+  })
+
+  it("VITE_SHOT_REPORT_RECIPES='1' or 'true' enables featureShotReportRecipes", () => {
+    vi.stubEnv("VITE_SHOT_REPORT_RECIPES", "1")
+    expect(isFeatureEnabled("featureShotReportRecipes")).toBe(true)
+
+    vi.stubEnv("VITE_SHOT_REPORT_RECIPES", "true")
+    expect(isFeatureEnabled("featureShotReportRecipes")).toBe(true)
+  })
+
+  it("any other VITE_SHOT_REPORT_RECIPES value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_SHOT_REPORT_RECIPES", value)
+      expect(isFeatureEnabled("featureShotReportRecipes")).toBe(false)
+    }
+  })
 })

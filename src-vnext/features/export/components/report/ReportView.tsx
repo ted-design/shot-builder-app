@@ -8,19 +8,24 @@
 import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import type {
   ReportConfig,
   ReportGroup,
   ReportGroupBy,
+  ReportLayout,
   ReportLooksMode,
   ReportLook,
   ReportModel,
   ReportProduct,
   ReportShot,
-  ReportShotStatus,
   ReportTalent,
 } from "../../lib/report/reportTypes"
+import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
 import { REPORT_STYLES } from "./reportStyles"
+import { resolveSrc, statusMetaLegacy } from "./reportShared"
+import { ProductionSheetReport } from "./ProductionSheetReport"
+import { BalancedRowsReport } from "./BalancedRowsReport"
 
 export interface ReportViewProps {
   readonly model: ReportModel
@@ -31,32 +36,8 @@ export interface ReportViewProps {
   readonly exporting?: boolean
 }
 
-interface StatusMeta {
-  readonly dotClass: string
-  readonly label: string
-}
-
-const STATUS_META: Record<ReportShotStatus, StatusMeta> = {
-  complete: { dotClass: "sb-status--complete", label: "Shot" },
-  todo: { dotClass: "sb-status--todo", label: "To do" },
-  in_progress: { dotClass: "sb-status--progress", label: "In progress" },
-  on_hold: { dotClass: "sb-status--hold", label: "On hold" },
-}
-
-function statusMeta(status: ReportShotStatus): StatusMeta {
-  return STATUS_META[status] ?? STATUS_META.todo
-}
-
-/** Resolve an image candidate to a usable src via the sidecar map, else null. */
-function resolveSrc(
-  imageMap: ReadonlyMap<string, string>,
-  candidate: string | null,
-): string | null {
-  if (!candidate) return null
-  return imageMap.get(candidate) ?? null
-}
-
-/** Primary look = first; the shot's hero image candidate comes from it. */
+/** Primary look = first (image-led's whole-look accessor; distinct from the
+ *  shared primaryLookImage which returns just the image candidate). */
 function primaryLookOf(shot: ReportShot): ReportLook | undefined {
   return shot.looks[0]
 }
@@ -226,7 +207,7 @@ function PlateCaption({
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
-  const st = statusMeta(shot.status)
+  const st = statusMetaLegacy(shot.status)
   return (
     <div className="sb-plate-caption">
       <div className="sb-caption-topline">
@@ -455,6 +436,9 @@ function ControlBar({
   onSetGroupBy,
   looksMode,
   onSetLooksMode,
+  layout,
+  onSetLayout,
+  showLayout,
   onExportPdf,
   exporting,
 }: {
@@ -464,14 +448,39 @@ function ControlBar({
   readonly onSetGroupBy: (v: ReportGroupBy) => void
   readonly looksMode: ReportLooksMode
   readonly onSetLooksMode: (v: ReportLooksMode) => void
+  readonly layout: ReportLayout
+  readonly onSetLayout: (v: ReportLayout) => void
+  readonly showLayout: boolean
   readonly onExportPdf: () => void
   readonly exporting: boolean
 }): JSX.Element {
   const viewLabelId = useId()
   const groupLabelId = useId()
   const looksLabelId = useId()
+  const recipeLabelId = useId()
   return (
     <div className="sb-controlbar no-print" role="region" aria-label="Report controls">
+      {showLayout ? (
+        <div className="sb-control-group" role="group" aria-labelledby={recipeLabelId}>
+          <span id={recipeLabelId} className="sb-control-label">
+            Recipe
+          </span>
+          <div className="sb-seg">
+            {REPORT_LAYOUT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="sb-seg-btn"
+                aria-pressed={layout === opt.value}
+                onClick={() => onSetLayout(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="sb-control-group" role="group" aria-labelledby={viewLabelId}>
         <span id={viewLabelId} className="sb-control-label">
           View
@@ -571,6 +580,11 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false } = props
   const [printMode, setPrintMode] = useState(false)
 
+  // Recipes ride their own flag; flag-off forces image-led so prod is byte-identical
+  // to the live R1/R2 report regardless of any persisted config.layout.
+  const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
+  const layout: ReportLayout = recipesEnabled ? (config.layout ?? "image-led") : "image-led"
+
   const toggleExclude = (shotId: string): void => {
     const set = new Set(config.excludedShotIds)
     if (set.has(shotId)) {
@@ -592,10 +606,15 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, looksMode: next })
   }
 
+  const setLayout = (next: ReportLayout): void => {
+    if (next === layout) return
+    onConfigChange({ ...config, layout: next })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
 
   return (
-    <div className={"sb-report-root" + (printMode ? " sb-print-mode" : "")}>
+    <div className={"sb-report-root" + (printMode ? " sb-print-mode" : "")} data-layout={layout}>
       <style>{REPORT_STYLES}</style>
 
       <ControlBar
@@ -605,31 +624,42 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         onSetGroupBy={setGroupBy}
         looksMode={looksMode}
         onSetLooksMode={setLooksMode}
+        layout={layout}
+        onSetLayout={setLayout}
+        showLayout={recipesEnabled}
         onExportPdf={onExportPdf}
         exporting={exporting}
       />
 
       <main className="sb-report">
-        <Masthead model={model} />
-
-        {isEmpty ? (
-          <p className="sb-empty">No shots to report yet.</p>
+        {layout === "production-sheet" ? (
+          <ProductionSheetReport model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+        ) : layout === "balanced-rows" ? (
+          <BalancedRowsReport model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
         ) : (
           <>
-            {/* Fluid lookbook flow (screen) */}
-            <div className="sb-fluid">
-              {model.groups.map((group) => (
-                <GroupSection
-                  key={group.key}
-                  group={group}
-                  imageMap={imageMap}
-                  onToggleExclude={toggleExclude}
-                />
-              ))}
-            </div>
+            <Masthead model={model} />
 
-            {/* Paged landscape preview (print mode + @media print) */}
-            <PagedView model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+            {isEmpty ? (
+              <p className="sb-empty">No shots to report yet.</p>
+            ) : (
+              <>
+                {/* Fluid lookbook flow (screen) */}
+                <div className="sb-fluid">
+                  {model.groups.map((group) => (
+                    <GroupSection
+                      key={group.key}
+                      group={group}
+                      imageMap={imageMap}
+                      onToggleExclude={toggleExclude}
+                    />
+                  ))}
+                </div>
+
+                {/* Paged landscape preview (print mode + @media print) */}
+                <PagedView model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+              </>
+            )}
           </>
         )}
       </main>

@@ -19,45 +19,22 @@ import {
   Image,
   StyleSheet,
 } from "@react-pdf/renderer"
-import { getPageDimensionsPt } from "../pageDimensions"
-import { mapFontFamilyToPdf } from "../pdf/fontMapping"
 import type {
+  ReportLayout,
   ReportModel,
   ReportGroup,
   ReportShot,
   ReportLook,
   ReportProduct,
 } from "./reportTypes"
+import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
+import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
+import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 
 // ---------------------------------------------------------------------------
-// Tokens (PDF-side mirror of the brand vars; built-in font families only)
+// Image-led layout — tokens shared via reportPdfShared. Red's one job: shot number.
 // ---------------------------------------------------------------------------
 
-const COLOR = {
-  surface: "#FFFFFF",
-  surfaceSubtle: "#F4F4F5",
-  text: "#18181B",
-  textSecondary: "#52525B",
-  textSubtle: "#5B5B60",
-  textDisabled: "#A1A1AA", // placeholder only
-  accent: "#EB1400", // Immediate Red — shot number only
-  rule: "#E4E4E7",
-  ruleStrong: "#D4D4D8",
-} as const
-
-const FONT = {
-  // Editorial serif on screen → Times here would read closer to Ivy Presto, but
-  // the codebase standard is Helvetica via mapFontFamilyToPdf; keep parity with
-  // the rest of the export PDFs and let the type differ from screen as expected.
-  display: mapFontFamilyToPdf(undefined, true), // Helvetica-Bold
-  displayRegular: mapFontFamilyToPdf(undefined), // Helvetica
-  body: mapFontFamilyToPdf(undefined), // Helvetica
-  bodyItalic: mapFontFamilyToPdf(undefined, false, true), // Helvetica-Oblique
-  ui: mapFontFamilyToPdf(undefined), // Helvetica
-  uiBold: mapFontFamilyToPdf(undefined, true), // Helvetica-Bold
-} as const
-
-const PAGE = getPageDimensionsPt("letter", "landscape") // 792 x 612 pt
 const PAD_X = 40
 const PAD_TOP = 36
 const PAD_BOTTOM = 34
@@ -395,21 +372,6 @@ const styles = StyleSheet.create({
   },
 })
 
-// Status dot colors — green/amber/gray reserved set (no red here).
-const STATUS: Record<
-  ReportShot["status"],
-  { readonly color: string; readonly label: string }
-> = {
-  complete: { color: "#16A34A", label: "Shot" },
-  in_progress: { color: "#2563EB", label: "In progress" },
-  todo: { color: COLOR.textDisabled, label: "To do" },
-  on_hold: { color: "#D97706", label: "On hold" },
-}
-
-function has(v: string | null | undefined): v is string {
-  return v != null && v.trim() !== ""
-}
-
 // ---------------------------------------------------------------------------
 // Pagination: two non-excluded plates per landscape sheet, never spanning a
 // gender group (a new group starts a fresh sheet, mirroring the north star).
@@ -532,7 +494,7 @@ function Plate({
   const primary = shot.looks[0]
   const heroCandidate = primary?.image ?? null
   const heroSrc = has(heroCandidate) ? imageMap.get(heroCandidate) : undefined
-  const status = STATUS[shot.status]
+  const status = STATUS_LEGACY[shot.status]
   const talent = shot.talent.filter((t) => has(t.name))
 
   // Width + keep-together are owned by the column wrapper in the Page; this is
@@ -643,6 +605,20 @@ export function ShotReportPdfDocument(props: {
 }
 
 // ---------------------------------------------------------------------------
+// Layout dispatch — one resolved model, the chosen recipe's Document.
+// ---------------------------------------------------------------------------
+
+function reportPdfDocument(
+  model: ReportModel,
+  imageMap: ReadonlyMap<string, string>,
+  layout: ReportLayout,
+): JSX.Element {
+  if (layout === "production-sheet") return <ProductionSheetPdfDocument model={model} imageMap={imageMap} />
+  if (layout === "balanced-rows") return <BalancedRowsPdfDocument model={model} imageMap={imageMap} />
+  return <ShotReportPdfDocument model={model} imageMap={imageMap} />
+}
+
+// ---------------------------------------------------------------------------
 // Generate + download — mirrors generateExportPdf (lazy import, toBlob, anchor).
 // ---------------------------------------------------------------------------
 
@@ -650,9 +626,10 @@ export async function generateShotReportPdf(
   model: ReportModel,
   imageMap: ReadonlyMap<string, string>,
   filename = "comprehensive-shot-report.pdf",
+  layout: ReportLayout = "image-led",
 ): Promise<void> {
   const { pdf } = await import("@react-pdf/renderer")
-  const element = <ShotReportPdfDocument model={model} imageMap={imageMap} />
+  const element = reportPdfDocument(model, imageMap, layout)
   const blob = await pdf(element).toBlob()
 
   const url = URL.createObjectURL(blob)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
 import { deriveShotReportModel } from "../../lib/report/reportModel"
@@ -115,15 +116,21 @@ export default function ShotReportPage() {
     // keeping them out of the report route's eager chunk.
     void (async () => {
       const { generateShotReportPdf } = await import("../../lib/report/reportPdf")
+      // Recipes ride their own flag; flag-off forces image-led so the PDF matches
+      // the on-screen layout (which ReportView also forces to image-led).
+      const layout = isFeatureEnabled("featureShotReportRecipes")
+        ? (config.layout ?? "image-led")
+        : "image-led"
       await generateShotReportPdf(
         model,
         imageMap,
         `${model.project.name} — Shot Report.pdf`,
+        layout,
       )
     })().finally(() => {
       setExporting(false)
     })
-  }, [model, imageMap])
+  }, [model, imageMap, config.layout])
 
   if (data.loading) {
     return (

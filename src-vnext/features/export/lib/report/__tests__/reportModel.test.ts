@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, normalizeGender } from "../reportModel"
+import { deriveShotReportModel, formatDateWindow, normalizeGender } from "../reportModel"
 import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
@@ -51,7 +51,31 @@ describe("normalizeGender", () => {
   })
 })
 
+describe("formatDateWindow", () => {
+  it("returns null for no dates", () => {
+    expect(formatDateWindow([])).toBeNull()
+    expect(formatDateWindow(undefined)).toBeNull()
+    expect(formatDateWindow(["nope"])).toBeNull()
+  })
+  it("formats a single day, a same-month range, cross-month, and cross-year (unsorted input)", () => {
+    expect(formatDateWindow(["2026-06-02"])).toBe("Jun 2, 2026")
+    expect(formatDateWindow(["2026-06-06", "2026-06-02", "2026-06-04"])).toBe("Jun 2–6, 2026")
+    expect(formatDateWindow(["2026-06-28", "2026-07-02"])).toBe("Jun 28 – Jul 2, 2026")
+    expect(formatDateWindow(["2026-01-02", "2025-12-30"])).toBe("Dec 30, 2025 – Jan 2, 2026")
+  })
+})
+
 describe("deriveShotReportModel", () => {
+  it("derives project.dateRange from shootDates (null when absent)", () => {
+    const withDates = deriveShotReportModel(
+      data({ project: { name: "P", clientId: "c", shootDates: ["2026-06-04", "2026-06-02"] } as ExportData["project"] }),
+      DEFAULT_REPORT_CONFIG,
+    )
+    expect(withDates.project.dateRange).toBe("Jun 2–4, 2026")
+    const noDates = deriveShotReportModel(data({}), DEFAULT_REPORT_CONFIG)
+    expect(noDates.project.dateRange).toBeNull()
+  })
+
   it("labels looks Primary/Alt and separates them (never merged)", () => {
     const model = deriveShotReportModel(
       data({

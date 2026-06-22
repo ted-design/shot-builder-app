@@ -117,6 +117,16 @@ export interface FeatureFlags {
    * env-parse precedent). No URL/localStorage layer.
    */
   readonly featureShotReport: boolean
+  /**
+   * Export reimagine R3 — the two extra report recipes (production-sheet +
+   * balanced-rows) as layout variants of the live Shot Report. Gates the recipe
+   * picker (list), the in-report layout switch, and `config.layout` taking
+   * effect (flag-off forces "image-led", so prod is byte-identical to the live
+   * R1/R2 report). Default OFF; enabled via `VITE_SHOT_REPORT_RECIPES=1` (or
+   * `true`) at build/dev time (featureShotReport env-parse precedent). No
+   * URL/localStorage layer.
+   */
+  readonly featureShotReportRecipes: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -131,6 +141,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureCastingMatcherSurface: false,
   featureTalentLazy: false,
   featureShotReport: false,
+  featureShotReportRecipes: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -180,6 +191,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureShotReport:
       DEFAULT_FLAGS.featureShotReport ||
       parseEnvFlag(import.meta.env.VITE_SHOT_REPORT),
+    featureShotReportRecipes:
+      DEFAULT_FLAGS.featureShotReportRecipes ||
+      parseEnvFlag(import.meta.env.VITE_SHOT_REPORT_RECIPES),
   }
 }
 
