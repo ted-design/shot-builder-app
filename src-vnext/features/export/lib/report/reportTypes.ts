@@ -18,15 +18,19 @@ export type ReportLooksMode = "all" | "primary-only"
  */
 export type ReportLayout = "image-led" | "production-sheet" | "balanced-rows"
 
-/** Recipe option metadata — the single source for the picker + in-report switch + list chip. */
-export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> = [
-  { value: "image-led", label: "Image-led" },
-  { value: "production-sheet", label: "On-set sheet" },
-  { value: "balanced-rows", label: "All-rounder" },
-]
-export const REPORT_LAYOUT_LABEL = Object.fromEntries(
-  REPORT_LAYOUT_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<ReportLayout, string>
+// Recipe display labels — the single source for the picker + in-report switch +
+// list chip. An exhaustive typed literal (TS flags a missing variant); the option
+// list derives from it so the strings aren't duplicated.
+export const REPORT_LAYOUT_LABEL: Record<ReportLayout, string> = {
+  "image-led": "Image-led",
+  "production-sheet": "On-set sheet",
+  "balanced-rows": "All-rounder",
+}
+export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> =
+  (Object.keys(REPORT_LAYOUT_LABEL) as ReportLayout[]).map((value) => ({
+    value,
+    label: REPORT_LAYOUT_LABEL[value],
+  }))
 
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
