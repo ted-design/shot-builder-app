@@ -6,6 +6,7 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { Button, buttonVariants } from "@/ui/button"
 import { Input } from "@/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,18 +116,18 @@ export default function ShotReportListPage() {
           className="flex-1"
         />
         {recipesEnabled && (
-          <select
-            value={recipe}
-            onChange={(e) => setRecipe(e.target.value as ReportLayout)}
-            aria-label="Report recipe"
-            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm text-[var(--color-text)]"
-          >
-            {REPORT_LAYOUT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <Select value={recipe} onValueChange={(v) => setRecipe(v as ReportLayout)}>
+            <SelectTrigger className="w-40" aria-label="Report recipe">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {REPORT_LAYOUT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         <Button onClick={() => void handleCreate()} disabled={busy}>
           <Plus /> Create report

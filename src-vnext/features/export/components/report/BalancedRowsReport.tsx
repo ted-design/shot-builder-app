@@ -296,10 +296,21 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
 }
 
 export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
+  // Continuous zebra across groups (matches comp-c rhythm) — precomputed so the
+  // render body stays pure.
+  const zebraById = useMemo(() => {
+    const m = new Map<string, boolean>()
+    let i = 0
+    for (const g of model.groups)
+      for (const s of g.shots) {
+        m.set(s.id, i % 2 === 1)
+        i += 1
+      }
+    return m
+  }, [model.groups])
+
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   if (isEmpty) return <p className="sb-empty">No shots to report yet.</p>
-  // Continuous zebra across groups on screen (matches comp-c rhythm).
-  let z = 0
   return (
     <div className="sb-br">
       <div className="sb-br-fluid">
@@ -308,19 +319,15 @@ export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyPro
           <div className="sb-br-group" key={group.key}>
             {/* count = printable; excluded bands still shown struck below */}
             <GroupHead group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }} />
-            {group.shots.map((shot) => {
-              const zebra = z % 2 === 1
-              z += 1
-              return (
-                <Band
-                  key={shot.id}
-                  shot={shot}
-                  imageMap={imageMap}
-                  zebra={zebra}
-                  onToggleExclude={onToggleExclude}
-                />
-              )
-            })}
+            {group.shots.map((shot) => (
+              <Band
+                key={shot.id}
+                shot={shot}
+                imageMap={imageMap}
+                zebra={zebraById.get(shot.id) ?? false}
+                onToggleExclude={onToggleExclude}
+              />
+            ))}
           </div>
         ))}
       </div>

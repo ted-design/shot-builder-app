@@ -24,11 +24,9 @@ export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout
   { value: "production-sheet", label: "On-set sheet" },
   { value: "balanced-rows", label: "All-rounder" },
 ]
-export const REPORT_LAYOUT_LABEL: Record<ReportLayout, string> = {
-  "image-led": "Image-led",
-  "production-sheet": "On-set sheet",
-  "balanced-rows": "All-rounder",
-}
+export const REPORT_LAYOUT_LABEL = Object.fromEntries(
+  REPORT_LAYOUT_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<ReportLayout, string>
 
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
