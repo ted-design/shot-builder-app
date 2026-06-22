@@ -18,6 +18,22 @@ describe("mapReport reportType discriminator", () => {
   })
 })
 
+describe("mapReport layout (R3 recipe surfacing)", () => {
+  it("defaults a missing config.layout to image-led (pre-R3 docs)", () => {
+    expect(mapReport("a", { name: "x" }).layout).toBe("image-led")
+    expect(mapReport("b", { name: "x", config: { groupBy: "gender" } }).layout).toBe("image-led")
+  })
+
+  it("surfaces config.layout from the config blob", () => {
+    expect(mapReport("c", { name: "x", config: { layout: "production-sheet" } }).layout).toBe(
+      "production-sheet",
+    )
+    expect(mapReport("d", { name: "x", config: { layout: "balanced-rows" } }).layout).toBe(
+      "balanced-rows",
+    )
+  })
+})
+
 describe("block-canvas compat filter (legacy list safety)", () => {
   // Mirrors ExportBuilderPage: only block-canvas docs may enter the block editor,
   // so a shot-report doc can never be auto-selected and auto-save-clobbered.

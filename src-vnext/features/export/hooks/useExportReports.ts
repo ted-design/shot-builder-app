@@ -21,7 +21,7 @@ import type {
   PageSettings,
   CustomVariable,
 } from "../types/exportBuilder"
-import type { ReportConfig } from "../lib/report/reportTypes"
+import type { ReportConfig, ReportLayout } from "../lib/report/reportTypes"
 
 // Discriminates a saved shot-report doc from a legacy block-canvas doc. Absent
 // on disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so
@@ -32,6 +32,8 @@ export interface ExportReport {
   readonly id: string
   readonly name: string
   readonly reportType: ExportReportType
+  /** Layout recipe of a shot-report doc; "image-led" when absent (pre-R3). */
+  readonly layout: ReportLayout
   readonly schemaVersion: number
   readonly updatedAt: Date | null
   readonly createdBy: string
@@ -77,11 +79,14 @@ export function mapReport(
   data: Record<string, unknown>,
 ): ExportReport {
   const ts = data.updatedAt as Timestamp | null | undefined
+  const config = data.config as { layout?: ReportLayout } | undefined
   return {
     id,
     name: (data.name as string) ?? "Untitled",
     // Missing reportType => a legacy block-canvas doc (no migration).
     reportType: (data.reportType as ExportReportType) ?? "block-canvas",
+    // Missing layout => image-led (the shipped recipe; pre-R3 docs render unchanged).
+    layout: config?.layout ?? "image-led",
     schemaVersion: (data.schemaVersion as number) ?? 1,
     updatedAt: ts?.toDate?.() ?? null,
     createdBy: (data.createdBy as string) ?? "",

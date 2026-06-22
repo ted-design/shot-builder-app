@@ -9,6 +9,15 @@ export type ReportGroupBy = "gender" | "none"
 /** Which looks each shot shows: every look, or only the primary (alts hidden). */
 export type ReportLooksMode = "all" | "primary-only"
 
+/**
+ * Which layout recipe renders the (one) resolved model.
+ * - image-led: client-review deck (the shipped R1 layout, default).
+ * - production-sheet: dense on-set/warehouse spec sheet (comp-b).
+ * - balanced-rows: scannable one-band-per-shot all-rounder (comp-c).
+ * The recipes share the engine; only layout + which fields surface differ.
+ */
+export type ReportLayout = "image-led" | "production-sheet" | "balanced-rows"
+
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
@@ -16,12 +25,15 @@ export interface ReportConfig {
   readonly excludedShotIds: readonly string[]
   /** "primary-only" shows just each shot's primary look. Defaults to "all". */
   readonly looksMode?: ReportLooksMode
+  /** Layout recipe. Defaults to "image-led" so pre-R3 blobs render unchanged. */
+  readonly layout?: ReportLayout
 }
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   groupBy: "gender",
   excludedShotIds: [],
   looksMode: "all",
+  layout: "image-led",
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */
@@ -81,6 +93,12 @@ export interface ReportGroup {
 }
 
 export interface ReportModel {
-  readonly project: { readonly name: string; readonly client: string; readonly shotCount: number }
+  readonly project: {
+    readonly name: string
+    readonly client: string
+    readonly shotCount: number
+    /** Shoot-date window (e.g. "Jun 2–6, 2026"), or null when no dates. Surfaced by production-sheet/balanced-rows mastheads. */
+    readonly dateRange: string | null
+  }
   readonly groups: readonly ReportGroup[]
 }

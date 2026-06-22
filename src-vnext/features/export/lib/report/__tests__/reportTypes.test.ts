@@ -16,4 +16,11 @@ describe("ReportConfig persistence round-trip", () => {
     expect(hydrated.excludedShotIds).toEqual(["x"])
     expect(hydrated.looksMode).toBe("all")
   })
+
+  it("default-merges a pre-layout blob to layout 'image-led' (R3 forward-compat)", () => {
+    // A pre-R3 shot-report doc has no layout — it must hydrate to the shipped image-led layout.
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all"}')
+    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    expect(hydrated.layout).toBe("image-led")
+  })
 })

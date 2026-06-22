@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { Copy, FileText, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { Button, buttonVariants } from "@/ui/button"
 import { Input } from "@/ui/input"
 import {
@@ -18,7 +19,18 @@ import {
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
-import { DEFAULT_REPORT_CONFIG } from "../../lib/report/reportTypes"
+import { DEFAULT_REPORT_CONFIG, type ReportLayout } from "../../lib/report/reportTypes"
+
+const LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> = [
+  { value: "image-led", label: "Image-led" },
+  { value: "production-sheet", label: "On-set sheet" },
+  { value: "balanced-rows", label: "All-rounder" },
+]
+const LAYOUT_LABEL: Record<ReportLayout, string> = {
+  "image-led": "Image-led",
+  "production-sheet": "On-set sheet",
+  "balanced-rows": "All-rounder",
+}
 
 // Saved shot reports for a project: create (optionally cloning an existing
 // report's config as a recipe), open, and delete. Sits beside the single report
@@ -36,7 +48,9 @@ export default function ShotReportListPage() {
     [reports],
   )
 
+  const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
   const [newName, setNewName] = useState("")
+  const [recipe, setRecipe] = useState<ReportLayout>("image-led")
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
@@ -48,7 +62,12 @@ export default function ShotReportListPage() {
   const handleCreate = useCallback(async () => {
     setBusy(true)
     try {
-      const id = await createShotReport(newName.trim() || "Untitled report", DEFAULT_REPORT_CONFIG)
+      // Recipes flag-off => always image-led, so the create config can't smuggle
+      // an unreviewed layout into prod.
+      const config = recipesEnabled
+        ? { ...DEFAULT_REPORT_CONFIG, layout: recipe }
+        : DEFAULT_REPORT_CONFIG
+      const id = await createShotReport(newName.trim() || "Untitled report", config)
       setNewName("")
       openReport(id)
     } catch {
@@ -56,7 +75,7 @@ export default function ShotReportListPage() {
     } finally {
       setBusy(false)
     }
-  }, [createShotReport, newName, openReport])
+  }, [createShotReport, newName, openReport, recipe, recipesEnabled])
 
   const handleDuplicate = useCallback(
     async (sourceId: string, sourceName: string) => {
@@ -101,6 +120,20 @@ export default function ShotReportListPage() {
           aria-label="New report name"
           className="flex-1"
         />
+        {recipesEnabled && (
+          <select
+            value={recipe}
+            onChange={(e) => setRecipe(e.target.value as ReportLayout)}
+            aria-label="Report recipe"
+            className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm text-[var(--color-text)]"
+          >
+            {LAYOUT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        )}
         <Button onClick={() => void handleCreate()} disabled={busy}>
           <Plus /> Create report
         </Button>
@@ -126,9 +159,14 @@ export default function ShotReportListPage() {
                 <span className="block truncate text-sm font-medium text-[var(--color-text)]">
                   {r.name}
                 </span>
-                {r.updatedAt && (
+                {(recipesEnabled || r.updatedAt) && (
                   <span className="block text-xs text-[var(--color-text-muted)]">
-                    Updated {r.updatedAt.toLocaleDateString()}
+                    {recipesEnabled && (
+                      <span className="mr-2 rounded-sm bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[var(--color-text-secondary)]">
+                        {LAYOUT_LABEL[r.layout]}
+                      </span>
+                    )}
+                    {r.updatedAt ? `Updated ${r.updatedAt.toLocaleDateString()}` : null}
                   </span>
                 )}
               </button>

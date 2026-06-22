@@ -128,6 +128,33 @@ function shotNumberSortKey(n: string): [number, number, string] {
   return Number.isNaN(num) ? [1, 0, n] : [0, num, n]
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+/** Parse a "YYYY-MM-DD" date-only string into parts; null if malformed. (No Date() — avoids TZ shift.) */
+function parseDateOnly(s: string): { y: number; m: number; d: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim())
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null
+  return { y, m: mo, d }
+}
+
+/** Format shoot dates into a display window: "Jun 2, 2026" / "Jun 2–6, 2026" / "Jun 28 – Jul 2, 2026" / cross-year. Null when none. */
+export function formatDateWindow(dates: readonly string[] | null | undefined): string | null {
+  const parsed = (dates ?? []).map(parseDateOnly).filter((p): p is NonNullable<typeof p> => p != null)
+  if (parsed.length === 0) return null
+  const sorted = [...parsed].sort((a, b) => a.y - b.y || a.m - b.m || a.d - b.d)
+  const lo = sorted[0]!
+  const hi = sorted[sorted.length - 1]!
+  const day = (p: typeof lo) => `${MONTHS[p.m - 1]} ${p.d}`
+  if (lo.y === hi.y && lo.m === hi.m && lo.d === hi.d) return `${day(lo)}, ${lo.y}`
+  if (lo.y === hi.y && lo.m === hi.m) return `${MONTHS[lo.m - 1]} ${lo.d}–${hi.d}, ${lo.y}`
+  if (lo.y === hi.y) return `${day(lo)} – ${day(hi)}, ${lo.y}`
+  return `${day(lo)}, ${lo.y} – ${day(hi)}, ${hi.y}`
+}
+
 const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]
 const GROUP_LABEL: Record<GenderKey, string> = {
   W: "Women",
@@ -184,6 +211,7 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       name: data.project?.name ?? "Untitled project",
       client: data.project?.clientId ?? "",
       shotCount: shots.length,
+      dateRange: formatDateWindow(data.project?.shootDates),
     },
     groups,
   }
