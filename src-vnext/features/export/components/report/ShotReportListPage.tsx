@@ -19,18 +19,12 @@ import {
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
-import { DEFAULT_REPORT_CONFIG, type ReportLayout } from "../../lib/report/reportTypes"
-
-const LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> = [
-  { value: "image-led", label: "Image-led" },
-  { value: "production-sheet", label: "On-set sheet" },
-  { value: "balanced-rows", label: "All-rounder" },
-]
-const LAYOUT_LABEL: Record<ReportLayout, string> = {
-  "image-led": "Image-led",
-  "production-sheet": "On-set sheet",
-  "balanced-rows": "All-rounder",
-}
+import {
+  DEFAULT_REPORT_CONFIG,
+  REPORT_LAYOUT_LABEL,
+  REPORT_LAYOUT_OPTIONS,
+  type ReportLayout,
+} from "../../lib/report/reportTypes"
 
 // Saved shot reports for a project: create (optionally cloning an existing
 // report's config as a recipe), open, and delete. Sits beside the single report
@@ -127,7 +121,7 @@ export default function ShotReportListPage() {
             aria-label="Report recipe"
             className="h-9 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm text-[var(--color-text)]"
           >
-            {LAYOUT_OPTIONS.map((opt) => (
+            {REPORT_LAYOUT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -163,7 +157,7 @@ export default function ShotReportListPage() {
                   <span className="block text-xs text-[var(--color-text-muted)]">
                     {recipesEnabled && (
                       <span className="mr-2 rounded-sm bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[var(--color-text-secondary)]">
-                        {LAYOUT_LABEL[r.layout]}
+                        {REPORT_LAYOUT_LABEL[r.layout]}
                       </span>
                     )}
                     {r.updatedAt ? `Updated ${r.updatedAt.toLocaleDateString()}` : null}

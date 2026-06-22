@@ -169,9 +169,13 @@ function GroupHead({ group }: { readonly group: ReportGroup }): JSX.Element {
 }
 
 function Masthead({ model }: { readonly model: ReportModel }): JSX.Element {
-  const all = useMemo(() => model.groups.flatMap((g) => g.shots), [model.groups])
+  // Printable count (excluded shots are struck on screen + omitted from the PDF).
+  const all = useMemo(
+    () => model.groups.flatMap((g) => g.shots).filter((s) => !s.excluded),
+    [model.groups],
+  )
   const withImg = all.filter((s) => s.hasImage).length
-  const total = model.project.shotCount
+  const total = all.length
   return (
     <header className="sb-br-masthead">
       <div className="sb-br-lede">
@@ -302,7 +306,8 @@ export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyPro
         <Masthead model={model} />
         {model.groups.map((group) => (
           <div className="sb-br-group" key={group.key}>
-            <GroupHead group={group} />
+            {/* count = printable; excluded bands still shown struck below */}
+            <GroupHead group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }} />
             {group.shots.map((shot) => {
               const zebra = z % 2 === 1
               z += 1

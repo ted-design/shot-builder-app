@@ -123,7 +123,7 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
         <Text style={[s.ph, s.cQty]}>Qty</Text>
       </View>
       {look.products.map((p, i) => (
-        <ProductRow key={i} p={p} />
+        <ProductRow key={`${look.id}-p-${i}`} p={p} />
       ))}
     </View>
   )
@@ -190,9 +190,10 @@ export function BalancedRowsPdfDocument(props: {
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
   const { model, imageMap } = props
-  const all = model.groups.flatMap((g) => g.shots)
+  // Count only printable shots — excluded are omitted from the rendered bands.
+  const all = model.groups.flatMap((g) => g.shots).filter((x) => !x.excluded)
   const withImg = all.filter((x) => x.hasImage).length
-  const total = model.project.shotCount
+  const total = all.length
   const projLine = has(model.project.client) ? `${model.project.name} · ${model.project.client}` : model.project.name
   let z = 0
 

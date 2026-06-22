@@ -114,7 +114,7 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
         <Text style={s.lookCount}>{n === 1 ? "1 piece" : `${n} pieces`}</Text>
       </View>
       {look.products.map((p, i) => (
-        <ProductRow key={i} p={p} />
+        <ProductRow key={`${look.id}-p-${i}`} p={p} />
       ))}
     </View>
   )
@@ -191,7 +191,8 @@ export function ProductionSheetPdfDocument(props: {
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
   const { model, imageMap } = props
-  const all = model.groups.flatMap((g) => g.shots)
+  // Count only printable shots — the rows omit excluded, so the masthead must too.
+  const all = model.groups.flatMap((g) => g.shots).filter((x) => !x.excluded)
   const women = all.filter((x) => x.gender === "W").length
   const men = all.filter((x) => x.gender === "M").length
   const holds = all.filter((x) => x.status === "on_hold").length
@@ -215,7 +216,7 @@ export function ProductionSheetPdfDocument(props: {
             <Text style={s.sub}>{projLine}</Text>
           </View>
           <View style={s.metaRow}>
-            {cell(model.project.shotCount, "Shots")}
+            {cell(all.length, "Shots")}
             {women > 0 ? cell(women, "Women") : null}
             {men > 0 ? cell(men, "Men") : null}
             {holds > 0 ? cell(holds, "On Hold") : null}

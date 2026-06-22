@@ -6,6 +6,7 @@
 
 import { getPageDimensionsPt } from "../pageDimensions"
 import { mapFontFamilyToPdf } from "../pdf/fontMapping"
+import { getShotStatusLabel } from "@/shared/lib/statusMappings"
 import type { ReportShot } from "./reportTypes"
 
 export const COLOR = {
@@ -33,15 +34,15 @@ export const FONT = {
 export const PAGE = getPageDimensionsPt("letter", "landscape") // 792 x 612 pt
 
 // Status dot colors — green/amber/blue/gray reserved set (no red here; red is
-// each layout's one job).
+// each layout's one job). Labels come from statusMappings.ts (CLAUDE.md canonical).
 export const STATUS: Record<
   ReportShot["status"],
   { readonly color: string; readonly label: string }
 > = {
-  complete: { color: "#16A34A", label: "Shot" },
-  in_progress: { color: "#2563EB", label: "In progress" },
-  todo: { color: COLOR.textDisabled, label: "To do" },
-  on_hold: { color: "#D97706", label: "On hold" },
+  complete: { color: "#16A34A", label: getShotStatusLabel("complete") },
+  in_progress: { color: "#2563EB", label: getShotStatusLabel("in_progress") },
+  todo: { color: COLOR.textDisabled, label: getShotStatusLabel("todo") },
+  on_hold: { color: "#D97706", label: getShotStatusLabel("on_hold") },
 }
 
 export function has(v: string | null | undefined): v is string {

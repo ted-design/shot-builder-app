@@ -2,6 +2,7 @@
 // balanced-rows). One status map + one image resolver so the three layouts
 // can't drift in status labeling or image lookup.
 
+import { getShotStatusLabel } from "@/shared/lib/statusMappings"
 import type { ReportShot, ReportShotStatus } from "../../lib/report/reportTypes"
 
 export interface StatusMeta {
@@ -9,15 +10,18 @@ export interface StatusMeta {
   readonly label: string
 }
 
-export const STATUS_META: Record<ReportShotStatus, StatusMeta> = {
-  complete: { dotClass: "sb-status--complete", label: "Shot" },
-  todo: { dotClass: "sb-status--todo", label: "To do" },
-  in_progress: { dotClass: "sb-status--progress", label: "In progress" },
-  on_hold: { dotClass: "sb-status--hold", label: "On hold" },
+// Report-specific status DOT classes (reserved green/amber/blue/gray palette).
+// Labels come from statusMappings.ts so they match the CLAUDE.md canonical
+// (Draft / In Progress / On Hold / Shot) everywhere.
+const STATUS_DOT: Record<ReportShotStatus, string> = {
+  complete: "sb-status--complete",
+  todo: "sb-status--todo",
+  in_progress: "sb-status--progress",
+  on_hold: "sb-status--hold",
 }
 
 export function statusMeta(status: ReportShotStatus): StatusMeta {
-  return STATUS_META[status] ?? STATUS_META.todo
+  return { dotClass: STATUS_DOT[status] ?? STATUS_DOT.todo, label: getShotStatusLabel(status) }
 }
 
 /** Resolve an image candidate to a usable src via the sidecar map, else null. */

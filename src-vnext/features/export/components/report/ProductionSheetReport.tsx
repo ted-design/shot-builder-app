@@ -165,7 +165,12 @@ function GroupBand({
 }
 
 function Masthead({ model }: { readonly model: ReportModel }): JSX.Element {
-  const all = useMemo(() => model.groups.flatMap((g) => g.shots), [model.groups])
+  // Count what's in the report (excluded shots are struck on screen + omitted
+  // from the PDF), so the head-count never over-claims vs the printed rows.
+  const all = useMemo(
+    () => model.groups.flatMap((g) => g.shots).filter((s) => !s.excluded),
+    [model.groups],
+  )
   const women = all.filter((s) => s.gender === "W").length
   const men = all.filter((s) => s.gender === "M").length
   const holds = all.filter((s) => isFlagged(s.status)).length
@@ -188,7 +193,7 @@ function Masthead({ model }: { readonly model: ReportModel }): JSX.Element {
         <p className="sb-ps-sub">{projSub}</p>
       </div>
       <div className="sb-ps-meta">
-        {cell(model.project.shotCount, "Shots")}
+        {cell(all.length, "Shots")}
         {women > 0 ? cell(women, "Women") : null}
         {men > 0 ? cell(men, "Men") : null}
         {holds > 0 ? cell(holds, "On Hold") : null}
@@ -324,7 +329,8 @@ export function ProductionSheetReport({ model, imageMap, onToggleExclude }: Body
         <Legend />
         {model.groups.map((group) => (
           <div className="sb-ps-group" key={group.key}>
-            <GroupBand group={group} />
+            {/* count = printable; excluded rows still shown struck below */}
+            <GroupBand group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }} />
             {group.shots.map((shot) => (
               <ShotRow key={shot.id} shot={shot} imageMap={imageMap} onToggleExclude={onToggleExclude} />
             ))}

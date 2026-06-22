@@ -18,6 +18,18 @@ export type ReportLooksMode = "all" | "primary-only"
  */
 export type ReportLayout = "image-led" | "production-sheet" | "balanced-rows"
 
+/** Recipe option metadata — the single source for the picker + in-report switch + list chip. */
+export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> = [
+  { value: "image-led", label: "Image-led" },
+  { value: "production-sheet", label: "On-set sheet" },
+  { value: "balanced-rows", label: "All-rounder" },
+]
+export const REPORT_LAYOUT_LABEL: Record<ReportLayout, string> = {
+  "image-led": "Image-led",
+  "production-sheet": "On-set sheet",
+  "balanced-rows": "All-rounder",
+}
+
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy

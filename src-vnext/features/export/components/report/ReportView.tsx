@@ -21,6 +21,7 @@ import type {
   ReportShot,
   ReportTalent,
 } from "../../lib/report/reportTypes"
+import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
 import { REPORT_STYLES } from "./reportStyles"
 import { resolveSrc, statusMeta } from "./reportShared"
 import { ProductionSheetReport } from "./ProductionSheetReport"
@@ -35,13 +36,8 @@ export interface ReportViewProps {
   readonly exporting?: boolean
 }
 
-const LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout; readonly label: string }> = [
-  { value: "image-led", label: "Image-led" },
-  { value: "production-sheet", label: "On-set sheet" },
-  { value: "balanced-rows", label: "All-rounder" },
-]
-
-/** Primary look = first; the shot's hero image candidate comes from it. */
+/** Primary look = first (image-led's whole-look accessor; distinct from the
+ *  shared primaryLookImage which returns just the image candidate). */
 function primaryLookOf(shot: ReportShot): ReportLook | undefined {
   return shot.looks[0]
 }
@@ -470,7 +466,7 @@ function ControlBar({
             Recipe
           </span>
           <div className="sb-seg">
-            {LAYOUT_OPTIONS.map((opt) => (
+            {REPORT_LAYOUT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"

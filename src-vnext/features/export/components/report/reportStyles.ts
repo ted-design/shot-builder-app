@@ -572,6 +572,11 @@ export const REPORT_STYLES = `
 .sb-br-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--sb-rule); justify-content: space-between; font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--sb-ink-3); }
 .sb-print-mode .sb-br-foot { display: flex; }
 
+/* desktop-only surface, but guard the fixed image column against narrow widths */
+@media (max-width: 880px) {
+  .sb-br { --br-img-col: 200px; --br-band-h: 180px; }
+}
+
 @media print {
   .sb-report-root[data-layout="production-sheet"] .sb-ps-fluid,
   .sb-report-root[data-layout="balanced-rows"] .sb-br-fluid { display: none !important; }
