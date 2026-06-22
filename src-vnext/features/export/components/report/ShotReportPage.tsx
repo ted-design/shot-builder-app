@@ -29,12 +29,16 @@ export default function ShotReportPage() {
   const [exporting, setExporting] = useState(false)
 
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The reportId that has finished hydrating. Edits made while a report is still
+  // loading must not persist — they'd save the outgoing report's config onto it.
+  const hydratedReportIdRef = useRef<string | null>(null)
 
   // Hydrate config from a saved shot-report doc when ?reportId= is present, else
   // reset to defaults. Switching reports (or clearing reportId) also cancels any
   // pending write from the previous report. Default-merge so an older blob parses.
   useEffect(() => {
     if (persistTimer.current) clearTimeout(persistTimer.current)
+    hydratedReportIdRef.current = null
     if (!reportId) {
       setConfig(DEFAULT_REPORT_CONFIG)
       return
@@ -44,6 +48,7 @@ export default function ShotReportPage() {
       .then((full) => {
         if (cancelled) return
         setConfig(full?.config ? { ...DEFAULT_REPORT_CONFIG, ...full.config } : DEFAULT_REPORT_CONFIG)
+        hydratedReportIdRef.current = reportId
       })
       .catch(() => {
         /* keep defaults on a transient load failure */
@@ -53,12 +58,12 @@ export default function ShotReportPage() {
     }
   }, [reportId, loadReport])
 
-  // User edits persist (debounced) only when editing a saved report. Hydration
-  // uses setConfig directly, so it never triggers a write-back.
+  // User edits persist (debounced) only when editing a saved report that has
+  // hydrated. Hydration uses setConfig directly, so it never triggers a write-back.
   const handleConfigChange = useCallback(
     (next: ReportConfig) => {
       setConfig(next)
-      if (!reportId) return
+      if (!reportId || hydratedReportIdRef.current !== reportId) return
       if (persistTimer.current) clearTimeout(persistTimer.current)
       persistTimer.current = setTimeout(() => {
         void saveReportConfig(reportId, next).catch(() => {

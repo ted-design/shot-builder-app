@@ -128,6 +128,11 @@ describeOrSkip("firestore.rules — exportReports (shot-report docs)", () => {
       }),
     )
   })
+
+  it("[8] UPDATE that reassigns createdBy is denied (owner is immutable)", async () => {
+    const db = authed("prod-b", CLIENT_A, "producer")
+    await assertFails(updateDoc(reportRef(db, REPORT_OWNED), { createdBy: "prod-b" }))
+  })
 })
 
 // Visible skip notice so developers know why zero rules tests ran locally.
