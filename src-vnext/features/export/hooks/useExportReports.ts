@@ -188,22 +188,24 @@ export function useExportReports(
   const createShotReport = useCallback(
     async (name: string, config: ReportConfig): Promise<string> => {
       if (!clientId || !projectId) throw new Error("Missing clientId or projectId")
+      // createdBy must equal auth.uid or the create rule rejects it.
+      if (!user?.uid) throw new Error("Not authenticated")
       const pathSegments = exportReportsPath(clientId, projectId)
       const collRef = collection(db, pathSegments[0]!, ...pathSegments.slice(1))
       const newDocRef = doc(collRef)
+      // Shot-report docs render from config, not block-canvas pages/settings;
+      // pages:[] keeps the doc inert if it ever reaches the legacy block loader.
       await setDoc(newDocRef, {
         name,
         reportType: "shot-report",
         schemaVersion: 2,
         config,
-        // Empty pages keep the doc inert if it ever reaches the legacy block loader.
         pages: [],
-        settings: { layout: "portrait", size: "letter", fontFamily: "Inter" },
         customVariables: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        createdBy: user?.uid ?? "",
-        updatedBy: user?.uid ?? "",
+        createdBy: user.uid,
+        updatedBy: user.uid,
       })
       return newDocRef.id
     },
