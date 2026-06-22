@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Copy, FileText, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { Button, buttonVariants } from "@/ui/button"
+import { Input } from "@/ui/input"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,8 +91,7 @@ export default function ShotReportListPage() {
       <PageHeader title="Shot Reports" />
 
       <div className="mb-6 flex items-center gap-2">
-        <input
-          type="text"
+        <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => {
@@ -99,7 +99,7 @@ export default function ShotReportListPage() {
           }}
           placeholder="New report name…"
           aria-label="New report name"
-          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex-1"
         />
         <Button onClick={() => void handleCreate()} disabled={busy}>
           <Plus /> Create report
@@ -148,6 +148,7 @@ export default function ShotReportListPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setPendingDelete({ id: r.id, name: r.name })}
+                disabled={busy}
                 aria-label={`Delete ${r.name}`}
               >
                 <Trash2 />

@@ -9,8 +9,7 @@ export type ReportGroupBy = "gender" | "none"
 /** Which looks each shot shows: every look, or only the primary (alts hidden). */
 export type ReportLooksMode = "all" | "primary-only"
 
-/** Persisted report config (serializable: strings + string[] only). Optional
- *  fields stay optional so an older stored blob still parses via default-merge. */
+/** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
   /** Shots the user has excluded — kept visible+struck on screen, omitted from the PDF. */
