@@ -182,3 +182,27 @@ export function getMobileNavConfig(projectId?: string, role?: string): NavConfig
 
   return { ...config, entries: cleaned }
 }
+
+/**
+ * Insert a project-scoped "Shot Reports" item right after "Export". Pure — the
+ * featureShotReport check stays at the AppShell call site so buildNavConfig
+ * stays flag-free and its unit tests are unaffected.
+ */
+export function withShotReportsNav(config: NavConfig, projectId: string): NavConfig {
+  const item: NavEntry = {
+    type: "item",
+    item: {
+      label: "Shot Reports",
+      to: `/projects/${projectId}/export/reports`,
+      iconName: "file-output",
+      desktopOnly: true,
+    },
+  }
+  const exportTo = `/projects/${projectId}/export`
+  const idx = config.entries.findIndex((e) => e.type === "item" && e.item.to === exportTo)
+  const entries =
+    idx === -1
+      ? [...config.entries, item]
+      : [...config.entries.slice(0, idx + 1), item, ...config.entries.slice(idx + 1)]
+  return { ...config, entries }
+}

@@ -10,7 +10,8 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useSubmittedRequestCount } from "@/features/requests/hooks/useSubmittedRequestCount"
 import { ROLE } from "@/shared/lib/rbac"
-import { buildNavConfig, getMobileNavConfig } from "./sidebar/nav-config"
+import { buildNavConfig, getMobileNavConfig, withShotReportsNav } from "./sidebar/nav-config"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
 import { MobileTopBar } from "./sidebar/MobileTopBar"
@@ -55,7 +56,13 @@ export function AppShell() {
     )
   }
 
-  const desktopConfig = buildNavConfig(projectId, role)
+  const baseDesktopConfig = buildNavConfig(projectId, role)
+  // featureShotReport adds a project-scoped Shot Reports nav item; flag check
+  // lives here so nav-config stays pure (and the report route is desktop-only).
+  const desktopConfig =
+    isFeatureEnabled("featureShotReport") && projectId
+      ? withShotReportsNav(baseDesktopConfig, projectId)
+      : baseDesktopConfig
   const mobileConfig = getMobileNavConfig(projectId, role)
 
   return (
