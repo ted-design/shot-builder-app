@@ -3,7 +3,17 @@ import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { Copy, FileText, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { Button } from "@/ui/button"
+import { Button, buttonVariants } from "@/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/ui/alert-dialog"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
@@ -27,6 +37,7 @@ export default function ShotReportListPage() {
 
   const [newName, setNewName] = useState("")
   const [busy, setBusy] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
   const openReport = useCallback(
     (reportId: string) => navigate(`/projects/${projectId}/export/report?reportId=${reportId}`),
@@ -136,7 +147,7 @@ export default function ShotReportListPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => void handleDelete(r.id)}
+                onClick={() => setPendingDelete({ id: r.id, name: r.name })}
                 aria-label={`Delete ${r.name}`}
               >
                 <Trash2 />
@@ -145,6 +156,33 @@ export default function ShotReportListPage() {
           ))}
         </ul>
       )}
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{pendingDelete?.name}” will be permanently deleted. This can’t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={() => {
+                if (pendingDelete) void handleDelete(pendingDelete.id)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
