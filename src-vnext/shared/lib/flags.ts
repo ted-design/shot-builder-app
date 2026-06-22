@@ -108,6 +108,15 @@ export interface FeatureFlags {
    * layer.
    */
   readonly featureTalentLazy: boolean
+  /**
+   * Export reimagine R1 — the image-led Comprehensive Shot Report (client-review
+   * recipe) that replaces the free-form block canvas. Gates the report route
+   * (projects/:id/export/report) + its entry. Default OFF; the flag-off path is
+   * byte-identical to trunk (route renders NotFound, no entry). Enabled via
+   * `VITE_SHOT_REPORT=1` (or `true`) at build/dev time (featureTalentLazy
+   * env-parse precedent). No URL/localStorage layer.
+   */
+  readonly featureShotReport: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -121,6 +130,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureTalentAgencyCombobox: false,
   featureCastingMatcherSurface: false,
   featureTalentLazy: false,
+  featureShotReport: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -167,6 +177,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentLazy:
       DEFAULT_FLAGS.featureTalentLazy ||
       parseEnvFlag(import.meta.env.VITE_TALENT_LAZY),
+    featureShotReport:
+      DEFAULT_FLAGS.featureShotReport ||
+      parseEnvFlag(import.meta.env.VITE_SHOT_REPORT),
   }
 }
 
