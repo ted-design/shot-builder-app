@@ -216,7 +216,7 @@ export function withTalentReportsNav(config: NavConfig, projectId: string): NavC
   const item: NavEntry = {
     type: "item",
     item: {
-      label: "Talent",
+      label: "Talent Reports",
       to: `/projects/${projectId}/export/talent-reports`,
       iconName: "users",
       desktopOnly: true,

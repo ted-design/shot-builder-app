@@ -303,7 +303,7 @@ describe("withTalentReportsNav", () => {
     const labels = itemLabels(withTalentReportsNav(withProduct, "p1"))
     const productIdx = labels.indexOf("Product Info")
     expect(productIdx).toBeGreaterThanOrEqual(0)
-    expect(labels[productIdx + 1]).toBe("Talent")
+    expect(labels[productIdx + 1]).toBe("Talent Reports")
   })
 
   it("inserts a Talent item right after Shot Reports when Product Info absent", () => {
@@ -311,19 +311,19 @@ describe("withTalentReportsNav", () => {
     const labels = itemLabels(withTalentReportsNav(withShots, "p1"))
     const shotIdx = labels.indexOf("Shot Reports")
     expect(shotIdx).toBeGreaterThanOrEqual(0)
-    expect(labels[shotIdx + 1]).toBe("Talent")
+    expect(labels[shotIdx + 1]).toBe("Talent Reports")
   })
 
   it("inserts a Talent item right after Export when reports absent", () => {
     const labels = itemLabels(withTalentReportsNav(buildNavConfig("p1"), "p1"))
     const exportIdx = labels.indexOf("Export")
     expect(exportIdx).toBeGreaterThanOrEqual(0)
-    expect(labels[exportIdx + 1]).toBe("Talent")
+    expect(labels[exportIdx + 1]).toBe("Talent Reports")
   })
 
   it("points the item at the project-scoped talent-reports route", () => {
     const next = withTalentReportsNav(buildNavConfig("p1"), "p1")
-    const item = next.entries.find((e) => e.type === "item" && e.item.label === "Talent")
+    const item = next.entries.find((e) => e.type === "item" && e.item.label === "Talent Reports")
     expect(item && item.type === "item" ? item.item.to : null).toBe(
       "/projects/p1/export/talent-reports",
     )
@@ -336,7 +336,7 @@ describe("withTalentReportsNav", () => {
     }
     const next = withTalentReportsNav(stub, "p1")
     const last = next.entries[next.entries.length - 1]
-    expect(last && last.type === "item" ? last.item.label : null).toBe("Talent")
+    expect(last && last.type === "item" ? last.item.label : null).toBe("Talent Reports")
   })
 
   it("does not mutate the input config", () => {

@@ -363,6 +363,20 @@ export function TalentPdfDocument(props: {
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
 
+  // Guarantee at least one page so a direct call with an all-excluded model can't
+  // hand @react-pdf a zero-page Document (which throws). The UI also disables Export.
+  if (sheets.length === 0) {
+    return (
+      <Document title="Talent Report" author={model.project.client || ""} producer="Shot Builder">
+        <Page size={{ width: PAGE.width, height: PAGE.height }} style={s.page}>
+          <Text style={{ fontFamily: FONT.body, fontSize: 11, color: COLOR.textSecondary }}>
+            No talent to report.
+          </Text>
+        </Page>
+      </Document>
+    )
+  }
+
   return (
     <Document title="Talent Report" author={model.project.client || ""} producer="Shot Builder">
       {sheets.map((sheet, i) => {
