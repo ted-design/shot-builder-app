@@ -1,4 +1,5 @@
 import type { ProductFamily, Shot } from "@/shared/types"
+import { matchesHeroProductId } from "@/features/shots/lib/lookHeroes"
 import type { ExportData } from "../../hooks/useExportData"
 import {
   GROUP_LABEL,
@@ -10,7 +11,7 @@ import {
   sortLooksByOrder,
   formatDateWindow,
 } from "./reportModel"
-import type { GenderKey } from "./reportTypes"
+import type { GenderKey, ReportShotStatus } from "./reportTypes"
 import type {
   ProductInfoAppearance,
   ProductInfoConfig,
@@ -25,6 +26,14 @@ import type {
 
 // Per-family aggregate accumulated during the inverse walk over non-deleted
 // shots -> looks -> products. Mutated only inside the derivation (never an input).
+// Mutable appearance accumulator: one per (shot, family); looks accrue as the
+// family is found across the shot's looks. Frozen into ProductInfoAppearance at build.
+interface AppearanceAcc {
+  readonly number: string
+  readonly looks: string[]
+  readonly status: ReportShotStatus
+}
+
 interface FamilyAgg {
   readonly familyId: string
   image: string | null
@@ -32,7 +41,7 @@ interface FamilyAgg {
   sizePending: boolean
   readonly colours: string[]
   readonly sizes: string[]
-  readonly appears: ProductInfoAppearance[]
+  readonly appears: AppearanceAcc[]
 }
 
 function emptyAgg(familyId: string): FamilyAgg {
@@ -59,6 +68,10 @@ function walkInUse(shots: readonly Shot[]): Map<string, FamilyAgg> {
   for (const shot of shots) {
     if (shot.deleted) continue
     const looks = sortLooksByOrder(shot.looks ?? [])
+    // One appearance per (shot, family); the looks the family is styled into this
+    // shot accrue onto it, so two SKUs in one look (or one family across Primary +
+    // Alt) count as a single shot, not several.
+    const appearanceByFamily = new Map<string, AppearanceAcc>()
     looks.forEach((look, index) => {
       const label = lookLabel(look.label, index)
       const heroId = look.heroProductId
@@ -68,15 +81,17 @@ function walkInUse(shots: readonly Shot[]): Map<string, FamilyAgg> {
         const agg = byFamily.get(id) ?? emptyAgg(id)
         if (!byFamily.has(id)) byFamily.set(id, agg)
         if (agg.image == null) agg.image = pickProductImage(p, undefined)
-        if (p.isHero === true || (heroId != null && heroId === id)) agg.isHero = true
+        if (p.isHero === true || (heroId != null && matchesHeroProductId(p, heroId))) agg.isHero = true
         if (p.sizeScope === "pending") agg.sizePending = true
         pushUnique(agg.colours, p.colourName ?? p.skuName ?? null)
         if (p.sizeScope !== "pending") pushUnique(agg.sizes, p.size ?? null)
-        agg.appears.push({
-          number: shot.shotNumber ?? "",
-          look: label,
-          status: shot.status,
-        })
+        let appearance = appearanceByFamily.get(id)
+        if (!appearance) {
+          appearance = { number: shot.shotNumber ?? "", looks: [], status: shot.status }
+          appearanceByFamily.set(id, appearance)
+          agg.appears.push(appearance)
+        }
+        pushUnique(appearance.looks, label)
       }
     })
   }

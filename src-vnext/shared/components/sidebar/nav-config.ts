@@ -224,11 +224,12 @@ export function withProductInfoReportsNav(config: NavConfig, projectId: string):
   }
   const shotReportsTo = `/projects/${projectId}/export/reports`
   const exportTo = `/projects/${projectId}/export`
-  const anchor =
-    config.entries.findIndex((e) => e.type === "item" && e.item.to === shotReportsTo) !== -1
-      ? shotReportsTo
-      : exportTo
-  const idx = config.entries.findIndex((e) => e.type === "item" && e.item.to === anchor)
+  // Anchor after Shot Reports if present, else after Export. Single scan each.
+  const shotReportsIdx = config.entries.findIndex((e) => e.type === "item" && e.item.to === shotReportsTo)
+  const idx =
+    shotReportsIdx !== -1
+      ? shotReportsIdx
+      : config.entries.findIndex((e) => e.type === "item" && e.item.to === exportTo)
   const entries =
     idx === -1
       ? [...config.entries, item]

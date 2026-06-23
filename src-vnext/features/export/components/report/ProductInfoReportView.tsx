@@ -123,7 +123,7 @@ function ProductCard({
                   <span className="sb-pir-appears-item" key={`${entry.id}-a-${i}`}>
                     <span className={"sb-status-dot " + st.dotClass} title={st.label} aria-hidden="true" />
                     <span>{a.number && a.number.trim() !== "" ? a.number : "—"}</span>
-                    <span className="sb-pir-look">{a.look}</span>
+                    {a.looks.length ? <span className="sb-pir-look">{a.looks.join(", ")}</span> : null}
                   </span>
                 )
               })}

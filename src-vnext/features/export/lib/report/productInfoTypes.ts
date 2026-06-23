@@ -32,10 +32,10 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
   excludedFamilyIds: [],
 }
 
-/** One appearance of a family: a shot + look it's styled into, with that shot's status. */
+/** One shot a family is styled into: its number, the look labels it appears in there, and that shot's status. */
 export interface ProductInfoAppearance {
   readonly number: string
-  readonly look: string
+  readonly looks: readonly string[]
   readonly status: import("./reportTypes").ReportShotStatus
 }
 

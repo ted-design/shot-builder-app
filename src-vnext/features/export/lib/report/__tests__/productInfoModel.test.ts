@@ -142,7 +142,7 @@ describe("deriveProductInfoModel — in-use scope", () => {
     expect(find(model, "fW")?.isHero).toBe(false)
   })
 
-  it("builds appears[] with the shot number, look label, and status — sorted by shot number", () => {
+  it("builds appears[] as one entry per shot (looks accrued), sorted by shot number", () => {
     const model = deriveProductInfoModel(
       data({
         productFamilies: FAMILIES,
@@ -157,12 +157,44 @@ describe("deriveProductInfoModel — in-use scope", () => {
       cfg(),
     )
     const appears = find(model, "fM")?.appears ?? []
-    // shot 2 (both looks) before shot 10; look labels are Primary/Alt A
-    expect(appears.map((a) => `${a.number}:${a.look}:${a.status}`)).toEqual([
-      "2:Primary:complete",
-      "2:Alt A:complete",
+    // shot 2 (one entry, both look labels) before shot 10 — NOT three rows
+    expect(appears.map((a) => `${a.number}:${a.looks.join("+")}:${a.status}`)).toEqual([
+      "2:Primary+Alt A:complete",
       "10:Primary:todo",
     ])
+  })
+
+  it("counts one appearance per shot for multiple same-family SKUs in one look", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "complete", looks: [{ id: "l", order: 0, products: [
+            { familyId: "fM", colourName: "Black" },
+            { familyId: "fM", colourName: "White" },
+          ] }] }),
+        ],
+      }),
+      cfg(),
+    )
+    const appears = find(model, "fM")?.appears ?? []
+    expect(appears.length).toBe(1) // one shot, not two
+    expect(appears[0]?.looks).toEqual(["Primary"]) // one look, deduped
+  })
+
+  it("flags isHero when the look heroProductId points at a SKU id, not the family id", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, heroProductId: "sku-1", products: [
+            { familyId: "fM", skuId: "sku-1" },
+          ] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    expect(find(model, "fM")?.isHero).toBe(true)
   })
 })
 

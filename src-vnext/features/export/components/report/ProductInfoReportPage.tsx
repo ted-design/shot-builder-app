@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
@@ -128,9 +129,11 @@ export default function ProductInfoReportPage() {
         imageMap,
         `${model.project.name} — Product Info.pdf`,
       )
-    })().finally(() => {
-      setExporting(false)
-    })
+    })()
+      .catch(() => toast.error("Couldn't export the PDF"))
+      .finally(() => {
+        setExporting(false)
+      })
   }, [model, imageMap])
 
   if (data.loading) {

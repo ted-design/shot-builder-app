@@ -227,7 +227,7 @@ function AppearRow({ a }: { readonly a: ProductInfoAppearance }): JSX.Element {
     <View style={s.appearItem}>
       <View style={[s.statusDot, { backgroundColor: st.color }]} />
       <Text style={s.appearNum}>{has(a.number) ? a.number : "—"}</Text>
-      {has(a.look) ? <Text style={s.appearLook}>{a.look}</Text> : null}
+      {a.looks.length ? <Text style={s.appearLook}>{a.looks.join(", ")}</Text> : null}
     </View>
   )
 }
@@ -332,18 +332,17 @@ export function ProductInfoPdfDocument(props: {
   return (
     <Document title="Product Info Report" author={model.project.client || ""} producer="Shot Builder">
       {sheets.map((sheet, i) => {
-        const toIndex = sheet.fromIndex + sheet.items.length - 1
         const firstOfGroup = sheet.fromIndex === 1
         return (
           <Page key={i} size={{ width: PAGE.width, height: PAGE.height }} style={s.page} wrap>
+            {/* Running header — group label stays correct on any overflow page; the
+                per-sheet count lives in the group band + footer, never a stale fixed range. */}
             <View style={s.header} fixed>
               <View>
                 <Text style={s.headerTitle}>Product Info</Text>
                 <Text style={s.headerProject}>{projectLine}</Text>
               </View>
-              <Text style={s.headerGroup}>
-                {`${sheet.group.label} · ${sheet.fromIndex}–${toIndex} of ${sheet.groupItemCount}`}
-              </Text>
+              <Text style={s.headerGroup}>{sheet.group.label}</Text>
             </View>
 
             {firstOfGroup ? (
