@@ -109,21 +109,20 @@ export default function TalentReportPage() {
       setImagesLoading(false)
       return
     }
-    let cancelled = false
     setImagesLoading(true)
+    // Apply/clear only while this key is still the latest request, so a same-key
+    // re-run (groupBy/exclude toggle) mid-resolve can't strand imagesLoading at true.
     resolveReportImages(candidates)
       .then((resolved) => {
-        if (!cancelled) setImageMap(resolved)
+        if (lastImageKeyRef.current === key) {
+          setImageMap(resolved)
+          setImagesLoading(false)
+        }
       })
       .catch(() => {
-        /* per-image failures already drop out of resolveReportImages */
+        // per-image failures already drop out of resolveReportImages
+        if (lastImageKeyRef.current === key) setImagesLoading(false)
       })
-      .finally(() => {
-        if (!cancelled) setImagesLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
   }, [model])
 
   const handleExportPdf = useCallback(() => {
