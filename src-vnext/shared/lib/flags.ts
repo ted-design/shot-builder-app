@@ -137,6 +137,16 @@ export interface FeatureFlags {
    * URL/localStorage layer.
    */
   readonly featureProductInfoReport: boolean
+  /**
+   * Export reimagine R4 PR2 — the Talent report (a new talent-centric,
+   * call-sheet-adjacent report TYPE applying the product-info pattern). Gates its
+   * two routes (projects/:id/export/talent-reports + .../export/talent-report) +
+   * the nav item. Default OFF; the flag-off path is byte-identical to trunk
+   * (routes don't register, no nav item). Enabled via `VITE_TALENT_REPORT=1` (or
+   * `true`) at build/dev time (featureProductInfoReport env-parse precedent). No
+   * URL/localStorage layer.
+   */
+  readonly featureTalentReport: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -153,6 +163,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShotReport: false,
   featureShotReportRecipes: false,
   featureProductInfoReport: false,
+  featureTalentReport: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -208,6 +219,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureProductInfoReport:
       DEFAULT_FLAGS.featureProductInfoReport ||
       parseEnvFlag(import.meta.env.VITE_PRODUCT_INFO_REPORT),
+    featureTalentReport:
+      DEFAULT_FLAGS.featureTalentReport ||
+      parseEnvFlag(import.meta.env.VITE_TALENT_REPORT),
   }
 }
 

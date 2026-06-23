@@ -67,6 +67,12 @@ const ProductInfoReportPage = lazy(
 const ProductInfoReportListPage = lazy(
   () => import("@/features/export/components/report/ProductInfoReportListPage"),
 )
+const TalentReportPage = lazy(
+  () => import("@/features/export/components/report/TalentReportPage"),
+)
+const TalentReportListPage = lazy(
+  () => import("@/features/export/components/report/TalentReportListPage"),
+)
 const OnSetViewerPage = lazy(
   () => import("@/features/schedules/components/OnSetViewerPage"),
 )
@@ -324,6 +330,34 @@ export function AppRoutes() {
                   <ProjectScopeProvider>
                     <RequireDesktop label="Product info report">
                       <ProductInfoReportPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
+          {isFeatureEnabled("featureTalentReport") && (
+            <Route
+              path="projects/:id/export/talent-reports"
+              element={
+                <RouteBoundary featureName="Talent reports">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Talent reports">
+                      <TalentReportListPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
+          {isFeatureEnabled("featureTalentReport") && (
+            <Route
+              path="projects/:id/export/talent-report"
+              element={
+                <RouteBoundary featureName="Talent report">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Talent report">
+                      <TalentReportPage />
                     </RequireDesktop>
                   </ProjectScopeProvider>
                 </RouteBoundary>
