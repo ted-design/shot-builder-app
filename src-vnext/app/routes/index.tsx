@@ -61,6 +61,12 @@ const ShotReportPage = lazy(
 const ShotReportListPage = lazy(
   () => import("@/features/export/components/report/ShotReportListPage"),
 )
+const ProductInfoReportPage = lazy(
+  () => import("@/features/export/components/report/ProductInfoReportPage"),
+)
+const ProductInfoReportListPage = lazy(
+  () => import("@/features/export/components/report/ProductInfoReportListPage"),
+)
 const OnSetViewerPage = lazy(
   () => import("@/features/schedules/components/OnSetViewerPage"),
 )
@@ -290,6 +296,34 @@ export function AppRoutes() {
                   <ProjectScopeProvider>
                     <RequireDesktop label="Shot report">
                       <ShotReportPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
+          {isFeatureEnabled("featureProductInfoReport") && (
+            <Route
+              path="projects/:id/export/product-reports"
+              element={
+                <RouteBoundary featureName="Product info reports">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Product info reports">
+                      <ProductInfoReportListPage />
+                    </RequireDesktop>
+                  </ProjectScopeProvider>
+                </RouteBoundary>
+              }
+            />
+          )}
+          {isFeatureEnabled("featureProductInfoReport") && (
+            <Route
+              path="projects/:id/export/product-report"
+              element={
+                <RouteBoundary featureName="Product info report">
+                  <ProjectScopeProvider>
+                    <RequireDesktop label="Product info report">
+                      <ProductInfoReportPage />
                     </RequireDesktop>
                   </ProjectScopeProvider>
                 </RouteBoundary>

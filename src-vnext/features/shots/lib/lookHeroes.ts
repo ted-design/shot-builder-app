@@ -14,8 +14,8 @@ export function assignmentHeroId(p: ProductAssignment): string {
   return p.skuId ?? p.colourId ?? p.familyId
 }
 
-/** True when `p` is the product the legacy heroProductId referenced. */
-function matchesHeroProductId(p: ProductAssignment, heroId: string): boolean {
+/** True when `p` is the product the legacy heroProductId referenced (sku/colour/family). */
+export function matchesHeroProductId(p: ProductAssignment, heroId: string): boolean {
   return p.skuId === heroId || p.colourId === heroId || p.familyId === heroId
 }
 

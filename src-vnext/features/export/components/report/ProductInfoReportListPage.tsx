@@ -1,13 +1,10 @@
 import { useCallback, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Copy, FileText, Plus, Trash2 } from "lucide-react"
+import { Package, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { isFeatureEnabled } from "@/shared/lib/flags"
-import { badgeVariants } from "@/ui/badge"
 import { Button, buttonVariants } from "@/ui/button"
 import { Input } from "@/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,50 +18,43 @@ import {
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
-import {
-  DEFAULT_REPORT_CONFIG,
-  REPORT_LAYOUT_LABEL,
-  REPORT_LAYOUT_OPTIONS,
-  type ReportConfig,
-  type ReportLayout,
-} from "../../lib/report/reportTypes"
+import { DEFAULT_PRODUCT_INFO_CONFIG } from "../../lib/report/productInfoTypes"
 
-// Saved shot reports for a project: create (optionally cloning an existing
-// report's config as a recipe), open, and delete. Sits beside the single report
-// page; never touches the legacy block-canvas builder. Flag-gated route.
+// Saved product-info reports for a project: create, open, and delete. Sits beside
+// the single report page; never touches the legacy block-canvas builder or the
+// shot-report list. Flag-gated route. Mirrors ShotReportListPage.
 
-export default function ShotReportListPage() {
+export default function ProductInfoReportListPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const { clientId } = useAuth()
   const navigate = useNavigate()
-  const { reports, loading, createShotReport, loadReport, deleteReport } =
-    useExportReports(clientId, projectId)
+  const { reports, loading, createProductInfoReport, deleteReport } = useExportReports(
+    clientId,
+    projectId,
+  )
 
-  const shotReports = useMemo(
-    () => reports.filter((r) => r.reportType === "shot-report"),
+  const productReports = useMemo(
+    () => reports.filter((r) => r.reportType === "product-info"),
     [reports],
   )
 
-  const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
   const [newName, setNewName] = useState("")
-  const [recipe, setRecipe] = useState<ReportLayout>("image-led")
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
   const openReport = useCallback(
-    (reportId: string) => navigate(`/projects/${projectId}/export/report?reportId=${reportId}`),
+    (reportId: string) =>
+      navigate(`/projects/${projectId}/export/product-report?reportId=${reportId}`),
     [navigate, projectId],
   )
 
   const handleCreate = useCallback(async () => {
     setBusy(true)
     try {
-      // Recipes flag-off => always image-led, so the create config can't smuggle
-      // an unreviewed layout into prod.
-      const config = recipesEnabled
-        ? { ...DEFAULT_REPORT_CONFIG, layout: recipe }
-        : DEFAULT_REPORT_CONFIG
-      const id = await createShotReport(newName.trim() || "Untitled report", config)
+      const id = await createProductInfoReport(
+        newName.trim() || "Untitled report",
+        DEFAULT_PRODUCT_INFO_CONFIG,
+      )
       setNewName("")
       openReport(id)
     } catch {
@@ -72,25 +62,7 @@ export default function ShotReportListPage() {
     } finally {
       setBusy(false)
     }
-  }, [createShotReport, newName, openReport, recipe, recipesEnabled])
-
-  const handleDuplicate = useCallback(
-    async (sourceId: string, sourceName: string) => {
-      setBusy(true)
-      try {
-        const full = await loadReport(sourceId)
-        // This list only handles shot-report docs; config narrows to ReportConfig.
-        const sourceConfig = (full?.config as ReportConfig | undefined) ?? DEFAULT_REPORT_CONFIG
-        const id = await createShotReport(`${sourceName} (copy)`, sourceConfig)
-        openReport(id)
-      } catch {
-        toast.error("Couldn't duplicate the report")
-      } finally {
-        setBusy(false)
-      }
-    },
-    [createShotReport, loadReport, openReport],
-  )
+  }, [createProductInfoReport, newName, openReport])
 
   const handleDelete = useCallback(
     async (reportId: string) => {
@@ -106,7 +78,7 @@ export default function ShotReportListPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <PageHeader title="Shot Reports" />
+      <PageHeader title="Product Info" />
 
       <div className="mb-6 flex items-center gap-2">
         <Input
@@ -119,20 +91,6 @@ export default function ShotReportListPage() {
           aria-label="New report name"
           className="flex-1"
         />
-        {recipesEnabled && (
-          <Select value={recipe} onValueChange={(v) => setRecipe(v as ReportLayout)}>
-            <SelectTrigger className="w-40" aria-label="Report recipe">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REPORT_LAYOUT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
         <Button onClick={() => void handleCreate()} disabled={busy}>
           <Plus /> Create report
         </Button>
@@ -140,15 +98,15 @@ export default function ShotReportListPage() {
 
       {loading ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
-      ) : shotReports.length === 0 ? (
+      ) : productReports.length === 0 ? (
         <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title="No shot reports yet"
-          description="Create a report above to lay your shots out as an image-led deck, then export it as a PDF."
+          icon={<Package className="h-8 w-8" />}
+          title="No product info reports yet"
+          description="Create a report above to lay out every product in use as a printable info sheet, then export it as a PDF."
         />
       ) : (
         <ul className="divide-y divide-[var(--color-border)] rounded-md border border-[var(--color-border)]">
-          {shotReports.map((r) => (
+          {productReports.map((r) => (
             <li key={r.id} className="flex items-center gap-2 p-3">
               <button
                 type="button"
@@ -158,28 +116,14 @@ export default function ShotReportListPage() {
                 <span className="block truncate text-sm font-medium text-[var(--color-text)]">
                   {r.name}
                 </span>
-                {(recipesEnabled || r.updatedAt) && (
+                {r.updatedAt ? (
                   <span className="block text-xs text-[var(--color-text-muted)]">
-                    {recipesEnabled && (
-                      <span className={`${badgeVariants({ variant: "secondary" })} mr-2`}>
-                        {REPORT_LAYOUT_LABEL[r.layout]}
-                      </span>
-                    )}
-                    {r.updatedAt ? `Updated ${r.updatedAt.toLocaleDateString()}` : null}
+                    Updated {r.updatedAt.toLocaleDateString()}
                   </span>
-                )}
+                ) : null}
               </button>
               <Button variant="outline" size="sm" onClick={() => openReport(r.id)}>
                 Open
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void handleDuplicate(r.id, r.name)}
-                disabled={busy}
-                title="New report from this one's settings"
-              >
-                <Copy /> Recipe
               </Button>
               <Button
                 variant="ghost"

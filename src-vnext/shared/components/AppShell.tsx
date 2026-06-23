@@ -10,7 +10,12 @@ import { useAuth } from "@/app/providers/AuthProvider"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useSubmittedRequestCount } from "@/features/requests/hooks/useSubmittedRequestCount"
 import { ROLE } from "@/shared/lib/rbac"
-import { buildNavConfig, getMobileNavConfig, withShotReportsNav } from "./sidebar/nav-config"
+import {
+  buildNavConfig,
+  getMobileNavConfig,
+  withProductInfoReportsNav,
+  withShotReportsNav,
+} from "./sidebar/nav-config"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useSidebarState } from "./sidebar/useSidebarState"
 import { DesktopSidebar } from "./sidebar/DesktopSidebar"
@@ -59,10 +64,15 @@ export function AppShell() {
   const baseDesktopConfig = buildNavConfig(projectId, role)
   // featureShotReport adds a project-scoped Shot Reports nav item; flag check
   // lives here so nav-config stays pure (and the report route is desktop-only).
-  const desktopConfig =
+  const withShotReports =
     isFeatureEnabled("featureShotReport") && projectId
       ? withShotReportsNav(baseDesktopConfig, projectId)
       : baseDesktopConfig
+  // featureProductInfoReport adds a project-scoped Product Info nav item after it.
+  const desktopConfig =
+    isFeatureEnabled("featureProductInfoReport") && projectId
+      ? withProductInfoReportsNav(withShotReports, projectId)
+      : withShotReports
   const mobileConfig = getMobileNavConfig(projectId, role)
 
   return (

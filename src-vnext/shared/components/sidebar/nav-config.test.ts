@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { buildNavConfig, getMobileNavConfig, withShotReportsNav, type NavConfig } from "./nav-config"
+import {
+  buildNavConfig,
+  getMobileNavConfig,
+  withProductInfoReportsNav,
+  withShotReportsNav,
+  type NavConfig,
+} from "./nav-config"
 
 describe("buildNavConfig", () => {
   it("returns org variant when no projectId", () => {
@@ -231,5 +237,53 @@ describe("withShotReportsNav", () => {
     withShotReportsNav(base, "p1")
     expect(base.entries.length).toBe(beforeLen)
     expect(base.entries.some((e) => e.type === "item" && e.item.label === "Shot Reports")).toBe(false)
+  })
+})
+
+describe("withProductInfoReportsNav", () => {
+  const itemLabels = (config: NavConfig) =>
+    config.entries
+      .filter((e) => e.type === "item")
+      .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
+
+  it("inserts a Product Info item right after Shot Reports when present", () => {
+    const withShots = withShotReportsNav(buildNavConfig("p1"), "p1")
+    const labels = itemLabels(withProductInfoReportsNav(withShots, "p1"))
+    const shotIdx = labels.indexOf("Shot Reports")
+    expect(shotIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[shotIdx + 1]).toBe("Product Info")
+  })
+
+  it("inserts a Product Info item right after Export when Shot Reports absent", () => {
+    const labels = itemLabels(withProductInfoReportsNav(buildNavConfig("p1"), "p1"))
+    const exportIdx = labels.indexOf("Export")
+    expect(exportIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[exportIdx + 1]).toBe("Product Info")
+  })
+
+  it("points the item at the project-scoped product-reports route", () => {
+    const next = withProductInfoReportsNav(buildNavConfig("p1"), "p1")
+    const item = next.entries.find((e) => e.type === "item" && e.item.label === "Product Info")
+    expect(item && item.type === "item" ? item.item.to : null).toBe(
+      "/projects/p1/export/product-reports",
+    )
+  })
+
+  it("appends Product Info when no Export entry exists (fallback)", () => {
+    const stub: NavConfig = {
+      variant: "project",
+      entries: [{ type: "item", item: { label: "Shots", to: "/projects/p1/shots", iconName: "camera" } }],
+    }
+    const next = withProductInfoReportsNav(stub, "p1")
+    const last = next.entries[next.entries.length - 1]
+    expect(last && last.type === "item" ? last.item.label : null).toBe("Product Info")
+  })
+
+  it("does not mutate the input config", () => {
+    const base = buildNavConfig("p1")
+    const beforeLen = base.entries.length
+    withProductInfoReportsNav(base, "p1")
+    expect(base.entries.length).toBe(beforeLen)
+    expect(base.entries.some((e) => e.type === "item" && e.item.label === "Product Info")).toBe(false)
   })
 })
