@@ -41,6 +41,10 @@ export default function TalentReportPage() {
   // (a scope/group-by toggle that keeps the same headshots) skip the resolve so
   // the loading overlay doesn't flash.
   const lastImageKeyRef = useRef<string | null>(null)
+  // False after unmount — gates async image setState so a navigate-away mid-resolve
+  // can't update a dead component. Unmount-scoped (NOT per-run), so a same-key
+  // re-run mid-resolve still lets the in-flight request clear the loading overlay.
+  const mountedRef = useRef(true)
 
   // Hydrate config from a saved talent doc when ?reportId= is present, else reset
   // to defaults. Switching reports (or clearing reportId) also cancels any pending
@@ -64,7 +68,7 @@ export default function TalentReportPage() {
         hydratedReportIdRef.current = reportId
       })
       .catch(() => {
-        /* keep defaults on a transient load failure */
+        if (!cancelled) toast.error("Couldn't load the report — changes won't be saved")
       })
     return () => {
       cancelled = true
@@ -87,9 +91,10 @@ export default function TalentReportPage() {
     [reportId, saveReportConfig],
   )
 
-  // Cancel a pending config write if we unmount inside the debounce window.
+  // Cancel a pending config write + block async setState if we unmount.
   useEffect(
     () => () => {
+      mountedRef.current = false
       if (persistTimer.current) clearTimeout(persistTimer.current)
     },
     [],
@@ -114,14 +119,14 @@ export default function TalentReportPage() {
     // re-run (groupBy/exclude toggle) mid-resolve can't strand imagesLoading at true.
     resolveReportImages(candidates)
       .then((resolved) => {
-        if (lastImageKeyRef.current === key) {
+        if (mountedRef.current && lastImageKeyRef.current === key) {
           setImageMap(resolved)
           setImagesLoading(false)
         }
       })
       .catch(() => {
         // per-image failures already drop out of resolveReportImages
-        if (lastImageKeyRef.current === key) setImagesLoading(false)
+        if (mountedRef.current && lastImageKeyRef.current === key) setImagesLoading(false)
       })
   }, [model])
 

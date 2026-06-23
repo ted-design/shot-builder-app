@@ -254,7 +254,7 @@ function paginate(model: TalentModel): readonly Sheet[] {
 // ---------------------------------------------------------------------------
 
 function ShotLine({ a }: { readonly a: TalentAppearance }): JSX.Element {
-  const st = STATUS[a.status]
+  const st = STATUS[a.status] ?? STATUS.todo // defensive: tolerate an out-of-enum status
   return (
     <View style={s.shotLine}>
       <View style={[s.statusDot, { backgroundColor: st.color }]} />
