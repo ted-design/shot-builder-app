@@ -7,7 +7,7 @@
 import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
-import { statusMeta } from "./reportShared"
+import { resolveSrc, statusMeta } from "./reportShared"
 import { PRODUCT_INFO_STYLES } from "./productInfoStyles"
 import type {
   ProductInfoConfig,
@@ -28,10 +28,6 @@ export interface ProductInfoReportViewProps {
   readonly exporting?: boolean
 }
 
-function resolveSrc(imageMap: ReadonlyMap<string, string>, candidate: string | null): string | null {
-  if (!candidate) return null
-  return imageMap.get(candidate) ?? null
-}
 
 // ---------------------------------------------------------------------------
 // One product card — image (native aspect), name, style#·gender·HERO, colours,

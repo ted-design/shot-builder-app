@@ -186,7 +186,7 @@ export function deriveProductInfoModel(
       ? data.productFamilies.filter((f) => f.deleted !== true)
       : [...aggByFamily.keys()]
           .map((id) => familyById.get(id))
-          .filter((f): f is ProductFamily => f != null)
+          .filter((f): f is ProductFamily => f != null && f.deleted !== true)
 
   const items = families
     .map((family) => toEntry(family, aggByFamily.get(family.id), excluded))

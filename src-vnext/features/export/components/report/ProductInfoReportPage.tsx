@@ -37,6 +37,9 @@ export default function ProductInfoReportPage() {
   // The reportId that has finished hydrating. Edits made while a report is still
   // loading must not persist — they'd save the outgoing report's config onto it.
   const hydratedReportIdRef = useRef<string | null>(null)
+  // The image candidate set last resolved — re-derivations that don't change it
+  // (an S/M/L toggle) skip the resolve so the loading overlay doesn't flash.
+  const lastImageKeyRef = useRef<string | null>(null)
 
   // Hydrate config from a saved product-info doc when ?reportId= is present, else
   // reset to defaults. Switching reports (or clearing reportId) also cancels any
@@ -52,7 +55,9 @@ export default function ProductInfoReportPage() {
     void loadReport(reportId)
       .then((full) => {
         if (cancelled) return
-        // This page only loads product-info docs; config narrows to ProductInfoConfig.
+        // Cross-type guard: never hydrate or arm write-back from a non-product-info
+        // doc — a pasted cross-type reportId must not clobber that doc's config.
+        if (full?.reportType !== "product-info") return
         const loaded = full?.config as ProductInfoConfig | undefined
         setConfig(
           loaded ? { ...DEFAULT_PRODUCT_INFO_CONFIG, ...loaded } : DEFAULT_PRODUCT_INFO_CONFIG,
@@ -96,12 +101,16 @@ export default function ProductInfoReportPage() {
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.
   useEffect(() => {
-    let cancelled = false
     const candidates = collectProductInfoImageCandidates(model)
+    const key = candidates.join("\n")
+    if (key === lastImageKeyRef.current) return // image set unchanged (e.g. S/M/L) — no re-resolve
+    lastImageKeyRef.current = key
     if (candidates.length === 0) {
       setImageMap(new Map())
+      setImagesLoading(false)
       return
     }
+    let cancelled = false
     setImagesLoading(true)
     resolveReportImages(candidates)
       .then((resolved) => {

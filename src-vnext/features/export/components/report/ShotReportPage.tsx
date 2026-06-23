@@ -48,7 +48,9 @@ export default function ShotReportPage() {
     void loadReport(reportId)
       .then((full) => {
         if (cancelled) return
-        // This page only loads shot-report docs; config narrows to ReportConfig.
+        // Cross-type guard: never hydrate or arm write-back from a non-shot-report
+        // doc — a pasted cross-type reportId must not clobber that doc's config.
+        if (full?.reportType !== "shot-report") return
         const loaded = full?.config as ReportConfig | undefined
         setConfig(loaded ? { ...DEFAULT_REPORT_CONFIG, ...loaded } : DEFAULT_REPORT_CONFIG)
         hydratedReportIdRef.current = reportId
