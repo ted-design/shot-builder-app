@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
-import { deriveShotReportModel } from "../../lib/report/reportModel"
 import {
-  collectReportImageCandidates,
-  resolveReportImages,
-} from "../../lib/report/reportImages"
-import { DEFAULT_REPORT_CONFIG, type ReportConfig } from "../../lib/report/reportTypes"
-import { ReportView } from "./ReportView"
+  collectProductInfoImageCandidates,
+  deriveProductInfoModel,
+} from "../../lib/report/productInfoModel"
+import { resolveReportImages } from "../../lib/report/reportImages"
+import {
+  DEFAULT_PRODUCT_INFO_CONFIG,
+  type ProductInfoConfig,
+} from "../../lib/report/productInfoTypes"
+import { ProductInfoReportView } from "./ProductInfoReportView"
 
-// Integration layer: live export data -> resolved model -> image sidecar ->
-// ReportView. The model + imageMap feed both the screen render and the PDF, so
-// they can't drift. Mounted only behind the featureShotReport flag (route gate).
+// Integration layer: live export data -> resolved product-info model -> image
+// sidecar -> ProductInfoReportView. The model + imageMap feed both the screen
+// render and the PDF, so they can't drift. Mounted only behind the
+// featureProductInfoReport flag (route gate). Mirrors ShotReportPage.
 
-export default function ShotReportPage() {
+export default function ProductInfoReportPage() {
   const data = useExportData()
   const { id: projectId } = useParams<{ id: string }>()
   const { clientId } = useAuth()
@@ -24,7 +27,7 @@ export default function ShotReportPage() {
   const reportId = searchParams.get("reportId")
   const { loadReport, saveReportConfig } = useExportReports(clientId, projectId)
 
-  const [config, setConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG)
+  const [config, setConfig] = useState<ProductInfoConfig>(DEFAULT_PRODUCT_INFO_CONFIG)
   const [imageMap, setImageMap] = useState<ReadonlyMap<string, string>>(new Map())
   const [imagesLoading, setImagesLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -34,23 +37,25 @@ export default function ShotReportPage() {
   // loading must not persist — they'd save the outgoing report's config onto it.
   const hydratedReportIdRef = useRef<string | null>(null)
 
-  // Hydrate config from a saved shot-report doc when ?reportId= is present, else
+  // Hydrate config from a saved product-info doc when ?reportId= is present, else
   // reset to defaults. Switching reports (or clearing reportId) also cancels any
   // pending write from the previous report. Default-merge so an older blob parses.
   useEffect(() => {
     if (persistTimer.current) clearTimeout(persistTimer.current)
     hydratedReportIdRef.current = null
     if (!reportId) {
-      setConfig(DEFAULT_REPORT_CONFIG)
+      setConfig(DEFAULT_PRODUCT_INFO_CONFIG)
       return
     }
     let cancelled = false
     void loadReport(reportId)
       .then((full) => {
         if (cancelled) return
-        // This page only loads shot-report docs; config narrows to ReportConfig.
-        const loaded = full?.config as ReportConfig | undefined
-        setConfig(loaded ? { ...DEFAULT_REPORT_CONFIG, ...loaded } : DEFAULT_REPORT_CONFIG)
+        // This page only loads product-info docs; config narrows to ProductInfoConfig.
+        const loaded = full?.config as ProductInfoConfig | undefined
+        setConfig(
+          loaded ? { ...DEFAULT_PRODUCT_INFO_CONFIG, ...loaded } : DEFAULT_PRODUCT_INFO_CONFIG,
+        )
         hydratedReportIdRef.current = reportId
       })
       .catch(() => {
@@ -64,13 +69,13 @@ export default function ShotReportPage() {
   // User edits persist (debounced) only when editing a saved report that has
   // hydrated. Hydration uses setConfig directly, so it never triggers a write-back.
   const handleConfigChange = useCallback(
-    (next: ReportConfig) => {
+    (next: ProductInfoConfig) => {
       setConfig(next)
       if (!reportId || hydratedReportIdRef.current !== reportId) return
       if (persistTimer.current) clearTimeout(persistTimer.current)
       persistTimer.current = setTimeout(() => {
         void saveReportConfig(reportId, next).catch(() => {
-          /* offline cache retries; save status surfaced in the report UI (PR-B) */
+          /* offline cache retries */
         })
       }, 800)
     },
@@ -85,13 +90,13 @@ export default function ShotReportPage() {
     [],
   )
 
-  const model = useMemo(() => deriveShotReportModel(data, config), [data, config])
+  const model = useMemo(() => deriveProductInfoModel(data, config), [data, config])
 
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.
   useEffect(() => {
     let cancelled = false
-    const candidates = collectReportImageCandidates(model)
+    const candidates = collectProductInfoImageCandidates(model)
     if (candidates.length === 0) {
       setImageMap(new Map())
       return
@@ -117,27 +122,21 @@ export default function ShotReportPage() {
     // Lazy-import so @react-pdf (and its heavy deps) load only on export click,
     // keeping them out of the report route's eager chunk.
     void (async () => {
-      const { generateShotReportPdf } = await import("../../lib/report/reportPdf")
-      // Recipes ride their own flag; flag-off forces image-led so the PDF matches
-      // the on-screen layout (which ReportView also forces to image-led).
-      const layout = isFeatureEnabled("featureShotReportRecipes")
-        ? (config.layout ?? "image-led")
-        : "image-led"
-      await generateShotReportPdf(
+      const { generateProductInfoPdf } = await import("../../lib/report/reportPdfProductInfo")
+      await generateProductInfoPdf(
         model,
         imageMap,
-        `${model.project.name} — Shot Report.pdf`,
-        layout,
+        `${model.project.name} — Product Info.pdf`,
       )
     })().finally(() => {
       setExporting(false)
     })
-  }, [model, imageMap, config.layout])
+  }, [model, imageMap])
 
   if (data.loading) {
     return (
       <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
-        Loading shots…
+        Loading products…
       </div>
     )
   }
@@ -152,7 +151,7 @@ export default function ShotReportPage() {
           Loading images…
         </div>
       )}
-      <ReportView
+      <ProductInfoReportView
         model={model}
         imageMap={imageMap}
         config={config}

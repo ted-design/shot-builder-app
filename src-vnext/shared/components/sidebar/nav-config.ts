@@ -206,3 +206,32 @@ export function withShotReportsNav(config: NavConfig, projectId: string): NavCon
       : [...config.entries.slice(0, idx + 1), item, ...config.entries.slice(idx + 1)]
   return { ...config, entries }
 }
+
+/**
+ * Insert a project-scoped "Product Info" item after Shot Reports (or Export, or
+ * appended). Pure — the featureProductInfoReport check stays at the AppShell call
+ * site so buildNavConfig stays flag-free and its unit tests are unaffected.
+ */
+export function withProductInfoReportsNav(config: NavConfig, projectId: string): NavConfig {
+  const item: NavEntry = {
+    type: "item",
+    item: {
+      label: "Product Info",
+      to: `/projects/${projectId}/export/product-reports`,
+      iconName: "package",
+      desktopOnly: true,
+    },
+  }
+  const shotReportsTo = `/projects/${projectId}/export/reports`
+  const exportTo = `/projects/${projectId}/export`
+  const anchor =
+    config.entries.findIndex((e) => e.type === "item" && e.item.to === shotReportsTo) !== -1
+      ? shotReportsTo
+      : exportTo
+  const idx = config.entries.findIndex((e) => e.type === "item" && e.item.to === anchor)
+  const entries =
+    idx === -1
+      ? [...config.entries, item]
+      : [...config.entries.slice(0, idx + 1), item, ...config.entries.slice(idx + 1)]
+  return { ...config, entries }
+}

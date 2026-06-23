@@ -22,11 +22,12 @@ import type {
   CustomVariable,
 } from "../types/exportBuilder"
 import type { ReportConfig, ReportLayout } from "../lib/report/reportTypes"
+import type { ProductInfoConfig } from "../lib/report/productInfoTypes"
 
-// Discriminates a saved shot-report doc from a legacy block-canvas doc. Absent
-// on disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so
-// no existing doc is ever migrated.
-export type ExportReportType = "block-canvas" | "shot-report"
+// Discriminates a saved report doc from a legacy block-canvas doc. Absent on
+// disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so no
+// existing doc is ever migrated. "product-info" added in R4 PR1.
+export type ExportReportType = "block-canvas" | "shot-report" | "product-info"
 
 export interface ExportReport {
   readonly id: string
@@ -44,8 +45,8 @@ export interface ExportReportFull extends ExportReport {
   readonly pages: readonly ExportPage[]
   readonly settings: PageSettings
   readonly customVariables: readonly CustomVariable[]
-  /** Present only on shot-report docs. */
-  readonly config?: ReportConfig
+  /** Present only on report docs (shot-report or product-info); narrow per page by reportType. */
+  readonly config?: ReportConfig | ProductInfoConfig
 }
 
 interface SaveReportData {
@@ -70,8 +71,16 @@ export interface UseExportReportsReturn {
   ) => Promise<string>
   /** Create a saved shot-report doc whose config IS the recipe. */
   readonly createShotReport: (name: string, config: ReportConfig) => Promise<string>
-  /** Persist a shot-report's config blob (partial merge; preserves the rest). */
-  readonly saveReportConfig: (reportId: string, config: ReportConfig) => Promise<void>
+  /** Create a saved product-info report doc whose config IS the recipe. */
+  readonly createProductInfoReport: (
+    name: string,
+    config: ProductInfoConfig,
+  ) => Promise<string>
+  /** Persist a report's config blob (partial merge; preserves the rest). Generic over config shape. */
+  readonly saveReportConfig: (
+    reportId: string,
+    config: ReportConfig | ProductInfoConfig,
+  ) => Promise<void>
 }
 
 export function mapReport(
@@ -150,7 +159,7 @@ export function useExportReports(
   )
 
   const saveReportConfig = useCallback(
-    async (reportId: string, config: ReportConfig) => {
+    async (reportId: string, config: ReportConfig | ProductInfoConfig) => {
       if (!clientId || !projectId) return
       const pathSegments = exportReportDocPath(clientId, projectId, reportId)
       const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
@@ -190,19 +199,23 @@ export function useExportReports(
     [clientId, projectId, user?.uid],
   )
 
-  const createShotReport = useCallback(
-    async (name: string, config: ReportConfig): Promise<string> => {
+  // Shared create path for every typed report (config-driven, not block-canvas).
+  // pages:[] keeps the doc inert if it ever reaches the legacy block loader.
+  const createTypedReport = useCallback(
+    async (
+      reportType: ExportReportType,
+      name: string,
+      config: ReportConfig | ProductInfoConfig,
+    ): Promise<string> => {
       if (!clientId || !projectId) throw new Error("Missing clientId or projectId")
       // createdBy must equal auth.uid or the create rule rejects it.
       if (!user?.uid) throw new Error("Not authenticated")
       const pathSegments = exportReportsPath(clientId, projectId)
       const collRef = collection(db, pathSegments[0]!, ...pathSegments.slice(1))
       const newDocRef = doc(collRef)
-      // Shot-report docs render from config, not block-canvas pages/settings;
-      // pages:[] keeps the doc inert if it ever reaches the legacy block loader.
       await setDoc(newDocRef, {
         name,
-        reportType: "shot-report",
+        reportType,
         schemaVersion: 2,
         config,
         pages: [],
@@ -215,6 +228,18 @@ export function useExportReports(
       return newDocRef.id
     },
     [clientId, projectId, user?.uid],
+  )
+
+  const createShotReport = useCallback(
+    (name: string, config: ReportConfig): Promise<string> =>
+      createTypedReport("shot-report", name, config),
+    [createTypedReport],
+  )
+
+  const createProductInfoReport = useCallback(
+    (name: string, config: ProductInfoConfig): Promise<string> =>
+      createTypedReport("product-info", name, config),
+    [createTypedReport],
   )
 
   const loadReport = useCallback(
@@ -248,7 +273,7 @@ export function useExportReports(
           fontFamily: "Inter",
         },
         customVariables: (data.customVariables as readonly CustomVariable[]) ?? [],
-        config: data.config as ReportConfig | undefined,
+        config: data.config as ReportConfig | ProductInfoConfig | undefined,
       }
     },
     [clientId, projectId],
@@ -300,6 +325,7 @@ export function useExportReports(
     loadReport,
     importReport,
     createShotReport,
+    createProductInfoReport,
     saveReportConfig,
   }
 }

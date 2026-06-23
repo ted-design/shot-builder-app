@@ -190,4 +190,27 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureShotReportRecipes")).toBe(false)
     }
   })
+
+  it("defaults featureProductInfoReport to false (R4 PR1 Product Info report dark on main)", () => {
+    expect(getFeatureFlags().featureProductInfoReport).toBe(false)
+    expect(isFeatureEnabled("featureProductInfoReport")).toBe(false)
+  })
+
+  it("VITE_PRODUCT_INFO_REPORT='1' or 'true' enables featureProductInfoReport", () => {
+    vi.stubEnv("VITE_PRODUCT_INFO_REPORT", "1")
+    expect(isFeatureEnabled("featureProductInfoReport")).toBe(true)
+
+    vi.stubEnv("VITE_PRODUCT_INFO_REPORT", "true")
+    expect(isFeatureEnabled("featureProductInfoReport")).toBe(true)
+
+    vi.stubEnv("VITE_PRODUCT_INFO_REPORT", "TRUE")
+    expect(isFeatureEnabled("featureProductInfoReport")).toBe(true)
+  })
+
+  it("any other VITE_PRODUCT_INFO_REPORT value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_PRODUCT_INFO_REPORT", value)
+      expect(isFeatureEnabled("featureProductInfoReport")).toBe(false)
+    }
+  })
 })

@@ -127,6 +127,16 @@ export interface FeatureFlags {
    * URL/localStorage layer.
    */
   readonly featureShotReportRecipes: boolean
+  /**
+   * Export reimagine R4 PR1 — the Product Info report (a new product-centric
+   * report TYPE applying the shot-report pattern). Gates its two routes
+   * (projects/:id/export/product-reports + .../export/product-report) + the nav
+   * item. Default OFF; the flag-off path is byte-identical to trunk (routes
+   * don't register, no nav item). Enabled via `VITE_PRODUCT_INFO_REPORT=1` (or
+   * `true`) at build/dev time (featureShotReport env-parse precedent). No
+   * URL/localStorage layer.
+   */
+  readonly featureProductInfoReport: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -142,6 +152,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureTalentLazy: false,
   featureShotReport: false,
   featureShotReportRecipes: false,
+  featureProductInfoReport: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -194,6 +205,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureShotReportRecipes:
       DEFAULT_FLAGS.featureShotReportRecipes ||
       parseEnvFlag(import.meta.env.VITE_SHOT_REPORT_RECIPES),
+    featureProductInfoReport:
+      DEFAULT_FLAGS.featureProductInfoReport ||
+      parseEnvFlag(import.meta.env.VITE_PRODUCT_INFO_REPORT),
   }
 }
 

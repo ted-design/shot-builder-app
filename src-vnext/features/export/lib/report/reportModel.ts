@@ -38,7 +38,8 @@ function pickLookDisplayImage(look: ShotLook): string | null {
   return chosen?.downloadURL ?? chosen?.path ?? null
 }
 
-function pickProductImage(
+/** Best image candidate for a styled product: assignment thumbs, then family thumbnail. */
+export function pickProductImage(
   p: ProductAssignment,
   family: ProductFamily | undefined,
 ): string | null {
@@ -70,15 +71,24 @@ function resolveProducts(
   })
 }
 
-/** Label looks: explicit label, else Primary for the first by order, else "Alt N". */
+/** Look label rule: explicit label, else Primary for the first by order, else "Alt N". */
+export function lookLabel(rawLabel: string | null | undefined, index: number): string {
+  const trimmed = rawLabel?.trim()
+  return trimmed && trimmed.length > 0 ? trimmed : index === 0 ? "Primary" : `Alt ${index}`
+}
+
+/** Sort a shot's looks by order (shared by the shot + product-info derivations). */
+export function sortLooksByOrder(looks: readonly ShotLook[]): readonly ShotLook[] {
+  return [...looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+
 function resolveLooks(
   shot: Shot,
   familyById: ReadonlyMap<string, ProductFamily>,
 ): readonly ReportLook[] {
-  const looks = [...(shot.looks ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const looks = sortLooksByOrder(shot.looks ?? [])
   return looks.map((look, i): ReportLook => {
-    const rawLabel = look.label?.trim()
-    const label = rawLabel && rawLabel.length > 0 ? rawLabel : i === 0 ? "Primary" : `Alt ${i}`
+    const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
     return {
       id: look.id,
@@ -123,7 +133,8 @@ function resolveTalent(
   })
 }
 
-function shotNumberSortKey(n: string): [number, number, string] {
+/** Sort key for shot numbers: numerics first (ascending), then non-numerics alpha. */
+export function shotNumberSortKey(n: string): [number, number, string] {
   const num = Number.parseInt(n, 10)
   return Number.isNaN(num) ? [1, 0, n] : [0, num, n]
 }
@@ -155,8 +166,8 @@ export function formatDateWindow(dates: readonly string[] | null | undefined): s
   return `${day(lo)}, ${lo.y} – ${day(hi)}, ${hi.y}`
 }
 
-const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]
-const GROUP_LABEL: Record<GenderKey, string> = {
+export const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]
+export const GROUP_LABEL: Record<GenderKey, string> = {
   W: "Women",
   M: "Men",
   Mixed: "Mixed",
