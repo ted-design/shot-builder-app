@@ -7,6 +7,7 @@
 import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
+import { initials } from "@/features/library/components/talentUtils"
 import { resolveSrc, statusMeta } from "./reportShared"
 import { TALENT_STYLES } from "./talentStyles"
 import type {
@@ -29,15 +30,6 @@ export interface TalentReportViewProps {
 }
 
 // Initials fallback — first letter of up to the first two name words.
-function initials(name: string): string {
-  return (name || "?")
-    .split(/\s+/)
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-}
 
 // ---------------------------------------------------------------------------
 // One talent card — headshot col (native-aspect or initials tile + shot count)
@@ -315,6 +307,7 @@ function ControlBar({
   onExportPdf,
   exporting,
   imagesLoading,
+  canExport,
 }: {
   readonly scope: TalentScope
   readonly onSetScope: (v: TalentScope) => void
@@ -325,6 +318,7 @@ function ControlBar({
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly imagesLoading: boolean
+  readonly canExport: boolean
 }): JSX.Element {
   const scopeLabelId = useId()
   const groupLabelId = useId()
@@ -408,7 +402,7 @@ function ControlBar({
         type="button"
         className="sb-tr-export-btn"
         onClick={onExportPdf}
-        disabled={exporting || imagesLoading}
+        disabled={exporting || imagesLoading || !canExport}
         aria-busy={exporting}
       >
         {exporting ? (
@@ -449,6 +443,8 @@ export function TalentReportView(props: TalentReportViewProps): JSX.Element {
   }
 
   const isEmpty = model.groups.length === 0 || model.project.talentCount === 0
+  // No non-excluded talent => the PDF would have zero pages (@react-pdf throws); gate Export.
+  const canExport = model.groups.some((g) => g.items.some((i) => !i.excluded))
 
   return (
     <div className={"sb-tr-root" + (printMode ? " sb-tr-print-mode" : "")}>
@@ -464,6 +460,7 @@ export function TalentReportView(props: TalentReportViewProps): JSX.Element {
         onExportPdf={onExportPdf}
         exporting={exporting}
         imagesLoading={imagesLoading}
+        canExport={canExport}
       />
 
       <main className="sb-tr-report">

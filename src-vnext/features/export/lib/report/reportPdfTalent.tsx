@@ -20,6 +20,7 @@ import type {
   TalentGroup,
   TalentModel,
 } from "./talentTypes"
+import { initials } from "@/features/library/components/talentUtils"
 import { COLOR, FONT, PAGE, STATUS, has } from "./reportPdfShared"
 
 const PAD_X = 36
@@ -248,18 +249,6 @@ function paginate(model: TalentModel): readonly Sheet[] {
   return sheets
 }
 
-function talentInitials(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .map((w) => w[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?"
-  )
-}
-
 // ---------------------------------------------------------------------------
 // Pieces
 // ---------------------------------------------------------------------------
@@ -303,7 +292,7 @@ function Card({
             <Image src={src} style={s.headshotImage} />
           ) : (
             <View style={s.initials}>
-              <Text style={s.initialsText}>{talentInitials(entry.name)}</Text>
+              <Text style={s.initialsText}>{initials(entry.name)}</Text>
             </View>
           )}
         </View>

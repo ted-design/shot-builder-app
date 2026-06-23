@@ -67,11 +67,14 @@ export default function TalentReportListPage() {
 
   const handleDelete = useCallback(
     async (reportId: string) => {
+      setBusy(true)
       try {
         await deleteReport(reportId)
         toast.success("Report deleted")
       } catch {
         toast.error("Couldn't delete the report")
+      } finally {
+        setBusy(false)
       }
     },
     [deleteReport],
