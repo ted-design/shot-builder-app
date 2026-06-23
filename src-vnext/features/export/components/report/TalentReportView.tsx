@@ -261,6 +261,14 @@ function PagedView({
     : model.project.name
   const totalPages = sheets.length
 
+  if (sheets.length === 0) {
+    return (
+      <div className="sb-tr-paged">
+        <p className="sb-tr-empty">All talent are excluded — nothing to print.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="sb-tr-paged" style={{ ["--sb-tr-print-cols" as string]: PRINT_COLS }}>
       {sheets.map((sheet, idx) => (

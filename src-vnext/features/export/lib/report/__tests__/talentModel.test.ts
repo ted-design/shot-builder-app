@@ -174,13 +174,13 @@ describe("deriveTalentModel — appearances", () => {
 })
 
 describe("deriveTalentModel — entry field resolution", () => {
-  it("name via buildDisplayName, gender label, agency/contact, notes; blank gender -> null label", () => {
+  it("name via buildDisplayName, gender label, agency/contact; blank gender -> null label", () => {
     const model = deriveTalentModel(
       data({
         talent: [
           tal({
             id: "tA", name: "", firstName: "Ada", lastName: "Lin",
-            gender: "women", agency: "  Elite  ", email: " ada@x.co ", phone: "555", url: "ada.co", notes: " note ",
+            gender: "women", agency: "  Elite  ", email: " ada@x.co ", phone: "555", url: "ada.co",
           }),
           tal({ id: "tB", name: "Blank", gender: "" }),
         ],
@@ -195,7 +195,6 @@ describe("deriveTalentModel — entry field resolution", () => {
       email: "ada@x.co",
       phone: "555",
       web: "ada.co",
-      notes: "note",
     })
     // blank fields normalize to null, not ""
     expect(find(model, "tB")).toMatchObject({ genderLabel: null, agency: null, email: null, phone: null, web: null })

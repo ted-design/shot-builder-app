@@ -80,7 +80,6 @@ function toEntry(
     web: t.url?.trim() ? t.url.trim() : null,
     headshot: t.headshotUrl ?? t.imageUrl ?? t.headshotPath ?? null,
     measurements,
-    notes: t.notes?.trim() ? t.notes.trim() : null,
     onHold: appears.some((a) => a.status === "on_hold"),
     excluded: excluded.has(t.id),
     appears,

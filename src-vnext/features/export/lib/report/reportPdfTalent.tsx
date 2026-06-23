@@ -259,7 +259,7 @@ function ShotLine({ a }: { readonly a: TalentAppearance }): JSX.Element {
     <View style={s.shotLine}>
       <View style={[s.statusDot, { backgroundColor: st.color }]} />
       <Text style={s.shotNum}>{has(a.number) ? a.number : "—"}</Text>
-      <Text style={s.shotTitle}>{has(a.title) ? a.title : "Untitled shot"}</Text>
+      <Text style={s.shotTitle}>{a.title}</Text>
       {a.looks.length ? <Text style={s.shotLooks}>{a.looks.join(" · ")}</Text> : null}
     </View>
   )
