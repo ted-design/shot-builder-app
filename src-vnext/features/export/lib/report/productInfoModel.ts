@@ -145,19 +145,14 @@ function groupEntries(
     return [{ key: "all", label: "All products", count: items.length, items }]
   }
   if (groupBy === "product-type") {
-    const order: string[] = []
     const byType = new Map<string, ProductInfoEntry[]>()
     for (const item of items) {
       const key = item.productType ?? "Unspecified"
       const bucket = byType.get(key)
       if (bucket) bucket.push(item)
-      else {
-        byType.set(key, [item])
-        order.push(key)
-      }
+      else byType.set(key, [item])
     }
-    return order
-      .slice()
+    return [...byType.keys()]
       .sort((a, b) => a.localeCompare(b))
       .map((key): ProductInfoGroup => {
         const inGroup = byType.get(key) ?? []

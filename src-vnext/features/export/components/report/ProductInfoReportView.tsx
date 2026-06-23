@@ -26,6 +26,7 @@ export interface ProductInfoReportViewProps {
   readonly onConfigChange: (next: ProductInfoConfig) => void
   readonly onExportPdf: () => void
   readonly exporting?: boolean
+  readonly imagesLoading?: boolean
 }
 
 
@@ -306,6 +307,7 @@ function ControlBar({
   onSetPrintMode,
   onExportPdf,
   exporting,
+  imagesLoading,
 }: {
   readonly scope: ProductInfoScope
   readonly onSetScope: (v: ProductInfoScope) => void
@@ -317,6 +319,7 @@ function ControlBar({
   readonly onSetPrintMode: (v: boolean) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
+  readonly imagesLoading: boolean
 }): JSX.Element {
   const scopeLabelId = useId()
   const groupLabelId = useId()
@@ -425,7 +428,7 @@ function ControlBar({
         type="button"
         className="sb-pir-export-btn"
         onClick={onExportPdf}
-        disabled={exporting}
+        disabled={exporting || imagesLoading}
         aria-busy={exporting}
       >
         {exporting ? (
@@ -445,7 +448,7 @@ function ControlBar({
 // Root.
 // ---------------------------------------------------------------------------
 export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.Element {
-  const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false } = props
+  const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false, imagesLoading = false } = props
   const [printMode, setPrintMode] = useState(false)
 
   const toggleExclude = (familyId: string): void => {
@@ -487,6 +490,7 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
         onSetPrintMode={setPrintMode}
         onExportPdf={onExportPdf}
         exporting={exporting}
+        imagesLoading={imagesLoading}
       />
 
       <main className="sb-pir-report">

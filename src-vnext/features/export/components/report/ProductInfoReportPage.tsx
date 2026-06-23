@@ -55,10 +55,10 @@ export default function ProductInfoReportPage() {
     void loadReport(reportId)
       .then((full) => {
         if (cancelled) return
-        // Cross-type guard: never hydrate or arm write-back from a non-product-info
-        // doc — a pasted cross-type reportId must not clobber that doc's config.
-        if (full?.reportType !== "product-info") return
-        const loaded = full?.config as ProductInfoConfig | undefined
+        if (!full) return // doc not found (deleted) — keep defaults, nothing to persist
+        // Cross-type guard: a pasted cross-type reportId must not clobber that doc's config.
+        if (full.reportType !== "product-info") return
+        const loaded = full.config as ProductInfoConfig | undefined
         setConfig(
           loaded ? { ...DEFAULT_PRODUCT_INFO_CONFIG, ...loaded } : DEFAULT_PRODUCT_INFO_CONFIG,
         )
@@ -170,6 +170,7 @@ export default function ProductInfoReportPage() {
         onConfigChange={handleConfigChange}
         onExportPdf={handleExportPdf}
         exporting={exporting}
+        imagesLoading={imagesLoading}
       />
     </div>
   )
