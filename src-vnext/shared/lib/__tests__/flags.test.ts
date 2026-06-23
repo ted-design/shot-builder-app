@@ -213,4 +213,27 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureProductInfoReport")).toBe(false)
     }
   })
+
+  it("defaults featureTalentReport to false (R4 PR2 Talent report dark on main)", () => {
+    expect(getFeatureFlags().featureTalentReport).toBe(false)
+    expect(isFeatureEnabled("featureTalentReport")).toBe(false)
+  })
+
+  it("VITE_TALENT_REPORT='1' or 'true' enables featureTalentReport", () => {
+    vi.stubEnv("VITE_TALENT_REPORT", "1")
+    expect(isFeatureEnabled("featureTalentReport")).toBe(true)
+
+    vi.stubEnv("VITE_TALENT_REPORT", "true")
+    expect(isFeatureEnabled("featureTalentReport")).toBe(true)
+
+    vi.stubEnv("VITE_TALENT_REPORT", "TRUE")
+    expect(isFeatureEnabled("featureTalentReport")).toBe(true)
+  })
+
+  it("any other VITE_TALENT_REPORT value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_TALENT_REPORT", value)
+      expect(isFeatureEnabled("featureTalentReport")).toBe(false)
+    }
+  })
 })

@@ -23,11 +23,15 @@ import type {
 } from "../types/exportBuilder"
 import type { ReportConfig, ReportLayout } from "../lib/report/reportTypes"
 import type { ProductInfoConfig } from "../lib/report/productInfoTypes"
+import type { TalentConfig } from "../lib/report/talentTypes"
 
 // Discriminates a saved report doc from a legacy block-canvas doc. Absent on
 // disk for every pre-R2 doc -> defaulted to "block-canvas" at READ time, so no
-// existing doc is ever migrated. "product-info" added in R4 PR1.
-export type ExportReportType = "block-canvas" | "shot-report" | "product-info"
+// existing doc is ever migrated. "product-info" added in R4 PR1; "talent" in PR2.
+export type ExportReportType = "block-canvas" | "shot-report" | "product-info" | "talent"
+
+/** Union of every typed-report config blob (shot-report / product-info / talent). */
+export type ExportReportConfig = ReportConfig | ProductInfoConfig | TalentConfig
 
 export interface ExportReport {
   readonly id: string
@@ -45,8 +49,8 @@ export interface ExportReportFull extends ExportReport {
   readonly pages: readonly ExportPage[]
   readonly settings: PageSettings
   readonly customVariables: readonly CustomVariable[]
-  /** Present only on report docs (shot-report or product-info); narrow per page by reportType. */
-  readonly config?: ReportConfig | ProductInfoConfig
+  /** Present only on typed report docs (shot-report / product-info / talent); narrow per page by reportType. */
+  readonly config?: ExportReportConfig
 }
 
 interface SaveReportData {
@@ -76,10 +80,15 @@ export interface UseExportReportsReturn {
     name: string,
     config: ProductInfoConfig,
   ) => Promise<string>
+  /** Create a saved talent report doc whose config IS the recipe. */
+  readonly createTalentReport: (
+    name: string,
+    config: TalentConfig,
+  ) => Promise<string>
   /** Persist a report's config blob (partial merge; preserves the rest). Generic over config shape. */
   readonly saveReportConfig: (
     reportId: string,
-    config: ReportConfig | ProductInfoConfig,
+    config: ExportReportConfig,
   ) => Promise<void>
 }
 
@@ -159,7 +168,7 @@ export function useExportReports(
   )
 
   const saveReportConfig = useCallback(
-    async (reportId: string, config: ReportConfig | ProductInfoConfig) => {
+    async (reportId: string, config: ExportReportConfig) => {
       if (!clientId || !projectId) return
       const pathSegments = exportReportDocPath(clientId, projectId, reportId)
       const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
@@ -205,7 +214,7 @@ export function useExportReports(
     async (
       reportType: ExportReportType,
       name: string,
-      config: ReportConfig | ProductInfoConfig,
+      config: ExportReportConfig,
     ): Promise<string> => {
       if (!clientId || !projectId) throw new Error("Missing clientId or projectId")
       // createdBy must equal auth.uid or the create rule rejects it.
@@ -242,6 +251,12 @@ export function useExportReports(
     [createTypedReport],
   )
 
+  const createTalentReport = useCallback(
+    (name: string, config: TalentConfig): Promise<string> =>
+      createTypedReport("talent", name, config),
+    [createTypedReport],
+  )
+
   const loadReport = useCallback(
     async (reportId: string): Promise<ExportReportFull | null> => {
       if (!clientId || !projectId) return null
@@ -273,7 +288,7 @@ export function useExportReports(
           fontFamily: "Inter",
         },
         customVariables: (data.customVariables as readonly CustomVariable[]) ?? [],
-        config: data.config as ReportConfig | ProductInfoConfig | undefined,
+        config: data.config as ExportReportConfig | undefined,
       }
     },
     [clientId, projectId],
@@ -326,6 +341,7 @@ export function useExportReports(
     importReport,
     createShotReport,
     createProductInfoReport,
+    createTalentReport,
     saveReportConfig,
   }
 }

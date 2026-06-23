@@ -127,6 +127,20 @@ export const breadcrumbsConfig: Record<string, BreadcrumbResolver> = {
     },
     { label: "Product Report" },
   ],
+  "/projects/:id/export/talent-reports": (ctx) => [
+    ...projectCrumbs(ctx),
+    { label: "Talent" },
+  ],
+  "/projects/:id/export/talent-report": (ctx) => [
+    ...projectCrumbs(ctx),
+    {
+      label: "Talent",
+      to: ctx.params["id"]
+        ? `/projects/${ctx.params["id"]}/export/talent-reports`
+        : undefined,
+    },
+    { label: "Talent Report" },
+  ],
   "/projects/:id/schedules/:scheduleId/onset": () => [],
 
   "/requests": () => [{ label: "Shot Requests" }],

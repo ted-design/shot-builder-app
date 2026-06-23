@@ -15,6 +15,7 @@ import {
   getMobileNavConfig,
   withProductInfoReportsNav,
   withShotReportsNav,
+  withTalentReportsNav,
 } from "./sidebar/nav-config"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useSidebarState } from "./sidebar/useSidebarState"
@@ -69,10 +70,15 @@ export function AppShell() {
       ? withShotReportsNav(baseDesktopConfig, projectId)
       : baseDesktopConfig
   // featureProductInfoReport adds a project-scoped Product Info nav item after it.
-  const desktopConfig =
+  const withProductInfo =
     isFeatureEnabled("featureProductInfoReport") && projectId
       ? withProductInfoReportsNav(withShotReports, projectId)
       : withShotReports
+  // featureTalentReport adds a project-scoped Talent nav item after Product Info.
+  const desktopConfig =
+    isFeatureEnabled("featureTalentReport") && projectId
+      ? withTalentReportsNav(withProductInfo, projectId)
+      : withProductInfo
   const mobileConfig = getMobileNavConfig(projectId, role)
 
   return (

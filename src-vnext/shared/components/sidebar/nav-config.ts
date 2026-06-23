@@ -208,6 +208,42 @@ export function withShotReportsNav(config: NavConfig, projectId: string): NavCon
 }
 
 /**
+ * Insert a project-scoped "Talent" item after Product Info (or Shot Reports, or
+ * Export, or appended). Pure — the featureTalentReport check stays at the AppShell
+ * call site so buildNavConfig stays flag-free and its unit tests are unaffected.
+ */
+export function withTalentReportsNav(config: NavConfig, projectId: string): NavConfig {
+  const item: NavEntry = {
+    type: "item",
+    item: {
+      label: "Talent Reports",
+      to: `/projects/${projectId}/export/talent-reports`,
+      iconName: "users",
+      desktopOnly: true,
+    },
+  }
+  const productInfoTo = `/projects/${projectId}/export/product-reports`
+  const shotReportsTo = `/projects/${projectId}/export/reports`
+  const exportTo = `/projects/${projectId}/export`
+  // Anchor after Product Info if present, else Shot Reports, else Export. Single
+  // scan each, in priority order.
+  const productInfoIdx = config.entries.findIndex((e) => e.type === "item" && e.item.to === productInfoTo)
+  const priorIdx =
+    productInfoIdx !== -1
+      ? productInfoIdx
+      : config.entries.findIndex((e) => e.type === "item" && e.item.to === shotReportsTo)
+  const idx =
+    priorIdx !== -1
+      ? priorIdx
+      : config.entries.findIndex((e) => e.type === "item" && e.item.to === exportTo)
+  const entries =
+    idx === -1
+      ? [...config.entries, item]
+      : [...config.entries.slice(0, idx + 1), item, ...config.entries.slice(idx + 1)]
+  return { ...config, entries }
+}
+
+/**
  * Insert a project-scoped "Product Info" item after Shot Reports (or Export, or
  * appended). Pure — the featureProductInfoReport check stays at the AppShell call
  * site so buildNavConfig stays flag-free and its unit tests are unaffected.

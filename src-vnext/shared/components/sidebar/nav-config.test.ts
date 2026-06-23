@@ -4,6 +4,7 @@ import {
   getMobileNavConfig,
   withProductInfoReportsNav,
   withShotReportsNav,
+  withTalentReportsNav,
   type NavConfig,
 } from "./nav-config"
 
@@ -285,5 +286,66 @@ describe("withProductInfoReportsNav", () => {
     withProductInfoReportsNav(base, "p1")
     expect(base.entries.length).toBe(beforeLen)
     expect(base.entries.some((e) => e.type === "item" && e.item.label === "Product Info")).toBe(false)
+  })
+})
+
+describe("withTalentReportsNav", () => {
+  const itemLabels = (config: NavConfig) =>
+    config.entries
+      .filter((e) => e.type === "item")
+      .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
+
+  it("inserts a Talent item right after Product Info when present", () => {
+    const withProduct = withProductInfoReportsNav(
+      withShotReportsNav(buildNavConfig("p1"), "p1"),
+      "p1",
+    )
+    const labels = itemLabels(withTalentReportsNav(withProduct, "p1"))
+    const productIdx = labels.indexOf("Product Info")
+    expect(productIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[productIdx + 1]).toBe("Talent Reports")
+  })
+
+  it("inserts a Talent item right after Shot Reports when Product Info absent", () => {
+    const withShots = withShotReportsNav(buildNavConfig("p1"), "p1")
+    const labels = itemLabels(withTalentReportsNav(withShots, "p1"))
+    const shotIdx = labels.indexOf("Shot Reports")
+    expect(shotIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[shotIdx + 1]).toBe("Talent Reports")
+  })
+
+  it("inserts a Talent item right after Export when reports absent", () => {
+    const labels = itemLabels(withTalentReportsNav(buildNavConfig("p1"), "p1"))
+    const exportIdx = labels.indexOf("Export")
+    expect(exportIdx).toBeGreaterThanOrEqual(0)
+    expect(labels[exportIdx + 1]).toBe("Talent Reports")
+  })
+
+  it("points the item at the project-scoped talent-reports route", () => {
+    const next = withTalentReportsNav(buildNavConfig("p1"), "p1")
+    const item = next.entries.find((e) => e.type === "item" && e.item.label === "Talent Reports")
+    expect(item && item.type === "item" ? item.item.to : null).toBe(
+      "/projects/p1/export/talent-reports",
+    )
+  })
+
+  it("appends Talent when no Export entry exists (fallback)", () => {
+    const stub: NavConfig = {
+      variant: "project",
+      entries: [{ type: "item", item: { label: "Shots", to: "/projects/p1/shots", iconName: "camera" } }],
+    }
+    const next = withTalentReportsNav(stub, "p1")
+    const last = next.entries[next.entries.length - 1]
+    expect(last && last.type === "item" ? last.item.label : null).toBe("Talent Reports")
+  })
+
+  it("does not mutate the input config", () => {
+    const base = buildNavConfig("p1")
+    const beforeLen = base.entries.length
+    withTalentReportsNav(base, "p1")
+    expect(base.entries.length).toBe(beforeLen)
+    expect(
+      base.entries.some((e) => e.type === "item" && e.item.label === "Talent"),
+    ).toBe(false)
   })
 })
