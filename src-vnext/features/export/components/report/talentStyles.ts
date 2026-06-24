@@ -209,11 +209,14 @@ export const TALENT_STYLES = `
   display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: var(--sb-t-sm); color: var(--sb-ink);
   margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--sb-rule);
 }
-.sb-tr-c-item { display: inline-flex; align-items: baseline; gap: 5px; }
+.sb-tr-c-item { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; max-width: 100%; }
 .sb-tr-c-k {
+  flex: 0 0 auto;
   font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--sb-ink-3);
 }
+/* URLs/emails are long unbreakable strings — break them so they stay in the card. */
+.sb-tr-c-v { min-width: 0; overflow-wrap: anywhere; }
 
 .sb-tr-measures {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 14px; margin-bottom: 12px;

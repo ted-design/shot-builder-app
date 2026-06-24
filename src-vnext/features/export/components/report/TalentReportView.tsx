@@ -97,7 +97,7 @@ function TalentCard({
             {shownContact.map(([k, v]) => (
               <span className="sb-tr-c-item" key={k}>
                 <span className="sb-tr-c-k">{k}</span>
-                <span>{v}</span>
+                <span className="sb-tr-c-v">{v}</span>
               </span>
             ))}
           </div>
