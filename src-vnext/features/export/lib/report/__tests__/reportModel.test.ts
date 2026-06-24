@@ -242,6 +242,26 @@ describe("deriveShotReportModel", () => {
     expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
   })
 
+  it("the product-image fallback applies to the PRIMARY look only, not alt looks", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, products: [{ familyId: "fM", thumbUrl: "primary-prod" }] },
+            { id: "l1", order: 1, label: "Alt", products: [{ familyId: "fW", thumbUrl: "alt-prod" }] },
+          ],
+        }),
+      ],
+    })
+    const looks = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+      .groups[0]?.shots[0]?.looks
+    expect(looks?.[0]?.image).toBe("primary-prod") // primary plate gets the product fallback
+    expect(looks?.[1]?.image).toBeNull() // alt look stays reference-only (no stand-in)
+  })
+
   it("falls through a hero with no image to the next product that has one", () => {
     const d = data({
       productFamilies: FAMILIES,

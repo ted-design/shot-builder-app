@@ -106,16 +106,15 @@ function resolveLooks(
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
     const products = resolveProducts(look.products, look.heroProductId, familyById)
-    // The plate FALLS BACK to a product image (hero first) when there's no uploaded
-    // reference, so pre-shoot decks still show a thumbnail — but `hasReference`
-    // tracks the real reference only (the "references ready" counter must not count
-    // the product fallback).
+    // The PRIMARY look's plate falls back to a product image (hero first) when there's
+    // no uploaded reference, so pre-shoot decks still show a thumbnail. Alt looks stay
+    // reference-only (they keep their "no reference" slot rather than a product stand-in).
+    // `hasReference` always tracks the real reference (the "references ready" counter
+    // must not count the product fallback).
     const reference = pickLookDisplayImage(look)
-    const image =
-      reference ??
-      products.find((p) => p.isHero)?.img ??
-      products.find((p) => p.img)?.img ??
-      null
+    const productFallback =
+      i === 0 ? products.find((p) => p.isHero)?.img ?? products.find((p) => p.img)?.img ?? null : null
+    const image = reference ?? productFallback
     return { id: look.id, label, isAlt, image, hasReference: reference != null, products }
   })
 }
