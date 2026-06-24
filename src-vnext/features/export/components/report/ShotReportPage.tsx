@@ -133,7 +133,7 @@ export default function ShotReportPage() {
         layout,
       )
     })()
-      .catch(() => toast.error("Couldn't export the PDF"))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Couldn't export the PDF"))
       .finally(() => {
         setExporting(false)
       })

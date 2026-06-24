@@ -7,6 +7,7 @@ import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ReportGroup, ReportLook, ReportModel, ReportProduct, ReportShot } from "./reportTypes"
 import { COLOR, FONT, PAGE, STATUS, has, primaryLookImage } from "./reportPdfShared"
+import { sizeLabel } from "./reportModel"
 
 const PAD_X = 34
 const PAD_Y = 32
@@ -88,7 +89,7 @@ const s = StyleSheet.create({
 })
 
 function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
-  const sizePending = p.sizeScope === "pending" || !has(p.size)
+  const { text: sizeText, pending: sizePending } = sizeLabel(p.sizeScope, p.size)
   return (
     <View style={s.prod} wrap={false}>
       <View style={s.cMark}>{p.isHero ? <View style={s.heroRail} /> : null}</View>
@@ -100,7 +101,7 @@ function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
       </View>
       <Text style={[s.style, s.cStyle, ...(has(p.style) ? [] : [s.muted])]}>{has(p.style) ? p.style : "—"}</Text>
       <Text style={[s.colour, s.cColour, ...(has(p.colour) ? [] : [s.muted])]}>{has(p.colour) ? p.colour : "—"}</Text>
-      <Text style={[s.size, s.cSize, ...(sizePending ? [s.muted] : [])]}>{sizePending ? "Pending" : p.size}</Text>
+      <Text style={[s.size, s.cSize, ...(sizePending ? [s.muted] : [])]}>{sizeText}</Text>
       <Text style={[s.qty, s.cQty]}>{p.qty != null ? `×${p.qty}` : "—"}</Text>
     </View>
   )

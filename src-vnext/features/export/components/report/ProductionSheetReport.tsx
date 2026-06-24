@@ -14,6 +14,7 @@ import type {
   ReportShot,
 } from "../../lib/report/reportTypes"
 import { isFlagged, present, primaryLookImage, resolveSrc, statusMeta } from "./reportShared"
+import { sizeLabel } from "../../lib/report/reportModel"
 
 interface BodyProps {
   readonly model: ReportModel
@@ -23,7 +24,7 @@ interface BodyProps {
 
 // --- product mini-table row: hero(neutral ▲) · family · style# · colour · size · qty
 function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
-  const sizePending = p.sizeScope === "pending" || !present(p.size)
+  const { text: sizeText, pending: sizePending } = sizeLabel(p.sizeScope, p.size)
   return (
     <div className={"sb-ps-pt" + (p.isHero ? " sb-ps-pt--hero" : "")}>
       <div className="sb-ps-pt-hero">{p.isHero ? <span aria-label="Hero product">▲</span> : null}</div>
@@ -35,7 +36,7 @@ function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
         {present(p.colour) ? p.colour : "Unspecified"}
       </div>
       <div className={"sb-ps-pt-size sb-tabular" + (sizePending ? " sb-pending" : "")}>
-        {sizePending ? "Pending" : p.size}
+        {sizeText}
       </div>
       <div className={"sb-ps-pt-qty sb-tabular" + (p.qty != null ? "" : " sb-muted")}>
         {p.qty != null ? `×${p.qty}` : "—"}
