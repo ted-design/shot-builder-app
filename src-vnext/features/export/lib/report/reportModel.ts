@@ -186,6 +186,21 @@ export function formatDateWindow(dates: readonly string[] | null | undefined): s
   return `${day(lo)}, ${lo.y} – ${day(hi)}, ${hi.y}`
 }
 
+/**
+ * Title-case an auth-org client slug for display: "unbound-merino" / "unbound_merino" -> "Unbound Merino".
+ * Splits on hyphens, underscores, and whitespace; collapses separator runs; capitalizes each word's
+ * first letter and lowercases the rest. Empty / nullish input returns "". Simple title-case — acronyms
+ * are not preserved ("acme-llc" -> "Acme Llc"), which is acceptable here.
+ */
+export function titleCaseSlug(slug: string | null | undefined): string {
+  if (!slug) return ""
+  return slug
+    .split(/[-_\s]+/)
+    .filter((w) => w.length > 0)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
 export const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]
 export const GROUP_LABEL: Record<GenderKey, string> = {
   W: "Women",
@@ -241,7 +256,7 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
   return {
     project: {
       name: data.project?.name ?? "Untitled project",
-      client: data.project?.clientId ?? "",
+      client: titleCaseSlug(data.project?.clientId),
       shotCount: shots.length,
       dateRange: formatDateWindow(data.project?.shootDates),
     },

@@ -1,9 +1,9 @@
 // Scoped stylesheet for the Talent report DOM renderer (R4 PR2). All rules live
 // under `.sb-tr-root` with `sb-tr-`/`sb-`-prefixed classes so they never collide
 // with the app's Tailwind layer. Brand law (docs/DESIGN.md): editorial restraint,
-// ONE decisive red (the HOLD flag, nothing else), Ivy Presto for the editorial
-// moment, Neue Haas for body/labels/tabular, tiering by weight+size never faded
-// gray, no drop shadows. Fonts load app-wide via typekit gph3jzg. Ported faithfully
+// no decorative red on this surface (status uses neutral/amber dots), Ivy Presto for
+// the editorial moment, Neue Haas for body/labels/tabular, tiering by weight+size
+// never faded gray, no drop shadows. Fonts load app-wide via typekit gph3jzg. Ported faithfully
 // from comp-talent.html.
 
 export const TALENT_STYLES = `
@@ -23,7 +23,6 @@ export const TALENT_STYLES = `
   --sb-ink-disabled: oklch(0.72 0.008 55);
   --sb-rule: oklch(0.90 0.004 50);
   --sb-rule-strong: oklch(0.83 0.005 50);
-  --sb-red: #EB1400;            /* Immediate Red — ONE job per surface (HOLD flag) */
 
   /* Type scale (px) */
   --sb-t-3xs: 9px; --sb-t-2xs: 10px; --sb-t-xs: 12px; --sb-t-sm: 13px;
@@ -189,13 +188,6 @@ export const TALENT_STYLES = `
   font-family: var(--sb-font-display); font-weight: 600; font-size: var(--sb-t-xl);
   line-height: 1.08; letter-spacing: -0.005em; color: var(--sb-ink);
 }
-/* HOLD — the ONE red on this surface */
-.sb-tr-hold-flag {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 700;
-  letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-red);
-}
-.sb-tr-hold-flag::before { content: ""; width: 8px; height: 8px; background: var(--sb-red); border-radius: 1px; }
 
 .sb-tr-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .sb-tr-badge-gender {

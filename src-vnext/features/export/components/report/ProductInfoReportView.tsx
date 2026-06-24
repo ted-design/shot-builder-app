@@ -308,6 +308,7 @@ function ControlBar({
   onExportPdf,
   exporting,
   imagesLoading,
+  canExport,
 }: {
   readonly scope: ProductInfoScope
   readonly onSetScope: (v: ProductInfoScope) => void
@@ -320,6 +321,7 @@ function ControlBar({
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly imagesLoading: boolean
+  readonly canExport: boolean
 }): JSX.Element {
   const scopeLabelId = useId()
   const groupLabelId = useId()
@@ -428,7 +430,7 @@ function ControlBar({
         type="button"
         className="sb-pir-export-btn"
         onClick={onExportPdf}
-        disabled={exporting || imagesLoading}
+        disabled={exporting || imagesLoading || !canExport}
         aria-busy={exporting}
       >
         {exporting ? (
@@ -450,6 +452,9 @@ function ControlBar({
 export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.Element {
   const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false, imagesLoading = false } = props
   const [printMode, setPrintMode] = useState(false)
+
+  // No non-excluded product => the PDF would have zero pages (@react-pdf throws); gate Export.
+  const canExport = model.groups.some((g) => g.items.some((i) => !i.excluded))
 
   const toggleExclude = (familyId: string): void => {
     const set = new Set(config.excludedFamilyIds)
@@ -491,6 +496,7 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
         onExportPdf={onExportPdf}
         exporting={exporting}
         imagesLoading={imagesLoading}
+        canExport={canExport}
       />
 
       <main className="sb-pir-report">

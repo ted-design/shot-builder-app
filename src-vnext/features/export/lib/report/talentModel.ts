@@ -5,7 +5,7 @@ import {
   formatLabeledMeasurements,
 } from "@/features/library/lib/measurementOptions"
 import type { ExportData } from "../../hooks/useExportData"
-import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder } from "./reportModel"
+import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
 import type {
   TalentAppearance,
   TalentConfig,
@@ -80,7 +80,6 @@ function toEntry(
     web: t.url?.trim() ? t.url.trim() : null,
     headshot: t.headshotUrl ?? t.imageUrl ?? t.headshotPath ?? null,
     measurements,
-    onHold: appears.some((a) => a.status === "on_hold"),
     excluded: excluded.has(t.id),
     appears,
   }
@@ -180,7 +179,7 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
   return {
     project: {
       name: data.project?.name ?? "Untitled project",
-      client: data.project?.clientId ?? "",
+      client: titleCaseSlug(data.project?.clientId),
       dateRange: formatDateWindow(data.project?.shootDates),
       talentCount: items.length,
     },

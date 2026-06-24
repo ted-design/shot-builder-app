@@ -156,21 +156,6 @@ describe("deriveTalentModel — appearances", () => {
     )
     expect(find(model, "tA")?.appears[0]?.looks).toEqual(["Primary"])
   })
-
-  it("onHold is true iff ANY appearance is on_hold (the one red); false otherwise", () => {
-    const model = deriveTalentModel(
-      data({
-        talent: ROSTER,
-        shots: [
-          shot({ id: "s1", shotNumber: "01", status: "on_hold", talentIds: ["tA"] }),
-          shot({ id: "s2", shotNumber: "02", status: "complete", talentIds: ["tA", "tB"] }),
-        ],
-      }),
-      cfg({ groupBy: "none" }),
-    )
-    expect(find(model, "tA")?.onHold).toBe(true) // s1 is on_hold
-    expect(find(model, "tB")?.onHold).toBe(false) // only in a complete shot
-  })
 })
 
 describe("deriveTalentModel — entry field resolution", () => {
@@ -297,7 +282,7 @@ describe("deriveTalentModel — project block & image candidates", () => {
     )
     expect(model.project.dateRange).toBe("Jun 2–4, 2026")
     expect(model.project.talentCount).toBe(2)
-    expect(model.project.client).toBe("c")
+    expect(model.project.client).toBe("C")
   })
 
   it("collectTalentImageCandidates returns each unique headshot candidate once", () => {

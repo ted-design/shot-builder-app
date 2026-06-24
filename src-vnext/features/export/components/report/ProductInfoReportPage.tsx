@@ -40,6 +40,10 @@ export default function ProductInfoReportPage() {
   // The image candidate set last resolved — re-derivations that don't change it
   // (an S/M/L toggle) skip the resolve so the loading overlay doesn't flash.
   const lastImageKeyRef = useRef<string | null>(null)
+  // False after unmount — gates async image setState so a navigate-away mid-resolve
+  // can't update a dead component. Unmount-scoped (NOT per-run), so a same-key
+  // re-run mid-resolve still lets the in-flight request clear the loading overlay.
+  const mountedRef = useRef(true)
 
   // Hydrate config from a saved product-info doc when ?reportId= is present, else
   // reset to defaults. Switching reports (or clearing reportId) also cancels any
@@ -88,13 +92,20 @@ export default function ProductInfoReportPage() {
     [reportId, saveReportConfig],
   )
 
-  // Cancel a pending config write if we unmount inside the debounce window.
-  useEffect(
-    () => () => {
+  // Cancel a pending config write + block async setState if we unmount. Reset to
+  // true on (re)mount — a remount (incl. StrictMode's mount→unmount→mount) must not
+  // leave it false, or the in-flight image resolve's setState is silently dropped
+  // while the keyed re-run skips re-resolving → empty imageMap (no product images).
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      // Clear the resolved-image key too, so a remount re-resolves cleanly instead
+      // of relying on the prior in-flight resolve landing after remount.
+      lastImageKeyRef.current = null
       if (persistTimer.current) clearTimeout(persistTimer.current)
-    },
-    [],
-  )
+    }
+  }, [])
 
   const model = useMemo(() => deriveProductInfoModel(data, config), [data, config])
 
@@ -110,21 +121,20 @@ export default function ProductInfoReportPage() {
       setImagesLoading(false)
       return
     }
-    let cancelled = false
     setImagesLoading(true)
+    // Apply/clear only while this key is still the latest request, so a same-key
+    // re-run (groupBy/exclude toggle) mid-resolve can't strand imagesLoading at true.
     resolveReportImages(candidates)
       .then((resolved) => {
-        if (!cancelled) setImageMap(resolved)
+        if (mountedRef.current && lastImageKeyRef.current === key) {
+          setImageMap(resolved)
+          setImagesLoading(false)
+        }
       })
       .catch(() => {
-        /* per-image failures already drop out of resolveReportImages */
+        // per-image failures already drop out of resolveReportImages
+        if (mountedRef.current && lastImageKeyRef.current === key) setImagesLoading(false)
       })
-      .finally(() => {
-        if (!cancelled) setImagesLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
   }, [model])
 
   const handleExportPdf = useCallback(() => {
