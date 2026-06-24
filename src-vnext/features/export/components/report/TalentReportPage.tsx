@@ -91,14 +91,20 @@ export default function TalentReportPage() {
     [reportId, saveReportConfig],
   )
 
-  // Cancel a pending config write + block async setState if we unmount.
-  useEffect(
-    () => () => {
+  // Cancel a pending config write + block async setState if we unmount. Reset to
+  // true on (re)mount — a remount (incl. StrictMode's mount→unmount→mount) must not
+  // leave it false, or the in-flight image resolve's setState is silently dropped
+  // while the keyed re-run skips re-resolving → empty imageMap (no headshots).
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
       mountedRef.current = false
+      // Clear the resolved-image key too, so a remount re-resolves cleanly instead
+      // of relying on the prior in-flight resolve landing after remount.
+      lastImageKeyRef.current = null
       if (persistTimer.current) clearTimeout(persistTimer.current)
-    },
-    [],
-  )
+    }
+  }, [])
 
   const model = useMemo(() => deriveTalentModel(data, config), [data, config])
 

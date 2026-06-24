@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, normalizeGender } from "../reportModel"
+import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel } from "../reportModel"
 import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
@@ -211,6 +211,120 @@ describe("deriveShotReportModel", () => {
     expect(model.groups.flatMap((g) => g.shots)[0]?.looks).toHaveLength(2)
   })
 
+  it("plate falls back to a product image (hero first) when the look has no reference photo", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            // No references; two products, only the hero carries an image.
+            {
+              id: "l0",
+              order: 0,
+              heroProductId: "fM",
+              products: [
+                { familyId: "fW", skuImageUrl: "non-hero-img" },
+                { familyId: "fM", thumbUrl: "hero-img" },
+              ],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const look = m.groups[0]?.shots[0]?.looks[0]
+    expect(look?.image).toBe("hero-img")
+    // The plate shows the product fallback, but it's NOT a real reference — so the
+    // "references ready" counter (hasImage) must stay false.
+    expect(look?.hasReference).toBe(false)
+    expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
+  })
+
+  it("the product-image fallback applies to the PRIMARY look only, not alt looks", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, products: [{ familyId: "fM", thumbUrl: "primary-prod" }] },
+            { id: "l1", order: 1, label: "Alt", products: [{ familyId: "fW", thumbUrl: "alt-prod" }] },
+          ],
+        }),
+      ],
+    })
+    const looks = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+      .groups[0]?.shots[0]?.looks
+    expect(looks?.[0]?.image).toBe("primary-prod") // primary plate gets the product fallback
+    expect(looks?.[1]?.image).toBeNull() // alt look stays reference-only (no stand-in)
+  })
+
+  it("falls through a hero with no image to the next product that has one", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              heroProductId: "fM",
+              products: [
+                { familyId: "fM" }, // hero, no image
+                { familyId: "fW", skuImageUrl: "non-hero-img" },
+              ],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("non-hero-img")
+  })
+
+  it("an uploaded reference still wins over a product image (precedence unchanged)", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [{ id: "r", path: "ref-img" }],
+              products: [{ familyId: "fM", thumbUrl: "prod-img" }],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("ref-img")
+  })
+
+  it("plate stays null when a look has neither references nor any product image", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [{ id: "l0", order: 0, products: [{ familyId: "fM" }] }],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBeNull()
+    expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
+  })
+
   it("hasImage recomputes on the filtered looks (no masthead overcount)", () => {
     const d = data({
       productFamilies: FAMILIES,
@@ -249,5 +363,23 @@ describe("deriveShotReportModel", () => {
     const primary = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "primary-only" })
     expect(all.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
     expect(primary.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
+  })
+})
+
+describe("sizeLabel", () => {
+  it("shows the concrete size for a single scope", () => {
+    expect(sizeLabel("single", "M")).toEqual({ text: "M", pending: false })
+  })
+  it("shows 'All sizes' (not muted) for the bulk scope, even with empty size", () => {
+    expect(sizeLabel("all", null)).toEqual({ text: "All sizes", pending: false })
+    expect(sizeLabel("all", "")).toEqual({ text: "All sizes", pending: false })
+  })
+  it("shows 'Pending' (muted) for the pending scope or a missing single size", () => {
+    expect(sizeLabel("pending", null)).toEqual({ text: "Pending", pending: true })
+    expect(sizeLabel("single", "  ")).toEqual({ text: "Pending", pending: true })
+    expect(sizeLabel(null, null)).toEqual({ text: "Pending", pending: true })
+  })
+  it("pending scope stays 'Pending' even with a stale non-empty size", () => {
+    expect(sizeLabel("pending", "M")).toEqual({ text: "Pending", pending: true })
   })
 })

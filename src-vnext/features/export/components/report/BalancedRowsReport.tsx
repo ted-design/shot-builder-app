@@ -15,6 +15,7 @@ import type {
   ReportShot,
 } from "../../lib/report/reportTypes"
 import { present, primaryLookImage, resolveSrc, statusMeta } from "./reportShared"
+import { sizeLabel } from "../../lib/report/reportModel"
 
 interface BodyProps {
   readonly model: ReportModel
@@ -26,7 +27,7 @@ const GENDER_LABEL: Record<GenderKey, string> = { W: "Women", M: "Men", Mixed: "
 
 // product row: hero-rail(RED) · family(+HERO tag) · style# · colour · size · qty
 function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
-  const sizePending = p.sizeScope === "pending" || !present(p.size)
+  const { text: sizeText, pending: sizePending } = sizeLabel(p.sizeScope, p.size)
   return (
     <div className={"sb-br-prow" + (p.isHero ? " sb-br-prow--hero" : "")}>
       <div className="sb-br-pr-mark" aria-hidden="true" />
@@ -41,7 +42,7 @@ function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
         {present(p.colour) ? p.colour : "—"}
       </div>
       <div className={"sb-br-pr-size sb-tabular" + (sizePending ? " sb-pending" : "")}>
-        {sizePending ? "Pending" : p.size}
+        {sizeText}
       </div>
       <div className={"sb-br-pr-qty sb-tabular" + (p.qty != null ? "" : " sb-muted")}>
         {p.qty != null ? `×${p.qty}` : "—"}

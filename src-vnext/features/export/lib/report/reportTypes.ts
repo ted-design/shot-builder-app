@@ -70,8 +70,12 @@ export interface ReportLook {
   readonly id: string
   readonly label: string
   readonly isAlt: boolean
-  /** Look display image candidate (path/URL) or null. */
+  /** Look display image candidate (path/URL) or null. May be a product-image
+   *  fallback when there's no uploaded reference — use `hasReference` for the
+   *  "references ready" counter, NOT this. */
   readonly image: string | null
+  /** True only when the look has an uploaded REFERENCE photo (not a product fallback). */
+  readonly hasReference: boolean
   readonly products: readonly ReportProduct[]
 }
 
