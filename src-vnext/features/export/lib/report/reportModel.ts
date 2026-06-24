@@ -112,8 +112,9 @@ function resolveLooks(
     // `hasReference` always tracks the real reference (the "references ready" counter
     // must not count the product fallback).
     const reference = pickLookDisplayImage(look)
-    const productFallback =
-      i === 0 ? products.find((p) => p.isHero)?.img ?? products.find((p) => p.img)?.img ?? null : null
+    const productFallback = isAlt
+      ? null
+      : products.find((p) => p.isHero)?.img ?? products.find((p) => p.img)?.img ?? null
     const image = reference ?? productFallback
     return { id: look.id, label, isAlt, image, hasReference: reference != null, products }
   })
@@ -246,4 +247,9 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
     },
     groups,
   }
+}
+
+/** True when at least one non-excluded shot exists — gates Export (a 0-page PDF is corrupt). */
+export function hasAnyIncludedShot(model: ReportModel): boolean {
+  return model.groups.some((g) => g.shots.some((s) => !s.excluded))
 }

@@ -22,7 +22,7 @@ import type {
   ReportTalent,
 } from "../../lib/report/reportTypes"
 import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
-import { sizeLabel } from "../../lib/report/reportModel"
+import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
 import { REPORT_STYLES } from "./reportStyles"
 import { resolveSrc, statusMetaLegacy } from "./reportShared"
 import { ProductionSheetReport } from "./ProductionSheetReport"
@@ -614,7 +614,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
 
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
-  const canExport = model.groups.some((g) => g.shots.some((s) => !s.excluded))
+  const canExport = hasAnyIncludedShot(model)
   // Use isEmpty (not groups.length): with groupBy:"none" a zero-shot report still
   // emits one empty group, so the shotCount===0 arm of isEmpty is what catches it.
   const exportHint = canExport

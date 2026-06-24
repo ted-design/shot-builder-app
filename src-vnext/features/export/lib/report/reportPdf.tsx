@@ -28,7 +28,7 @@ import type {
   ReportProduct,
 } from "./reportTypes"
 import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
-import { sizeLabel } from "./reportModel"
+import { hasAnyIncludedShot, sizeLabel } from "./reportModel"
 import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 
@@ -629,7 +629,7 @@ export async function generateShotReportPdf(
   layout: ReportLayout = "image-led",
 ): Promise<void> {
   // Guard against a zero-page PDF (corrupt) when every shot is excluded.
-  if (!model.groups.some((g) => g.shots.some((s) => !s.excluded))) {
+  if (!hasAnyIncludedShot(model)) {
     throw new Error("No shots to export")
   }
   const { pdf } = await import("@react-pdf/renderer")
