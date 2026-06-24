@@ -99,6 +99,9 @@ export default function TalentReportPage() {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      // Clear the resolved-image key too, so a remount re-resolves cleanly instead
+      // of relying on the prior in-flight resolve landing after remount.
+      lastImageKeyRef.current = null
       if (persistTimer.current) clearTimeout(persistTimer.current)
     }
   }, [])
