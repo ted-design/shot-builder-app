@@ -84,6 +84,8 @@ export function sizeLabel(
   sizeScope: SizeScope | null,
   size: string | null,
 ): { readonly text: string; readonly pending: boolean } {
+  // Pending scope is always pending, even if a stale size value lingers on the doc.
+  if (sizeScope === "pending") return { text: "Pending", pending: true }
   if (sizeScope === "all") return { text: "All sizes", pending: false }
   const trimmed = size?.trim()
   if (trimmed) return { text: trimmed, pending: false }

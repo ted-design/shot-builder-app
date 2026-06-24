@@ -438,6 +438,7 @@ function ControlBar({
   onExportPdf,
   exporting,
   canExport,
+  exportHint,
 }: {
   readonly printMode: boolean
   readonly onSetPrintMode: (v: boolean) => void
@@ -451,6 +452,7 @@ function ControlBar({
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly canExport: boolean
+  readonly exportHint?: string
 }): JSX.Element {
   const viewLabelId = useId()
   const groupLabelId = useId()
@@ -557,7 +559,7 @@ function ControlBar({
         onClick={onExportPdf}
         disabled={exporting || !canExport}
         aria-busy={exporting}
-        title={!canExport ? "No shots to export — every shot is excluded" : undefined}
+        title={exportHint}
       >
         {exporting ? (
           <>
@@ -613,6 +615,11 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
   const canExport = model.groups.some((g) => g.shots.some((s) => !s.excluded))
+  const exportHint = canExport
+    ? undefined
+    : isEmpty
+      ? "No shots in this report yet"
+      : "Every shot is excluded"
 
   return (
     <div className={"sb-report-root" + (printMode ? " sb-print-mode" : "")} data-layout={layout}>
@@ -631,6 +638,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         onExportPdf={onExportPdf}
         exporting={exporting}
         canExport={canExport}
+        exportHint={exportHint}
       />
 
       <main className="sb-report">

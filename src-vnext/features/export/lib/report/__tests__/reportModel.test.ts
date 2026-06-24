@@ -356,4 +356,7 @@ describe("sizeLabel", () => {
     expect(sizeLabel("single", "  ")).toEqual({ text: "Pending", pending: true })
     expect(sizeLabel(null, null)).toEqual({ text: "Pending", pending: true })
   })
+  it("pending scope stays 'Pending' even with a stale non-empty size", () => {
+    expect(sizeLabel("pending", "M")).toEqual({ text: "Pending", pending: true })
+  })
 })
