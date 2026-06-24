@@ -22,6 +22,17 @@ import {
 // (image fields are path/URL candidates resolved later). The single source both
 // the DOM and PDF renderers consume.
 
+/** First non-empty, trimmed string from the candidates, else null. Treats "" as
+ *  absent — matches the talent library's `||` headshot resolution; our `??` chains
+ *  silently kept an empty-string field and rendered no image. */
+export function firstNonEmpty(...vals: ReadonlyArray<string | null | undefined>): string | null {
+  for (const v of vals) {
+    const t = v?.trim()
+    if (t) return t
+  }
+  return null
+}
+
 /** Normalize a free-form gender string to M/W, or null when unknown. */
 export function normalizeGender(raw: string | null | undefined): "M" | "W" | null {
   if (!raw) return null
@@ -143,7 +154,8 @@ function resolveTalent(
     return {
       id,
       name: t?.name ?? "Unknown",
-      img: t?.headshotUrl ?? t?.imageUrl ?? t?.headshotPath ?? null,
+      // Library order (headshotPath first) + empty-string-safe; ?? kept "" and blanked the avatar.
+      img: firstNonEmpty(t?.headshotPath, t?.imageUrl, t?.headshotUrl),
     }
   })
 }

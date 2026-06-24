@@ -200,22 +200,22 @@ describe("deriveTalentModel — entry field resolution", () => {
     expect(find(model, "tB")).toMatchObject({ genderLabel: null, agency: null, email: null, phone: null, web: null })
   })
 
-  it("headshot candidate follows headshotUrl -> imageUrl -> headshotPath order", () => {
+  it("headshot candidate follows headshotPath -> imageUrl -> headshotUrl order (library parity)", () => {
     const model = deriveTalentModel(
       data({
         talent: [
-          tal({ id: "tU", name: "U", headshotUrl: "url.jpg", imageUrl: "img.jpg", headshotPath: "path.jpg" }),
-          tal({ id: "tI", name: "I", imageUrl: "img.jpg", headshotPath: "path.jpg" }),
-          tal({ id: "tP", name: "P", headshotPath: "path.jpg" }),
+          tal({ id: "tAll", name: "A", headshotUrl: "url.jpg", imageUrl: "img.jpg", headshotPath: "path.jpg" }),
+          tal({ id: "tImg", name: "I", imageUrl: "img.jpg", headshotUrl: "url.jpg" }),
+          tal({ id: "tUrl", name: "U", headshotUrl: "url.jpg" }),
           tal({ id: "tN", name: "N" }),
         ],
-        shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["tU", "tI", "tP", "tN"] })],
+        shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["tAll", "tImg", "tUrl", "tN"] })],
       }),
       cfg({ groupBy: "none" }),
     )
-    expect(find(model, "tU")?.headshot).toBe("url.jpg")
-    expect(find(model, "tI")?.headshot).toBe("img.jpg")
-    expect(find(model, "tP")?.headshot).toBe("path.jpg")
+    expect(find(model, "tAll")?.headshot).toBe("path.jpg")
+    expect(find(model, "tImg")?.headshot).toBe("img.jpg")
+    expect(find(model, "tUrl")?.headshot).toBe("url.jpg")
     expect(find(model, "tN")?.headshot).toBeNull()
   })
 
@@ -314,5 +314,22 @@ describe("deriveTalentModel — project block & image candidates", () => {
       cfg({ groupBy: "none" }),
     )
     expect([...collectTalentImageCandidates(model)].sort()).toEqual(["other.jpg", "shared.jpg"])
+  })
+})
+
+describe("deriveTalentModel — headshot resolution (library parity)", () => {
+  it("skips empty-string fields (the bug) and falls back to headshotPath; all-empty -> null", () => {
+    const model = deriveTalentModel(
+      data({
+        talent: [
+          tal({ id: "tH", headshotUrl: "", imageUrl: "", headshotPath: "images/talent/tH/h.webp" }),
+          tal({ id: "tNone", headshotUrl: "", imageUrl: "", headshotPath: "" }),
+        ],
+        shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["tH", "tNone"] })],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    expect(find(model, "tH")?.headshot).toBe("images/talent/tH/h.webp")
+    expect(find(model, "tNone")?.headshot).toBeNull()
   })
 })

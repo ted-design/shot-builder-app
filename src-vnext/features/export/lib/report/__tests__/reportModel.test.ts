@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel } from "../reportModel"
+import { deriveShotReportModel, firstNonEmpty, formatDateWindow, normalizeGender, sizeLabel } from "../reportModel"
 import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
@@ -340,6 +340,29 @@ describe("deriveShotReportModel", () => {
     const primary = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "primary-only" })
     expect(all.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
     expect(primary.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
+  })
+})
+
+describe("firstNonEmpty", () => {
+  it("returns the first non-empty trimmed value, treating '' as absent", () => {
+    expect(firstNonEmpty("", "  ", "x")).toBe("x")
+    expect(firstNonEmpty(null, undefined, "  y  ")).toBe("y")
+    expect(firstNonEmpty("a", "b")).toBe("a")
+    expect(firstNonEmpty("", null, undefined)).toBeNull()
+    expect(firstNonEmpty()).toBeNull()
+  })
+})
+
+describe("talent avatar resolution", () => {
+  it("skips an empty-string headshotUrl and falls back to headshotPath (the library-parity bug)", () => {
+    const d = data({
+      talent: [
+        { id: "t1", name: "Mona", headshotUrl: "", imageUrl: "", headshotPath: "images/talent/t1/h.webp" },
+      ] as unknown as ExportData["talent"],
+      shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["t1"], looks: [] })],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [] })
+    expect(m.groups[0]?.shots[0]?.talent[0]?.img).toBe("images/talent/t1/h.webp")
   })
 })
 

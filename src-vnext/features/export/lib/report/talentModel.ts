@@ -5,7 +5,13 @@ import {
   formatLabeledMeasurements,
 } from "@/features/library/lib/measurementOptions"
 import type { ExportData } from "../../hooks/useExportData"
-import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder } from "./reportModel"
+import {
+  firstNonEmpty,
+  formatDateWindow,
+  lookLabel,
+  shotNumberSortKey,
+  sortLooksByOrder,
+} from "./reportModel"
 import type {
   TalentAppearance,
   TalentConfig,
@@ -78,7 +84,8 @@ function toEntry(
     email: t.email?.trim() ? t.email.trim() : null,
     phone: t.phone?.trim() ? t.phone.trim() : null,
     web: t.url?.trim() ? t.url.trim() : null,
-    headshot: t.headshotUrl ?? t.imageUrl ?? t.headshotPath ?? null,
+    // Library order (headshotPath first) + empty-string-safe; ?? kept "" and blanked the headshot.
+    headshot: firstNonEmpty(t.headshotPath, t.imageUrl, t.headshotUrl),
     measurements,
     onHold: appears.some((a) => a.status === "on_hold"),
     excluded: excluded.has(t.id),
