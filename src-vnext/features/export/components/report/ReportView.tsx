@@ -615,9 +615,11 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
   const canExport = model.groups.some((g) => g.shots.some((s) => !s.excluded))
+  // isEmpty covers both groupBy modes (groupBy:"none" emits one empty group when
+  // there are zero shots, so groups.length alone misses it).
   const exportHint = canExport
     ? undefined
-    : model.groups.length === 0
+    : isEmpty
       ? "No shots in this report yet"
       : "Every shot is excluded"
 

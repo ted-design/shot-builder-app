@@ -106,14 +106,17 @@ function resolveLooks(
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
     const products = resolveProducts(look.products, look.heroProductId, familyById)
-    // Plate falls back to a product image (hero first) when the look has no
-    // uploaded reference photo — pre-shoot decks still get a thumbnail.
+    // The plate FALLS BACK to a product image (hero first) when there's no uploaded
+    // reference, so pre-shoot decks still show a thumbnail — but `hasReference`
+    // tracks the real reference only (the "references ready" counter must not count
+    // the product fallback).
+    const reference = pickLookDisplayImage(look)
     const image =
-      pickLookDisplayImage(look) ??
+      reference ??
       products.find((p) => p.isHero)?.img ??
       products.find((p) => p.img)?.img ??
       null
-    return { id: look.id, label, isAlt, image, products }
+    return { id: look.id, label, isAlt, image, hasReference: reference != null, products }
   })
 }
 
@@ -217,7 +220,8 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
         talent: resolveTalent(shot, talentById),
         looks: visibleLooks,
         excluded: excluded.has(shot.id),
-        hasImage: visibleLooks.some((l) => l.image != null),
+        // "References ready" = has a real uploaded reference, NOT the product-image plate fallback.
+        hasImage: visibleLooks.some((l) => l.hasReference),
       }
     })
     .sort((a, b) => {

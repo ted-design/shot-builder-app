@@ -236,7 +236,10 @@ describe("deriveShotReportModel", () => {
     const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
     const look = m.groups[0]?.shots[0]?.looks[0]
     expect(look?.image).toBe("hero-img")
-    expect(m.groups[0]?.shots[0]?.hasImage).toBe(true)
+    // The plate shows the product fallback, but it's NOT a real reference — so the
+    // "references ready" counter (hasImage) must stay false.
+    expect(look?.hasReference).toBe(false)
+    expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
   })
 
   it("falls through a hero with no image to the next product that has one", () => {

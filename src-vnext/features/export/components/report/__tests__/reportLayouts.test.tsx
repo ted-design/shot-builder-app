@@ -18,14 +18,14 @@ function model(): ReportModel {
             id: "s1", number: "01", title: "Trail Crew", colorway: "Black", status: "complete",
             gender: "W", notes: null, talent: [{ id: "t1", name: "Model A", img: null }],
             excluded: false, hasImage: false,
-            looks: [{ id: "l1", label: "Primary", isAlt: false, image: null, products: [
+            looks: [{ id: "l1", label: "Primary", isAlt: false, image: null, hasReference: false, products: [
               { family: "Crew", style: "W-TP-1399", colour: "Black", size: "S", sizeScope: "single", qty: 1, gender: "W", isHero: true, img: null },
             ] }],
           },
           {
             id: "s2", number: "02", title: "Excluded one", colorway: null, status: "todo",
             gender: "W", notes: null, talent: [], excluded: true, hasImage: false,
-            looks: [{ id: "l2", label: "Primary", isAlt: false, image: null, products: [] }],
+            looks: [{ id: "l2", label: "Primary", isAlt: false, image: null, hasReference: false, products: [] }],
           },
         ],
       },
@@ -35,7 +35,7 @@ function model(): ReportModel {
           {
             id: "s3", number: "03", title: "On hold one", colorway: null, status: "on_hold",
             gender: "?", notes: "Pending wardrobe.", talent: [], excluded: false, hasImage: false,
-            looks: [{ id: "l3", label: "Primary", isAlt: false, image: null, products: [
+            looks: [{ id: "l3", label: "Primary", isAlt: false, image: null, hasReference: false, products: [
               { family: "Pant", style: null, colour: null, size: null, sizeScope: "pending", qty: 2, gender: "?", isHero: true, img: null },
             ] }],
           },
