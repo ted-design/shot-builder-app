@@ -114,7 +114,9 @@ const s = StyleSheet.create({
   headshotImage: { width: "100%", maxHeight: HEADSHOT_MAX_HEIGHT, objectFit: "contain" },
   initials: {
     width: "100%",
-    height: 132,
+    // Match the headshot cap so a no-headshot card is no taller than one with a
+    // photo (else the denser 2×3 grid overflows).
+    height: HEADSHOT_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",

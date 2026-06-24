@@ -103,7 +103,9 @@ const s = StyleSheet.create({
   image: { width: CARD_WIDTH, maxHeight: IMAGE_MAX_HEIGHT, objectFit: "contain" },
   noImage: {
     width: CARD_WIDTH,
-    height: 150,
+    // Match the image cap so a missing-image card is no taller than an imaged one
+    // (else the denser 4×3 grid overflows on incomplete libraries).
+    height: IMAGE_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
