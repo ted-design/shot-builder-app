@@ -3,6 +3,7 @@ import type {
   ProductFamily,
   Shot,
   ShotLook,
+  SizeScope,
   TalentRecord,
 } from "@/shared/types"
 import type { ExportData } from "../../hooks/useExportData"
@@ -77,6 +78,18 @@ export function lookLabel(rawLabel: string | null | undefined, index: number): s
   return trimmed && trimmed.length > 0 ? trimmed : index === 0 ? "Primary" : `Alt ${index}`
 }
 
+/** Size display: a concrete size, "All sizes" (bulk scope — a real value, not muted),
+ *  else "Pending". `pending` drives the muted style. One source both renderers consume. */
+export function sizeLabel(
+  sizeScope: SizeScope | null,
+  size: string | null,
+): { readonly text: string; readonly pending: boolean } {
+  if (sizeScope === "all") return { text: "All sizes", pending: false }
+  const trimmed = size?.trim()
+  if (trimmed) return { text: trimmed, pending: false }
+  return { text: "Pending", pending: true }
+}
+
 /** Sort a shot's looks by order (shared by the shot + product-info derivations). */
 export function sortLooksByOrder(looks: readonly ShotLook[]): readonly ShotLook[] {
   return [...looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -90,13 +103,15 @@ function resolveLooks(
   return looks.map((look, i): ReportLook => {
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
-    return {
-      id: look.id,
-      label,
-      isAlt,
-      image: pickLookDisplayImage(look),
-      products: resolveProducts(look.products, look.heroProductId, familyById),
-    }
+    const products = resolveProducts(look.products, look.heroProductId, familyById)
+    // Plate falls back to a product image (hero first) when the look has no
+    // uploaded reference photo — pre-shoot decks still get a thumbnail.
+    const image =
+      pickLookDisplayImage(look) ??
+      products.find((p) => p.isHero)?.img ??
+      products.find((p) => p.img)?.img ??
+      null
+    return { id: look.id, label, isAlt, image, products }
   })
 }
 

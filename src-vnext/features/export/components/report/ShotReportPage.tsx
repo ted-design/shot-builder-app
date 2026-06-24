@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useExportData } from "../../hooks/useExportData"
@@ -131,9 +132,11 @@ export default function ShotReportPage() {
         `${model.project.name} — Shot Report.pdf`,
         layout,
       )
-    })().finally(() => {
-      setExporting(false)
-    })
+    })()
+      .catch(() => toast.error("Couldn't export the PDF"))
+      .finally(() => {
+        setExporting(false)
+      })
   }, [model, imageMap, config.layout])
 
   if (data.loading) {

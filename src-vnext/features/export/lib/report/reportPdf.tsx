@@ -28,6 +28,7 @@ import type {
   ReportProduct,
 } from "./reportTypes"
 import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
+import { sizeLabel } from "./reportModel"
 import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 
@@ -407,8 +408,7 @@ function paginate(model: ReportModel): readonly Sheet[] {
 // ---------------------------------------------------------------------------
 
 function ProductRow({ p }: { readonly p: ReportProduct }) {
-  const sizePending = p.sizeScope === "pending" || !has(p.size)
-  const sizeText = sizePending ? "Pending" : (p.size as string)
+  const { text: sizeText, pending: sizePending } = sizeLabel(p.sizeScope, p.size)
   return (
     <View style={styles.prodRow} wrap={false}>
       <View style={styles.colHero}>{p.isHero ? <View style={styles.heroDot} /> : null}</View>
@@ -628,6 +628,10 @@ export async function generateShotReportPdf(
   filename = "comprehensive-shot-report.pdf",
   layout: ReportLayout = "image-led",
 ): Promise<void> {
+  // Guard against a zero-page PDF (corrupt) when every shot is excluded.
+  if (!model.groups.some((g) => g.shots.some((s) => !s.excluded))) {
+    throw new Error("No shots to export")
+  }
   const { pdf } = await import("@react-pdf/renderer")
   const element = reportPdfDocument(model, imageMap, layout)
   const blob = await pdf(element).toBlob()

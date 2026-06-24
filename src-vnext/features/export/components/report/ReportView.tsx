@@ -22,6 +22,7 @@ import type {
   ReportTalent,
 } from "../../lib/report/reportTypes"
 import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
+import { sizeLabel } from "../../lib/report/reportModel"
 import { REPORT_STYLES } from "./reportStyles"
 import { resolveSrc, statusMetaLegacy } from "./reportShared"
 import { ProductionSheetReport } from "./ProductionSheetReport"
@@ -46,12 +47,7 @@ function primaryLookOf(shot: ReportShot): ReportLook | undefined {
 // Product row — aligned tabular caption (family · style# · colour · size · qty)
 // ---------------------------------------------------------------------------
 function ProductRow({ product }: { readonly product: ReportProduct }): JSX.Element {
-  const sizePending = product.sizeScope === "pending"
-  const sizeText = sizePending
-    ? "Pending"
-    : product.size && product.size.trim() !== ""
-      ? product.size
-      : "Pending"
+  const { text: sizeText, pending: sizePending } = sizeLabel(product.sizeScope, product.size)
   const colourText = product.colour && product.colour.trim() !== "" ? product.colour : "Colour TBD"
   const colourMuted = !(product.colour && product.colour.trim() !== "")
   const qtyText = product.qty != null ? `×${product.qty}` : "×—"
@@ -441,6 +437,7 @@ function ControlBar({
   showLayout,
   onExportPdf,
   exporting,
+  canExport,
 }: {
   readonly printMode: boolean
   readonly onSetPrintMode: (v: boolean) => void
@@ -453,6 +450,7 @@ function ControlBar({
   readonly showLayout: boolean
   readonly onExportPdf: () => void
   readonly exporting: boolean
+  readonly canExport: boolean
 }): JSX.Element {
   const viewLabelId = useId()
   const groupLabelId = useId()
@@ -557,8 +555,9 @@ function ControlBar({
         type="button"
         className="sb-export-btn"
         onClick={onExportPdf}
-        disabled={exporting}
+        disabled={exporting || !canExport}
         aria-busy={exporting}
+        title={!canExport ? "No shots to export — every shot is excluded" : undefined}
       >
         {exporting ? (
           <>
@@ -612,6 +611,8 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   }
 
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
+  // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
+  const canExport = model.groups.some((g) => g.shots.some((s) => !s.excluded))
 
   return (
     <div className={"sb-report-root" + (printMode ? " sb-print-mode" : "")} data-layout={layout}>
@@ -629,6 +630,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         showLayout={recipesEnabled}
         onExportPdf={onExportPdf}
         exporting={exporting}
+        canExport={canExport}
       />
 
       <main className="sb-report">
