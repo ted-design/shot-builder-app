@@ -617,7 +617,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const canExport = model.groups.some((g) => g.shots.some((s) => !s.excluded))
   const exportHint = canExport
     ? undefined
-    : isEmpty
+    : model.groups.length === 0
       ? "No shots in this report yet"
       : "Every shot is excluded"
 
