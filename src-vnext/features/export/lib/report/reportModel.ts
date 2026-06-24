@@ -7,6 +7,7 @@ import type {
   TalentRecord,
 } from "@/shared/types"
 import type { ExportData } from "../../hooks/useExportData"
+import { humanizeLabel } from "@/shared/lib/textUtils"
 import {
   type GenderKey,
   type ReportConfig,
@@ -186,19 +187,9 @@ export function formatDateWindow(dates: readonly string[] | null | undefined): s
   return `${day(lo)}, ${lo.y} – ${day(hi)}, ${hi.y}`
 }
 
-/**
- * Title-case an auth-org client slug for display: "unbound-merino" / "unbound_merino" -> "Unbound Merino".
- * Splits on hyphens, underscores, and whitespace; collapses separator runs; capitalizes each word's
- * first letter and lowercases the rest. Empty / nullish input returns "". Simple title-case — acronyms
- * are not preserved ("acme-llc" -> "Acme Llc"), which is acceptable here.
- */
+/** Title-case a client slug via the shared humanizer (lowercases the tail first, so acronyms degrade). */
 export function titleCaseSlug(slug: string | null | undefined): string {
-  if (!slug) return ""
-  return slug
-    .split(/[-_\s]+/)
-    .filter((w) => w.length > 0)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ")
+  return slug ? humanizeLabel(slug.toLowerCase()) : ""
 }
 
 export const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]

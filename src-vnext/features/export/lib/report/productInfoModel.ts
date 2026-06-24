@@ -92,7 +92,7 @@ function walkInUse(
   // an image wins outright and locks the slot; until that happens the first
   // assignment carrying any image holds the slot and a later hero-with-image
   // upgrades it. Sorted look order + array order make "first" deterministic.
-  const imageIsHero = new Map<string, boolean>()
+  const imageIsHero = new Set<string>()
   for (const shot of shots) {
     if (shot.deleted) continue
     const looks = sortLooksByOrder(shot.looks ?? [])
@@ -110,14 +110,14 @@ function walkInUse(
         if (!byFamily.has(id)) byFamily.set(id, agg)
         const isHeroAssignment =
           p.isHero === true || (heroId != null && matchesHeroProductId(p, heroId))
-        if (!imageIsHero.get(id)) {
+        if (!imageIsHero.has(id)) {
           const candidate = pickColourwayFirstImage(p, familyById.get(id))
           if (isHeroAssignment) {
             // Lock to the hero only when it actually carries an image — a hero with
             // no resolvable image must not block a later sibling that has one.
             if (candidate != null) {
               agg.image = candidate
-              imageIsHero.set(id, true)
+              imageIsHero.add(id)
             }
           } else if (agg.image == null && candidate != null) {
             agg.image = candidate

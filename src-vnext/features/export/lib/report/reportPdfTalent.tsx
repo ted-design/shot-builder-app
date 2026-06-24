@@ -21,7 +21,7 @@ import type {
   TalentModel,
 } from "./talentTypes"
 import { initials } from "@/features/library/components/talentUtils"
-import { COLOR, FONT, PAGE, STATUS, has } from "./reportPdfShared"
+import { COLOR, FONT, PAGE, STATUS, has, breakLongToken } from "./reportPdfShared"
 
 const PAD_X = 36
 const PAD_TOP = 34
@@ -261,33 +261,6 @@ function ShotLine({ a }: { readonly a: TalentAppearance }): JSX.Element {
       {a.looks.length ? <Text style={s.shotLooks}>{a.looks.join(" · ")}</Text> : null}
     </View>
   )
-}
-
-// @react-pdf breaks lines only on existing whitespace/hyphens, never mid-token,
-// so a long unbroken URL (an agency portfolio link) overflows the card. CSS
-// overflow-wrap is honored by the DOM view but @react-pdf ignores it. Insert
-// zero-width-space (U+200B) break opportunities after common URL delimiters, and
-// as a safety net every `chunk` chars inside any still-unbroken run.
-const BREAKABLE = new Set(["/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%", "#", ",", ";"])
-function breakLongToken(value: string, chunk = 14): string {
-  let out = ""
-  let run = 0
-  for (const ch of value) {
-    out += ch
-    if (ch === " " || ch === "\n" || ch === "\t") {
-      run = 0
-      continue
-    }
-    run += 1
-    if (BREAKABLE.has(ch)) {
-      out += "​"
-      run = 0
-    } else if (run >= chunk) {
-      out += "​"
-      run = 0
-    }
-  }
-  return out
 }
 
 function ContactItem({ k, value }: { readonly k: string; readonly value: string }): JSX.Element {
