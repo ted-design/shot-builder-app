@@ -57,8 +57,6 @@ export interface TalentEntry {
   /** Headshot image candidate (path/URL) or null. */
   readonly headshot: string | null
   readonly measurements: readonly TalentMeasurement[]
-  /** True when any appearance is on_hold — the ONE red on this surface. */
-  readonly onHold: boolean
   readonly excluded: boolean
   readonly appears: readonly TalentAppearance[]
 }

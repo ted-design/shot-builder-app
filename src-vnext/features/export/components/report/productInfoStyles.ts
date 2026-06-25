@@ -202,7 +202,7 @@ export const PRODUCT_INFO_STYLES = `
   font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 700;
   letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-red);
 }
-.sb-pir-hero-tag::before { content: ""; width: 8px; height: 8px; background: var(--sb-red); border-radius: 1px; }
+.sb-pir-hero-tag::before { content: ""; width: 8px; height: 8px; background: var(--sb-red); border-radius: 50%; }
 
 .sb-pir-row { display: flex; gap: 8px; align-items: baseline; margin-bottom: 7px; font-size: var(--sb-t-sm); }
 .sb-pir-row .sb-pir-k {

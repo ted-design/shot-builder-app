@@ -265,7 +265,7 @@ describe("deriveProductInfoModel — entry fields & images", () => {
     expect(find(model, "fX")).toMatchObject({ gender: "?", genderLabel: null, excluded: false })
   })
 
-  it("picks the image candidate by assignment thumbs, then family thumbnail, then header", () => {
+  it("picks the image COLOURWAY-FIRST (skuImageUrl, then familyImageUrl), then family thumbnail, then header", () => {
     const model = deriveProductInfoModel(
       data({
         productFamilies: [
@@ -275,17 +275,85 @@ describe("deriveProductInfoModel — entry fields & images", () => {
         ],
         shots: [
           shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
-            { familyId: "fA", thumbUrl: "asn/A.jpg" }, // assignment wins
-            { familyId: "fB" }, // no assignment image, no thumbnail -> header
+            // thumbUrl is IGNORED; skuImageUrl is the colourway-first winner
+            { familyId: "fA", thumbUrl: "asn/A-thumb.jpg", skuImageUrl: "asn/A-sku.jpg", familyImageUrl: "asn/A-fam.jpg" },
+            { familyId: "fB" }, // no assignment image, no family thumbnail -> family header
             { familyId: "fC" }, // no assignment image -> family thumbnail
           ] }] }),
         ],
       }),
       cfg({ groupBy: "none" }),
     )
-    expect(find(model, "fA")?.image).toBe("asn/A.jpg")
+    expect(find(model, "fA")?.image).toBe("asn/A-sku.jpg") // skuImageUrl beats thumbUrl + familyImageUrl
     expect(find(model, "fB")?.image).toBe("fam/B-head.jpg")
     expect(find(model, "fC")?.image).toBe("fam/C-thumb.jpg")
+  })
+
+  it("falls back skuImageUrl -> familyImageUrl on the assignment when no sku image", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: [fam({ id: "fA", styleName: "A", thumbnailImagePath: "fam/A-thumb.jpg" })],
+        shots: [
+          shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
+            { familyId: "fA", thumbUrl: "asn/A-thumb.jpg", familyImageUrl: "asn/A-fam.jpg" }, // no skuImageUrl
+          ] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    expect(find(model, "fA")?.image).toBe("asn/A-fam.jpg") // familyImageUrl, NOT thumbUrl, NOT family thumbnail
+  })
+
+  it("chooses the HERO assignment's colourway image deterministically, overriding an earlier non-hero one", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: [fam({ id: "fA", styleName: "A" })],
+        shots: [
+          shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
+            { familyId: "fA", colourName: "Black", skuImageUrl: "asn/black.jpg" }, // first, non-hero
+            { familyId: "fA", colourName: "Navy", skuImageUrl: "asn/navy.jpg", isHero: true }, // hero wins
+          ] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    expect(find(model, "fA")?.image).toBe("asn/navy.jpg") // hero colourway beats the earlier non-hero one
+  })
+
+  it("is deterministic: the first hero wins regardless of which look it sits in (sorted look order)", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: [fam({ id: "fA", styleName: "A" })],
+        shots: [
+          shot({ id: "s1", shotNumber: "01", looks: [
+            // out-of-order: order:1 listed first, but sortLooksByOrder runs the order:0 look first
+            { id: "l1", order: 1, heroProductId: "fA", products: [{ familyId: "fA", skuImageUrl: "asn/alt-hero.jpg" }] },
+            { id: "l0", order: 0, products: [{ familyId: "fA", skuImageUrl: "asn/primary-nonhero.jpg" }] },
+          ] }),
+        ],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    // The Alt look's heroProductId-matched assignment is the only hero -> it wins,
+    // even though the order:0 (Primary) non-hero assignment is walked first.
+    expect(find(model, "fA")?.image).toBe("asn/alt-hero.jpg")
+  })
+
+  it("a hero with no resolvable image does not block a sibling assignment that has one", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: [fam({ id: "fA", styleName: "A" })], // no family thumbnail/header
+        shots: [
+          shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
+            { familyId: "fA", isHero: true }, // hero but NO image, family has no fallback
+            { familyId: "fA", skuImageUrl: "asn/sibling.jpg" }, // non-hero sibling carries one
+          ] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none" }),
+    )
+    expect(find(model, "fA")?.image).toBe("asn/sibling.jpg") // hero-no-image must not lock out the sibling
+    expect(find(model, "fA")?.isHero).toBe(true) // still a hero family (the hero mark stays)
   })
 
   it("collectProductInfoImageCandidates returns each unique resolved candidate once", () => {

@@ -2,7 +2,7 @@
 // (talent-centric, call-sheet-adjacent): one card per TalentRecord in the project,
 // grouped per config. Pure presentational + interaction callbacks; no data fetching.
 // Consumes the resolved TalentModel + an image *sidecar* map (candidate -> data URL).
-// Red does exactly one job here: the HOLD flag. Ported from comp-talent.html.
+// No red on this surface — status uses neutral/amber dots only. Ported from comp-talent.html.
 
 import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
@@ -33,7 +33,7 @@ export interface TalentReportViewProps {
 
 // ---------------------------------------------------------------------------
 // One talent card — headshot col (native-aspect or initials tile + shot count)
-// + info col: name, HOLD flag (the ONE red), gender badge + agency, contact,
+// + info col: name, gender badge + agency, contact,
 // measurements grid, "In shots" list with status dots + shot number + title + looks.
 // ---------------------------------------------------------------------------
 function TalentCard({
@@ -82,7 +82,6 @@ function TalentCard({
       <div className="sb-tr-info">
         <div className="sb-tr-name-row">
           <span className="sb-tr-name">{entry.name}</span>
-          {entry.onHold ? <span className="sb-tr-hold-flag">Hold</span> : null}
         </div>
 
         {entry.genderLabel || entry.agency ? (
@@ -140,28 +139,25 @@ function TalentCard({
 }
 
 // ---------------------------------------------------------------------------
-// Masthead band — Talent / Agencies / Holds / Window.
+// Masthead band — Talent / Agencies / Window.
 // ---------------------------------------------------------------------------
 function Masthead({ model }: { readonly model: TalentModel }): JSX.Element {
   const stats = useMemo(() => {
-    let holds = 0
     const agencies = new Set<string>()
     let total = 0
     for (const g of model.groups) {
       for (const e of g.items) {
         if (e.excluded) continue
         total += 1
-        if (e.onHold) holds += 1
         if (e.agency) agencies.add(e.agency)
       }
     }
-    return { holds, agencies: agencies.size, total }
+    return { agencies: agencies.size, total }
   }, [model.groups])
 
   const cells: ReadonlyArray<readonly [string, string | number]> = [
     ["Talent", stats.total],
     ["Agencies", stats.agencies],
-    ["Holds", stats.holds],
     ["Window", model.project.dateRange ?? "—"],
   ]
 

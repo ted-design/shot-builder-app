@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel } from "../reportModel"
+import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
 import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
@@ -381,5 +381,34 @@ describe("sizeLabel", () => {
   })
   it("pending scope stays 'Pending' even with a stale non-empty size", () => {
     expect(sizeLabel("pending", "M")).toEqual({ text: "Pending", pending: true })
+  })
+})
+
+describe("titleCaseSlug", () => {
+  it("title-cases a hyphenated client slug", () => {
+    expect(titleCaseSlug("unbound-merino")).toBe("Unbound Merino")
+  })
+  it("treats underscores as word separators", () => {
+    expect(titleCaseSlug("acme_widgets_co")).toBe("Acme Widgets Co")
+  })
+  it("handles mixed hyphen + underscore separators", () => {
+    expect(titleCaseSlug("big-brand_inc")).toBe("Big Brand Inc")
+  })
+  it("normalizes an already-spaced name", () => {
+    expect(titleCaseSlug("Acme Co")).toBe("Acme Co")
+  })
+  it("lowercases the tail of each word (simple title-case)", () => {
+    expect(titleCaseSlug("ACME-LLC")).toBe("Acme Llc")
+  })
+  it("collapses runs of separators and trims edges", () => {
+    expect(titleCaseSlug("--foo__bar--")).toBe("Foo Bar")
+  })
+  it("returns empty string for empty / nullish input", () => {
+    expect(titleCaseSlug("")).toBe("")
+    expect(titleCaseSlug(undefined)).toBe("")
+    expect(titleCaseSlug(null)).toBe("")
+  })
+  it("capitalizes a single-char slug", () => {
+    expect(titleCaseSlug("c")).toBe("C")
   })
 })

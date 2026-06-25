@@ -7,6 +7,7 @@ import type {
   TalentRecord,
 } from "@/shared/types"
 import type { ExportData } from "../../hooks/useExportData"
+import { humanizeLabel } from "@/shared/lib/textUtils"
 import {
   type GenderKey,
   type ReportConfig,
@@ -186,6 +187,11 @@ export function formatDateWindow(dates: readonly string[] | null | undefined): s
   return `${day(lo)}, ${lo.y} – ${day(hi)}, ${hi.y}`
 }
 
+/** Title-case a client slug via the shared humanizer (lowercases the tail first, so acronyms degrade). */
+export function titleCaseSlug(slug: string | null | undefined): string {
+  return slug ? humanizeLabel(slug.toLowerCase()) : ""
+}
+
 export const GROUP_ORDER: readonly GenderKey[] = ["W", "M", "Mixed", "?"]
 export const GROUP_LABEL: Record<GenderKey, string> = {
   W: "Women",
@@ -241,7 +247,7 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
   return {
     project: {
       name: data.project?.name ?? "Untitled project",
-      client: data.project?.clientId ?? "",
+      client: titleCaseSlug(data.project?.clientId),
       shotCount: shots.length,
       dateRange: formatDateWindow(data.project?.shootDates),
     },

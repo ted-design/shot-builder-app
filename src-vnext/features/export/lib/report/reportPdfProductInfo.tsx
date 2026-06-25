@@ -7,8 +7,8 @@
 //
 // PDF typography differs from screen by design: @react-pdf ships only the
 // Helvetica / Courier / Times built-ins, so the Ivy Presto serif maps to
-// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — three
-// cards per landscape sheet, never spanning a group, each card wrap={false} so
+// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — 12
+// cards (4×3) per landscape sheet, never spanning a group, each card wrap={false} so
 // a card NEVER straddles or clips a page break.
 
 import type { JSX } from "react"
@@ -24,13 +24,20 @@ import { COLOR, FONT, PAGE, STATUS, has } from "./reportPdfShared"
 const PAD_X = 36
 const PAD_TOP = 34
 const PAD_BOTTOM = 30
-const CARD_GAP = 22
-const CARDS_PER_SHEET = 3
+const COL_GAP = 22
+const ROW_GAP = 18
+const PRINT_COLS = 4
+const PRINT_ROWS = 3
+const CARDS_PER_SHEET = PRINT_COLS * PRINT_ROWS
 const CONTENT_WIDTH = PAGE.width - PAD_X * 2
-const CARD_WIDTH = (CONTENT_WIDTH - CARD_GAP * (CARDS_PER_SHEET - 1)) / CARDS_PER_SHEET
+// Card width derives from the COLUMN count (not cards-per-sheet): a 4-up card is
+// (content - 3 col gaps) / 4. Matches the on-screen PagedView's 4-col grid.
+const CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (PRINT_COLS - 1)) / PRINT_COLS
 // Image is width-only so its height follows the photo's native aspect; the cap
-// bounds an unusually tall portrait so the card body always fits the sheet.
-const IMAGE_MAX_HEIGHT = 232
+// bounds an unusually tall portrait so the card body always fits the sheet. At
+// 4×3 (12/page) three card rows stack on one landscape sheet, so the cap is far
+// tighter than the old 3-up (1 row) value of 232. EYEBALL-GATE this number.
+const IMAGE_MAX_HEIGHT = 96
 
 const s = StyleSheet.create({
   page: {
@@ -83,8 +90,8 @@ const s = StyleSheet.create({
     marginLeft: 10,
   },
 
-  // Card row + card
-  cards: { flexDirection: "row", gap: CARD_GAP },
+  // Card grid + card
+  cards: { flexDirection: "row", flexWrap: "wrap", columnGap: COL_GAP, rowGap: ROW_GAP },
   card: { width: CARD_WIDTH },
   frame: {
     width: CARD_WIDTH,
@@ -96,7 +103,9 @@ const s = StyleSheet.create({
   image: { width: CARD_WIDTH, maxHeight: IMAGE_MAX_HEIGHT, objectFit: "contain" },
   noImage: {
     width: CARD_WIDTH,
-    height: 150,
+    // Match the image cap so a missing-image card is no taller than an imaged one
+    // (else the denser 4×3 grid overflows on incomplete libraries).
+    height: IMAGE_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
@@ -115,9 +124,9 @@ const s = StyleSheet.create({
   identText: { fontFamily: FONT.ui, fontSize: 7.5, color: COLOR.textSecondary },
   identSep: { fontFamily: FONT.ui, fontSize: 7.5, color: COLOR.textDisabled, marginHorizontal: 4 },
 
-  // HERO — the ONE red on this surface (a drawn red square + label, not a glyph)
+  // HERO — the ONE red on this surface (a drawn red dot + label, not a glyph)
   heroTag: { flexDirection: "row", alignItems: "center", marginLeft: 4 },
-  heroMark: { width: 6, height: 6, backgroundColor: COLOR.accent, borderRadius: 1, marginRight: 3 },
+  heroMark: { width: 6, height: 6, backgroundColor: COLOR.accent, borderRadius: 3, marginRight: 3 },
   heroLabel: {
     fontFamily: FONT.uiBold,
     fontSize: 6.5,
@@ -328,6 +337,20 @@ export function ProductInfoPdfDocument(props: {
   const projectLine = has(model.project.client)
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
+
+  // Guarantee at least one page so a direct call with an all-excluded model can't
+  // hand @react-pdf a zero-page Document (which throws). The UI also disables Export.
+  if (sheets.length === 0) {
+    return (
+      <Document title="Product Info Report" author={model.project.client || ""} producer="Shot Builder">
+        <Page size={{ width: PAGE.width, height: PAGE.height }} style={s.page}>
+          <Text style={{ fontFamily: FONT.body, fontSize: 11, color: COLOR.textSecondary }}>
+            No products to report.
+          </Text>
+        </Page>
+      </Document>
+    )
+  }
 
   return (
     <Document title="Product Info Report" author={model.project.client || ""} producer="Shot Builder">

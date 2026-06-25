@@ -1,4 +1,4 @@
-import type { ProductFamily, Shot } from "@/shared/types"
+import type { ProductAssignment, ProductFamily, Shot } from "@/shared/types"
 import { matchesHeroProductId } from "@/features/shots/lib/lookHeroes"
 import type { ExportData } from "../../hooks/useExportData"
 import {
@@ -6,10 +6,10 @@ import {
   GROUP_ORDER,
   lookLabel,
   normalizeGender,
-  pickProductImage,
   shotNumberSortKey,
   sortLooksByOrder,
   formatDateWindow,
+  titleCaseSlug,
 } from "./reportModel"
 import type { GenderKey, ReportShotStatus } from "./reportTypes"
 import type {
@@ -61,10 +61,38 @@ function pushUnique(list: string[], value: string | null | undefined): void {
   if (v && !list.includes(v)) list.push(v)
 }
 
+// Deterministic, COLOURWAY-FIRST image candidate for a Product Info card. Unlike
+// the shot-report pickProductImage (which prefers the denormalized, ambiguous
+// `thumbUrl`), this prefers the colourway-resolved sku image, then the family
+// image carried on the assignment, then the family's own thumbnail/header. This
+// only makes the PICKER deterministic — it does NOT correct wrong colourway data
+// (a separate future data-quality job).
+function pickColourwayFirstImage(
+  p: ProductAssignment,
+  family: ProductFamily | undefined,
+): string | null {
+  return (
+    p.skuImageUrl ??
+    p.familyImageUrl ??
+    family?.thumbnailImagePath ??
+    family?.headerImagePath ??
+    null
+  )
+}
+
 // Walk every non-deleted shot's sorted looks and styled products, accumulating
 // the rich (assignment-side) fields per family. Returns the agg map keyed by id.
-function walkInUse(shots: readonly Shot[]): Map<string, FamilyAgg> {
+function walkInUse(
+  shots: readonly Shot[],
+  familyById: ReadonlyMap<string, ProductFamily>,
+): Map<string, FamilyAgg> {
   const byFamily = new Map<string, FamilyAgg>()
+  // Per family, whether the currently-held image came from a HERO assignment.
+  // Colourway-first + hero-first deterministically: the first hero assignment WITH
+  // an image wins outright and locks the slot; until that happens the first
+  // assignment carrying any image holds the slot and a later hero-with-image
+  // upgrades it. Sorted look order + array order make "first" deterministic.
+  const imageIsHero = new Set<string>()
   for (const shot of shots) {
     if (shot.deleted) continue
     const looks = sortLooksByOrder(shot.looks ?? [])
@@ -80,8 +108,22 @@ function walkInUse(shots: readonly Shot[]): Map<string, FamilyAgg> {
         if (!id) continue
         const agg = byFamily.get(id) ?? emptyAgg(id)
         if (!byFamily.has(id)) byFamily.set(id, agg)
-        if (agg.image == null) agg.image = pickProductImage(p, undefined)
-        if (p.isHero === true || (heroId != null && matchesHeroProductId(p, heroId))) agg.isHero = true
+        const isHeroAssignment =
+          p.isHero === true || (heroId != null && matchesHeroProductId(p, heroId))
+        if (!imageIsHero.has(id)) {
+          const candidate = pickColourwayFirstImage(p, familyById.get(id))
+          if (isHeroAssignment) {
+            // Lock to the hero only when it actually carries an image — a hero with
+            // no resolvable image must not block a later sibling that has one.
+            if (candidate != null) {
+              agg.image = candidate
+              imageIsHero.add(id)
+            }
+          } else if (agg.image == null && candidate != null) {
+            agg.image = candidate
+          }
+        }
+        if (isHeroAssignment) agg.isHero = true
         if (p.sizeScope === "pending") agg.sizePending = true
         pushUnique(agg.colours, p.colourName ?? p.skuName ?? null)
         if (p.sizeScope !== "pending") pushUnique(agg.sizes, p.size ?? null)
@@ -172,7 +214,7 @@ export function deriveProductInfoModel(
 ): ProductInfoModel {
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const excluded = new Set(config.excludedFamilyIds)
-  const aggByFamily = walkInUse(data.shots)
+  const aggByFamily = walkInUse(data.shots, familyById)
 
   // in-use: families styled into non-deleted shots, resolved against the library.
   // library: every non-deleted family (appears still derived from the same walk).
@@ -190,7 +232,7 @@ export function deriveProductInfoModel(
   return {
     project: {
       name: data.project?.name ?? "Untitled project",
-      client: data.project?.clientId ?? "",
+      client: titleCaseSlug(data.project?.clientId),
       dateRange: formatDateWindow(data.project?.shootDates),
       familyCount: items.length,
     },

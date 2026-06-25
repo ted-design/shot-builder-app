@@ -3,13 +3,13 @@
 // TalentModel + image sidecar so screen and PDF can't drift. A card per talent
 // (grouped none / gender / agency): a native-aspect headshot column + an info
 // column (name, gender badge + agency, contact, fit measurements, an "in shots"
-// list). Red (#EB1400) does exactly ONE job here: the HOLD flag (a talent with
-// any on-hold shot — "confirm before locking the call").
+// list). No accent red on this surface — per-shot status uses the neutral/amber
+// STATUS dot only.
 //
 // PDF typography differs from screen by design: @react-pdf ships only the
 // Helvetica / Courier / Times built-ins, so the Ivy Presto serif maps to
-// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — three
-// cards per landscape sheet, never spanning a group, each card wrap={false} so
+// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — six
+// cards (2×3) per landscape sheet, never spanning a group, each card wrap={false} so
 // a card NEVER straddles or clips a page break.
 
 import type { JSX } from "react"
@@ -21,18 +21,25 @@ import type {
   TalentModel,
 } from "./talentTypes"
 import { initials } from "@/features/library/components/talentUtils"
-import { COLOR, FONT, PAGE, STATUS, has } from "./reportPdfShared"
+import { COLOR, FONT, PAGE, STATUS, has, breakLongToken } from "./reportPdfShared"
 
 const PAD_X = 36
 const PAD_TOP = 34
 const PAD_BOTTOM = 30
-const CARD_GAP = 22
-const CARDS_PER_SHEET = 3
+const COL_GAP = 22
+const ROW_GAP = 18
+const PRINT_COLS = 2
+const PRINT_ROWS = 3
+const CARDS_PER_SHEET = PRINT_COLS * PRINT_ROWS
 const CONTENT_WIDTH = PAGE.width - PAD_X * 2
-const CARD_WIDTH = (CONTENT_WIDTH - CARD_GAP * (CARDS_PER_SHEET - 1)) / CARDS_PER_SHEET
+// Card width derives from the COLUMN count (not cards-per-sheet): a 2-up card is
+// (content - 1 col gap) / 2. Matches the on-screen PagedView's 2-col grid.
+const CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (PRINT_COLS - 1)) / PRINT_COLS
 // Headshot is width-only so its height follows the photo's native aspect; the
 // cap bounds an unusually tall portrait so the card body always fits the sheet.
-const HEADSHOT_MAX_HEIGHT = 168
+// At 2×3 (6/page) three card rows stack on one landscape sheet, so the cap is
+// tighter than the old 3-up (1 row) value of 168. EYEBALL-GATE this number.
+const HEADSHOT_MAX_HEIGHT = 120
 
 const s = StyleSheet.create({
   page: {
@@ -85,8 +92,8 @@ const s = StyleSheet.create({
     marginLeft: 10,
   },
 
-  // Card row + card
-  cards: { flexDirection: "row", gap: CARD_GAP },
+  // Card grid + card
+  cards: { flexDirection: "row", flexWrap: "wrap", columnGap: COL_GAP, rowGap: ROW_GAP },
   card: {
     width: CARD_WIDTH,
     backgroundColor: COLOR.surface,
@@ -107,7 +114,9 @@ const s = StyleSheet.create({
   headshotImage: { width: "100%", maxHeight: HEADSHOT_MAX_HEIGHT, objectFit: "contain" },
   initials: {
     width: "100%",
-    height: 132,
+    // Match the headshot cap so a no-headshot card is no taller than one with a
+    // photo (else the denser 2×3 grid overflows).
+    height: HEADSHOT_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
@@ -126,17 +135,6 @@ const s = StyleSheet.create({
   // Info column
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginBottom: 4 },
   name: { fontFamily: FONT.display, fontSize: 13, color: COLOR.text, lineHeight: 1.1, letterSpacing: -0.1 },
-
-  // HOLD — the ONE red on this surface (a drawn red square + label, not a glyph)
-  holdTag: { flexDirection: "row", alignItems: "center", marginLeft: 6 },
-  holdMark: { width: 6, height: 6, backgroundColor: COLOR.accent, borderRadius: 1, marginRight: 3 },
-  holdLabel: {
-    fontFamily: FONT.uiBold,
-    fontSize: 6.5,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: COLOR.accent,
-  },
 
   badges: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginBottom: 8 },
   genderBadge: {
@@ -269,7 +267,7 @@ function ContactItem({ k, value }: { readonly k: string; readonly value: string 
   return (
     <View style={s.contactItem}>
       <Text style={s.contactKey}>{k}</Text>
-      <Text style={s.contactValue}>{value}</Text>
+      <Text style={s.contactValue}>{breakLongToken(value)}</Text>
     </View>
   )
 }
@@ -301,12 +299,6 @@ function Card({
 
       <View style={s.nameRow}>
         <Text style={s.name}>{has(entry.name) ? entry.name : "Unnamed talent"}</Text>
-        {entry.onHold ? (
-          <View style={s.holdTag}>
-            <View style={s.holdMark} />
-            <Text style={s.holdLabel}>Hold</Text>
-          </View>
-        ) : null}
       </View>
 
       {entry.genderLabel || has(entry.agency) ? (

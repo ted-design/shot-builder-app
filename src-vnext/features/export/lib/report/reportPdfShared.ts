@@ -68,6 +68,29 @@ export function has(v: string | null | undefined): v is string {
   return v != null && v.trim() !== ""
 }
 
+const BREAKABLE = new Set(["/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%", "#", ",", ";"])
+/** Inject U+200B break opportunities so @react-pdf (which ignores overflow-wrap) can wrap a long URL/token. */
+export function breakLongToken(value: string, chunk = 14): string {
+  let out = ""
+  let run = 0
+  for (const ch of value) {
+    out += ch
+    if (ch === " " || ch === "\n" || ch === "\t") {
+      run = 0
+      continue
+    }
+    run += 1
+    if (BREAKABLE.has(ch)) {
+      out += "​"
+      run = 0
+    } else if (run >= chunk) {
+      out += "​"
+      run = 0
+    }
+  }
+  return out
+}
+
 /** The shot's primary image candidate (looks[0] — the canonical primary, as image-led uses). */
 export function primaryLookImage(shot: ReportShot): string | null {
   return shot.looks[0]?.image ?? null
