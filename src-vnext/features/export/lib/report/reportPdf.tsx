@@ -582,7 +582,9 @@ export function ShotReportPdfDocument(props: {
               <Text style={styles.headerProject}>{projectLine}</Text>
             </View>
             <Text style={styles.headerGroup}>
-              {`${sheet.group.label} · Shots ${sheet.firstPosition}–${sheet.lastPosition} of ${sheet.groupShotCount}`}
+              {`${sheet.group.label} · Shots ${sheet.firstPosition}${
+                sheet.lastPosition > sheet.firstPosition ? `–${sheet.lastPosition}` : ""
+              } of ${sheet.groupShotCount}`}
             </Text>
           </View>
 

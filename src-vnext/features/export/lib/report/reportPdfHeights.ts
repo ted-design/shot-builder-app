@@ -52,9 +52,14 @@ export const NO_IMAGE_HEIGHT = 230
  * carries a +5% safety, so the fit boundary on the estimate scale is ~493×1.05 ≈
  * 518; 515 sits just under it. Result: a 1-image + ≤3-product shot (estimate ~486–
  * 501) packs 2-up; only a genuinely too-tall shot (4+ products plus notes, or an
- * alt look — estimate ≳537) gets a solo splittable page. Tune here if the :5174
- * eyeball shows under/over-packing — lower if any normal page overflows, raise if
- * too many shots solo.
+ * alt look — estimate ≳537) gets a solo page (its tail clips — see PackedSheet).
+ *
+ * This is intentionally a CALIBRATED CONSTANT, not a geometry formula. A formula
+ * (page − padding − header ≈ 470–490) over-solos, because estimatePlateHeight
+ * already carries the +5% safety — the empirical fit boundary on the estimate scale
+ * is higher (~518). Re-verify with a render if the page geometry changes; tune here
+ * if the :5174 eyeball shows under/over-packing (lower if any normal page overflows,
+ * raise if too many shots solo).
  */
 export const COL_MAX = 515
 
@@ -109,13 +114,13 @@ export function estimatePlateHeight(shot: ReportShot): number {
 
   // Caption header
   h += CAPTION_PAD
-  h += TITLE_LINE * estimateWrappedLines(shot.title ?? "", PLATE_WIDTH, 14, 3)
+  h += TITLE_LINE * estimateWrappedLines(shot.title, PLATE_WIDTH, 14, 3)
   if (has(shot.colorway)) h += COLORWAY_H
   // Status chip + talent row; talent names can wrap past the status chip's ~70pt.
   const talentText = shot.talent.map((t) => t.name).filter((nm) => has(nm)).join(" · ")
   h += SUBROW_H + (talentText ? (estimateWrappedLines(talentText, PLATE_WIDTH - 70, 7.5, 3) - 1) * NOTE_LINE : 0)
   if (has(shot.notes)) {
-    h += NOTE_BASE + NOTE_LINE * estimateWrappedLines(shot.notes ?? "", PLATE_WIDTH - 8, 7.5, 4)
+    h += NOTE_BASE + NOTE_LINE * estimateWrappedLines(shot.notes, PLATE_WIDTH - 8, 7.5, 4)
   }
 
   // Looks (already filtered by looksMode in the model)
@@ -172,8 +177,9 @@ export function packShotSheets(model: ReportModel): readonly PackedSheet[] {
       if (!first) break // unreachable (i in bounds); satisfies noUncheckedIndexedAccess
       const firstPosition = i + 1
 
-      // A shot taller than one page gets its own page, allowed to split (no partner).
-      if ((heights[i] ?? 0) > COL_MAX) {
+      // A shot taller than one page gets its own page, packed alone (no partner; its
+      // tail may clip). `?? Infinity` keeps an unknown height on the SAFE solo path.
+      if ((heights[i] ?? Infinity) > COL_MAX) {
         sheets.push({
           group,
           groupShotCount,
@@ -193,7 +199,7 @@ export function packShotSheets(model: ReportModel): readonly PackedSheet[] {
       i += 1
       let rightColumn: readonly ReportShot[] = []
       const second = visible[i]
-      if (second && (heights[i] ?? 0) <= COL_MAX) {
+      if (second && (heights[i] ?? Infinity) <= COL_MAX) {
         rightColumn = [second]
         i += 1
       }
