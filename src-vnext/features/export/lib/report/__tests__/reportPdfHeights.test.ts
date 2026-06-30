@@ -33,7 +33,7 @@ function look(over: Partial<ReportLook> = {}): ReportLook {
     id: "look",
     label: "Primary",
     isAlt: false,
-    image: null,
+    image: "ref", // present figure by default (estimator keys off looks[0].image)
     hasReference: false,
     products: [product()],
     ...over,
@@ -94,9 +94,9 @@ describe("estimateWrappedLines", () => {
 })
 
 describe("estimatePlateHeight", () => {
-  it("is larger with an image than without (image dominates)", () => {
-    expect(estimatePlateHeight(shot("a", { hasImage: true }))).toBeGreaterThan(
-      estimatePlateHeight(shot("a", { hasImage: false })),
+  it("is larger with a figure than without (image dominates; keyed off the look image)", () => {
+    expect(estimatePlateHeight(shot("a", { looks: [look({ image: "ref" })] }))).toBeGreaterThan(
+      estimatePlateHeight(shot("a", { looks: [look({ image: null })] })),
     )
   })
   it("grows with more products, notes, and alt looks", () => {

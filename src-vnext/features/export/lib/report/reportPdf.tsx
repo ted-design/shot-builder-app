@@ -28,7 +28,14 @@ import type {
 } from "./reportTypes"
 import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
 import { hasAnyIncludedShot, sizeLabel } from "./reportModel"
-import { packShotSheets } from "./reportPdfHeights"
+import {
+  packShotSheets,
+  PAD_X,
+  COLUMN_GAP,
+  PLATE_WIDTH,
+  HERO_MAX_HEIGHT,
+  NO_IMAGE_HEIGHT,
+} from "./reportPdfHeights"
 import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 
@@ -36,17 +43,13 @@ import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 // Image-led layout — tokens shared via reportPdfShared. Red's one job: shot number.
 // ---------------------------------------------------------------------------
 
-const PAD_X = 40
+// Page padding (image-led only). The layout geometry shared with the height
+// estimator — PAD_X, COLUMN_GAP, PLATE_WIDTH, HERO_MAX_HEIGHT, NO_IMAGE_HEIGHT — is
+// imported from reportPdfHeights (single source) so the renderer and estimator
+// can't drift. Each plate's image is width-only so its height is the photo's native
+// aspect (never cropped); only an unusually tall portrait is bounded by HERO_MAX_HEIGHT.
 const PAD_TOP = 36
 const PAD_BOTTOM = 34
-const COLUMN_GAP = 36
-// Two plates fill the content width; each plate's image is width-only so its
-// height is the photo's native aspect (never cropped/squashed).
-const CONTENT_WIDTH = PAGE.width - PAD_X * 2
-const PLATE_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
-// Cap the hero so the caption always fits the sheet — width still drives aspect
-// up to the cap; only an unusually tall portrait is bounded by maxHeight.
-const HERO_MAX_HEIGHT = 300
 
 const styles = StyleSheet.create({
   page: {
@@ -146,7 +149,7 @@ const styles = StyleSheet.create({
   // No-image frame
   noImage: {
     width: PLATE_WIDTH,
-    height: 230,
+    height: NO_IMAGE_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     borderWidth: 0.5,
     borderColor: COLOR.rule,
@@ -526,10 +529,12 @@ function Plate({
   )
 }
 
-/** One packed column. Each plate is kept intact (wrap=false) — the packer has
- *  already guaranteed it fits the page (or, for a too-tall shot, packed it alone so
- *  it never strands a partner). An empty column (a solo too-tall shot, or a group's
- *  trailing orphan) renders an empty half — honest, not a stranded page. */
+/** One packed column. The column itself is wrap=false (defensive): the packer has
+ *  guaranteed its plate fits the page, but if an estimate ever underflows, the whole
+ *  column moves to the next page (one honest half-empty page) rather than splitting
+ *  to leave a blank column with an orphaned plate. The inner plate is wrap=false too.
+ *  An empty column (a solo too-tall shot, or a group's trailing orphan) renders an
+ *  empty half — honest, not a stranded page. */
 function Column({
   shots,
   imageMap,
@@ -538,7 +543,7 @@ function Column({
   readonly imageMap: ReadonlyMap<string, string>
 }) {
   return (
-    <View style={styles.column}>
+    <View style={styles.column} wrap={false}>
       {shots.map((shot) => (
         <View key={shot.id} style={styles.plate} wrap={false}>
           <Plate shot={shot} imageMap={imageMap} />

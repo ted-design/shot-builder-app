@@ -25,17 +25,21 @@
 // unusually tall shot. COL_MAX / SAFETY are the knobs to tune at the :5174 eyeball.
 
 import type { ReportModel, ReportGroup, ReportShot } from "./reportTypes"
-import { PAGE, has } from "./reportPdfShared"
+import { PAGE, has, primaryLookImage } from "./reportPdfShared"
 
-// --- Geometry (mirrors reportPdf.tsx; both derive from PAGE so they can't drift) ---
-const PAD_X = 40
-const COLUMN_GAP = 36
+// --- Geometry: the SINGLE SOURCE for the image-led page layout. reportPdf.tsx
+// imports these so the estimator and the renderer can't drift — a drift (e.g.
+// bumping HERO_MAX_HEIGHT in only one file) would make the estimate stale and
+// re-open the blank/stranded-page path this module exists to close. ---
+export const PAD_X = 40
+export const COLUMN_GAP = 36
 const CONTENT_WIDTH = PAGE.width - PAD_X * 2
 /** Width of one of the two plate columns (a plate's text wraps within this). */
 export const PLATE_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
-
-const HERO_MAX_HEIGHT = 300 // image figure cap (reportPdf.tsx heroImage.maxHeight)
-const NO_IMAGE_HEIGHT = 230 // "Awaiting capture" frame (reportPdf.tsx noImage.height)
+/** Hero image figure cap — the figure's max height (reportPdf.tsx heroImage.maxHeight). */
+export const HERO_MAX_HEIGHT = 300
+/** "Awaiting capture" no-image frame height (reportPdf.tsx noImage.height). */
+export const NO_IMAGE_HEIGHT = 230
 
 /**
  * Estimate-scale threshold (pt): a plate estimated within this packs 2-up (one per
@@ -97,8 +101,11 @@ export function estimateWrappedLines(
 export function estimatePlateHeight(shot: ReportShot): number {
   let h = 0
 
-  // Figure (image at cap, or the no-image frame)
-  h += FIGURE_PAD + (shot.hasImage ? HERO_MAX_HEIGHT : NO_IMAGE_HEIGHT)
+  // Figure: the plate shows the hero (capped at HERO_MAX_HEIGHT) iff the primary look
+  // has an image candidate — INCLUDING a product-image fallback. Key off the same
+  // signal the renderer uses (looks[0].image via primaryLookImage), NOT shot.hasImage,
+  // which is false for a fallback and would under-estimate a plate that does show a hero.
+  h += FIGURE_PAD + (has(primaryLookImage(shot)) ? HERO_MAX_HEIGHT : NO_IMAGE_HEIGHT)
 
   // Caption header
   h += CAPTION_PAD
