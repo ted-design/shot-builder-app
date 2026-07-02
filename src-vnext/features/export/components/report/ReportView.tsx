@@ -23,6 +23,7 @@ import type {
 } from "../../lib/report/reportTypes"
 import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
+import { packShotSheets } from "../../lib/report/reportPdfHeights"
 import { REPORT_STYLES } from "./reportStyles"
 import { resolveSrc, statusMetaLegacy } from "./reportShared"
 import { ProductionSheetReport } from "./ProductionSheetReport"
@@ -354,21 +355,17 @@ interface Sheet {
   readonly shots: readonly ReportShot[]
 }
 
+// Mirror the PDF's height-aware pagination (reportPdfHeights.packShotSheets) so the
+// on-screen print preview and the downloaded PDF agree shot-for-shot (WYSIWYG): a
+// too-tall shot solos in both, rather than pairing here but soloing in the PDF.
 function buildSheets(model: ReportModel): readonly Sheet[] {
-  const sheets: Sheet[] = []
-  for (const group of model.groups) {
-    const printable = group.shots.filter((s) => !s.excluded)
-    for (let i = 0; i < printable.length; i += 2) {
-      sheets.push({
-        groupLabel: group.label,
-        rangeFrom: i + 1,
-        rangeTo: Math.min(i + 2, printable.length),
-        groupTotal: printable.length,
-        shots: printable.slice(i, i + 2),
-      })
-    }
-  }
-  return sheets
+  return packShotSheets(model).map((s) => ({
+    groupLabel: s.group.label,
+    rangeFrom: s.firstPosition,
+    rangeTo: s.lastPosition,
+    groupTotal: s.groupShotCount,
+    shots: [...s.leftColumn, ...s.rightColumn],
+  }))
 }
 
 function PagedView({
@@ -395,7 +392,7 @@ function PagedView({
               <div className="sb-sh-proj">{projLine}</div>
             </div>
             <div className="sb-sh-group">
-              {sheet.groupLabel} · {sheet.rangeFrom}
+              {sheet.groupLabel} · Shots {sheet.rangeFrom}
               {sheet.rangeTo > sheet.rangeFrom ? `–${sheet.rangeTo}` : ""} of {sheet.groupTotal}
             </div>
           </div>

@@ -22,13 +22,20 @@ import {
 import type {
   ReportLayout,
   ReportModel,
-  ReportGroup,
   ReportShot,
   ReportLook,
   ReportProduct,
 } from "./reportTypes"
 import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
 import { hasAnyIncludedShot, sizeLabel } from "./reportModel"
+import {
+  packShotSheets,
+  PAD_X,
+  COLUMN_GAP,
+  PLATE_WIDTH,
+  HERO_MAX_HEIGHT,
+  NO_IMAGE_HEIGHT,
+} from "./reportPdfHeights"
 import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 
@@ -36,17 +43,13 @@ import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
 // Image-led layout — tokens shared via reportPdfShared. Red's one job: shot number.
 // ---------------------------------------------------------------------------
 
-const PAD_X = 40
+// Page padding (image-led only). The layout geometry shared with the height
+// estimator — PAD_X, COLUMN_GAP, PLATE_WIDTH, HERO_MAX_HEIGHT, NO_IMAGE_HEIGHT — is
+// imported from reportPdfHeights (single source) so the renderer and estimator
+// can't drift. Each plate's image is width-only so its height is the photo's native
+// aspect (never cropped); only an unusually tall portrait is bounded by HERO_MAX_HEIGHT.
 const PAD_TOP = 36
 const PAD_BOTTOM = 34
-const COLUMN_GAP = 36
-// Two plates fill the content width; each plate's image is width-only so its
-// height is the photo's native aspect (never cropped/squashed).
-const CONTENT_WIDTH = PAGE.width - PAD_X * 2
-const PLATE_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
-// Cap the hero so the caption always fits the sheet — width still drives aspect
-// up to the cap; only an unusually tall portrait is bounded by maxHeight.
-const HERO_MAX_HEIGHT = 300
 
 const styles = StyleSheet.create({
   page: {
@@ -113,6 +116,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: COLUMN_GAP,
   },
+  column: {
+    width: PLATE_WIDTH,
+  },
   plate: {
     width: PLATE_WIDTH,
   },
@@ -143,7 +149,7 @@ const styles = StyleSheet.create({
   // No-image frame
   noImage: {
     width: PLATE_WIDTH,
-    height: 230,
+    height: NO_IMAGE_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     borderWidth: 0.5,
     borderColor: COLOR.rule,
@@ -374,34 +380,11 @@ const styles = StyleSheet.create({
 })
 
 // ---------------------------------------------------------------------------
-// Pagination: two non-excluded plates per landscape sheet, never spanning a
-// gender group (a new group starts a fresh sheet, mirroring the north star).
+// Pagination is height-aware (reportPdfHeights.packShotSheets): plates are packed
+// into two columns that each fit the page, never spanning a gender group — so no
+// blank/half/stranded pages, and the running-header range tracks the shots
+// actually placed on each page.
 // ---------------------------------------------------------------------------
-
-interface Sheet {
-  readonly group: ReportGroup
-  readonly groupShotCount: number
-  /** 1-based index of the first shot on this sheet within its group. */
-  readonly fromIndex: number
-  readonly shots: readonly ReportShot[]
-}
-
-function paginate(model: ReportModel): readonly Sheet[] {
-  const sheets: Sheet[] = []
-  for (const group of model.groups) {
-    const visible = group.shots.filter((s) => !s.excluded)
-    if (visible.length === 0) continue
-    for (let i = 0; i < visible.length; i += 2) {
-      sheets.push({
-        group,
-        groupShotCount: visible.length,
-        fromIndex: i + 1,
-        shots: visible.slice(i, i + 2),
-      })
-    }
-  }
-  return sheets
-}
 
 // ---------------------------------------------------------------------------
 // Pieces
@@ -546,6 +529,30 @@ function Plate({
   )
 }
 
+/** One packed column. The column itself is wrap=false (defensive): the packer has
+ *  guaranteed its plate fits the page, but if an estimate ever underflows, the whole
+ *  column moves to the next page (one honest half-empty page) rather than splitting
+ *  to leave a blank column with an orphaned plate. The inner plate is wrap=false too.
+ *  An empty column (a solo too-tall shot, or a group's trailing orphan) renders an
+ *  empty half — honest, not a stranded page. */
+function Column({
+  shots,
+  imageMap,
+}: {
+  readonly shots: readonly ReportShot[]
+  readonly imageMap: ReadonlyMap<string, string>
+}) {
+  return (
+    <View style={styles.column} wrap={false}>
+      {shots.map((shot) => (
+        <View key={shot.id} style={styles.plate} wrap={false}>
+          <Plate shot={shot} imageMap={imageMap} />
+        </View>
+      ))}
+    </View>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Document
 // ---------------------------------------------------------------------------
@@ -555,7 +562,7 @@ export function ShotReportPdfDocument(props: {
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
   const { model, imageMap } = props
-  const sheets = paginate(model)
+  const sheets = packShotSheets(model)
   const projectLine = has(model.project.client)
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -566,40 +573,42 @@ export function ShotReportPdfDocument(props: {
       author={model.project.client || ""}
       producer="Shot Builder"
     >
-      {sheets.map((sheet, i) => {
-        const toIndex = sheet.fromIndex + sheet.shots.length - 1
-        return (
-          <Page key={i} size={{ width: PAGE.width, height: PAGE.height }} style={styles.page} wrap>
-            {/* Running header */}
-            <View style={styles.header} fixed>
-              <View>
-                <Text style={styles.headerTitle}>Comprehensive Shot Report</Text>
-                <Text style={styles.headerProject}>{projectLine}</Text>
-              </View>
-              <Text style={styles.headerGroup}>
-                {`${sheet.group.label} · ${sheet.fromIndex}–${toIndex} of ${sheet.groupShotCount}`}
-              </Text>
+      {sheets.map((sheet, i) => (
+        // wrap is a per-sheet decision. NORMAL sheets keep wrap so an under-estimated
+        // column moves whole to a continuation (an honest half-empty page — Column is
+        // wrap=false) rather than clipping. An OVERSIZED sheet's lone column is taller
+        // than the page and cannot wrap, so wrap would emit a trailing BLANK
+        // continuation page (header/footer only) — reintroducing the blank-page defect
+        // packShotSheets exists to kill. Disabling wrap on oversized sheets clips the
+        // too-tall tail on its single page instead (the accepted known limitation).
+        <Page key={i} size={{ width: PAGE.width, height: PAGE.height }} style={styles.page} wrap={!sheet.oversized}>
+          {/* Running header — range tracks the shots actually placed on this page */}
+          <View style={styles.header} fixed>
+            <View>
+              <Text style={styles.headerTitle}>Comprehensive Shot Report</Text>
+              <Text style={styles.headerProject}>{projectLine}</Text>
             </View>
+            <Text style={styles.headerGroup}>
+              {`${sheet.group.label} · Shots ${sheet.firstPosition}${
+                sheet.lastPosition > sheet.firstPosition ? `–${sheet.lastPosition}` : ""
+              } of ${sheet.groupShotCount}`}
+            </Text>
+          </View>
 
-            {/* Two plates, each in its own column — wrap=false keeps a plate intact */}
-            <View style={styles.body}>
-              {sheet.shots.map((shot) => (
-                <View key={shot.id} style={styles.plate} wrap={false}>
-                  <Plate shot={shot} imageMap={imageMap} />
-                </View>
-              ))}
-            </View>
+          {/* Two height-packed columns. A too-tall shot is packed alone (empty right
+              column) so it never strands a partner or blanks a mid-document page. */}
+          <View style={styles.body}>
+            <Column shots={sheet.leftColumn} imageMap={imageMap} />
+            <Column shots={sheet.rightColumn} imageMap={imageMap} />
+          </View>
 
-            {/* Footer with page number */}
-            <View style={styles.footer} fixed>
-              <Text>{projectLine}</Text>
-              <Text
-                render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-              />
-            </View>
-          </Page>
-        )
-      })}
+          {/* Footer with page number */}
+          <View style={styles.footer} fixed>
+            <Text>{projectLine}</Text>
+            <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+          </View>
+        </Page>
+      ))}
     </Document>
   )
 }
