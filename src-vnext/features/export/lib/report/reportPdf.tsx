@@ -574,7 +574,14 @@ export function ShotReportPdfDocument(props: {
       producer="Shot Builder"
     >
       {sheets.map((sheet, i) => (
-        <Page key={i} size={{ width: PAGE.width, height: PAGE.height }} style={styles.page} wrap>
+        // wrap is a per-sheet decision. NORMAL sheets keep wrap so an under-estimated
+        // column moves whole to a continuation (an honest half-empty page — Column is
+        // wrap=false) rather than clipping. An OVERSIZED sheet's lone column is taller
+        // than the page and cannot wrap, so wrap would emit a trailing BLANK
+        // continuation page (header/footer only) — reintroducing the blank-page defect
+        // packShotSheets exists to kill. Disabling wrap on oversized sheets clips the
+        // too-tall tail on its single page instead (the accepted known limitation).
+        <Page key={i} size={{ width: PAGE.width, height: PAGE.height }} style={styles.page} wrap={!sheet.oversized}>
           {/* Running header — range tracks the shots actually placed on this page */}
           <View style={styles.header} fixed>
             <View>
