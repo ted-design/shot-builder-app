@@ -383,6 +383,11 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     locationId: data["locationId"] as string | undefined,
     locationName: data["locationName"] as string | undefined,
     laneId: data["laneId"] as string | undefined,
+    // Sets: first-class photo/video. Defensive — anything else maps to undefined.
+    mediaType:
+      data["mediaType"] === "photo" || data["mediaType"] === "video"
+        ? (data["mediaType"] as Shot["mediaType"])
+        : undefined,
     sortOrder: (data["sortOrder"] as number) ?? 0,
     shotNumber: data["shotNumber"] as string | undefined,
     notes: data["notes"] as string | undefined,
