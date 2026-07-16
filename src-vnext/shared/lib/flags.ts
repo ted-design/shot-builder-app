@@ -147,6 +147,17 @@ export interface FeatureFlags {
    * URL/localStorage layer.
    */
   readonly featureTalentReport: boolean
+  /**
+   * Sets initiative Phase 2 — the Set surface (a "Scene"/Lane reframed as a
+   * "Set"). Gates ALL Phase-2 UI: the Set location field + "Apply to N shots"
+   * action in the Set editor, the photo/video media control/column/filter, the
+   * rich Set header line, and the Scene→Set rename. Default OFF; the flag-off
+   * path is byte-identical to trunk. Enabled via `VITE_SETS=1` (or `true`) at
+   * build/dev time (featureTalentReport env-parse precedent). No URL/localStorage
+   * layer. Phase-1 schema (Lane.locationId, Shot.mediaType) is additive and not
+   * flagged; only the consuming UI is gated here.
+   */
+  readonly featureSets: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -164,6 +175,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShotReportRecipes: false,
   featureProductInfoReport: false,
   featureTalentReport: false,
+  featureSets: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -222,6 +234,8 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentReport:
       DEFAULT_FLAGS.featureTalentReport ||
       parseEnvFlag(import.meta.env.VITE_TALENT_REPORT),
+    featureSets:
+      DEFAULT_FLAGS.featureSets || parseEnvFlag(import.meta.env.VITE_SETS),
   }
 }
 
