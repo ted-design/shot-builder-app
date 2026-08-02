@@ -26,6 +26,9 @@ export type LanePatch = {
   readonly direction?: string | null
   readonly notes?: string | null
   readonly sceneNumber?: number | null
+  // Sets: the Set's location. `locationName` is denormalized for label render.
+  readonly locationId?: string | null
+  readonly locationName?: string | null
 }
 
 export async function createLane(params: {
@@ -35,6 +38,9 @@ export async function createLane(params: {
   readonly sortOrder: number
   readonly color?: string
   readonly sceneNumber?: number
+  // Sets: optional location the Set is built at (shots inherit it on assign).
+  readonly locationId?: string | null
+  readonly locationName?: string | null
   readonly existingLanes?: ReadonlyArray<Lane>
   readonly user: User | null
 }): Promise<string> {
@@ -56,6 +62,8 @@ export async function createLane(params: {
     sceneNumber: resolvedSceneNumber,
     direction: null,
     notes: null,
+    locationId: params.locationId ?? null,
+    locationName: params.locationName ?? null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     createdBy: user?.uid ?? "",
@@ -92,12 +100,27 @@ export async function assignShotsToLane(params: {
   readonly laneId: string | null
   readonly projectId: string
   readonly clientId: string
+  /**
+   * Sets — location inheritance (D3). When assigning shots to a Set (Lane) that
+   * HAS a location, pass it here and each shot adopts the Set's
+   * `locationId`/`locationName`. Inheritance fires ONLY when `laneId` is
+   * non-null AND a real `locationId` is provided — so ungrouping
+   * (`laneId: null`), or assigning to a Set with no location, never touches a
+   * shot's own location (which may be a per-shot override).
+   */
+  readonly inheritLocation?: {
+    readonly locationId: string
+    readonly locationName?: string | null
+  } | null
 }): Promise<number> {
-  const { shotIds, laneId, clientId } = params
+  const { shotIds, laneId, clientId, inheritLocation } = params
   if (shotIds.length === 0) return 0
   if (shotIds.length > MAX_BULK_OPS) {
     throw new Error(`Cannot assign more than ${MAX_BULK_OPS} shots to a scene at once.`)
   }
+
+  const shouldInherit =
+    laneId !== null && inheritLocation != null && !!inheritLocation.locationId
 
   let updated = 0
 
@@ -107,10 +130,15 @@ export async function assignShotsToLane(params: {
 
     for (const shotId of chunk) {
       const ref = doc(db, ...shotsPath(clientId), shotId)
-      batch.update(ref, {
+      const update: Record<string, unknown> = {
         laneId: laneId,
         updatedAt: serverTimestamp(),
-      })
+      }
+      if (shouldInherit) {
+        update["locationId"] = inheritLocation.locationId
+        update["locationName"] = inheritLocation.locationName ?? null
+      }
+      batch.update(ref, update)
     }
 
     await batch.commit()

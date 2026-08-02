@@ -34,6 +34,13 @@ export interface Project {
 
 export type ShotFirestoreStatus = "todo" | "in_progress" | "complete" | "on_hold"
 
+/**
+ * Deliverable media type for a shot (Sets initiative). The brief slices
+ * deliverables by set × media; this promotes the former "media" tag pair
+ * (Photo/Video) to a first-class, filterable/schedulable field.
+ */
+export type ShotMediaType = "photo" | "video"
+
 export type SizeScope = "all" | "single" | "pending"
 
 export interface ProductAssignment {
@@ -124,6 +131,15 @@ export interface Lane {
   readonly sceneNumber?: number
   readonly direction?: string
   readonly notes?: string
+  /**
+   * The Set's location (Sets initiative). A "Scene" (Lane) is surfaced as a
+   * "Set" in the UI; a Set is built at one location, and its shots inherit
+   * this location when assigned (see `assignShotsToLane`). `locationName` is
+   * denormalized to mirror the `Shot.locationId`/`locationName` pair so labels
+   * render without a lookup.
+   */
+  readonly locationId?: string
+  readonly locationName?: string
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
   readonly createdBy: string
@@ -144,6 +160,11 @@ export interface Shot {
   readonly locationId?: string
   readonly locationName?: string
   readonly laneId?: string
+  /**
+   * Deliverable media type (Sets initiative). Photo vs video, sliced the way
+   * the brief organizes deliverables per set. Absent = unspecified.
+   */
+  readonly mediaType?: ShotMediaType
   readonly sortOrder: number
   readonly shotNumber?: string
   readonly notes?: string
