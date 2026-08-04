@@ -7,9 +7,24 @@
 // the model stays pure.
 
 import type { ReportShotStatus } from "./reportTypes"
+import type { SortDir } from "./reportSort"
 
 /** How talent are grouped on the report. */
 export type TalentGroupBy = "none" | "gender" | "agency"
+
+// Talent order-by (R5) field vocabulary. Exhaustive typed literal → the option
+// list derives from it.
+export type TalentSortField = "name" | "gender" | "agency"
+export const TALENT_SORT_FIELD_LABEL: Record<TalentSortField, string> = {
+  name: "Name",
+  gender: "Gender",
+  agency: "Agency",
+}
+export const TALENT_SORT_FIELD_OPTIONS: ReadonlyArray<{ readonly value: TalentSortField; readonly label: string }> =
+  (Object.keys(TALENT_SORT_FIELD_LABEL) as TalentSortField[]).map((value) => ({
+    value,
+    label: TALENT_SORT_FIELD_LABEL[value],
+  }))
 
 /** Which talent surface: those slotted into shots, or every project-attached talent. */
 export type TalentScope = "in-shots" | "project-attached"
@@ -22,6 +37,10 @@ export interface TalentConfig {
   readonly excludedTalentIds: readonly string[]
   /** Shot statuses to HIDE (R3): a talent is dropped only when ALL their appearances are hidden-status. Defaults to []. */
   readonly hiddenStatuses?: readonly ReportShotStatus[]
+  /** R5 order-by: primary sort key within each group. Absent → legacy name order (flag-off byte-identical). */
+  readonly sortBy?: TalentSortField
+  /** R5 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
+  readonly sortDir?: SortDir
 }
 
 export const DEFAULT_TALENT_CONFIG: TalentConfig = {
@@ -29,6 +48,18 @@ export const DEFAULT_TALENT_CONFIG: TalentConfig = {
   talentScope: "in-shots",
   excludedTalentIds: [],
   hiddenStatuses: [],
+  sortBy: "name",
+  sortDir: "asc",
+}
+
+/**
+ * Flag-off rollback safety — see reportTypes.neutralizeReportConfigForFlag.
+ * Talent's `groupBy` was not widened in Phase B, so no groupBy clamp is needed;
+ * only the gated-off sort/hidden fields are stripped.
+ */
+export function neutralizeTalentConfigForFlag(config: TalentConfig, flagOn: boolean): TalentConfig {
+  if (flagOn) return config
+  return { ...config, hiddenStatuses: [], sortBy: undefined, sortDir: undefined }
 }
 
 /** One shot a talent appears in: its number/title, the look labels there, and that shot's status. */

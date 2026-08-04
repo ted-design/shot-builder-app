@@ -331,6 +331,35 @@ describe("deriveTalentModel — grouping", () => {
   })
 })
 
+describe("deriveTalentModel — R5 order-by (Phase B)", () => {
+  const styled = () =>
+    data({
+      talent: [
+        tal({ id: "T1", name: "Xander", agency: "Elite" }),
+        tal({ id: "T2", name: "Amy", agency: "Next" }),
+        tal({ id: "T3", name: "Bea", agency: "Elite" }),
+      ],
+      shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["T1", "T2", "T3"] })],
+    })
+
+  it("sortBy 'agency' asc: agencyBucketSort (Elite<Next), name tie-break within an agency", () => {
+    const model = deriveTalentModel(styled(), cfg({ groupBy: "none", sortBy: "agency", sortDir: "asc" }))
+    // Elite group tie-broken Bea(T3) < Xander(T1), then Next (T2)
+    expect(flat(model).map((i) => i.id)).toEqual(["T3", "T1", "T2"])
+  })
+
+  it("default sortBy 'name' reproduces the legacy alpha-by-name order (Amy, Bea, Xander)", () => {
+    const model = deriveTalentModel(styled(), cfg({ groupBy: "none", sortBy: "name", sortDir: "asc" }))
+    expect(flat(model).map((i) => i.name)).toEqual(["Amy", "Bea", "Xander"])
+    expect(flat(model).map((i) => i.id)).toEqual(["T2", "T3", "T1"])
+  })
+
+  it("an absent sortBy is byte-identical to the legacy name order", () => {
+    const legacy = deriveTalentModel(styled(), { groupBy: "none", talentScope: "in-shots", excludedTalentIds: [] })
+    expect(flat(legacy).map((i) => i.name)).toEqual(["Amy", "Bea", "Xander"])
+  })
+})
+
 describe("deriveTalentModel — project block & image candidates", () => {
   it("dateRange + talentCount surface on the project block", () => {
     const model = deriveTalentModel(

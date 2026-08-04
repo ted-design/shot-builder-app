@@ -18,9 +18,16 @@ import type {
   ProductInfoImageSize,
   ProductInfoModel,
   ProductInfoScope,
+  ProductInfoSortField,
+} from "../../lib/report/productInfoTypes"
+import {
+  DEFAULT_PRODUCT_INFO_CONFIG,
+  PRODUCT_INFO_SORT_FIELD_OPTIONS,
 } from "../../lib/report/productInfoTypes"
 import type { ReportShotStatus } from "../../lib/report/reportTypes"
 import { REPORT_STATUS_OPTIONS } from "../../lib/report/reportTypes"
+import type { SortDir } from "../../lib/report/reportSort"
+import { GroupSortControls } from "./GroupSortControls"
 
 export interface ProductInfoReportViewProps {
   readonly model: ProductInfoModel
@@ -309,6 +316,11 @@ function ControlBar({
   printMode,
   onSetPrintMode,
   showStatusFilter,
+  showSort,
+  sortBy,
+  onSetSortBy,
+  sortDir,
+  onSetSortDir,
   hiddenStatuses,
   onToggleStatus,
   onExportPdf,
@@ -325,6 +337,11 @@ function ControlBar({
   readonly printMode: boolean
   readonly onSetPrintMode: (v: boolean) => void
   readonly showStatusFilter: boolean
+  readonly showSort: boolean
+  readonly sortBy: ProductInfoSortField
+  readonly onSetSortBy: (v: ProductInfoSortField) => void
+  readonly sortDir: SortDir
+  readonly onSetSortDir: (v: SortDir) => void
   readonly hiddenStatuses: readonly ReportShotStatus[]
   readonly onToggleStatus: (v: ReportShotStatus) => void
   readonly onExportPdf: () => void
@@ -392,6 +409,17 @@ function ControlBar({
           ))}
         </div>
       </div>
+
+      {showSort && (
+        <GroupSortControls
+          classes={{ group: "sb-pir-control-group", label: "sb-pir-control-label", seg: "sb-pir-seg", segBtn: "sb-pir-seg-btn" }}
+          sortOptions={PRODUCT_INFO_SORT_FIELD_OPTIONS}
+          sortBy={sortBy}
+          onSortBy={onSetSortBy}
+          sortDir={sortDir}
+          onSortDir={onSetSortDir}
+        />
+      )}
 
       <div className="sb-pir-control-group" role="group" aria-labelledby={sizeLabelId}>
         <span id={sizeLabelId} className="sb-pir-control-label">
@@ -519,6 +547,18 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
     onConfigChange({ ...config, hiddenStatuses: [...set] })
   }
 
+  // R5 order-by — absent fields default-merge to the shipped legacy order.
+  const sortBy: ProductInfoSortField = config.sortBy ?? DEFAULT_PRODUCT_INFO_CONFIG.sortBy ?? "style"
+  const sortDir: SortDir = config.sortDir ?? "asc"
+  const setSortBy = (next: ProductInfoSortField): void => {
+    if (next === sortBy) return
+    onConfigChange({ ...config, sortBy: next })
+  }
+  const setSortDir = (next: SortDir): void => {
+    if (next === sortDir) return
+    onConfigChange({ ...config, sortDir: next })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.familyCount === 0
 
   return (
@@ -535,6 +575,11 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
         printMode={printMode}
         onSetPrintMode={setPrintMode}
         showStatusFilter={reportConfigEnabled}
+        showSort={reportConfigEnabled}
+        sortBy={sortBy}
+        onSetSortBy={setSortBy}
+        sortDir={sortDir}
+        onSetSortDir={setSortDir}
         hiddenStatuses={hiddenStatuses}
         onToggleStatus={toggleStatus}
         onExportPdf={onExportPdf}

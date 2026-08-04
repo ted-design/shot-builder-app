@@ -18,9 +18,16 @@ import type {
   TalentGroupBy,
   TalentModel,
   TalentScope,
+  TalentSortField,
+} from "../../lib/report/talentTypes"
+import {
+  DEFAULT_TALENT_CONFIG,
+  TALENT_SORT_FIELD_OPTIONS,
 } from "../../lib/report/talentTypes"
 import type { ReportShotStatus } from "../../lib/report/reportTypes"
 import { REPORT_STATUS_OPTIONS } from "../../lib/report/reportTypes"
+import type { SortDir } from "../../lib/report/reportSort"
+import { GroupSortControls } from "./GroupSortControls"
 
 export interface TalentReportViewProps {
   readonly model: TalentModel
@@ -312,6 +319,11 @@ function ControlBar({
   printMode,
   onSetPrintMode,
   showStatusFilter,
+  showSort,
+  sortBy,
+  onSetSortBy,
+  sortDir,
+  onSetSortDir,
   hiddenStatuses,
   onToggleStatus,
   onExportPdf,
@@ -326,6 +338,11 @@ function ControlBar({
   readonly printMode: boolean
   readonly onSetPrintMode: (v: boolean) => void
   readonly showStatusFilter: boolean
+  readonly showSort: boolean
+  readonly sortBy: TalentSortField
+  readonly onSetSortBy: (v: TalentSortField) => void
+  readonly sortDir: SortDir
+  readonly onSetSortDir: (v: SortDir) => void
   readonly hiddenStatuses: readonly ReportShotStatus[]
   readonly onToggleStatus: (v: ReportShotStatus) => void
   readonly onExportPdf: () => void
@@ -387,6 +404,17 @@ function ControlBar({
           ))}
         </div>
       </div>
+
+      {showSort && (
+        <GroupSortControls
+          classes={{ group: "sb-tr-control-group", label: "sb-tr-control-label", seg: "sb-tr-seg", segBtn: "sb-tr-seg-btn" }}
+          sortOptions={TALENT_SORT_FIELD_OPTIONS}
+          sortBy={sortBy}
+          onSortBy={onSetSortBy}
+          sortDir={sortDir}
+          onSortDir={onSetSortDir}
+        />
+      )}
 
       <div className="sb-tr-control-group" role="group" aria-labelledby={viewLabelId}>
         <span id={viewLabelId} className="sb-tr-control-label">
@@ -487,6 +515,18 @@ export function TalentReportView(props: TalentReportViewProps): JSX.Element {
     onConfigChange({ ...config, hiddenStatuses: [...set] })
   }
 
+  // R5 order-by — absent fields default-merge to the shipped legacy order.
+  const sortBy: TalentSortField = config.sortBy ?? DEFAULT_TALENT_CONFIG.sortBy ?? "name"
+  const sortDir: SortDir = config.sortDir ?? "asc"
+  const setSortBy = (next: TalentSortField): void => {
+    if (next === sortBy) return
+    onConfigChange({ ...config, sortBy: next })
+  }
+  const setSortDir = (next: SortDir): void => {
+    if (next === sortDir) return
+    onConfigChange({ ...config, sortDir: next })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.talentCount === 0
   // No non-excluded talent => the PDF would have zero pages (@react-pdf throws); gate Export.
   const canExport = model.groups.some((g) => g.items.some((i) => !i.excluded))
@@ -503,6 +543,11 @@ export function TalentReportView(props: TalentReportViewProps): JSX.Element {
         printMode={printMode}
         onSetPrintMode={setPrintMode}
         showStatusFilter={reportConfigEnabled}
+        showSort={reportConfigEnabled}
+        sortBy={sortBy}
+        onSetSortBy={setSortBy}
+        sortDir={sortDir}
+        onSetSortDir={setSortDir}
         hiddenStatuses={hiddenStatuses}
         onToggleStatus={toggleStatus}
         onExportPdf={onExportPdf}

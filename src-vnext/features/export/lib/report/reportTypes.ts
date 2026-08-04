@@ -4,7 +4,9 @@
 // or URL) resolved to data URLs once via reportImages, keyed in a sidecar map —
 // the model stays pure (no async, no image bytes).
 
-export type ReportGroupBy = "gender" | "none"
+import type { SortDir } from "./reportSort"
+
+export type ReportGroupBy = "gender" | "none" | "status"
 
 /** Which looks each shot shows: every look, or only the primary (alts hidden). */
 export type ReportLooksMode = "all" | "primary-only"
@@ -48,6 +50,22 @@ export const REPORT_STATUS_OPTIONS: ReadonlyArray<{ readonly value: ReportShotSt
     label: REPORT_STATUS_LABEL[value],
   }))
 
+// Shot-report order-by (R2) field vocabulary. Exhaustive typed literal → the
+// option list derives from it (same pattern as REPORT_LAYOUT_*). Sort is applied
+// WITHIN each group at derive time via the shared sortItemsStable engine.
+export type ReportSortField = "shot-number" | "talent" | "status" | "gender"
+export const REPORT_SORT_FIELD_LABEL: Record<ReportSortField, string> = {
+  "shot-number": "Shot #",
+  talent: "Talent",
+  status: "Status",
+  gender: "Gender",
+}
+export const REPORT_SORT_FIELD_OPTIONS: ReadonlyArray<{ readonly value: ReportSortField; readonly label: string }> =
+  (Object.keys(REPORT_SORT_FIELD_LABEL) as ReportSortField[]).map((value) => ({
+    value,
+    label: REPORT_SORT_FIELD_LABEL[value],
+  }))
+
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
@@ -59,6 +77,10 @@ export interface ReportConfig {
   readonly layout?: ReportLayout
   /** Shot statuses to HIDE entirely (screen + PDF). Defaults to [] (nothing hidden); an absent field default-merges to []. */
   readonly hiddenStatuses?: readonly ReportShotStatus[]
+  /** R2 order-by: primary sort key applied within each group. Absent → legacy shot-number order (flag-off byte-identical). */
+  readonly sortBy?: ReportSortField
+  /** R2 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
+  readonly sortDir?: SortDir
 }
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
@@ -67,6 +89,29 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   looksMode: "all",
   layout: "image-led",
   hiddenStatuses: [],
+  sortBy: "shot-number",
+  sortDir: "asc",
+}
+
+/**
+ * Flag-off rollback safety. When `featureReportConfig` is OFF, strip every
+ * Phase-A/B config field whose control is gated off (so a user can no longer
+ * clear it) and clamp the widened `groupBy` back to its pre-Phase-B values —
+ * so the derive runs its verbatim legacy path and output stays byte-identical.
+ * Exported (not inlined in the page) so the flag-off byte-identity test exercises
+ * the REAL code the page runs, not a copy — see reportModel flag-off test.
+ */
+export function neutralizeReportConfigForFlag(config: ReportConfig, flagOn: boolean): ReportConfig {
+  if (flagOn) return config
+  return {
+    ...config,
+    hiddenStatuses: [],
+    sortBy: undefined,
+    sortDir: undefined,
+    // A persisted "status" would otherwise render as gender flag-off (not
+    // byte-identical). The two legacy values were always user-settable.
+    groupBy: config.groupBy === "gender" || config.groupBy === "none" ? config.groupBy : "gender",
+  }
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */
@@ -123,7 +168,7 @@ export interface ReportShot {
 }
 
 export interface ReportGroup {
-  readonly key: GenderKey | "all"
+  readonly key: GenderKey | "all" | ReportShotStatus
   readonly label: string
   readonly count: number
   readonly shots: readonly ReportShot[]

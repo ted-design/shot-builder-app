@@ -11,6 +11,7 @@ import {
   formatDateWindow,
   titleCaseSlug,
 } from "./reportModel"
+import { compareByOrder, compareText, sortItemsStable } from "./reportSort"
 import type { GenderKey, ReportShotStatus } from "./reportTypes"
 import type {
   ProductInfoAppearance,
@@ -18,6 +19,7 @@ import type {
   ProductInfoEntry,
   ProductInfoGroup,
   ProductInfoModel,
+  ProductInfoSortField,
 } from "./productInfoTypes"
 
 // Pure derivation: ExportData + ProductInfoConfig -> ProductInfoModel. No async,
@@ -179,6 +181,27 @@ function toEntry(
   }
 }
 
+// Secondary key for the product sort — ALWAYS ascending (deterministic tie-break).
+// Products have no shot number; the deterministic secondary is styleName then id.
+const PRODUCT_TIEBREAK = (a: ProductInfoEntry, b: ProductInfoEntry): number =>
+  compareText(a.styleName, b.styleName) || compareText(a.id, b.id)
+
+/** Primary comparator for a product-info sort field (R5). */
+function productPrimaryFor(
+  sortBy: ProductInfoSortField,
+): (a: ProductInfoEntry, b: ProductInfoEntry) => number {
+  switch (sortBy) {
+    case "style":
+      return (a, b) => compareText(a.styleName, b.styleName)
+    case "gender":
+      return (a, b) => compareByOrder(GROUP_ORDER, a.gender, b.gender)
+    default:
+      // Runtime safety (see reportModel.shotPrimaryFor): an out-of-union persisted
+      // sortBy falls back to the default field, never returns undefined.
+      return (a, b) => compareText(a.styleName, b.styleName)
+  }
+}
+
 function groupEntries(
   items: readonly ProductInfoEntry[],
   groupBy: ProductInfoConfig["groupBy"],
@@ -227,7 +250,7 @@ export function deriveProductInfoModel(
           .map((id) => familyById.get(id))
           .filter((f): f is ProductFamily => f != null && f.deleted !== true)
 
-  const items = families
+  const built = families
     .map((family) => toEntry(family, aggByFamily.get(family.id), excluded))
     // R3: drop a family only when EVERY appearance is a hidden status. A never-shot
     // library family (appears.length === 0) is kept — status can't hide what has no shots.
@@ -237,7 +260,13 @@ export function deriveProductInfoModel(
         item.appears.length === 0 ||
         item.appears.some((a) => !hidden.has(a.status)),
     )
-    .sort((a, b) => a.styleName.localeCompare(b.styleName))
+
+  // R5 order-by. Absent sortBy → verbatim legacy styleName order (flag-off
+  // byte-identical). Defined → the shared stable engine with the id tie-break.
+  const items =
+    config.sortBy === undefined
+      ? [...built].sort((a, b) => a.styleName.localeCompare(b.styleName))
+      : sortItemsStable(built, productPrimaryFor(config.sortBy), PRODUCT_TIEBREAK, config.sortDir ?? "asc")
 
   return {
     project: {
