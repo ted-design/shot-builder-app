@@ -363,6 +363,8 @@ function ControlBar({
     ["gender", "Gender"],
     ["product-type", "Type"],
     ["none", "None"],
+    // O2 status grouping rides the same flag as the sort controls.
+    ...(showSort ? [["status", "Status"] as const] : []),
   ]
   const sizeOpts: ReadonlyArray<readonly [ProductInfoImageSize, string]> = [
     ["s", "S"],

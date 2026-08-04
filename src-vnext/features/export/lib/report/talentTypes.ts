@@ -9,8 +9,9 @@
 import type { ReportShotStatus } from "./reportTypes"
 import type { SortDir } from "./reportSort"
 
-/** How talent are grouped on the report. */
-export type TalentGroupBy = "none" | "gender" | "agency"
+/** How talent are grouped on the report. "status" (O2) buckets each talent by their
+ *  most-outstanding appearance status (one bucket per talent). */
+export type TalentGroupBy = "none" | "gender" | "agency" | "status"
 
 // Talent order-by (R5) field vocabulary. Exhaustive typed literal → the option
 // list derives from it.
@@ -54,12 +55,22 @@ export const DEFAULT_TALENT_CONFIG: TalentConfig = {
 
 /**
  * Flag-off rollback safety — see reportTypes.neutralizeReportConfigForFlag.
- * Talent's `groupBy` was not widened in Phase B, so no groupBy clamp is needed;
- * only the gated-off sort/hidden fields are stripped.
+ * Strips the gated-off sort/hidden fields AND clamps the O2-widened `groupBy`
+ * back to its pre-O2 legal set, so a persisted "status" can't leak status-grouping
+ * flag-off (byte-identity).
  */
 export function neutralizeTalentConfigForFlag(config: TalentConfig, flagOn: boolean): TalentConfig {
   if (flagOn) return config
-  return { ...config, hiddenStatuses: [], sortBy: undefined, sortDir: undefined }
+  return {
+    ...config,
+    hiddenStatuses: [],
+    sortBy: undefined,
+    sortDir: undefined,
+    groupBy:
+      config.groupBy === "none" || config.groupBy === "gender" || config.groupBy === "agency"
+        ? config.groupBy
+        : "none",
+  }
 }
 
 /** One shot a talent appears in: its number/title, the look labels there, and that shot's status. */

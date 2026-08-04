@@ -363,6 +363,8 @@ function ControlBar({
     ["none", "None"],
     ["gender", "Gender"],
     ["agency", "Agency"],
+    // O2 status grouping rides the same flag as the sort controls.
+    ...(showSort ? [["status", "Status"] as const] : []),
   ]
 
   return (

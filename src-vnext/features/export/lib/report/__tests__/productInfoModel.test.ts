@@ -3,7 +3,11 @@ import {
   collectProductInfoImageCandidates,
   deriveProductInfoModel,
 } from "../productInfoModel"
-import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
+import {
+  DEFAULT_PRODUCT_INFO_CONFIG,
+  neutralizeProductInfoConfigForFlag,
+  type ProductInfoConfig,
+} from "../productInfoTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot } from "@/shared/types"
 
@@ -476,5 +480,72 @@ describe("deriveProductInfoModel — entry fields & images", () => {
     )
     expect(model.project.dateRange).toBe("Jun 2–4, 2026")
     expect(model.project.familyCount).toBe(2)
+  })
+})
+
+describe("deriveProductInfoModel — group-by status (O2)", () => {
+  // fM appears in a complete AND a todo shot; fW only in a complete shot.
+  const mixed = () =>
+    data({
+      productFamilies: [
+        fam({ id: "fM", styleName: "Merino Crew", gender: "men", productType: "Tops" }),
+        fam({ id: "fW", styleName: "Wool Pant", gender: "women", productType: "Bottoms" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "s3", shotNumber: "03", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+
+  it("buckets each family by its MOST-OUTSTANDING appearance; one bucket per family, status-ordered", () => {
+    const model = deriveProductInfoModel(mixed(), cfg({ groupBy: "status" }))
+    // fM (complete+todo) → To do (least done); fW (complete only) → Complete. todo precedes complete.
+    expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.items.map((i) => i.id))).toEqual([["fM"], ["fW"]])
+    // Each family lands in exactly one bucket — no double-counting.
+    expect(flat(model).map((i) => i.id).sort()).toEqual(["fM", "fW"])
+  })
+
+  it("preserves the R5 within-bucket order (order-by style, desc)", () => {
+    const d = data({
+      productFamilies: [
+        fam({ id: "fA", styleName: "Alpha", gender: "men" }),
+        fam({ id: "fZ", styleName: "Zeta", gender: "men" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fA" }] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fZ" }] }] }),
+      ],
+    })
+    const model = deriveProductInfoModel(d, cfg({ groupBy: "status", sortBy: "style", sortDir: "desc" }))
+    expect(model.groups).toHaveLength(1)
+    expect(model.groups[0]?.key).toBe("todo")
+    expect(model.groups[0]?.items.map((i) => i.styleName)).toEqual(["Zeta", "Alpha"])
+  })
+
+  it("puts never-shot library families in a trailing 'No shots' bucket", () => {
+    const d = data({
+      productFamilies: [
+        fam({ id: "fA", styleName: "Active", gender: "men" }),
+        fam({ id: "fZ", styleName: "Never", gender: "women" }),
+      ],
+      shots: [shot({ id: "s1", shotNumber: "01", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fA" }] }] })],
+    })
+    const model = deriveProductInfoModel(d, cfg({ productScope: "library", groupBy: "status" }))
+    const last = model.groups[model.groups.length - 1]
+    expect(model.groups[0]?.key).toBe("todo") // real-status buckets first
+    expect(last?.label).toBe("No shots")
+    expect(last?.items.map((i) => i.id)).toEqual(["fZ"])
+  })
+
+  it("flag-off: the real neutralizer clamps a persisted 'status' + sort back to legacy gender order (byte-identical)", () => {
+    const d = mixed()
+    const persisted = cfg({ groupBy: "status", sortBy: "gender", sortDir: "desc", hiddenStatuses: ["todo"] })
+    // The shared pure neutralizer the page runs flag-off — not an inline copy.
+    const neutralized = neutralizeProductInfoConfigForFlag(persisted, false)
+    expect(deriveProductInfoModel(d, neutralized)).toEqual(deriveProductInfoModel(d, DEFAULT_PRODUCT_INFO_CONFIG))
+    expect(neutralizeProductInfoConfigForFlag(persisted, true)).toBe(persisted) // flag-on = identity
   })
 })

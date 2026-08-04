@@ -2,6 +2,7 @@ import type { ProductAssignment, ProductFamily, Shot } from "@/shared/types"
 import { matchesHeroProductId } from "@/features/shots/lib/lookHeroes"
 import type { ExportData } from "../../hooks/useExportData"
 import {
+  buildStatusGroups,
   GROUP_LABEL,
   GROUP_ORDER,
   lookLabel,
@@ -223,6 +224,12 @@ function groupEntries(
         const inGroup = byType.get(key) ?? []
         return { key, label: key, count: inGroup.length, items: inGroup }
       })
+  }
+  if (groupBy === "status") {
+    // O2: one bucket per family, keyed by its most-outstanding appearance status.
+    return buildStatusGroups(items, (e) => e.appears.map((a) => a.status)).map(
+      (b): ProductInfoGroup => ({ key: b.key, label: b.label, count: b.count, items: b.items }),
+    )
   }
   return GROUP_ORDER.map((key): ProductInfoGroup => {
     const inGroup = items.filter((i) => i.gender === key)

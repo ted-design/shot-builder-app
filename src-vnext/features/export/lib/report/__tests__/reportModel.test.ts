@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
+import { deriveShotReportModel, formatDateWindow, mostOutstandingStatus, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
 import { DEFAULT_REPORT_CONFIG, neutralizeReportConfigForFlag, type ReportConfig } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
@@ -544,5 +544,21 @@ describe("titleCaseSlug", () => {
   })
   it("capitalizes a single-char slug", () => {
     expect(titleCaseSlug("c")).toBe("C")
+  })
+})
+
+describe("mostOutstandingStatus (O2 status-grouping reduction)", () => {
+  it("returns the least-done (lowest STATUS_GROUP_ORDER) status among appearances", () => {
+    expect(mostOutstandingStatus(["complete", "todo"])).toBe("todo")
+    expect(mostOutstandingStatus(["complete", "on_hold"])).toBe("on_hold")
+    expect(mostOutstandingStatus(["on_hold", "in_progress"])).toBe("in_progress")
+    expect(mostOutstandingStatus(["complete", "complete"])).toBe("complete")
+  })
+  it("is order-insensitive", () => {
+    expect(mostOutstandingStatus(["todo", "complete"])).toBe("todo")
+    expect(mostOutstandingStatus(["complete", "todo"])).toBe("todo")
+  })
+  it("returns null for an item with no appearances", () => {
+    expect(mostOutstandingStatus([])).toBeNull()
   })
 })

@@ -217,6 +217,55 @@ export const STATUS_GROUP_ORDER: readonly ReportShotStatus[] = [
   "complete",
 ]
 
+/**
+ * Reduce an entry's many appearance-statuses to the ONE it groups under (O2):
+ * its **most-outstanding** (least-done) appearance = the status with the lowest
+ * `STATUS_GROUP_ORDER` index. So a product/talent appearing in any un-shot shot
+ * lands in that outstanding bucket, and each item appears in exactly one group.
+ * Returns `null` for an item with no appearances (a never-shot library entry) —
+ * the caller buckets those under a "No shots" group. An out-of-union status ranks
+ * last (never spuriously "most outstanding").
+ */
+export function mostOutstandingStatus(
+  statuses: readonly ReportShotStatus[],
+): ReportShotStatus | null {
+  let best: ReportShotStatus | null = null
+  let bestRank = Number.POSITIVE_INFINITY
+  for (const s of statuses) {
+    const idx = STATUS_GROUP_ORDER.indexOf(s)
+    const rank = idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+    if (rank < bestRank) {
+      bestRank = rank
+      best = s
+    }
+  }
+  return best
+}
+
+/** Bucket key/label for entries with no appearances when grouping by status (O2). */
+export const NO_SHOTS_GROUP_KEY = "__no_shots__"
+export const NO_SHOTS_GROUP_LABEL = "No shots"
+
+/**
+ * Group entries (products/talent) by their most-outstanding appearance status (O2).
+ * One bucket per item; `statusesOf` extracts an item's appearance statuses. Buckets
+ * are ordered by `STATUS_GROUP_ORDER`; within a bucket the input order is preserved
+ * (so the R5 sort already applied to `items` survives). Items with no appearances
+ * fall into a trailing "No shots" bucket. The two report models map the result onto
+ * their own Group shape.
+ */
+export function buildStatusGroups<T>(
+  items: readonly T[],
+  statusesOf: (item: T) => readonly ReportShotStatus[],
+): ReadonlyArray<{ readonly key: string; readonly label: string; readonly count: number; readonly items: readonly T[] }> {
+  return orderedBuckets(
+    items,
+    (item) => mostOutstandingStatus(statusesOf(item)) ?? NO_SHOTS_GROUP_KEY,
+    (a, b) => compareByOrder(STATUS_GROUP_ORDER, a, b),
+    (k) => (k === NO_SHOTS_GROUP_KEY ? NO_SHOTS_GROUP_LABEL : REPORT_STATUS_LABEL[k as ReportShotStatus]),
+  )
+}
+
 // Secondary key for the shot sort — ALWAYS ascending (deterministic tie-break):
 // spec-mandated shot number, then id as the final determinism guarantee.
 const SHOT_TIEBREAK = (a: ReportShot, b: ReportShot): number =>
