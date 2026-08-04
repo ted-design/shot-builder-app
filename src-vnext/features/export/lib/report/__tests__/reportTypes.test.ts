@@ -23,4 +23,11 @@ describe("ReportConfig persistence round-trip", () => {
     const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
     expect(hydrated.layout).toBe("image-led")
   })
+
+  it("default-merges a pre-hiddenStatuses blob to hiddenStatuses [] (R3-filter forward-compat)", () => {
+    // A blob written before the status filter existed must hydrate to [] -> nothing hidden.
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led"}')
+    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    expect(hydrated.hiddenStatuses).toEqual([])
+  })
 })

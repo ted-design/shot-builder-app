@@ -5,7 +5,7 @@
 // so screen and PDF can't drift. Image fields are *candidates* (a Storage path
 // or URL) resolved to data URLs once via reportImages — the model stays pure.
 
-import type { GenderKey } from "./reportTypes"
+import type { GenderKey, ReportShotStatus } from "./reportTypes"
 
 /** How families are grouped on the report. */
 export type ProductInfoGroupBy = "gender" | "product-type" | "none"
@@ -23,6 +23,8 @@ export interface ProductInfoConfig {
   readonly imageSize: ProductInfoImageSize
   /** Families excluded by the user — struck on screen, omitted from the PDF. */
   readonly excludedFamilyIds: readonly string[]
+  /** Shot statuses to HIDE (R3): a family is dropped only when ALL its appearances are hidden-status. Defaults to []. */
+  readonly hiddenStatuses?: readonly ReportShotStatus[]
 }
 
 export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
@@ -30,6 +32,7 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
   productScope: "in-use",
   imageSize: "m",
   excludedFamilyIds: [],
+  hiddenStatuses: [],
 }
 
 /** One shot a family is styled into: its number, the look labels it appears in there, and that shot's status. */

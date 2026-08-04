@@ -214,6 +214,8 @@ export function deriveProductInfoModel(
 ): ProductInfoModel {
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const excluded = new Set(config.excludedFamilyIds)
+  // R3: statuses to hide (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const aggByFamily = walkInUse(data.shots, familyById)
 
   // in-use: families styled into non-deleted shots, resolved against the library.
@@ -227,6 +229,14 @@ export function deriveProductInfoModel(
 
   const items = families
     .map((family) => toEntry(family, aggByFamily.get(family.id), excluded))
+    // R3: drop a family only when EVERY appearance is a hidden status. A never-shot
+    // library family (appears.length === 0) is kept — status can't hide what has no shots.
+    .filter(
+      (item) =>
+        hidden.size === 0 ||
+        item.appears.length === 0 ||
+        item.appears.some((a) => !hidden.has(a.status)),
+    )
     .sort((a, b) => a.styleName.localeCompare(b.styleName))
 
   return {

@@ -90,6 +90,8 @@ export interface UseExportReportsReturn {
     reportId: string,
     config: ExportReportConfig,
   ) => Promise<void>
+  /** Rename a report (R1). Top-level name-only merge; preserves config/pages/createdBy. */
+  readonly renameReport: (reportId: string, name: string) => Promise<void>
 }
 
 export function mapReport(
@@ -175,6 +177,22 @@ export function useExportReports(
       // Top-level merge: preserves name/pages/createdBy; replaces the small config blob whole.
       await updateDoc(docRef, {
         config,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid ?? "",
+      })
+    },
+    [clientId, projectId, user?.uid],
+  )
+
+  const renameReport = useCallback(
+    async (reportId: string, name: string) => {
+      if (!clientId || !projectId) return
+      const pathSegments = exportReportDocPath(clientId, projectId, reportId)
+      const docRef = doc(db, pathSegments[0]!, ...pathSegments.slice(1))
+      // Name-only top-level merge: preserves config/pages/createdBy (mirrors saveReportConfig).
+      // createdBy is untouched, so the exportReports update rule's createdBy invariant holds.
+      await updateDoc(docRef, {
+        name,
         updatedAt: serverTimestamp(),
         updatedBy: user?.uid ?? "",
       })
@@ -343,5 +361,6 @@ export function useExportReports(
     createProductInfoReport,
     createTalentReport,
     saveReportConfig,
+    renameReport,
   }
 }

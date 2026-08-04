@@ -20,12 +20,15 @@ export interface TalentConfig {
   readonly talentScope: TalentScope
   /** Talent excluded by the user — struck on screen, omitted from the PDF. */
   readonly excludedTalentIds: readonly string[]
+  /** Shot statuses to HIDE (R3): a talent is dropped only when ALL their appearances are hidden-status. Defaults to []. */
+  readonly hiddenStatuses?: readonly ReportShotStatus[]
 }
 
 export const DEFAULT_TALENT_CONFIG: TalentConfig = {
   groupBy: "none",
   talentScope: "in-shots",
   excludedTalentIds: [],
+  hiddenStatuses: [],
 }
 
 /** One shot a talent appears in: its number/title, the look labels there, and that shot's status. */

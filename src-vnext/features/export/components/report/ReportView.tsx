@@ -19,9 +19,10 @@ import type {
   ReportModel,
   ReportProduct,
   ReportShot,
+  ReportShotStatus,
   ReportTalent,
 } from "../../lib/report/reportTypes"
-import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
+import { REPORT_LAYOUT_OPTIONS, REPORT_STATUS_OPTIONS } from "../../lib/report/reportTypes"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
 import { packShotSheets } from "../../lib/report/reportPdfHeights"
 import { REPORT_STYLES } from "./reportStyles"
@@ -432,6 +433,9 @@ function ControlBar({
   layout,
   onSetLayout,
   showLayout,
+  showStatusFilter,
+  hiddenStatuses,
+  onToggleStatus,
   onExportPdf,
   exporting,
   canExport,
@@ -446,6 +450,9 @@ function ControlBar({
   readonly layout: ReportLayout
   readonly onSetLayout: (v: ReportLayout) => void
   readonly showLayout: boolean
+  readonly showStatusFilter: boolean
+  readonly hiddenStatuses: readonly ReportShotStatus[]
+  readonly onToggleStatus: (v: ReportShotStatus) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly canExport: boolean
@@ -455,6 +462,7 @@ function ControlBar({
   const groupLabelId = useId()
   const looksLabelId = useId()
   const recipeLabelId = useId()
+  const statusLabelId = useId()
   return (
     <div className="sb-controlbar no-print" role="region" aria-label="Report controls">
       {showLayout ? (
@@ -550,6 +558,27 @@ function ControlBar({
         </div>
       </div>
 
+      {showStatusFilter && (
+        <div className="sb-control-group" role="group" aria-labelledby={statusLabelId}>
+          <span id={statusLabelId} className="sb-control-label">
+            Hide statuses
+          </span>
+          <div className="sb-seg">
+            {REPORT_STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="sb-seg-btn"
+                aria-pressed={hiddenStatuses.includes(opt.value)}
+                onClick={() => onToggleStatus(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         className="sb-export-btn"
@@ -581,6 +610,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   // Recipes ride their own flag; flag-off forces image-led so prod is byte-identical
   // to the live R1/R2 report regardless of any persisted config.layout.
   const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
+  const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
   const layout: ReportLayout = recipesEnabled ? (config.layout ?? "image-led") : "image-led"
 
   const toggleExclude = (shotId: string): void => {
@@ -609,6 +639,16 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, layout: next })
   }
 
+  // R3 status filter — a multi-select toggle set (distinct from the single-select
+  // controls above). An absent field default-merges to [] at read.
+  const hiddenStatuses = config.hiddenStatuses ?? []
+  const toggleStatus = (status: ReportShotStatus): void => {
+    const set = new Set(hiddenStatuses)
+    if (set.has(status)) set.delete(status)
+    else set.add(status)
+    onConfigChange({ ...config, hiddenStatuses: [...set] })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
   const canExport = hasAnyIncludedShot(model)
@@ -634,6 +674,9 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         layout={layout}
         onSetLayout={setLayout}
         showLayout={recipesEnabled}
+        showStatusFilter={reportConfigEnabled}
+        hiddenStatuses={hiddenStatuses}
+        onToggleStatus={toggleStatus}
         onExportPdf={onExportPdf}
         exporting={exporting}
         canExport={canExport}

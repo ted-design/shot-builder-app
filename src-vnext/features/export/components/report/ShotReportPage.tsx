@@ -88,7 +88,17 @@ export default function ShotReportPage() {
     [],
   )
 
-  const model = useMemo(() => deriveShotReportModel(data, config), [data, config])
+  // R3 rollback-safety: when featureReportConfig is off, ignore any persisted
+  // hiddenStatuses (the control that clears it is gated off) so flag-off stays
+  // byte-identical. Build-time flag → not a memo dep.
+  const model = useMemo(
+    () =>
+      deriveShotReportModel(
+        data,
+        isFeatureEnabled("featureReportConfig") ? config : { ...config, hiddenStatuses: [] },
+      ),
+    [data, config],
+  )
 
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.

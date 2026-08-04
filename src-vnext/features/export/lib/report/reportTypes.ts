@@ -32,6 +32,22 @@ export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout
     label: REPORT_LAYOUT_LABEL[value],
   }))
 
+// Status-filter (R3) display labels — the single source for the "Hide statuses"
+// multi-select shared by all three report views. An exhaustive typed literal (TS
+// flags a missing variant); the option list derives from it so the strings aren't
+// duplicated. ReportShotStatus is declared below (type aliases hoist within a module).
+export const REPORT_STATUS_LABEL: Record<ReportShotStatus, string> = {
+  complete: "Complete",
+  in_progress: "In progress",
+  on_hold: "On hold",
+  todo: "To do",
+}
+export const REPORT_STATUS_OPTIONS: ReadonlyArray<{ readonly value: ReportShotStatus; readonly label: string }> =
+  (Object.keys(REPORT_STATUS_LABEL) as ReportShotStatus[]).map((value) => ({
+    value,
+    label: REPORT_STATUS_LABEL[value],
+  }))
+
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
@@ -41,6 +57,8 @@ export interface ReportConfig {
   readonly looksMode?: ReportLooksMode
   /** Layout recipe. Defaults to "image-led" so pre-R3 blobs render unchanged. */
   readonly layout?: ReportLayout
+  /** Shot statuses to HIDE entirely (screen + PDF). Defaults to [] (nothing hidden); an absent field default-merges to []. */
+  readonly hiddenStatuses?: readonly ReportShotStatus[]
 }
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
@@ -48,6 +66,7 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   excludedShotIds: [],
   looksMode: "all",
   layout: "image-led",
+  hiddenStatuses: [],
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */

@@ -7,6 +7,7 @@
 import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { resolveSrc, statusMeta } from "./reportShared"
 import { PRODUCT_INFO_STYLES } from "./productInfoStyles"
 import type {
@@ -18,6 +19,8 @@ import type {
   ProductInfoModel,
   ProductInfoScope,
 } from "../../lib/report/productInfoTypes"
+import type { ReportShotStatus } from "../../lib/report/reportTypes"
+import { REPORT_STATUS_OPTIONS } from "../../lib/report/reportTypes"
 
 export interface ProductInfoReportViewProps {
   readonly model: ProductInfoModel
@@ -305,6 +308,9 @@ function ControlBar({
   onSetImageSize,
   printMode,
   onSetPrintMode,
+  showStatusFilter,
+  hiddenStatuses,
+  onToggleStatus,
   onExportPdf,
   exporting,
   imagesLoading,
@@ -318,6 +324,9 @@ function ControlBar({
   readonly onSetImageSize: (v: ProductInfoImageSize) => void
   readonly printMode: boolean
   readonly onSetPrintMode: (v: boolean) => void
+  readonly showStatusFilter: boolean
+  readonly hiddenStatuses: readonly ReportShotStatus[]
+  readonly onToggleStatus: (v: ReportShotStatus) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly imagesLoading: boolean
@@ -327,6 +336,7 @@ function ControlBar({
   const groupLabelId = useId()
   const sizeLabelId = useId()
   const viewLabelId = useId()
+  const statusLabelId = useId()
 
   const scopeOpts: ReadonlyArray<readonly [ProductInfoScope, string]> = [
     ["in-use", "In use"],
@@ -426,6 +436,27 @@ function ControlBar({
         </div>
       </div>
 
+      {showStatusFilter && (
+        <div className="sb-pir-control-group" role="group" aria-labelledby={statusLabelId}>
+          <span id={statusLabelId} className="sb-pir-control-label">
+            Hide statuses
+          </span>
+          <div className="sb-pir-seg">
+            {REPORT_STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="sb-pir-seg-btn"
+                aria-pressed={hiddenStatuses.includes(opt.value)}
+                onClick={() => onToggleStatus(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         className="sb-pir-export-btn"
@@ -452,6 +483,7 @@ function ControlBar({
 export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.Element {
   const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false, imagesLoading = false } = props
   const [printMode, setPrintMode] = useState(false)
+  const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
 
   // No non-excluded product => the PDF would have zero pages (@react-pdf throws); gate Export.
   const canExport = model.groups.some((g) => g.items.some((i) => !i.excluded))
@@ -478,6 +510,15 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
     onConfigChange({ ...config, imageSize })
   }
 
+  // R3 status filter — multi-select toggle set; an absent field default-merges to [].
+  const hiddenStatuses = config.hiddenStatuses ?? []
+  const toggleStatus = (status: ReportShotStatus): void => {
+    const set = new Set(hiddenStatuses)
+    if (set.has(status)) set.delete(status)
+    else set.add(status)
+    onConfigChange({ ...config, hiddenStatuses: [...set] })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.familyCount === 0
 
   return (
@@ -493,6 +534,9 @@ export function ProductInfoReportView(props: ProductInfoReportViewProps): JSX.El
         onSetImageSize={setImageSize}
         printMode={printMode}
         onSetPrintMode={setPrintMode}
+        showStatusFilter={reportConfigEnabled}
+        hiddenStatuses={hiddenStatuses}
+        onToggleStatus={toggleStatus}
         onExportPdf={onExportPdf}
         exporting={exporting}
         imagesLoading={imagesLoading}

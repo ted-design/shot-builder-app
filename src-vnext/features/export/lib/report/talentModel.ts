@@ -167,6 +167,8 @@ function agencyBucketSort(a: string, b: string): number {
 /** Derive the resolved talent model from live export data + config. */
 export function deriveTalentModel(data: ExportData, config: TalentConfig): TalentModel {
   const excluded = new Set(config.excludedTalentIds)
+  // R3: statuses to hide (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const records =
     config.talentScope === "project-attached"
       ? projectAttachedTalent(data)
@@ -174,6 +176,14 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
 
   const items = records
     .map((t) => toEntry(t, data.shots, excluded))
+    // R3: drop a talent only when EVERY appearance is a hidden status. A project-attached
+    // talent with no appearances (appears.length === 0) is kept — status can't hide what has no shots.
+    .filter(
+      (item) =>
+        hidden.size === 0 ||
+        item.appears.length === 0 ||
+        item.appears.some((a) => !hidden.has(a.status)),
+    )
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return {

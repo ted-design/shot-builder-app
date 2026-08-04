@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
 import {
@@ -107,7 +108,17 @@ export default function ProductInfoReportPage() {
     }
   }, [])
 
-  const model = useMemo(() => deriveProductInfoModel(data, config), [data, config])
+  // R3 rollback-safety: when featureReportConfig is off, ignore any persisted
+  // hiddenStatuses (the control that clears it is gated off) so flag-off stays
+  // byte-identical. Build-time flag → not a memo dep.
+  const model = useMemo(
+    () =>
+      deriveProductInfoModel(
+        data,
+        isFeatureEnabled("featureReportConfig") ? config : { ...config, hiddenStatuses: [] },
+      ),
+    [data, config],
+  )
 
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.
