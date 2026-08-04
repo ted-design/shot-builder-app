@@ -205,10 +205,12 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const talentById = new Map(data.talent.map((t) => [t.id, t]))
   const excluded = new Set(config.excludedShotIds)
+  // R3: statuses to hide entirely (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const primaryOnly = config.looksMode === "primary-only"
 
   const shots: ReportShot[] = data.shots
-    .filter((s) => !s.deleted)
+    .filter((s) => !s.deleted && !hidden.has(s.status))
     .map((shot): ReportShot => {
       const looks = resolveLooks(shot, familyById)
       // Gender resolves from ALL looks so grouping stays stable across looksMode.

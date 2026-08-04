@@ -181,6 +181,32 @@ describe("deriveShotReportModel", () => {
     expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["live"])
   })
 
+  it("R3: hides shots whose status is in hiddenStatuses (gone from every group + shotCount)", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "hold", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "done", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], hiddenStatuses: ["on_hold"] })
+    expect(model.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["done"])
+    expect(model.project.shotCount).toBe(1)
+  })
+
+  it("R3: an omitted hiddenStatuses is byte-identical to [] — nothing is hidden", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "hold", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+    const omitted = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [] })
+    const empty = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], hiddenStatuses: [] })
+    expect(omitted.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["hold"])
+    expect(empty.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["hold"])
+  })
+
   const twoLookShot = () =>
     data({
       productFamilies: FAMILIES,

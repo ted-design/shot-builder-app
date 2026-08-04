@@ -218,6 +218,63 @@ describe("deriveProductInfoModel — library scope", () => {
   })
 })
 
+describe("deriveProductInfoModel — R3 status filter", () => {
+  it("drops a family whose ONLY appearance is a hidden status", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+          shot({ id: "s2", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toEqual(["fW"]) // fM only appeared in an on_hold shot
+    expect(model.project.familyCount).toBe(1)
+  })
+
+  it("keeps a family that also appears in a visible-status shot (drop-only; full appears retained)", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+          shot({ id: "s2", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const e = find(model, "fM")
+    expect(e).toBeDefined() // still visible via the complete shot
+    // Phase-A drop-only rule: survivors keep EVERY appearance, incl. the hidden-status one.
+    expect(e?.appears.map((a) => `${a.number}:${a.status}`)).toEqual(["01:on_hold", "02:complete"])
+  })
+
+  it("an omitted hiddenStatuses is byte-identical to [] — nothing dropped", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+    })
+    expect(flat(deriveProductInfoModel(d, cfg({ groupBy: "none" }))).map((i) => i.id)).toEqual(["fM"])
+    expect(flat(deriveProductInfoModel(d, cfg({ groupBy: "none", hiddenStatuses: [] }))).map((i) => i.id)).toEqual(["fM"])
+  })
+
+  it("does NOT drop a library never-shot family under a status filter (appears.length === 0 guard)", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+      }),
+      cfg({ productScope: "library", groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toContain("fW") // never styled into a shot -> survives the status filter
+    expect(ids).not.toContain("fM") // only appeared on_hold -> dropped
+  })
+})
+
 describe("deriveProductInfoModel — grouping", () => {
   const styled = () =>
     data({

@@ -158,6 +158,67 @@ describe("deriveTalentModel — appearances", () => {
   })
 })
 
+describe("deriveTalentModel — R3 status filter", () => {
+  it("drops a talent whose ONLY appearance is a hidden status", () => {
+    const model = deriveTalentModel(
+      data({
+        talent: ROSTER,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "todo", talentIds: ["tA"] }),
+          shot({ id: "s2", shotNumber: "02", status: "complete", talentIds: ["tB"] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["todo"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toEqual(["tB"]) // tA only in a todo shot
+    expect(model.project.talentCount).toBe(1)
+  })
+
+  it("keeps a talent who also appears in a visible-status shot (drop-only; full appears retained)", () => {
+    const model = deriveTalentModel(
+      data({
+        talent: ROSTER,
+        shots: [
+          shot({ id: "s2", shotNumber: "2", status: "complete", talentIds: ["tA"] }),
+          shot({ id: "s10", shotNumber: "10", status: "todo", talentIds: ["tA"] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["todo"] }),
+    )
+    const e = find(model, "tA")
+    expect(e).toBeDefined()
+    // Phase-A drop-only rule: survivors keep EVERY appearance, incl. the hidden-status one.
+    expect(e?.appears.map((a) => `${a.number}:${a.status}`)).toEqual(["2:complete", "10:todo"])
+  })
+
+  it("an omitted hiddenStatuses is byte-identical to [] — nothing dropped", () => {
+    const d = data({
+      talent: ROSTER,
+      shots: [shot({ id: "s1", shotNumber: "01", status: "todo", talentIds: ["tA"] })],
+    })
+    expect(flat(deriveTalentModel(d, cfg({ groupBy: "none" }))).map((i) => i.id)).toEqual(["tA"])
+    expect(flat(deriveTalentModel(d, cfg({ groupBy: "none", hiddenStatuses: [] }))).map((i) => i.id)).toEqual(["tA"])
+  })
+
+  it("does NOT drop a project-attached never-shot talent under a status filter (appears.length === 0 guard)", () => {
+    const model = deriveTalentModel(
+      data({
+        project: { id: "p1", name: "P", clientId: "c" } as ExportData["project"],
+        talent: [
+          tal({ id: "tA", name: "Ava", projectIds: ["p1"] }),
+          tal({ id: "tB", name: "Ben", projectIds: ["p1"] }),
+        ],
+        shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", talentIds: ["tB"] })],
+      }),
+      cfg({ talentScope: "project-attached", groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toContain("tA") // never in a shot -> survives the status filter
+    expect(ids).not.toContain("tB") // appeared only in an on_hold shot -> dropped
+  })
+})
+
 describe("deriveTalentModel — entry field resolution", () => {
   it("name via buildDisplayName, gender label, agency/contact; blank gender -> null label", () => {
     const model = deriveTalentModel(
