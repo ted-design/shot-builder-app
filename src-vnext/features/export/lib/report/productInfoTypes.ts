@@ -8,8 +8,9 @@
 import type { GenderKey, ReportShotStatus } from "./reportTypes"
 import type { SortDir } from "./reportSort"
 
-/** How families are grouped on the report. */
-export type ProductInfoGroupBy = "gender" | "product-type" | "none"
+/** How families are grouped on the report. "status" (O2) buckets each family by its
+ *  most-outstanding appearance status (one bucket per family). */
+export type ProductInfoGroupBy = "gender" | "product-type" | "status" | "none"
 
 // Product-info order-by (R5) field vocabulary. Product families carry no
 // shot-number/status/talent at entry level (those live per-appearance in
@@ -59,12 +60,22 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
 
 /**
  * Flag-off rollback safety — see reportTypes.neutralizeReportConfigForFlag.
- * Product Info's `groupBy` was not widened in Phase B, so no groupBy clamp is
- * needed; only the gated-off sort/hidden fields are stripped.
+ * Strips the gated-off sort/hidden fields AND clamps the O2-widened `groupBy`
+ * back to its pre-O2 legal set, so a persisted "status" can't leak status-grouping
+ * flag-off (byte-identity).
  */
 export function neutralizeProductInfoConfigForFlag(config: ProductInfoConfig, flagOn: boolean): ProductInfoConfig {
   if (flagOn) return config
-  return { ...config, hiddenStatuses: [], sortBy: undefined, sortDir: undefined }
+  return {
+    ...config,
+    hiddenStatuses: [],
+    sortBy: undefined,
+    sortDir: undefined,
+    groupBy:
+      config.groupBy === "gender" || config.groupBy === "product-type" || config.groupBy === "none"
+        ? config.groupBy
+        : "gender",
+  }
 }
 
 /** One shot a family is styled into: its number, the look labels it appears in there, and that shot's status. */

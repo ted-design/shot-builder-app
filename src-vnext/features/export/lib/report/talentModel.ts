@@ -5,7 +5,7 @@ import {
   formatLabeledMeasurements,
 } from "@/features/library/lib/measurementOptions"
 import type { ExportData } from "../../hooks/useExportData"
-import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
+import { buildStatusGroups, formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
 import { compareText, sortItemsStable } from "./reportSort"
 import type {
   TalentAppearance,
@@ -130,6 +130,12 @@ function groupEntries(
         const inGroup = byLabel.get(key) ?? []
         return { key, label: key, count: inGroup.length, items: inGroup }
       })
+  }
+  if (groupBy === "status") {
+    // O2: one bucket per talent, keyed by their most-outstanding appearance status.
+    return buildStatusGroups(items, (t) => t.appears.map((a) => a.status)).map(
+      (b): TalentGroup => ({ key: b.key, label: b.label, count: b.count, items: b.items }),
+    )
   }
   // agency
   const byAgency = new Map<string, TalentEntry[]>()

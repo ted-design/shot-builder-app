@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { collectTalentImageCandidates, deriveTalentModel } from "../talentModel"
-import { DEFAULT_TALENT_CONFIG, type TalentConfig } from "../talentTypes"
+import { DEFAULT_TALENT_CONFIG, neutralizeTalentConfigForFlag, type TalentConfig } from "../talentTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { Shot, TalentRecord } from "@/shared/types"
 
@@ -389,5 +389,68 @@ describe("deriveTalentModel — project block & image candidates", () => {
       cfg({ groupBy: "none" }),
     )
     expect([...collectTalentImageCandidates(model)].sort()).toEqual(["other.jpg", "shared.jpg"])
+  })
+})
+
+describe("deriveTalentModel — group-by status (O2)", () => {
+  // tA appears in a complete AND a todo shot; tB only in a complete shot.
+  const mixed = () =>
+    data({
+      talent: ROSTER,
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "complete", talentIds: ["tA"], looks: [{ id: "l", order: 0, products: [] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", talentIds: ["tA"], looks: [{ id: "l", order: 0, products: [] }] }),
+        shot({ id: "s3", shotNumber: "03", status: "complete", talentIds: ["tB"], looks: [{ id: "l", order: 0, products: [] }] }),
+      ],
+    })
+
+  it("buckets each talent by their MOST-OUTSTANDING appearance; one bucket per talent, status-ordered", () => {
+    const model = deriveTalentModel(mixed(), cfg({ groupBy: "status" }))
+    // tA (complete+todo) → To do; tB (complete only) → Complete. todo precedes complete.
+    expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.items.map((i) => i.id))).toEqual([["tA"], ["tB"]])
+    expect(flat(model).map((i) => i.id).sort()).toEqual(["tA", "tB"])
+  })
+
+  it("preserves the R5 within-bucket order (order-by name, desc)", () => {
+    const roster = [
+      tal({ id: "t1", name: "Aaron", gender: "male", agency: "X" }),
+      tal({ id: "t2", name: "Zed", gender: "male", agency: "X" }),
+    ]
+    const d = data({
+      talent: roster,
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "todo", talentIds: ["t1"], looks: [{ id: "l", order: 0, products: [] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", talentIds: ["t2"], looks: [{ id: "l", order: 0, products: [] }] }),
+      ],
+    })
+    const model = deriveTalentModel(d, cfg({ groupBy: "status", sortBy: "name", sortDir: "desc" }))
+    expect(model.groups).toHaveLength(1)
+    expect(model.groups[0]?.key).toBe("todo")
+    expect(model.groups[0]?.items.map((i) => i.name)).toEqual(["Zed", "Aaron"])
+  })
+
+  it("puts project-attached talent with no appearances in a trailing 'No shots' bucket", () => {
+    const d = data({
+      talent: [
+        tal({ id: "tA", name: "Ava Stone", gender: "female", agency: "Elite", projectIds: ["p1"] }),
+        tal({ id: "tZ", name: "Zoe Never", gender: "female", agency: "Next", projectIds: ["p1"] }),
+      ],
+      shots: [shot({ id: "s1", shotNumber: "01", status: "todo", talentIds: ["tA"], looks: [{ id: "l", order: 0, products: [] }] })],
+    })
+    const model = deriveTalentModel(d, cfg({ talentScope: "project-attached", groupBy: "status" }))
+    const last = model.groups[model.groups.length - 1]
+    expect(model.groups[0]?.key).toBe("todo") // real-status buckets first
+    expect(last?.label).toBe("No shots")
+    expect(last?.items.map((i) => i.id)).toEqual(["tZ"])
+  })
+
+  it("flag-off: the real neutralizer clamps a persisted 'status' + sort back to legacy name order (byte-identical)", () => {
+    const d = mixed()
+    const persisted = cfg({ groupBy: "status", sortBy: "agency", sortDir: "desc", hiddenStatuses: ["todo"] })
+    const neutralized = neutralizeTalentConfigForFlag(persisted, false)
+    expect(deriveTalentModel(d, neutralized)).toEqual(deriveTalentModel(d, DEFAULT_TALENT_CONFIG))
+    expect(neutralizeTalentConfigForFlag(persisted, true)).toBe(persisted) // flag-on = identity
   })
 })
