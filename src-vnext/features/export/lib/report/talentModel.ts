@@ -6,6 +6,7 @@ import {
 } from "@/features/library/lib/measurementOptions"
 import type { ExportData } from "../../hooks/useExportData"
 import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
+import { compareText, sortItemsStable } from "./reportSort"
 import type {
   TalentAppearance,
   TalentConfig,
@@ -13,6 +14,7 @@ import type {
   TalentGroup,
   TalentMeasurement,
   TalentModel,
+  TalentSortField,
 } from "./talentTypes"
 
 // Pure derivation: ExportData + TalentConfig -> TalentModel. No async, no image
@@ -164,6 +166,26 @@ function agencyBucketSort(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
+// Secondary key for the talent sort — ALWAYS ascending (deterministic tie-break).
+const TALENT_TIEBREAK = (a: TalentEntry, b: TalentEntry): number =>
+  compareText(a.name, b.name) || compareText(a.id, b.id)
+
+/** Primary comparator for a talent sort field (R5). Reuses the bucket-order sorts. */
+function talentPrimaryFor(sortBy: TalentSortField): (a: TalentEntry, b: TalentEntry) => number {
+  switch (sortBy) {
+    case "name":
+      return (a, b) => compareText(a.name, b.name)
+    case "gender":
+      return (a, b) => genderBucketSort(a.genderLabel ?? UNRESOLVED, b.genderLabel ?? UNRESOLVED)
+    case "agency":
+      return (a, b) => agencyBucketSort(a.agency ?? NO_AGENCY, b.agency ?? NO_AGENCY)
+    default:
+      // Runtime safety (see reportModel.shotPrimaryFor): an out-of-union persisted
+      // sortBy falls back to the default field, never returns undefined.
+      return (a, b) => compareText(a.name, b.name)
+  }
+}
+
 /** Derive the resolved talent model from live export data + config. */
 export function deriveTalentModel(data: ExportData, config: TalentConfig): TalentModel {
   const excluded = new Set(config.excludedTalentIds)
@@ -174,7 +196,7 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
       ? projectAttachedTalent(data)
       : inShotsTalent(data)
 
-  const items = records
+  const built = records
     .map((t) => toEntry(t, data.shots, excluded))
     // R3: drop a talent only when EVERY appearance is a hidden status. A project-attached
     // talent with no appearances (appears.length === 0) is kept — status can't hide what has no shots.
@@ -184,7 +206,13 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
         item.appears.length === 0 ||
         item.appears.some((a) => !hidden.has(a.status)),
     )
-    .sort((a, b) => a.name.localeCompare(b.name))
+
+  // R5 order-by. Absent sortBy → verbatim legacy name order (flag-off byte-identical).
+  // Defined → the shared stable engine with the id tie-break.
+  const items =
+    config.sortBy === undefined
+      ? [...built].sort((a, b) => a.name.localeCompare(b.name))
+      : sortItemsStable(built, talentPrimaryFor(config.sortBy), TALENT_TIEBREAK, config.sortDir ?? "asc")
 
   return {
     project: {

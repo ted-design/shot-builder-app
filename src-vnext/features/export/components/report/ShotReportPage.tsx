@@ -10,7 +10,7 @@ import {
   collectReportImageCandidates,
   resolveReportImages,
 } from "../../lib/report/reportImages"
-import { DEFAULT_REPORT_CONFIG, type ReportConfig } from "../../lib/report/reportTypes"
+import { DEFAULT_REPORT_CONFIG, neutralizeReportConfigForFlag, type ReportConfig } from "../../lib/report/reportTypes"
 import { ReportView } from "./ReportView"
 
 // Integration layer: live export data -> resolved model -> image sidecar ->
@@ -88,14 +88,15 @@ export default function ShotReportPage() {
     [],
   )
 
-  // R3 rollback-safety: when featureReportConfig is off, ignore any persisted
-  // hiddenStatuses (the control that clears it is gated off) so flag-off stays
-  // byte-identical. Build-time flag → not a memo dep.
+  // Flag-off rollback-safety: strip the gated-off Phase-A/B config fields so the
+  // derive runs its verbatim legacy path (byte-identical). The neutralizer is a
+  // shared pure fn so the flag-off byte-identity test holds the real code, not a
+  // copy. Build-time flag → not a memo dep.
   const model = useMemo(
     () =>
       deriveShotReportModel(
         data,
-        isFeatureEnabled("featureReportConfig") ? config : { ...config, hiddenStatuses: [] },
+        neutralizeReportConfigForFlag(config, isFeatureEnabled("featureReportConfig")),
       ),
     [data, config],
   )

@@ -12,6 +12,7 @@ import {
 import { resolveReportImages } from "../../lib/report/reportImages"
 import {
   DEFAULT_PRODUCT_INFO_CONFIG,
+  neutralizeProductInfoConfigForFlag,
   type ProductInfoConfig,
 } from "../../lib/report/productInfoTypes"
 import { ProductInfoReportView } from "./ProductInfoReportView"
@@ -108,14 +109,14 @@ export default function ProductInfoReportPage() {
     }
   }, [])
 
-  // R3 rollback-safety: when featureReportConfig is off, ignore any persisted
-  // hiddenStatuses (the control that clears it is gated off) so flag-off stays
-  // byte-identical. Build-time flag → not a memo dep.
+  // Flag-off rollback-safety: strip the gated-off Phase-A/B config fields so the
+  // derive runs its verbatim legacy path (byte-identical). Shared pure neutralizer
+  // so the flag-off test holds the real code. Build-time flag → not a memo dep.
   const model = useMemo(
     () =>
       deriveProductInfoModel(
         data,
-        isFeatureEnabled("featureReportConfig") ? config : { ...config, hiddenStatuses: [] },
+        neutralizeProductInfoConfigForFlag(config, isFeatureEnabled("featureReportConfig")),
       ),
     [data, config],
   )

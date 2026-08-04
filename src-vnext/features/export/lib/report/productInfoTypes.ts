@@ -6,9 +6,25 @@
 // or URL) resolved to data URLs once via reportImages — the model stays pure.
 
 import type { GenderKey, ReportShotStatus } from "./reportTypes"
+import type { SortDir } from "./reportSort"
 
 /** How families are grouped on the report. */
 export type ProductInfoGroupBy = "gender" | "product-type" | "none"
+
+// Product-info order-by (R5) field vocabulary. Product families carry no
+// shot-number/status/talent at entry level (those live per-appearance in
+// appears[]), so only entry-level keys are offered this ship. Exhaustive typed
+// literal → the option list derives from it.
+export type ProductInfoSortField = "style" | "gender"
+export const PRODUCT_INFO_SORT_FIELD_LABEL: Record<ProductInfoSortField, string> = {
+  style: "Style",
+  gender: "Gender",
+}
+export const PRODUCT_INFO_SORT_FIELD_OPTIONS: ReadonlyArray<{ readonly value: ProductInfoSortField; readonly label: string }> =
+  (Object.keys(PRODUCT_INFO_SORT_FIELD_LABEL) as ProductInfoSortField[]).map((value) => ({
+    value,
+    label: PRODUCT_INFO_SORT_FIELD_LABEL[value],
+  }))
 
 /** Which families surface: those styled into shots, or the whole library. */
 export type ProductInfoScope = "in-use" | "library"
@@ -25,6 +41,10 @@ export interface ProductInfoConfig {
   readonly excludedFamilyIds: readonly string[]
   /** Shot statuses to HIDE (R3): a family is dropped only when ALL its appearances are hidden-status. Defaults to []. */
   readonly hiddenStatuses?: readonly ReportShotStatus[]
+  /** R5 order-by: primary sort key within each group. Absent → legacy styleName order (flag-off byte-identical). */
+  readonly sortBy?: ProductInfoSortField
+  /** R5 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
+  readonly sortDir?: SortDir
 }
 
 export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
@@ -33,6 +53,18 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
   imageSize: "m",
   excludedFamilyIds: [],
   hiddenStatuses: [],
+  sortBy: "style",
+  sortDir: "asc",
+}
+
+/**
+ * Flag-off rollback safety — see reportTypes.neutralizeReportConfigForFlag.
+ * Product Info's `groupBy` was not widened in Phase B, so no groupBy clamp is
+ * needed; only the gated-off sort/hidden fields are stripped.
+ */
+export function neutralizeProductInfoConfigForFlag(config: ProductInfoConfig, flagOn: boolean): ProductInfoConfig {
+  if (flagOn) return config
+  return { ...config, hiddenStatuses: [], sortBy: undefined, sortDir: undefined }
 }
 
 /** One shot a family is styled into: its number, the look labels it appears in there, and that shot's status. */

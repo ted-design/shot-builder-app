@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
-import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
+import { DEFAULT_REPORT_CONFIG, neutralizeReportConfigForFlag, type ReportConfig } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
 
@@ -389,6 +389,114 @@ describe("deriveShotReportModel", () => {
     const primary = deriveShotReportModel(d, { groupBy: "gender", excludedShotIds: [], looksMode: "primary-only" })
     expect(all.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
     expect(primary.groups.find((g) => g.shots.some((s) => s.id === "s1"))?.key).toBe("M")
+  })
+})
+
+describe("deriveShotReportModel — R2 order-by (Phase B)", () => {
+  // Worked example: groupBy 'status', sortBy 'talent', sortDir 'asc'. Ties fall to
+  // the shot-number tie-break. Four shots, two talent names shared across statuses.
+  const worked = () =>
+    data({
+      talent: [talent("tZoe", "Zoe"), talent("tAlice", "Alice"), talent("tBob", "Bob")],
+      shots: [
+        shot({ id: "S1", shotNumber: "01", status: "complete", talentIds: ["tZoe"] }),
+        shot({ id: "S2", shotNumber: "02", status: "todo", talentIds: ["tAlice"] }),
+        shot({ id: "S3", shotNumber: "03", status: "complete", talentIds: ["tBob"] }),
+        shot({ id: "S4", shotNumber: "04", status: "todo", talentIds: ["tAlice"] }),
+      ],
+    })
+
+  it("groups by status (workflow order, empties dropped) and sorts by talent within each group", () => {
+    const model = deriveShotReportModel(worked(), {
+      groupBy: "status",
+      excludedShotIds: [],
+      sortBy: "talent",
+      sortDir: "asc",
+    })
+    expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"]) // in_progress/on_hold dropped
+    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    // todo: both "Alice" -> tie-break shot-number 02<04
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S2", "S4"])
+    // complete: "Bob" < "Zoe"
+    expect(model.groups[1]?.shots.map((s) => s.id)).toEqual(["S3", "S1"])
+  })
+
+  it("flag-off byte-identical: a flag-ON config, run through the ShotReportPage neutralizer, deep-equals the default", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "S1", shotNumber: "01", status: "complete", tags: [{ id: "g", label: "Women", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "S2", shotNumber: "02", status: "todo", tags: [{ id: "g", label: "Men", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "S3", shotNumber: "03", status: "complete", tags: [{ id: "g", label: "Women", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "S4", shotNumber: "04", status: "todo", tags: [{ id: "g", label: "Men", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+      ],
+    })
+    const persisted: ReportConfig = {
+      groupBy: "status",
+      excludedShotIds: [],
+      sortBy: "talent",
+      sortDir: "desc",
+      hiddenStatuses: ["todo"],
+    }
+    // The REAL neutralizer the ShotReportPage runs flag-off (shared pure fn), so
+    // this test breaks if that code path ever diverges — not an inline copy of it.
+    const neutralized = neutralizeReportConfigForFlag(persisted, false)
+    expect(deriveShotReportModel(d, neutralized)).toEqual(deriveShotReportModel(d, DEFAULT_REPORT_CONFIG))
+  })
+
+  it("crash-safe: an out-of-union persisted sortBy falls back to shot-number order, never throws", () => {
+    // exportReports writes schemaless (no rules validation), so a hand-edited/corrupt
+    // sortBy can reach the derive. It must degrade, not kill the whole report render.
+    const d = data({
+      shots: [
+        shot({ id: "S_a", shotNumber: "10", status: "todo" }),
+        shot({ id: "S_b", shotNumber: "02", status: "todo" }),
+      ],
+    })
+    const corrupt = { groupBy: "none", excludedShotIds: [], sortBy: "not-a-field", sortDir: "asc" } as unknown as ReportConfig
+    const model = deriveShotReportModel(d, corrupt)
+    // Falls back to the shot-number comparator: "02" before "10".
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S_b", "S_a"])
+  })
+
+  it("stable + deterministic: equal-status shots break the tie NUMERICALLY (2 before 10), not lexicographically", () => {
+    const model = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S_a", shotNumber: "10", status: "todo" }),
+          shot({ id: "S_b", shotNumber: "02", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "status", sortDir: "asc" },
+    )
+    expect(model.groups[0]?.key).toBe("all")
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S_b", "S_a"])
+  })
+
+  it("desc flips the primary key only — the shot-number tie-break stays ascending", () => {
+    const a = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S1", shotNumber: "01", status: "todo" }),
+          shot({ id: "S2", shotNumber: "02", status: "todo" }),
+          shot({ id: "S3", shotNumber: "03", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "shot-number", sortDir: "desc" },
+    )
+    expect(a.groups[0]?.shots.map((s) => s.id)).toEqual(["S3", "S2", "S1"])
+
+    const b = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S_x", shotNumber: "10", status: "todo" }),
+          shot({ id: "S_y", shotNumber: "02", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "status", sortDir: "desc" },
+    )
+    // status desc reorders buckets, but the two equal-status shots keep ASC shot-number tie-break
+    expect(b.groups[0]?.shots.map((s) => s.id)).toEqual(["S_y", "S_x"])
   })
 })
 

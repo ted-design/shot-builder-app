@@ -306,6 +306,39 @@ describe("deriveProductInfoModel — grouping", () => {
   })
 })
 
+describe("deriveProductInfoModel — R5 order-by (Phase B)", () => {
+  const styled = () =>
+    data({
+      productFamilies: [
+        fam({ id: "P1", styleName: "Zeta", gender: "men" }),
+        fam({ id: "P2", styleName: "Alpha", gender: "women" }),
+        fam({ id: "P3", styleName: "Beta", gender: "men" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
+          { familyId: "P1" }, { familyId: "P2" }, { familyId: "P3" },
+        ] }] }),
+      ],
+    })
+
+  it("sortBy 'gender' asc: gender by GROUP_ORDER (W<M), styleName tie-break within a gender", () => {
+    const model = deriveProductInfoModel(styled(), cfg({ groupBy: "none", sortBy: "gender", sortDir: "asc" }))
+    // P2 (W) first; then M group tie-broken by styleName Beta(P3) < Zeta(P1)
+    expect(flat(model).map((i) => i.id)).toEqual(["P2", "P3", "P1"])
+  })
+
+  it("default sortBy 'style' reproduces alpha-by-styleName order (Alpha, Beta, Zeta)", () => {
+    const model = deriveProductInfoModel(styled(), cfg({ groupBy: "none", sortBy: "style", sortDir: "asc" }))
+    expect(flat(model).map((i) => i.styleName)).toEqual(["Alpha", "Beta", "Zeta"])
+    expect(flat(model).map((i) => i.id)).toEqual(["P2", "P3", "P1"])
+  })
+
+  it("an absent sortBy is byte-identical to the legacy styleName order", () => {
+    const legacy = deriveProductInfoModel(styled(), { groupBy: "none", productScope: "in-use", imageSize: "m", excludedFamilyIds: [] })
+    expect(flat(legacy).map((i) => i.styleName)).toEqual(["Alpha", "Beta", "Zeta"])
+  })
+})
+
 describe("deriveProductInfoModel — entry fields & images", () => {
   it("resolves styleNumber from styleNumbers[0] then styleNumber, gender label, and excluded flag", () => {
     const model = deriveProductInfoModel(

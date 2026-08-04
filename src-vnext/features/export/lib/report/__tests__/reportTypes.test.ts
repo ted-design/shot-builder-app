@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { DEFAULT_REPORT_CONFIG, type ReportConfig } from "../reportTypes"
+import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
+import { DEFAULT_TALENT_CONFIG, type TalentConfig } from "../talentTypes"
 
 describe("ReportConfig persistence round-trip", () => {
   it("survives JSON serialize/parse unchanged (Firestore-safe — no Set/Date)", () => {
@@ -29,5 +31,50 @@ describe("ReportConfig persistence round-trip", () => {
     const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led"}')
     const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
     expect(hydrated.hiddenStatuses).toEqual([])
+  })
+
+  it("default-merges a pre-Phase-B blob to sortBy 'shot-number' / sortDir 'asc' (R2 forward-compat)", () => {
+    // A blob written before order-by existed must hydrate to the shipped legacy order.
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led","hiddenStatuses":[]}')
+    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    expect(hydrated.sortBy).toBe("shot-number")
+    expect(hydrated.sortDir).toBe("asc")
+  })
+
+  it("round-trips sortBy/sortDir + the widened groupBy 'status' through JSON unchanged", () => {
+    const config: ReportConfig = { groupBy: "status", excludedShotIds: [], sortBy: "talent", sortDir: "desc" }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("ProductInfoConfig persistence round-trip (Phase B)", () => {
+  it("default-merges a pre-Phase-B blob to sortBy 'style' / sortDir 'asc'", () => {
+    const stored = JSON.parse('{"groupBy":"gender","productScope":"in-use","imageSize":"m","excludedFamilyIds":[]}')
+    const hydrated: ProductInfoConfig = { ...DEFAULT_PRODUCT_INFO_CONFIG, ...stored }
+    expect(hydrated.sortBy).toBe("style")
+    expect(hydrated.sortDir).toBe("asc")
+  })
+
+  it("round-trips sortBy/sortDir through JSON unchanged", () => {
+    const config: ProductInfoConfig = {
+      groupBy: "none", productScope: "in-use", imageSize: "m", excludedFamilyIds: [], sortBy: "gender", sortDir: "desc",
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("TalentConfig persistence round-trip (Phase B)", () => {
+  it("default-merges a pre-Phase-B blob to sortBy 'name' / sortDir 'asc'", () => {
+    const stored = JSON.parse('{"groupBy":"none","talentScope":"in-shots","excludedTalentIds":[]}')
+    const hydrated: TalentConfig = { ...DEFAULT_TALENT_CONFIG, ...stored }
+    expect(hydrated.sortBy).toBe("name")
+    expect(hydrated.sortDir).toBe("asc")
+  })
+
+  it("round-trips sortBy/sortDir through JSON unchanged", () => {
+    const config: TalentConfig = {
+      groupBy: "agency", talentScope: "in-shots", excludedTalentIds: [], sortBy: "agency", sortDir: "desc",
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
   })
 })
