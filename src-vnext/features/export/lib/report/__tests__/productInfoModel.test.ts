@@ -540,12 +540,42 @@ describe("deriveProductInfoModel — group-by status (O2)", () => {
     expect(last?.items.map((i) => i.id)).toEqual(["fZ"])
   })
 
-  it("flag-off: the real neutralizer clamps a persisted 'status' + sort back to legacy gender order (byte-identical)", () => {
+  it("flag-off: the real neutralizer clamps a persisted 'status' + sort + layout back to legacy gender/gallery (byte-identical)", () => {
     const d = mixed()
-    const persisted = cfg({ groupBy: "status", sortBy: "gender", sortDir: "desc", hiddenStatuses: ["todo"] })
+    // Include a persisted layout:"index" — flag-off must clamp it to gallery so model.layout
+    // (and every other field) matches the default derive exactly.
+    const persisted = cfg({ groupBy: "status", sortBy: "gender", sortDir: "desc", hiddenStatuses: ["todo"], layout: "index" })
     // The shared pure neutralizer the page runs flag-off — not an inline copy.
     const neutralized = neutralizeProductInfoConfigForFlag(persisted, false)
+    expect(neutralized.layout).toBe("gallery")
     expect(deriveProductInfoModel(d, neutralized)).toEqual(deriveProductInfoModel(d, DEFAULT_PRODUCT_INFO_CONFIG))
     expect(neutralizeProductInfoConfigForFlag(persisted, true)).toBe(persisted) // flag-on = identity
+  })
+})
+
+describe("deriveProductInfoModel — layout (R4 density) folded onto the model", () => {
+  const one = () =>
+    data({
+      productFamilies: [fam({ id: "fM", styleName: "Merino Crew", gender: "men" })],
+      shots: [shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+    })
+
+  it("defaults model.layout to 'gallery' when config carries no layout (pre-Phase-C blob)", () => {
+    const { layout, ...rest } = DEFAULT_PRODUCT_INFO_CONFIG
+    void layout
+    const model = deriveProductInfoModel(one(), rest as typeof DEFAULT_PRODUCT_INFO_CONFIG)
+    expect(model.layout).toBe("gallery")
+  })
+
+  it("carries an explicit config.layout onto model.layout (both variants)", () => {
+    expect(deriveProductInfoModel(one(), cfg({ layout: "gallery" })).layout).toBe("gallery")
+    expect(deriveProductInfoModel(one(), cfg({ layout: "index" })).layout).toBe("index")
+  })
+
+  it("layout is presentation-only — it never changes grouping/items", () => {
+    const gallery = deriveProductInfoModel(one(), cfg({ layout: "gallery" }))
+    const index = deriveProductInfoModel(one(), cfg({ layout: "index" }))
+    expect(index.groups).toEqual(gallery.groups)
+    expect(index.project).toEqual(gallery.project)
   })
 })

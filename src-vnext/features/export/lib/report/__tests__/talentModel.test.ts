@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { collectTalentImageCandidates, deriveTalentModel } from "../talentModel"
-import { DEFAULT_TALENT_CONFIG, neutralizeTalentConfigForFlag, type TalentConfig } from "../talentTypes"
+import { DEFAULT_HEADSHOT_CROP, DEFAULT_TALENT_CONFIG, neutralizeTalentConfigForFlag, type TalentConfig } from "../talentTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { Shot, TalentRecord } from "@/shared/types"
 
@@ -452,5 +452,74 @@ describe("deriveTalentModel — group-by status (O2)", () => {
     const neutralized = neutralizeTalentConfigForFlag(persisted, false)
     expect(deriveTalentModel(d, neutralized)).toEqual(deriveTalentModel(d, DEFAULT_TALENT_CONFIG))
     expect(neutralizeTalentConfigForFlag(persisted, true)).toBe(persisted) // flag-on = identity
+  })
+})
+
+describe("deriveTalentModel — layout density (Phase C, R4)", () => {
+  const withHold = () =>
+    data({
+      talent: ROSTER,
+      shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", talentIds: ["tA"] })],
+    })
+
+  it("flag-on: config.layout folds onto the model (detail | contact-sheet)", () => {
+    const d = withHold()
+    expect(deriveTalentModel(d, cfg({ layout: "contact-sheet" })).layout).toBe("contact-sheet")
+    expect(deriveTalentModel(d, cfg({ layout: "detail" })).layout).toBe("detail")
+  })
+
+  it("an absent layout folds onto the model as 'detail' (forward-compat default)", () => {
+    const d = withHold()
+    const legacy = deriveTalentModel(d, { groupBy: "none", talentScope: "in-shots", excludedTalentIds: [] })
+    expect(legacy.layout).toBe("detail")
+  })
+
+  it("flag-off: a persisted contact-sheet layout neutralizes back to 'detail' (byte-identical model)", () => {
+    const d = withHold()
+    const persisted = cfg({ layout: "contact-sheet" })
+    const neutralized = neutralizeTalentConfigForFlag(persisted, false)
+    const off = deriveTalentModel(d, neutralized)
+    expect(off.layout).toBe("detail")
+    // Byte-identity: the whole model equals the default-config model (layout stripped).
+    expect(off).toEqual(deriveTalentModel(d, DEFAULT_TALENT_CONFIG))
+    // Flag-on leaves a persisted layout intact.
+    expect(deriveTalentModel(d, neutralizeTalentConfigForFlag(persisted, true)).layout).toBe("contact-sheet")
+  })
+})
+
+describe("deriveTalentModel — adjustable headshot crop (Phase C, R4 part 2)", () => {
+  const withTwo = () =>
+    data({
+      talent: ROSTER,
+      shots: [shot({ id: "s1", shotNumber: "01", talentIds: ["tA", "tB"] })],
+    })
+
+  it("an absent headshotCrops folds the DEFAULT crop {scale:1,x:.5,y:.5} onto every entry", () => {
+    const model = deriveTalentModel(withTwo(), cfg({ groupBy: "none" }))
+    expect(find(model, "tA")?.crop).toEqual(DEFAULT_HEADSHOT_CROP)
+    expect(find(model, "tB")?.crop).toEqual({ scale: 1, x: 0.5, y: 0.5 })
+  })
+
+  it("flag-on: a per-talent headshotCrops entry folds onto that entry's crop; others stay default", () => {
+    const crop = { scale: 1.8, x: 0.25, y: 0.1 }
+    const model = deriveTalentModel(withTwo(), cfg({ groupBy: "none", headshotCrops: { tA: crop } }))
+    expect(find(model, "tA")?.crop).toEqual(crop)
+    expect(find(model, "tB")?.crop).toEqual(DEFAULT_HEADSHOT_CROP) // no override -> default
+  })
+
+  it("flag-off: the neutralizer clamps headshotCrops to {} so every entry's crop is the default (byte-identical)", () => {
+    const d = withTwo()
+    const persisted = cfg({ groupBy: "none", headshotCrops: { tA: { scale: 2, x: 0.9, y: 0.05 } } })
+    const neutralized = neutralizeTalentConfigForFlag(persisted, false)
+    const off = deriveTalentModel(d, neutralized)
+    expect(find(off, "tA")?.crop).toEqual(DEFAULT_HEADSHOT_CROP)
+    // Whole model equals the default-config model — the crop leaves no trace flag-off.
+    expect(off).toEqual(deriveTalentModel(d, DEFAULT_TALENT_CONFIG))
+    // Flag-on leaves a persisted crop intact.
+    expect(find(deriveTalentModel(d, neutralizeTalentConfigForFlag(persisted, true)), "tA")?.crop).toEqual({
+      scale: 2,
+      x: 0.9,
+      y: 0.05,
+    })
   })
 })
