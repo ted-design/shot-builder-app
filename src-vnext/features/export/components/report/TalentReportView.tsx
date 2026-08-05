@@ -430,13 +430,16 @@ function GroupSection({
 // (non-excluded) entries are paginated.
 // ---------------------------------------------------------------------------
 // Per-layout print geometry, kept in LOCKSTEP with reportPdfTalent's paginate().
-// detail = the shipped 2×3 (6/sheet) call-sheet grid; contact-sheet = a denser
+// detail = the 2-up (2/sheet) call-sheet grid; contact-sheet = a denser
 // 4-up casting board with a fixed 4:5 COVER crop (part 2). The 4:5 crop is much
 // taller than part-1's native-cap headshot, so the sheet packs 4×2 = 8 (not 12).
 // perSheet drives pagination; cols drives the paged grid var so a card never
 // straddles a break. EYEBALL-GATE the perSheet vs the real rendered sheet height.
+// Calibrated against a real @react-pdf render for issue #505 (2026-08-05): a
+// detail card is ~half a landscape sheet tall, so exactly ONE row (2 cards) fits;
+// 3 overflow to a stranded 2nd page. Hence detail perSheet = 2 (1 row × 2 cols).
 const LAYOUT_PRINT: Record<TalentLayout, { readonly cols: number; readonly perSheet: number }> = {
-  detail: { cols: 2, perSheet: 6 },
+  detail: { cols: 2, perSheet: 2 },
   "contact-sheet": { cols: 4, perSheet: 8 },
 }
 

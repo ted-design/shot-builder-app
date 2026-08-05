@@ -69,10 +69,13 @@ export interface ProductInfoLayoutGeometry {
   readonly cardsPerSheet: number
 }
 export const PRODUCT_INFO_LAYOUT_GEOMETRY: Record<ProductInfoLayout, ProductInfoLayoutGeometry> = {
-  // gallery = the shipped pre-Phase-C packing (4×3). NOTE: a real render shows only ~8 fit a
-  // landscape sheet, so gallery strands a partial page — a PRE-EXISTING defect kept byte-identical
-  // here; recalibration is a separate follow-up (see Phase C notes).
-  gallery: { printCols: 4, cardsPerSheet: 12 },
+  // gallery = image-forward SHOWCASE (issue #505, real-render calibrated 2026-08-05): 2 large
+  // cards side-by-side, one row per landscape sheet. The prior pre-Phase-C packing was 4×3=12,
+  // which stranded partial trailing pages — a real render fits only ONE card row (the card is tall:
+  // image + colours/sizes/appears), and a 2nd row strands the moment a card grows (3+ colourways
+  // wrap a chip row). So gallery is a 2-up showcase (printCols 2) rather than a fragile dense grid;
+  // fewer columns also means larger images. cardsPerSheet 2 = the row, robust for any product.
+  gallery: { printCols: 2, cardsPerSheet: 2 },
   // index = new Phase-C variant. Calibrated against a real render (Q2-26 data): exactly 10 rows × 2
   // fit one landscape sheet (22 stranded 2; 20 packs clean). Page-wrap is the safety net.
   index: { printCols: 2, cardsPerSheet: 20 },

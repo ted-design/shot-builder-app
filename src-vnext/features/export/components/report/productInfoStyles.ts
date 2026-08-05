@@ -343,7 +343,9 @@ export const PRODUCT_INFO_STYLES = `
 }
 .sb-pir-sheet .sb-pir-card { break-inside: avoid; page-break-inside: avoid; }
 .sb-pir-sheet .sb-pir-card-name { font-size: var(--sb-t-sm); }
-.sb-pir-sheet .sb-pir-card-frame img { max-height: 2.3in; width: auto; max-width: 100%; object-fit: contain; }
+/* 2-up SHOWCASE (issue #505): match the PDF gallery image cap (IMAGE_MAX_HEIGHT 330pt ≈ 4.58in)
+   so the on-screen print preview and the @react-pdf export don't drift. Was 2.3in for the old 4×3. */
+.sb-pir-sheet .sb-pir-card-frame img { max-height: 4.58in; width: auto; max-width: 100%; object-fit: contain; }
 
 @media print {
   @page { size: letter landscape; margin: 0; }

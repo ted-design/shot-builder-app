@@ -8,8 +8,8 @@
 //
 // PDF typography differs from screen by design: @react-pdf ships only the
 // Helvetica / Courier / Times built-ins, so the Ivy Presto serif maps to
-// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — six
-// cards (2×3) per landscape sheet, never spanning a group, each card wrap={false} so
+// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — two
+// cards (1×2) per landscape sheet, never spanning a group, each card wrap={false} so
 // a card NEVER straddles or clips a page break.
 
 import type { JSX } from "react"
@@ -32,7 +32,7 @@ const PAD_BOTTOM = 30
 const COL_GAP = 22
 const ROW_GAP = 18
 const PRINT_COLS = 2
-const PRINT_ROWS = 3
+const PRINT_ROWS = 1
 const CARDS_PER_SHEET = PRINT_COLS * PRINT_ROWS
 const CONTENT_WIDTH = PAGE.width - PAD_X * 2
 // Card width derives from the COLUMN count (not cards-per-sheet): a 2-up card is
@@ -40,8 +40,10 @@ const CONTENT_WIDTH = PAGE.width - PAD_X * 2
 const CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (PRINT_COLS - 1)) / PRINT_COLS
 // Headshot is width-only so its height follows the photo's native aspect; the
 // cap bounds an unusually tall portrait so the card body always fits the sheet.
-// At 2×3 (6/page) three card rows stack on one landscape sheet, so the cap is
-// tighter than the old 3-up (1 row) value of 168. EYEBALL-GATE this number.
+// At 1×2 (2/page) a single card row occupies the landscape sheet — calibrated
+// against a real render for issue #505 (2026-08-05): a detail card is ~half a
+// sheet tall, so exactly ONE row (2 cards) fits and 3 overflow. The cap is
+// unchanged from the prior 6/page build. EYEBALL-GATE this number.
 const HEADSHOT_MAX_HEIGHT = 120
 
 // contact-sheet (R4 density) — a denser casting board with a FIXED 4:5 COVER crop
@@ -181,7 +183,7 @@ const s = StyleSheet.create({
   initials: {
     width: "100%",
     // Match the headshot cap so a no-headshot card is no taller than one with a
-    // photo (else the denser 2×3 grid overflows).
+    // photo (else the detail 1×2 row could overflow the sheet).
     height: HEADSHOT_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",

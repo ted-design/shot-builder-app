@@ -7,9 +7,11 @@
 //
 // PDF typography differs from screen by design: @react-pdf ships only the
 // Helvetica / Courier / Times built-ins, so the Ivy Presto serif maps to
-// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — 12
-// cards (4×3) per landscape sheet, never spanning a group, each card wrap={false} so
-// a card NEVER straddles or clips a page break.
+// Helvetica (via reportPdfShared's FONT map). Pagination is explicit — the
+// gallery packs 2 large cards (2×1, a showcase spread) per landscape sheet, never
+// spanning a group, each card wrap={false} so a card NEVER straddles or clips a
+// page break. (2-up, issue #505 2026-08-05: the prior 4×3=12 stranded partial
+// pages on real product data — 2 rows never fit; see IMAGE_MAX_HEIGHT below.)
 
 import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
@@ -31,18 +33,20 @@ const ROW_GAP = 18
 // Gallery packing derives from the SHARED geometry so screen + PDF can't drift.
 const PRINT_COLS = PRODUCT_INFO_LAYOUT_GEOMETRY.gallery.printCols
 const CONTENT_WIDTH = PAGE.width - PAD_X * 2
-// Card width derives from the COLUMN count (not cards-per-sheet): a 4-up card is
-// (content - 3 col gaps) / 4. Matches the on-screen PagedView's 4-col grid.
+// Card width derives from the COLUMN count (not cards-per-sheet): a 2-up card is
+// (content - 1 col gap) / 2. Matches the on-screen PagedView's --sb-pir-print-cols grid.
 const CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (PRINT_COLS - 1)) / PRINT_COLS
 // Image is width-only so its height follows the photo's native aspect; the cap
-// bounds an unusually tall portrait so the card body always fits the sheet. At
-// 4×3 (12/page) three card rows stack on one landscape sheet, so the cap is far
-// tighter than the old 3-up (1 row) value of 232. EYEBALL-GATE this number.
-const IMAGE_MAX_HEIGHT = 96
+// bounds an unusually tall portrait so the card body always fits the sheet.
+// 2-up SHOWCASE (issue #505, real-render calibrated 2026-08-05): only ONE card row
+// fits a landscape sheet, so with 2 big cards the cap can be large — a real render
+// holds 2 cards on one page up to ~340 (360 overflows); 330 fills the page with a
+// stress-case (5 colours / 6 sizes / 3 appearances) margin. EYEBALL-GATE this number.
+const IMAGE_MAX_HEIGHT = 330
 
-// INDEX density (R4): compact 2-up spec-sheet rows, ~22 per landscape sheet. A
+// INDEX density (R4): compact 2-up spec-sheet rows, ~20 per landscape sheet. A
 // small fixed thumb + name + one meta line + shot count. RED-FREE (ink hero mark).
-// EYEBALL-GATE the row height: 11 rows × 2 cols must fit the usable landscape body.
+// EYEBALL-GATE the row height: 10 rows × 2 cols must fit the usable landscape body.
 const IDX_COLS = PRODUCT_INFO_LAYOUT_GEOMETRY.index.printCols
 const IDX_CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (IDX_COLS - 1)) / IDX_COLS
 const IDX_THUMB_W = 26
@@ -113,7 +117,7 @@ const s = StyleSheet.create({
   noImage: {
     width: CARD_WIDTH,
     // Match the image cap so a missing-image card is no taller than an imaged one
-    // (else the denser 4×3 grid overflows on incomplete libraries).
+    // (else the 2-up showcase row could overflow on incomplete libraries).
     height: IMAGE_MAX_HEIGHT,
     backgroundColor: COLOR.surfaceSubtle,
     alignItems: "center",
