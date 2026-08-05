@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { deriveShotReportModel, formatDateWindow, mostOutstandingStatus, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
-import { DEFAULT_REPORT_CONFIG, neutralizeReportConfigForFlag, type ReportConfig } from "../reportTypes"
+import { DEFAULT_REPORT_CONFIG, formatOrderNote, neutralizeReportConfigForFlag, type ReportConfig, type ReportSortField } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
 
@@ -560,5 +560,42 @@ describe("mostOutstandingStatus (O2 status-grouping reduction)", () => {
   })
   it("returns null for an item with no appearances", () => {
     expect(mostOutstandingStatus([])).toBeNull()
+  })
+})
+
+describe("model.order — the APPLIED order (so a recipe caption can never claim an order the shots don't have)", () => {
+  it("absent sortBy (flag-off / legacy) → order = {shot-number, asc}, matching the verbatim legacy sort", () => {
+    const model = deriveShotReportModel(data({}), { groupBy: "gender", excludedShotIds: [] })
+    expect(model.order).toEqual({ sortBy: "shot-number", sortDir: "asc" })
+  })
+  it("a chosen sortBy/sortDir flows into model.order verbatim", () => {
+    const model = deriveShotReportModel(data({}), { groupBy: "none", excludedShotIds: [], sortBy: "talent", sortDir: "desc" })
+    expect(model.order).toEqual({ sortBy: "talent", sortDir: "desc" })
+  })
+  it("neutralizing (flag off) a persisted talent/desc config resets order to legacy — the shots are re-sorted, and so is the caption", () => {
+    const raw: ReportConfig = { groupBy: "status", excludedShotIds: [], sortBy: "talent", sortDir: "desc" }
+    const model = deriveShotReportModel(data({}), neutralizeReportConfigForFlag(raw, false))
+    expect(model.order).toEqual({ sortBy: "shot-number", sortDir: "asc" })
+  })
+})
+
+describe("formatOrderNote — honest, config-driven recipe caption (replaces the hardcoded 'sorted by shot no.' lie)", () => {
+  it("default order reads 'Sorted by shot #'", () => {
+    expect(formatOrderNote({ sortBy: "shot-number", sortDir: "asc" })).toBe("Sorted by shot #")
+  })
+  it("a talent/descending order is described honestly and never says 'shot'", () => {
+    const note = formatOrderNote({ sortBy: "talent", sortDir: "desc" })
+    expect(note).toBe("Sorted by talent, descending")
+    expect(note).not.toMatch(/shot/i)
+  })
+  it("status ascending reads 'Sorted by status'", () => {
+    expect(formatOrderNote({ sortBy: "status", sortDir: "asc" })).toBe("Sorted by status")
+  })
+  it("falls back to shot # (never throws) on an out-of-union persisted sortBy", () => {
+    // exportReports is schemaless; a corrupted/legacy blob can carry an invalid
+    // sortBy. shotPrimaryFor sorts such shots by shot-number, so the caption
+    // honestly reads "shot #" rather than crashing on an undefined label.
+    const note = formatOrderNote({ sortBy: "retired-field" as ReportSortField, sortDir: "asc" })
+    expect(note).toBe("Sorted by shot #")
   })
 })

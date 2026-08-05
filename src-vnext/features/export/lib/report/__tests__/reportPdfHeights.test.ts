@@ -59,7 +59,11 @@ function group(label: string, shots: ReportShot[], over: Partial<ReportGroup> = 
   return { key: "W", label, count: shots.length, shots, ...over }
 }
 function model(groups: ReportGroup[]): ReportModel {
-  return { project: { name: "P", client: "C", shotCount: 0, dateRange: null }, groups }
+  return {
+    project: { name: "P", client: "C", shotCount: 0, dateRange: null },
+    groups,
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
 }
 
 /** A deliberately huge shot whose estimate exceeds a single column. */

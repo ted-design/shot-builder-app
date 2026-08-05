@@ -66,6 +66,27 @@ export const REPORT_SORT_FIELD_OPTIONS: ReadonlyArray<{ readonly value: ReportSo
     label: REPORT_SORT_FIELD_LABEL[value],
   }))
 
+/** The order actually applied to the resolved model (set at derive time from the
+ *  applied config, so it can never drift from the shots' real order). Recipe
+ *  captions render this instead of a hardcoded "sorted by shot no." claim. */
+export interface ReportOrder {
+  readonly sortBy: ReportSortField
+  readonly sortDir: SortDir
+}
+
+/** Honest, config-driven order caption for the recipe group heads. Reads the
+ *  applied order off the model — NOT a persisted config field — so it always
+ *  describes the shots as actually sorted. */
+export function formatOrderNote(order: ReportOrder): string {
+  // Defensive lookup: exportReports persists schemaless (no rules validation),
+  // so a hand-edited/legacy blob can carry an out-of-union sortBy. shotPrimaryFor
+  // sorts such shots by shot-number, so falling back to that label keeps the
+  // caption HONEST (and never crashes on an undefined label — see reportModel.ts).
+  const label = REPORT_SORT_FIELD_LABEL[order.sortBy] ?? REPORT_SORT_FIELD_LABEL["shot-number"]
+  const field = label.toLowerCase()
+  return order.sortDir === "desc" ? `Sorted by ${field}, descending` : `Sorted by ${field}`
+}
+
 /** Persisted report config — serializable (strings + string[] only); optional fields enable default-merge from older blobs. */
 export interface ReportConfig {
   readonly groupBy: ReportGroupBy
@@ -183,4 +204,7 @@ export interface ReportModel {
     readonly dateRange: string | null
   }
   readonly groups: readonly ReportGroup[]
+  /** The order actually applied to the shots (from the applied config at derive
+   *  time). Recipe group heads render formatOrderNote(order) — never a static claim. */
+  readonly order: ReportOrder
 }
