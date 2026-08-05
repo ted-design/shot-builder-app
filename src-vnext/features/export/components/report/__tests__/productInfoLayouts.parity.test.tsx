@@ -56,7 +56,7 @@ import {
 } from "../../../lib/report/productInfoTypes"
 
 // A single group (Women) with enough families that BOTH densities fill their
-// first sheet/page (gallery 12, index 20 — both < 26), so first-sheet count ==
+// first sheet/page (gallery 2, index 20 — both < 26), so first-sheet count ==
 // cardsPerSheet on each surface.
 const N = 26
 
