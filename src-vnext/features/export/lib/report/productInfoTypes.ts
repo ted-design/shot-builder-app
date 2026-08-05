@@ -33,6 +33,51 @@ export type ProductInfoScope = "in-use" | "library"
 /** Image / column density. S/M/L is a display knob only (no letterbox). */
 export type ProductInfoImageSize = "s" | "m" | "l"
 
+/**
+ * Density variant (R4/Phase C). Mirrors the shot report's REPORT_LAYOUT_* pattern.
+ * - "gallery": image-forward editorial card grid — the shipped R4 output (default,
+ *   so flag-off + pre-Phase-C blobs resolve here and stay BYTE-IDENTICAL).
+ * - "index": compact spec/pull sheet — small thumb + tight tabular rows, more
+ *   families per landscape sheet. The density that actually reaches print/PDF
+ *   (imageSize never did — it is screen-only).
+ * Presentation-only: deriveProductInfoModel folds it onto the model but never
+ * reads it for grouping/sorting, so both renderers read one pre-neutralized value.
+ */
+export type ProductInfoLayout = "gallery" | "index"
+
+// Layout display labels — the single source for the picker + the in-report switch.
+// An exhaustive typed literal (TS flags a missing variant); the option list derives
+// from it so the strings aren't duplicated (mirror REPORT_LAYOUT_LABEL/OPTIONS).
+export const PRODUCT_INFO_LAYOUT_LABEL: Record<ProductInfoLayout, string> = {
+  gallery: "Gallery",
+  index: "Index",
+}
+export const PRODUCT_INFO_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ProductInfoLayout; readonly label: string }> =
+  (Object.keys(PRODUCT_INFO_LAYOUT_LABEL) as ProductInfoLayout[]).map((value) => ({
+    value,
+    label: PRODUCT_INFO_LAYOUT_LABEL[value],
+  }))
+
+/**
+ * Per-layout print/PDF packing — the SINGLE source of truth both renderers read
+ * so the on-screen paged preview and the @react-pdf export can't drift. `printCols`
+ * drives the grid column count; `cardsPerSheet` drives pagination. EYEBALL-GATE
+ * these against a real render (see reportPdfProductInfo IMAGE_MAX_HEIGHT note).
+ */
+export interface ProductInfoLayoutGeometry {
+  readonly printCols: number
+  readonly cardsPerSheet: number
+}
+export const PRODUCT_INFO_LAYOUT_GEOMETRY: Record<ProductInfoLayout, ProductInfoLayoutGeometry> = {
+  // gallery = the shipped pre-Phase-C packing (4×3). NOTE: a real render shows only ~8 fit a
+  // landscape sheet, so gallery strands a partial page — a PRE-EXISTING defect kept byte-identical
+  // here; recalibration is a separate follow-up (see Phase C notes).
+  gallery: { printCols: 4, cardsPerSheet: 12 },
+  // index = new Phase-C variant. Calibrated against a real render (Q2-26 data): exactly 10 rows × 2
+  // fit one landscape sheet (22 stranded 2; 20 packs clean). Page-wrap is the safety net.
+  index: { printCols: 2, cardsPerSheet: 20 },
+}
+
 /** Persisted config — serializable; optional fields default-merge from older blobs. */
 export interface ProductInfoConfig {
   readonly groupBy: ProductInfoGroupBy
@@ -46,6 +91,8 @@ export interface ProductInfoConfig {
   readonly sortBy?: ProductInfoSortField
   /** R5 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
   readonly sortDir?: SortDir
+  /** R4 density variant. Absent → "gallery" (the shipped output; flag-off byte-identical). */
+  readonly layout?: ProductInfoLayout
 }
 
 export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
@@ -56,6 +103,7 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
   hiddenStatuses: [],
   sortBy: "style",
   sortDir: "asc",
+  layout: "gallery",
 }
 
 /**
@@ -71,6 +119,9 @@ export function neutralizeProductInfoConfigForFlag(config: ProductInfoConfig, fl
     hiddenStatuses: [],
     sortBy: undefined,
     sortDir: undefined,
+    // R4: the density picker is gated, so flag-off must clamp back to the shipped
+    // "gallery" output (a persisted "index" would otherwise leak the dense layout).
+    layout: "gallery",
     groupBy:
       config.groupBy === "gender" || config.groupBy === "product-type" || config.groupBy === "none"
         ? config.groupBy
@@ -121,4 +172,7 @@ export interface ProductInfoModel {
     readonly familyCount: number
   }
   readonly groups: readonly ProductInfoGroup[]
+  /** R4 density variant, resolved from the (neutralized) config at derive time.
+   *  Both the DOM view and the PDF read THIS pre-clamped value so they can't drift. */
+  readonly layout: ProductInfoLayout
 }

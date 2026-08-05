@@ -61,6 +61,22 @@ describe("ProductInfoConfig persistence round-trip (Phase B)", () => {
     }
     expect(JSON.parse(JSON.stringify(config))).toEqual(config)
   })
+
+  it("default-merges a pre-Phase-C blob (no layout) to layout 'gallery' (R4 forward-compat)", () => {
+    // A doc written before the density variant existed must hydrate to the shipped gallery layout.
+    const stored = JSON.parse(
+      '{"groupBy":"gender","productScope":"in-use","imageSize":"m","excludedFamilyIds":[],"sortBy":"style","sortDir":"asc"}',
+    )
+    const hydrated: ProductInfoConfig = { ...DEFAULT_PRODUCT_INFO_CONFIG, ...stored }
+    expect(hydrated.layout).toBe("gallery")
+  })
+
+  it("round-trips a persisted layout 'index' through JSON unchanged", () => {
+    const config: ProductInfoConfig = {
+      groupBy: "none", productScope: "in-use", imageSize: "m", excludedFamilyIds: [], layout: "index",
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
 })
 
 describe("TalentConfig persistence round-trip (Phase B)", () => {
@@ -74,6 +90,46 @@ describe("TalentConfig persistence round-trip (Phase B)", () => {
   it("round-trips sortBy/sortDir through JSON unchanged", () => {
     const config: TalentConfig = {
       groupBy: "agency", talentScope: "in-shots", excludedTalentIds: [], sortBy: "agency", sortDir: "desc",
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("TalentConfig layout density (Phase C)", () => {
+  it("default-merges a pre-Phase-C blob (no layout) to layout 'detail' (R4 forward-compat)", () => {
+    // A doc written before the density variant existed must hydrate to the shipped detail layout.
+    const stored = JSON.parse(
+      '{"groupBy":"none","talentScope":"in-shots","excludedTalentIds":[],"sortBy":"name","sortDir":"asc"}',
+    )
+    const hydrated: TalentConfig = { ...DEFAULT_TALENT_CONFIG, ...stored }
+    expect(hydrated.layout).toBe("detail")
+  })
+
+  it("round-trips a persisted layout 'contact-sheet' through JSON unchanged", () => {
+    const config: TalentConfig = {
+      groupBy: "none", talentScope: "in-shots", excludedTalentIds: [], layout: "contact-sheet",
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("TalentConfig headshot crop (Phase C, R4 part 2)", () => {
+  it("default-merges a pre-crop blob (no headshotCrops) to an empty {} map", () => {
+    // A doc written before the adjustable crop existed must hydrate to no crops.
+    const stored = JSON.parse(
+      '{"groupBy":"none","talentScope":"in-shots","excludedTalentIds":[],"layout":"contact-sheet"}',
+    )
+    const hydrated: TalentConfig = { ...DEFAULT_TALENT_CONFIG, ...stored }
+    expect(hydrated.headshotCrops).toEqual({})
+  })
+
+  it("round-trips a persisted per-talent crop map through JSON unchanged", () => {
+    const config: TalentConfig = {
+      groupBy: "none",
+      talentScope: "in-shots",
+      excludedTalentIds: [],
+      layout: "contact-sheet",
+      headshotCrops: { tA: { scale: 1.5, x: 0.25, y: 0.1 } },
     }
     expect(JSON.parse(JSON.stringify(config))).toEqual(config)
   })

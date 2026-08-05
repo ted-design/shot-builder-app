@@ -283,6 +283,10 @@ export function deriveProductInfoModel(
       familyCount: items.length,
     },
     groups: groupEntries(items, config.groupBy),
+    // R4 density: presentation-only, folded onto the model from the (already
+    // neutralized) config so DOM + PDF read one pre-clamped value. Never used for
+    // grouping/sorting above. Absent → the shipped "gallery" output.
+    layout: config.layout ?? "gallery",
   }
 }
 

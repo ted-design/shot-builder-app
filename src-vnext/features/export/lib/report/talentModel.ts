@@ -8,6 +8,7 @@ import type { ExportData } from "../../hooks/useExportData"
 import { buildStatusGroups, formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
 import { compareText, sortItemsStable } from "./reportSort"
 import type {
+  HeadshotCrop,
   TalentAppearance,
   TalentConfig,
   TalentEntry,
@@ -16,6 +17,7 @@ import type {
   TalentModel,
   TalentSortField,
 } from "./talentTypes"
+import { DEFAULT_HEADSHOT_CROP } from "./talentTypes"
 
 // Pure derivation: ExportData + TalentConfig -> TalentModel. No async, no image
 // bytes (headshot is a path/URL candidate resolved later). The single source both
@@ -63,6 +65,7 @@ function toEntry(
   t: TalentRecord,
   shots: readonly Shot[],
   excluded: ReadonlySet<string>,
+  crops: Record<string, HeadshotCrop>,
 ): TalentEntry {
   const appears = buildAppearances(t.id, shots)
   const label = genderDisplayLabel(t.gender)
@@ -84,6 +87,9 @@ function toEntry(
     measurements,
     excluded: excluded.has(t.id),
     appears,
+    // R4 part 2: fold the per-talent crop from the (neutralized) config; absent ->
+    // the centered default (so flag-off, where crops is clamped to {}, is byte-identical).
+    crop: crops[t.id] ?? DEFAULT_HEADSHOT_CROP,
   }
 }
 
@@ -201,9 +207,11 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
     config.talentScope === "project-attached"
       ? projectAttachedTalent(data)
       : inShotsTalent(data)
+  // R4 part 2: per-talent crops from the (neutralized) config — {} flag-off.
+  const crops = config.headshotCrops ?? {}
 
   const built = records
-    .map((t) => toEntry(t, data.shots, excluded))
+    .map((t) => toEntry(t, data.shots, excluded, crops))
     // R3: drop a talent only when EVERY appearance is a hidden status. A project-attached
     // talent with no appearances (appears.length === 0) is kept — status can't hide what has no shots.
     .filter(
@@ -228,6 +236,9 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
       talentCount: items.length,
     },
     groups: groupEntries(items, config.groupBy),
+    // R4 density: fold the resolved layout onto the model so BOTH renderers read a
+    // pre-neutralized value (the page feeds the NEUTRALIZED config, so flag-off → "detail").
+    layout: config.layout ?? "detail",
   }
 }
 

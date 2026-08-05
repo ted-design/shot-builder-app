@@ -15,11 +15,14 @@
 import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type {
+  HeadshotCrop,
   TalentAppearance,
   TalentEntry,
   TalentGroup,
+  TalentLayout,
   TalentModel,
 } from "./talentTypes"
+import { cropFocalPercents, cropZoomTransform } from "./talentTypes"
 import { initials } from "@/features/library/components/talentUtils"
 import { COLOR, FONT, PAGE, STATUS, has, breakLongToken } from "./reportPdfShared"
 
@@ -40,6 +43,69 @@ const CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (PRINT_COLS - 1)) / PRINT_COLS
 // At 2×3 (6/page) three card rows stack on one landscape sheet, so the cap is
 // tighter than the old 3-up (1 row) value of 168. EYEBALL-GATE this number.
 const HEADSHOT_MAX_HEIGHT = 120
+
+// contact-sheet (R4 density) — a denser casting board with a FIXED 4:5 COVER crop
+// (part 2). A full-width 4:5 crop is much taller than part-1's 96pt native cap, so
+// the sheet packs 4×2 = 8 (not 12) and the crop frame is a fixed 4:5 centered in the
+// wider card. Kept in LOCKSTEP with TalentReportView's LAYOUT_PRINT. The detail
+// constants above are untouched so the shipped detail PDF stays byte-identical.
+const CS_PRINT_COLS = 4
+// EYEBALL-GATE: two rows of the 4:5 crop must clear one landscape sheet without
+// stranding a row to a 2nd page. If they don't, reduce the frame height (below) or
+// this count — and update TalentReportView.LAYOUT_PRINT + the density parity test together.
+const CS_CARDS_PER_SHEET = 8 // 4×2
+const CS_CARD_WIDTH = (CONTENT_WIDTH - COL_GAP * (CS_PRINT_COLS - 1)) / CS_PRINT_COLS
+// Fixed 4:5 crop frame (portrait). Height is bounded so two card rows fit one
+// landscape sheet; width follows 4:5 and the frame centers in the wider card.
+// EYEBALL-GATE both numbers against a real render.
+const CS_FRAME_HEIGHT = 140
+const CS_FRAME_WIDTH = (CS_FRAME_HEIGHT * 4) / 5
+
+interface Geom {
+  readonly perSheet: number
+  readonly cardWidth: number
+  readonly headshotMax: number
+  /** contact-sheet 4:5 crop frame (0 for detail, which is native-aspect). */
+  readonly frameWidth: number
+  readonly frameHeight: number
+}
+function geomFor(layout: TalentLayout): Geom {
+  return layout === "contact-sheet"
+    ? {
+        perSheet: CS_CARDS_PER_SHEET,
+        cardWidth: CS_CARD_WIDTH,
+        headshotMax: CS_FRAME_HEIGHT,
+        frameWidth: CS_FRAME_WIDTH,
+        frameHeight: CS_FRAME_HEIGHT,
+      }
+    : {
+        perSheet: CARDS_PER_SHEET,
+        cardWidth: CARD_WIDTH,
+        headshotMax: HEADSHOT_MAX_HEIGHT,
+        frameWidth: 0,
+        frameHeight: 0,
+      }
+}
+
+// The contact-sheet headshot's crop style — a COVER crop into the fixed 4:5 frame,
+// focal point + zoom from entry.crop. Uses the SAME cropFocalPercents / cropZoomTransform
+// helpers the DOM uses, so screen + PDF can't drift on the crop.
+function contactCropStyle(crop: HeadshotCrop) {
+  const focal = cropFocalPercents(crop)
+  const zoom = cropZoomTransform(crop)
+  return {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPositionX: focal.x,
+    objectPositionY: focal.y,
+    ...(zoom ? { transform: zoom, transformOrigin: `${focal.x} ${focal.y}` } : {}),
+  } as const
+}
+
+function talentHasHold(entry: TalentEntry): boolean {
+  return entry.appears.some((a) => a.status === "on_hold")
+}
 
 const s = StyleSheet.create({
   page: {
@@ -199,6 +265,54 @@ const s = StyleSheet.create({
   shotLooks: { fontFamily: FONT.ui, fontSize: 6.5, color: COLOR.textSubtle, marginLeft: 4 },
   shotsEmpty: { fontFamily: FONT.bodyItalic, fontSize: 7, color: COLOR.textSubtle },
 
+  // contact-sheet (R4 density) — compact casting card: a fixed 4:5 COVER-crop frame
+  // (centered) + name + HOLD flag + gender + agency + shot count. Frame width/height
+  // applied inline (per-layout); the per-crop object-position/transform arrive inline
+  // on the Image from contactCropStyle(entry.crop).
+  csCard: { flexDirection: "column" },
+  csFrame: {
+    alignSelf: "center",
+    backgroundColor: COLOR.surfaceSubtle,
+    borderWidth: 0.5,
+    borderColor: COLOR.rule,
+    overflow: "hidden",
+  },
+  csInitials: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: COLOR.surfaceSubtle,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  csInitialsText: { fontFamily: FONT.display, fontSize: 24, color: COLOR.textSubtle },
+  csNameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 7, marginBottom: 3 },
+  csName: { fontFamily: FONT.display, fontSize: 11, color: COLOR.text, letterSpacing: -0.1, marginRight: 6 },
+  // The one red on this surface — talent with any on-hold shot.
+  csHoldFlag: { flexDirection: "row", alignItems: "center" },
+  csHoldDot: { width: 6, height: 6, backgroundColor: COLOR.accent, borderRadius: 1, marginRight: 3 },
+  csHold: {
+    fontFamily: FONT.uiBold,
+    fontSize: 6,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: COLOR.accent,
+  },
+  csMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginBottom: 6 },
+  csStat: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 0.5,
+    borderTopColor: COLOR.rule,
+    paddingTop: 5,
+  },
+  csCount: {
+    fontFamily: FONT.uiBold,
+    fontSize: 6.5,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: COLOR.textSecondary,
+  },
+
   footer: {
     position: "absolute",
     bottom: 14,
@@ -231,16 +345,17 @@ interface Sheet {
 }
 
 function paginate(model: TalentModel): readonly Sheet[] {
+  const perSheet = geomFor(model.layout).perSheet
   const sheets: Sheet[] = []
   for (const group of model.groups) {
     const visible = group.items.filter((i) => !i.excluded)
     if (visible.length === 0) continue
-    for (let i = 0; i < visible.length; i += CARDS_PER_SHEET) {
+    for (let i = 0; i < visible.length; i += perSheet) {
       sheets.push({
         group,
         groupItemCount: visible.length,
         fromIndex: i + 1,
-        items: visible.slice(i, i + CARDS_PER_SHEET),
+        items: visible.slice(i, i + perSheet),
       })
     }
   }
@@ -341,6 +456,61 @@ function Card({
   )
 }
 
+// contact-sheet card (R4 density) — compact casting board. HIDES the contact block,
+// measurement grid, and per-shot list; SHOWS headshot + name + HOLD flag (the one
+// red) + gender + agency + shot count. Part 2: a fixed 4:5 COVER crop with an
+// adjustable focal point + zoom (entry.crop, matched to the DOM).
+function ContactCard({
+  entry,
+  imageMap,
+  width,
+  frameWidth,
+  frameHeight,
+}: {
+  readonly entry: TalentEntry
+  readonly imageMap: ReadonlyMap<string, string>
+  readonly width: number
+  readonly frameWidth: number
+  readonly frameHeight: number
+}): JSX.Element {
+  const src = has(entry.headshot) ? imageMap.get(entry.headshot) : undefined
+  const n = entry.appears.length
+  return (
+    <View style={[s.csCard, { width }]} wrap={false}>
+      <View style={[s.csFrame, { width: frameWidth, height: frameHeight }]}>
+        {src ? (
+          <Image src={src} style={contactCropStyle(entry.crop)} />
+        ) : (
+          <View style={s.csInitials}>
+            <Text style={s.csInitialsText}>{initials(entry.name)}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={s.csNameRow}>
+        <Text style={s.csName}>{has(entry.name) ? entry.name : "Unnamed talent"}</Text>
+        {talentHasHold(entry) ? (
+          <View style={s.csHoldFlag}>
+            <View style={s.csHoldDot} />
+            <Text style={s.csHold}>Hold</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {entry.genderLabel || has(entry.agency) ? (
+        <View style={s.csMeta}>
+          {entry.genderLabel ? <Text style={s.genderBadge}>{entry.genderLabel}</Text> : null}
+          {has(entry.agency) ? <Text style={s.agency}>{entry.agency}</Text> : null}
+        </View>
+      ) : null}
+
+      <View style={s.csStat}>
+        <Text style={s.csCount}>{`${n} ${n === 1 ? "shot" : "shots"}`}</Text>
+      </View>
+    </View>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Document
 // ---------------------------------------------------------------------------
@@ -351,6 +521,7 @@ export function TalentPdfDocument(props: {
 }): JSX.Element {
   const { model, imageMap } = props
   const sheets = paginate(model)
+  const geom = geomFor(model.layout)
   const projectLine = has(model.project.client)
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -395,9 +566,20 @@ export function TalentPdfDocument(props: {
             ) : null}
 
             <View style={s.cards}>
-              {sheet.items.map((entry) => (
-                <Card key={entry.id} entry={entry} imageMap={imageMap} />
-              ))}
+              {sheet.items.map((entry) =>
+                model.layout === "contact-sheet" ? (
+                  <ContactCard
+                    key={entry.id}
+                    entry={entry}
+                    imageMap={imageMap}
+                    width={geom.cardWidth}
+                    frameWidth={geom.frameWidth}
+                    frameHeight={geom.frameHeight}
+                  />
+                ) : (
+                  <Card key={entry.id} entry={entry} imageMap={imageMap} />
+                ),
+              )}
             </View>
 
             <View style={s.footer} fixed>
