@@ -365,6 +365,10 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       dateRange: formatDateWindow(data.project?.shootDates),
     },
     groups,
+    // The applied order (absent sortBy → the legacy ascending shot-number sort
+    // above). Set here so a recipe caption can never claim an order the shots
+    // don't have; flag-off this is always {shot-number, asc}, matching legacy.
+    order: { sortBy: config.sortBy ?? "shot-number", sortDir: config.sortDir ?? "asc" },
   }
 }
 

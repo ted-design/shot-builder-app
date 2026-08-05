@@ -14,6 +14,7 @@ import type {
   ReportProduct,
   ReportShot,
 } from "../../lib/report/reportTypes"
+import { formatOrderNote } from "../../lib/report/reportTypes"
 import { present, primaryLookImage, resolveSrc, statusMeta } from "./reportShared"
 import { sizeLabel } from "../../lib/report/reportModel"
 
@@ -159,12 +160,12 @@ function Band({
   )
 }
 
-function GroupHead({ group }: { readonly group: ReportGroup }): JSX.Element {
+function GroupHead({ group, note }: { readonly group: ReportGroup; readonly note: string }): JSX.Element {
   return (
     <div className="sb-br-group-head">
       <h2 className="sb-masthead sb-br-group-title">{group.label}</h2>
       <span className="sb-br-group-count">{group.count === 1 ? "1 shot" : `${group.count} shots`}</span>
-      <span className="sb-br-group-note">Grouped · sorted by shot no.</span>
+      <span className="sb-br-group-note">{note}</span>
     </div>
   )
 }
@@ -273,7 +274,8 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
         <section className="sb-br-page" key={`br-page-${pi}`}>
           {items.map((item, ii) => {
             if (item.kind === "mast") return <Masthead key={`m-${pi}`} model={model} />
-            if (item.kind === "group") return <GroupHead key={`g-${pi}-${ii}`} group={item.group} />
+            if (item.kind === "group")
+              return <GroupHead key={`g-${pi}-${ii}`} group={item.group} note={formatOrderNote(model.order)} />
             return (
               <Band
                 key={item.shot.id}
@@ -322,7 +324,10 @@ export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyPro
         {model.groups.map((group) => (
           <div className="sb-br-group" key={group.key}>
             {/* count = printable; excluded bands still shown struck below */}
-            <GroupHead group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }} />
+            <GroupHead
+              group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }}
+              note={formatOrderNote(model.order)}
+            />
             {group.shots.map((shot) => (
               <Band
                 key={shot.id}
