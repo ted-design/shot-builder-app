@@ -50,6 +50,8 @@ jobs:
           VITE_TALENT_LAZY:                  1   # Talent redesign: lazy portfolio/casting images
           VITE_SHOT_REPORT:                  1   # Export reimagine: image-led Shot Report + reports list/recipe/looksMode live
           VITE_REPORT_CONFIG:               1   # Report config Phase A: rename-after-create + hide-by-status controls (featureReportConfig)
+          VITE_PRODUCT_INFO_REPORT:         1   # D3: Product Info report type LIVE (2-up showcase; #505/#506 pagination fixed)
+          VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
         run: npm run build
 
       - name: Auth to Google Cloud (WIF)
@@ -93,6 +95,8 @@ jobs:
           VITE_TALENT_LAZY:                  1   # Talent redesign: lazy portfolio/casting images
           VITE_SHOT_REPORT:                  1   # Export reimagine: image-led Shot Report + reports list/recipe/looksMode live
           VITE_REPORT_CONFIG:               1   # Report config Phase A: rename-after-create + hide-by-status controls (featureReportConfig)
+          VITE_PRODUCT_INFO_REPORT:         1   # D3: Product Info report type LIVE (2-up showcase; #505/#506 pagination fixed)
+          VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
         run: npx firebase-tools deploy --only hosting --project um-shotbuilder --json > deploy-live.json
 
       - name: Output live URL
