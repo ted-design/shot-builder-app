@@ -78,6 +78,20 @@ describe("buildNavConfig", () => {
     expect(schedulesIdx).toBeLessThan(callSheetIdx)
   })
 
+  it("Schedules and Call Sheet resolve to different icons — they sit adjacent in the collapsed icon rail", () => {
+    const config = buildNavConfig("p1")
+    const schedules = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Schedules",
+    )
+    const callSheet = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Call Sheet",
+    )
+    expect(schedules?.type === "item" && schedules.item.iconName).toBe("list-checks")
+    expect(callSheet?.type === "item" && callSheet.item.iconName).toBe("calendar-days")
+    expect(schedules?.type === "item" && callSheet?.type === "item" && schedules.item.iconName)
+      .not.toBe(callSheet?.type === "item" && callSheet.item.iconName)
+  })
+
   it("Call Sheet is marked desktopOnly", () => {
     const config = buildNavConfig("p1")
     const callSheet = config.entries.find(

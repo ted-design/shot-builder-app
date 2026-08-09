@@ -89,4 +89,26 @@ describe("ShotListToolbar — Display control", () => {
       heroThumb: !DEFAULT_FIELDS.heroThumb,
     })
   })
+
+  // The "1"/"2" keyboard shortcut that flips viewMode is bound on `document`
+  // in ShotListPage, entirely outside this component's tree, so it has no
+  // way to know the Display sheet is open. Simulate exactly that: the sheet
+  // opens in card view, then a re-render (standing in for the parent's
+  // viewMode state changing under the shortcut) flips viewMode to "table"
+  // while displayOpen is still true internally.
+  it("closes the Display sheet when viewMode flips away from card while it's open", () => {
+    const { rerender } = render(<ShotListToolbar {...baseProps({ viewMode: "card" })} />)
+
+    fireEvent.click(screen.getByTestId("display-trigger"))
+    expect(screen.getByRole("heading", { name: "Display" })).toBeInTheDocument()
+    expect(screen.queryByText("Table Columns")).not.toBeInTheDocument()
+
+    rerender(<ShotListToolbar {...baseProps({ viewMode: "table" })} />)
+
+    // Not just hidden — the Table Columns branch (the only content unique to
+    // viewMode==="table") must not be present at all, i.e. the sheet closed
+    // rather than staying open and re-rendering its table-columns fork.
+    expect(screen.queryByRole("heading", { name: "Display" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Table Columns")).not.toBeInTheDocument()
+  })
 })

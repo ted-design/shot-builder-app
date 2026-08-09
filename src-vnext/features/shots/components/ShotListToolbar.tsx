@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { SortKey, ViewMode, GroupKey, MissingKey, ShotsListFields } from "@/features/shots/lib/shotListFilters"
 import { SORT_LABELS } from "@/features/shots/lib/shotListFilters"
 import type { ShotFirestoreStatus } from "@/shared/types"
@@ -148,6 +148,17 @@ export function ShotListToolbar({
 }: ShotListToolbarProps) {
   const [moreOpen, setMoreOpen] = useState(false)
   const [displayOpen, setDisplayOpen] = useState(false)
+
+  // The Display trigger only renders in card view, but the "1"/"2" keyboard
+  // shortcut (bound on document in ShotListPage) can flip viewMode while the
+  // sheet is still open — the shortcut hook has no way to know the sheet
+  // exists, so it never closes it. Left open, the sheet's own viewMode fork
+  // renders the "Table Columns" branch, a control surface with no trigger
+  // and no card-view equivalent. Close it the moment viewMode leaves "card"
+  // so that branch is never reachable from the toolbar.
+  useEffect(() => {
+    if (viewMode !== "card") setDisplayOpen(false)
+  }, [viewMode])
 
   const handleSortChange = (value: string) => {
     if (value === SORT_RENUMBER) {
