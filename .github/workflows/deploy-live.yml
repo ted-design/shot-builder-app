@@ -52,6 +52,7 @@ jobs:
           VITE_REPORT_CONFIG:               1   # Report config Phase A: rename-after-create + hide-by-status controls (featureReportConfig)
           VITE_PRODUCT_INFO_REPORT:         1   # D3: Product Info report type LIVE (2-up showcase; #505/#506 pagination fixed)
           VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
+          VITE_SHOT_REPORT_RECIPES:         1   # D3 final: Production sheet + Balanced rows recipes LIVE (#508 splittable; Ted approved off real-data renders 2026-08-08)
         run: npm run build
 
       - name: Auth to Google Cloud (WIF)
@@ -97,6 +98,7 @@ jobs:
           VITE_REPORT_CONFIG:               1   # Report config Phase A: rename-after-create + hide-by-status controls (featureReportConfig)
           VITE_PRODUCT_INFO_REPORT:         1   # D3: Product Info report type LIVE (2-up showcase; #505/#506 pagination fixed)
           VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
+          VITE_SHOT_REPORT_RECIPES:         1   # D3 final: Production sheet + Balanced rows recipes LIVE (#508 splittable; Ted approved off real-data renders 2026-08-08)
         run: npx firebase-tools deploy --only hosting --project um-shotbuilder --json > deploy-live.json
 
       - name: Output live URL
