@@ -1,5 +1,5 @@
-import { useState } from "react"
-import type { SortKey, ViewMode, GroupKey, MissingKey } from "@/features/shots/lib/shotListFilters"
+import { useEffect, useState } from "react"
+import type { SortKey, ViewMode, GroupKey, MissingKey, ShotsListFields } from "@/features/shots/lib/shotListFilters"
 import { SORT_LABELS } from "@/features/shots/lib/shotListFilters"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import type { computeInsights } from "@/features/shots/lib/shotListFilters"
@@ -22,6 +22,7 @@ import {
 import { ShotStatusFilter } from "@/features/shots/components/ShotStatusFilter"
 import { ShotMissingFilter } from "@/features/shots/components/ShotMissingFilter"
 import { ShotListFilterContent } from "@/features/shots/components/ShotListFilterContent"
+import { ShotListDisplaySheet } from "@/features/shots/components/ShotListDisplaySheet"
 import {
   Search,
   X,
@@ -32,6 +33,7 @@ import {
   Layers,
   RotateCcw,
   SlidersHorizontal,
+  Eye,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -85,6 +87,9 @@ type ShotListToolbarProps = {
   // Showing count
   readonly displayCount: number
   readonly totalCount: number
+  // Display (card field visibility) — card view only
+  readonly fields: ShotsListFields
+  readonly onFieldsChange: (fields: ShotsListFields) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -138,8 +143,22 @@ export function ShotListToolbar({
   hasScenes,
   displayCount,
   totalCount,
+  fields,
+  onFieldsChange,
 }: ShotListToolbarProps) {
   const [moreOpen, setMoreOpen] = useState(false)
+  const [displayOpen, setDisplayOpen] = useState(false)
+
+  // The Display trigger only renders in card view, but the "1"/"2" keyboard
+  // shortcut (bound on document in ShotListPage) can flip viewMode while the
+  // sheet is still open — the shortcut hook has no way to know the sheet
+  // exists, so it never closes it. Left open, the sheet's own viewMode fork
+  // renders the "Table Columns" branch, a control surface with no trigger
+  // and no card-view equivalent. Close it the moment viewMode leaves "card"
+  // so that branch is never reachable from the toolbar.
+  useEffect(() => {
+    if (viewMode !== "card") setDisplayOpen(false)
+  }, [viewMode])
 
   const handleSortChange = (value: string) => {
     if (value === SORT_RENUMBER) {
@@ -154,6 +173,7 @@ export function ShotListToolbar({
   }
 
   return (
+    <>
     <div className="mb-3 flex flex-wrap items-center gap-2">
       {/* Search */}
       <div className="relative w-full sm:w-[240px]">
@@ -314,6 +334,20 @@ export function ShotListToolbar({
         </span>
       )}
 
+      {/* Display (card field visibility) — card view only; the table column
+          system is untouched by this control. */}
+      {viewMode === "card" && (
+        <Button
+          variant="outline"
+          data-testid="display-trigger"
+          className="gap-1.5"
+          onClick={() => setDisplayOpen(true)}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Display
+        </Button>
+      )}
+
       {/* Card / Table view toggle (desktop only) */}
       {!isMobile && (
         <div className="flex items-center gap-1">
@@ -339,5 +373,14 @@ export function ShotListToolbar({
         </div>
       )}
     </div>
+    <ShotListDisplaySheet
+      open={displayOpen}
+      onOpenChange={setDisplayOpen}
+      isMobile={isMobile}
+      viewMode={viewMode}
+      fields={fields}
+      onFieldsChange={onFieldsChange}
+    />
+    </>
   )
 }

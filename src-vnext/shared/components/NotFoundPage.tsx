@@ -8,9 +8,6 @@ function resolveLegacyRedirect(pathname: string, search: string): string | null 
   const bareProject = pathname.match(/^\/projects\/([^/]+)\/?$/)
   if (bareProject) return `/projects/${bareProject[1]}/shots${search}`
 
-  const bareSchedules = pathname.match(/^\/projects\/([^/]+)\/schedules\/?$/)
-  if (bareSchedules) return `/projects/${bareSchedules[1]}/callsheet${search}`
-
   if (/^\/library\/?$/.test(pathname)) return `/library/talent${search}`
   if (/^\/inbox\/?$/.test(pathname)) return `/requests${search}`
 
