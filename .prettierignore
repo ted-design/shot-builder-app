@@ -1,0 +1,5 @@
+# public/images/brands/** SVGs are byte-copies from the Immediate design
+# vault (no trailing newline by design). Never let a formatter touch them —
+# even a no-op trailing-newline fix breaks the byte-identical-to-vault
+# guarantee that lets us diff a re-export against what's checked in.
+public/images/brands/**
