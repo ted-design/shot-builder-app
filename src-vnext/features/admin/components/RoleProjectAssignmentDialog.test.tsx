@@ -14,29 +14,70 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
-// Stand in for the real picker (backed by useProjects/Firestore) with a
-// minimal control surface: one fake project that can be toggled on/off, so
-// tests can drive `assignments` without a live project list.
+vi.mock("@/shared/lib/firebase", () => ({ db: {} }))
+
+// The dialog looks up the target user's existing project memberships itself
+// (one getDoc per active project, against the member doc path — see
+// projectMemberDocPath: [..., "projects", projectId, "members", userId]).
+// Tests drive which project ids come back "already assigned" via
+// memberDocState.existingMemberDocIds; default is empty, matching a
+// brand-new project-scoped role with zero prior access.
+const memberDocState = vi.hoisted(() => ({
+  existingMemberDocIds: new Set<string>(),
+}))
+
+vi.mock("firebase/firestore", () => ({
+  doc: (...args: unknown[]) => ({ __pathArgs: args }),
+  getDoc: async (ref: { __pathArgs: unknown[] }) => {
+    // __pathArgs = [db, "clients", clientId, "projects", projectId, "members", userId]
+    const projectId = ref.__pathArgs[ref.__pathArgs.length - 3] as string
+    return { exists: () => memberDocState.existingMemberDocIds.has(projectId) }
+  },
+}))
+
+// Two fake active projects, p1 + p2, so tests can distinguish "existing"
+// from "newly assignable" without a live project list.
+vi.mock("@/features/projects/hooks/useProjects", () => ({
+  useProjects: () => ({
+    data: [
+      { id: "p1", name: "Project One" },
+      { id: "p2", name: "Project Two" },
+    ],
+    loading: false,
+    error: null,
+  }),
+}))
+
+// Stand in for the real picker with a minimal control surface: one fake
+// project (p1) that can be toggled on/off, plus the existingProjectIds prop
+// surfaced as text so tests can assert the dialog wired it through.
 vi.mock("./ProjectAssignmentPicker", () => ({
   ProjectAssignmentPicker: ({
     assignments,
     onChange,
+    existingProjectIds,
   }: {
     assignments: readonly { projectId: string; projectName: string; role: string }[]
     onChange: (a: readonly { projectId: string; projectName: string; role: string }[]) => void
+    existingProjectIds?: ReadonlySet<string>
   }) => (
-    <button
-      type="button"
-      onClick={() => {
-        if (assignments.some((a) => a.projectId === "p1")) {
-          onChange(assignments.filter((a) => a.projectId !== "p1"))
-        } else {
-          onChange([...assignments, { projectId: "p1", projectName: "Project One", role: "crew" }])
-        }
-      }}
-    >
-      toggle-project-one
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          if (assignments.some((a) => a.projectId === "p1")) {
+            onChange(assignments.filter((a) => a.projectId !== "p1"))
+          } else {
+            onChange([...assignments, { projectId: "p1", projectName: "Project One", role: "crew" }])
+          }
+        }}
+      >
+        toggle-project-one
+      </button>
+      <div data-testid="existing-project-ids">
+        {existingProjectIds ? [...existingProjectIds].sort().join(",") : "undefined"}
+      </div>
+    </>
   ),
 }))
 
@@ -67,6 +108,7 @@ describe("RoleProjectAssignmentDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockBulkAddProjectMembers.mockResolvedValue(undefined)
+    memberDocState.existingMemberDocIds = new Set()
   })
 
   it("renders the project picker and mentions the target user + new role", () => {
@@ -75,15 +117,45 @@ describe("RoleProjectAssignmentDialog", () => {
     expect(screen.getByText("toggle-project-one")).toBeInTheDocument()
   })
 
-  it("shows the zero-membership warning when no projects are selected", () => {
+  it("shows the zero-membership warning when no projects are selected and the user has no existing memberships", async () => {
     renderDialog({ userEmail: "crew@example.com" })
-    expect(screen.getByText(/crew@example.com can't see any projects yet/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/crew@example.com can't see any projects yet/)).toBeInTheDocument()
+    })
   })
 
-  it("hides the zero-membership warning once a project is selected", () => {
+  it("hides the zero-membership warning once a project is selected", async () => {
     renderDialog()
+    await waitFor(() => {
+      expect(screen.getByText(/can't see any projects yet/)).toBeInTheDocument()
+    })
     fireEvent.click(screen.getByText("toggle-project-one"))
     expect(screen.queryByText(/can't see any projects yet/)).not.toBeInTheDocument()
+  })
+
+  it("passes the target user's existing project memberships to the picker as existingProjectIds", async () => {
+    memberDocState.existingMemberDocIds = new Set(["p2"])
+    renderDialog()
+    await waitFor(() => {
+      expect(screen.getByTestId("existing-project-ids")).toHaveTextContent("p2")
+    })
+  })
+
+  it("never shows the zero-access warning for a user who already has project memberships, even skipping", async () => {
+    memberDocState.existingMemberDocIds = new Set(["p1", "p2"])
+    renderDialog({ userEmail: "crew@example.com" })
+    await waitFor(() => {
+      expect(screen.getByTestId("existing-project-ids")).toHaveTextContent("p1,p2")
+    })
+    expect(screen.queryByText(/can't see any projects yet/)).not.toBeInTheDocument()
+  })
+
+  it("mentions the existing membership count in the intro copy instead of asserting zero access", async () => {
+    memberDocState.existingMemberDocIds = new Set(["p1", "p2"])
+    renderDialog({ userEmail: "crew@example.com" })
+    await waitFor(() => {
+      expect(screen.getByText(/they're already on 2 projects/)).toBeInTheDocument()
+    })
   })
 
   it("disables the Assign button until a project is selected", () => {
