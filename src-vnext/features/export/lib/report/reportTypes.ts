@@ -94,7 +94,15 @@ export interface ReportConfig {
   readonly excludedShotIds: readonly string[]
   /** "primary-only" shows just each shot's primary look. Defaults to "all". */
   readonly looksMode?: ReportLooksMode
-  /** Layout recipe. Defaults to "image-led" so pre-R3 blobs render unchanged. */
+  /**
+   * Layout recipe. Absent on a legacy (pre-R3) blob — `hydrateReportConfig`
+   * floors that case to `LEGACY_REPORT_LAYOUT` ("image-led"), NOT
+   * `DEFAULT_REPORT_CONFIG.layout`, so an old saved report keeps rendering
+   * exactly what it always has. A BRAND-NEW report gets
+   * `DEFAULT_REPORT_CONFIG.layout` (production-sheet as of the 2026-08-09
+   * default-recipe decision — see resolveReportLayout for the
+   * featureShotReportRecipes flag-off clamp).
+   */
   readonly layout?: ReportLayout
   /** Shot statuses to HIDE entirely (screen + PDF). Defaults to [] (nothing hidden); an absent field default-merges to []. */
   readonly hiddenStatuses?: readonly ReportShotStatus[]
@@ -104,14 +112,67 @@ export interface ReportConfig {
   readonly sortDir?: SortDir
 }
 
+/**
+ * Default config for a BRAND-NEW shot report (no persisted doc yet, and no
+ * ?reportId= in the URL). `layout: "production-sheet"` is Ted's 2026-08-09
+ * decision (production-sheet becomes the default shot-report recipe, landing
+ * alongside PR #513 flipping `featureShotReportRecipes` ON in prod) — see
+ * `resolveReportLayout` for how the flag-off case still clamps to
+ * "image-led" regardless of this default, and `hydrateReportConfig` /
+ * `LEGACY_REPORT_LAYOUT` for why an EXISTING pre-R3 saved report does NOT
+ * inherit this value just because it's read after this change ships.
+ */
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   groupBy: "gender",
   excludedShotIds: [],
   looksMode: "all",
-  layout: "image-led",
+  layout: "production-sheet",
   hiddenStatuses: [],
   sortBy: "shot-number",
   sortDir: "asc",
+}
+
+/**
+ * Forward-compat floor for a persisted config with NO `layout` field at all
+ * (a genuinely pre-R3 doc, written before recipes existed). Frozen — this
+ * must stay "image-led" even after `DEFAULT_REPORT_CONFIG.layout` changes
+ * for NEW reports, or opening an old report silently "migrates" its layout
+ * the day the default flips. See reportTypes.test.ts "keeps a pre-R3 blob on
+ * image-led even after the shipped default changes".
+ */
+export const LEGACY_REPORT_LAYOUT: ReportLayout = "image-led"
+
+/**
+ * Hydrate a persisted (possibly legacy) ReportConfig for editing: fill every
+ * absent field from `DEFAULT_REPORT_CONFIG` EXCEPT `layout`, whose
+ * forward-compat floor is `LEGACY_REPORT_LAYOUT` — so a blob that has never
+ * carried a `layout` field keeps rendering the pre-recipes report it always
+ * has, independent of what NEW reports now default to. A blob that DOES
+ * carry a persisted `layout` (any value, including a past "image-led"
+ * choice) always wins over both floors — existing saved reports keep their
+ * persisted layout, full stop. This is what ShotReportPage's hydrate effect
+ * calls; kept here (not inlined) so the persistence-round-trip tests exercise
+ * the real function, not a copy of its logic.
+ */
+export function hydrateReportConfig(stored: Partial<ReportConfig>): ReportConfig {
+  return { ...DEFAULT_REPORT_CONFIG, layout: LEGACY_REPORT_LAYOUT, ...stored }
+}
+
+/**
+ * Recipes-flag rollback safety (independent of `neutralizeReportConfigForFlag`
+ * below, which gates the separate `featureReportConfig` flag). When
+ * `featureShotReportRecipes` is OFF, the resolved layout is ALWAYS
+ * "image-led" — regardless of `config.layout` or `DEFAULT_REPORT_CONFIG.layout`
+ * — so dev/preview (no env var) and any flag rollback render, export, AND
+ * persist exactly like the pre-recipes report. Single source for the 3 call
+ * sites (ReportView's screen render, ShotReportPage's PDF export, and
+ * ShotReportListPage's create-report persist path) so they can't drift from
+ * each other or silently pick up a future default-layout change while the
+ * flag is off.
+ */
+export function resolveReportLayout(config: ReportConfig, recipesEnabled: boolean): ReportLayout {
+  if (!recipesEnabled) return "image-led"
+  return config.layout ?? "image-led"
 }
 
 /**

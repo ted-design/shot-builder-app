@@ -24,7 +24,7 @@ import type {
 } from "./talentTypes"
 import { cropFocalPercents, cropZoomTransform } from "./talentTypes"
 import { initials } from "@/features/library/components/talentUtils"
-import { COLOR, FONT, PAGE, STATUS, has, breakLongToken } from "./reportPdfShared"
+import { COLOR, FONT, PAGE, STATUS, has, tokenHyphenation } from "./reportPdfShared"
 
 const PAD_X = 36
 const PAD_TOP = 34
@@ -384,7 +384,7 @@ function ContactItem({ k, value }: { readonly k: string; readonly value: string 
   return (
     <View style={s.contactItem}>
       <Text style={s.contactKey}>{k}</Text>
-      <Text style={s.contactValue}>{breakLongToken(value)}</Text>
+      <Text style={s.contactValue} hyphenationCallback={tokenHyphenation}>{value}</Text>
     </View>
   )
 }

@@ -32,6 +32,7 @@ import {
   DEFAULT_REPORT_CONFIG,
   REPORT_LAYOUT_LABEL,
   REPORT_LAYOUT_OPTIONS,
+  resolveReportLayout,
   type ReportConfig,
   type ReportLayout,
 } from "../../lib/report/reportTypes"
@@ -55,7 +56,15 @@ export default function ShotReportListPage() {
   const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
   const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
   const [newName, setNewName] = useState("")
-  const [recipe, setRecipe] = useState<ReportLayout>("image-led")
+  // Picker starts on the shipped default recipe (production-sheet as of the
+  // 2026-08-09 decision) rather than a hardcoded "image-led" literal, so it
+  // can't drift from DEFAULT_REPORT_CONFIG if the default changes again.
+  // DEFAULT_REPORT_CONFIG.layout is always set at runtime — the interface
+  // types it optional (a persisted blob can lack it) but the shipped default
+  // constant always carries a value, so an "?? image-led" fallback here was
+  // dead code that quietly reintroduced the hardcoded literal this comment
+  // says to avoid.
+  const [recipe, setRecipe] = useState<ReportLayout>(DEFAULT_REPORT_CONFIG.layout!)
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
   const [pendingRename, setPendingRename] = useState<{ id: string; name: string } | null>(null)
@@ -69,11 +78,14 @@ export default function ShotReportListPage() {
   const handleCreate = useCallback(async () => {
     setBusy(true)
     try {
-      // Recipes flag-off => always image-led, so the create config can't smuggle
-      // an unreviewed layout into prod.
+      // Recipes flag-off => always image-led (via the shared clamp, NOT a raw
+      // DEFAULT_REPORT_CONFIG spread — DEFAULT_REPORT_CONFIG.layout is now
+      // production-sheet, so spreading it verbatim would persist the new
+      // default into a doc created while the flag is off: dev/preview, or a
+      // flag rollback, would then smuggle an unreviewed layout into prod).
       const config = recipesEnabled
         ? { ...DEFAULT_REPORT_CONFIG, layout: recipe }
-        : DEFAULT_REPORT_CONFIG
+        : { ...DEFAULT_REPORT_CONFIG, layout: resolveReportLayout(DEFAULT_REPORT_CONFIG, recipesEnabled) }
       const id = await createShotReport(newName.trim() || "Untitled report", config)
       setNewName("")
       openReport(id)
@@ -90,7 +102,13 @@ export default function ShotReportListPage() {
       try {
         const full = await loadReport(sourceId)
         // This list only handles shot-report docs; config narrows to ReportConfig.
-        const sourceConfig = (full?.config as ReportConfig | undefined) ?? DEFAULT_REPORT_CONFIG
+        // createShotReport always writes a config, so the fallback below is
+        // defensive-only (a malformed/legacy doc) — still clamp its layout so
+        // that edge case can't smuggle the new default past a flag-off create.
+        const sourceConfig = (full?.config as ReportConfig | undefined) ?? {
+          ...DEFAULT_REPORT_CONFIG,
+          layout: resolveReportLayout(DEFAULT_REPORT_CONFIG, recipesEnabled),
+        }
         const id = await createShotReport(`${sourceName} (copy)`, sourceConfig)
         openReport(id)
       } catch {
@@ -99,7 +117,7 @@ export default function ShotReportListPage() {
         setBusy(false)
       }
     },
-    [createShotReport, loadReport, openReport],
+    [createShotReport, loadReport, openReport, recipesEnabled],
   )
 
   const handleDelete = useCallback(
