@@ -86,6 +86,21 @@ export function isAdmin(role: Role): boolean {
   return role === ROLE.ADMIN
 }
 
+// Roles that only see what they're explicitly assigned to (unlike admin/
+// producer, who get org-wide access via Firestore rules). Any surface that
+// pairs a role change with a project-assignment follow-up (InviteUserDialog,
+// UserRoleSelect, UserDetailPanel's reactivate flow) keys off this same
+// predicate so the three surfaces can't drift on which roles need it.
+const PROJECT_SCOPED_ROLES: readonly Role[] = [
+  ROLE.CREW,
+  ROLE.WAREHOUSE,
+  ROLE.VIEWER,
+]
+
+export function isProjectScopedRole(role: Role): boolean {
+  return PROJECT_SCOPED_ROLES.includes(role)
+}
+
 export function canManageCasting(role: Role): boolean {
   return role === ROLE.ADMIN || role === ROLE.PRODUCER
 }

@@ -225,5 +225,22 @@ describe("UserRoleSelect", () => {
       })
       expect(screen.queryByTestId("role-project-assignment-dialog")).not.toBeInTheDocument()
     })
+
+    it("does not render the dialog when the signed-in user's uid is unavailable", async () => {
+      // A dialog mounted with addedBy="" would let bulkAddProjectMembers
+      // write with no attribution and no way to fail loudly first (the
+      // Assign-button guard covers the disabled state; this covers not
+      // showing the dialog at all when there's no admin uid to attribute
+      // the write to).
+      mockAuth.mockReturnValue({ user: null })
+      renderSelect({ currentRole: "producer" })
+      fireEvent.click(screen.getByRole("combobox"))
+      fireEvent.click(screen.getByText("Crew"))
+
+      await waitFor(() => {
+        expect(mockUpdateUserRole).toHaveBeenCalled()
+      })
+      expect(screen.queryByTestId("role-project-assignment-dialog")).not.toBeInTheDocument()
+    })
   })
 })

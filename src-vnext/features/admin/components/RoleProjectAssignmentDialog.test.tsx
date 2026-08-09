@@ -51,15 +51,26 @@ vi.mock("@/features/projects/hooks/useProjects", () => ({
 // Stand in for the real picker with a minimal control surface: one fake
 // project (p1) that can be toggled on/off, plus the existingProjectIds prop
 // surfaced as text so tests can assert the dialog wired it through.
+//
+// The toggle honors `defaultRole` (as the real ProjectAssignmentPicker does
+// via its handleToggle — see ProjectAssignmentPicker.tsx:68) instead of
+// hardcoding "crew". A prior version of this mock hardcoded role: "crew"
+// regardless of what the dialog passed as defaultRole, so every assertion on
+// the written member-doc role was test theater — it would have passed
+// identically even if RoleProjectAssignmentDialog stopped forwarding newRole
+// as defaultRole entirely. Mutation check: delete `defaultRole={newRole}` in
+// RoleProjectAssignmentDialog.tsx and the "warehouse" test below reddens.
 vi.mock("./ProjectAssignmentPicker", () => ({
   ProjectAssignmentPicker: ({
     assignments,
     onChange,
     existingProjectIds,
+    defaultRole,
   }: {
     assignments: readonly { projectId: string; projectName: string; role: string }[]
     onChange: (a: readonly { projectId: string; projectName: string; role: string }[]) => void
     existingProjectIds?: ReadonlySet<string>
+    defaultRole?: string
   }) => (
     <>
       <button
@@ -68,7 +79,10 @@ vi.mock("./ProjectAssignmentPicker", () => ({
           if (assignments.some((a) => a.projectId === "p1")) {
             onChange(assignments.filter((a) => a.projectId !== "p1"))
           } else {
-            onChange([...assignments, { projectId: "p1", projectName: "Project One", role: "crew" }])
+            onChange([
+              ...assignments,
+              { projectId: "p1", projectName: "Project One", role: defaultRole ?? "crew" },
+            ])
           }
         }}
       >
@@ -186,6 +200,32 @@ describe("RoleProjectAssignmentDialog", () => {
     })
   })
 
+  it("writes the member doc with newRole, not a hardcoded role — proven with warehouse", async () => {
+    // Regression for the test-theater gap: the mock used to hardcode
+    // role: "crew" no matter what defaultRole it received, so this
+    // assertion would have passed even against a dialog that never wired
+    // `defaultRole={newRole}` at all. Now the mock derives the written role
+    // from defaultRole, so this actually exercises that wiring.
+    renderDialog({
+      userId: "u2",
+      userEmail: "warehouse@example.com",
+      newRole: "warehouse",
+      addedBy: "admin-1",
+      clientId: "c1",
+    })
+    fireEvent.click(screen.getByText("toggle-project-one"))
+    fireEvent.click(screen.getByRole("button", { name: /assign \(1\)/i }))
+
+    await waitFor(() => {
+      expect(mockBulkAddProjectMembers).toHaveBeenCalledWith({
+        assignments: [{ projectId: "p1", projectName: "Project One", role: "warehouse" }],
+        userId: "u2",
+        addedBy: "admin-1",
+        clientId: "c1",
+      })
+    })
+  })
+
   it("closes without writing when Skip is clicked", () => {
     const { onOpenChange } = renderDialog()
     fireEvent.click(screen.getByRole("button", { name: /skip/i }))
@@ -204,6 +244,31 @@ describe("RoleProjectAssignmentDialog", () => {
     })
   })
 
+  it("disables Assign when clientId or addedBy is missing, even with a project selected", () => {
+    // handleAssign already bails on !clientId / !addedBy — this pins the
+    // button's disabled state to match, so a caller that fails to guard its
+    // own render (e.g. skips the user?.uid check before mounting this
+    // dialog) gets a visibly-dead button instead of a click that silently
+    // no-ops.
+    renderDialog({ addedBy: "" })
+    fireEvent.click(screen.getByText("toggle-project-one"))
+    expect(screen.getByRole("button", { name: /assign \(1\)/i })).toBeDisabled()
+  })
+
+  it("keeps Skip enabled even when clientId/addedBy are missing", () => {
+    renderDialog({ addedBy: "" })
+    expect(screen.getByRole("button", { name: /skip/i })).toBeEnabled()
+  })
+
+  // Once UserRoleSelect / UserDetailPanel split "mount" from "open" (so this
+  // dialog stays mounted across a close, matching ProjectAccessTab's
+  // AddProjectMemberDialog pattern), a real open:true -> false -> true
+  // transition on ONE instance is exactly what happens when an admin
+  // reactivates/re-role-changes a user a second time. This test used to be
+  // the only thing exercising that transition — before the split, the
+  // parent unmounted and remounted a fresh instance on every open, so the
+  // reset-on-reopen effect below was dead code in production. It is a real,
+  // reachable path now; kept rather than dropped.
   it("resets assignments when reopened", () => {
     const { rerender } = renderDialog({ open: true })
     fireEvent.click(screen.getByText("toggle-project-one"))

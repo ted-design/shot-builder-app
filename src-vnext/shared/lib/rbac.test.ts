@@ -12,6 +12,7 @@ import {
   canEditScene,
   canRestoreVersions,
   roleRank,
+  isProjectScopedRole,
 } from "./rbac"
 
 describe("normalizeRole", () => {
@@ -253,6 +254,24 @@ describe("roleRank", () => {
 
   it("treats crew and warehouse as lateral (equal rank, no downgrade either way)", () => {
     expect(roleRank("crew")).toBe(roleRank("warehouse"))
+  })
+})
+
+describe("isProjectScopedRole", () => {
+  // Single source of truth for which roles need an explicit project-assignment
+  // follow-up (InviteUserDialog, UserRoleSelect, UserDetailPanel's reactivate
+  // flow all key off this). admin/producer get org-wide access via rules and
+  // must stay false here, or every one of those follow-up dialogs fires for
+  // roles that never needed it.
+  it("crew, warehouse, viewer are project-scoped", () => {
+    expect(isProjectScopedRole("crew")).toBe(true)
+    expect(isProjectScopedRole("warehouse")).toBe(true)
+    expect(isProjectScopedRole("viewer")).toBe(true)
+  })
+
+  it("admin and producer are NOT project-scoped (org-wide access via rules)", () => {
+    expect(isProjectScopedRole("admin")).toBe(false)
+    expect(isProjectScopedRole("producer")).toBe(false)
   })
 })
 

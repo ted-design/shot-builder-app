@@ -145,7 +145,10 @@ export function RoleProjectAssignmentDialog({
           <Button variant="outline" onClick={handleSkip} disabled={saving}>
             Skip
           </Button>
-          <Button onClick={handleAssign} disabled={saving || assignments.length === 0}>
+          <Button
+            onClick={handleAssign}
+            disabled={saving || assignments.length === 0 || !clientId || !addedBy}
+          >
             {saving
               ? "Saving..."
               : `Assign${assignments.length > 0 ? ` (${assignments.length})` : ""}`}
@@ -170,7 +173,10 @@ export function RoleProjectAssignmentDialog({
         />
 
         {hasNoAssignments && (
-          <div className="flex items-start gap-2 rounded-md border p-3 bg-[var(--color-status-amber-bg)] border-[var(--color-status-amber-border)] text-[var(--color-status-amber-text)]">
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border p-3 bg-[var(--color-status-amber-bg)] border-[var(--color-status-amber-border)] text-[var(--color-status-amber-text)]"
+          >
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p className="text-sm">
               {userEmail} can&apos;t see any projects yet. Skipping leaves them with no
