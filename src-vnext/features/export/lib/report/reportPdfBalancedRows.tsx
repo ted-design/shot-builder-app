@@ -7,7 +7,7 @@ import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ReportGroup, ReportLook, ReportModel, ReportProduct, ReportShot } from "./reportTypes"
 import { formatOrderNote } from "./reportTypes"
-import { COLOR, FONT, PAGE, STATUS, breakLongToken, has, primaryLookImage } from "./reportPdfShared"
+import { COLOR, FONT, PAGE, STATUS, has, primaryLookImage, tokenHyphenation } from "./reportPdfShared"
 import { sizeLabel } from "./reportModel"
 
 const PAD_X = 34
@@ -100,7 +100,7 @@ function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
           {p.isHero ? <Text style={s.heroTag}>{"  HERO"}</Text> : null}
         </Text>
       </View>
-      <Text style={[s.style, s.cStyle, ...(has(p.style) ? [] : [s.muted])]}>{has(p.style) ? breakLongToken(p.style) : "—"}</Text>
+      <Text style={[s.style, s.cStyle, ...(has(p.style) ? [] : [s.muted])]} hyphenationCallback={tokenHyphenation}>{has(p.style) ? p.style : "—"}</Text>
       <Text style={[s.colour, s.cColour, ...(has(p.colour) ? [] : [s.muted])]}>{has(p.colour) ? p.colour : "—"}</Text>
       <Text style={[s.size, s.cSize, ...(sizePending ? [s.muted] : [])]}>{sizeText}</Text>
       <Text style={[s.qty, s.cQty]}>{p.qty != null ? `×${p.qty}` : "—"}</Text>

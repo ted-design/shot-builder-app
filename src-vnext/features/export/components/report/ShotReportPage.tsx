@@ -10,7 +10,13 @@ import {
   collectReportImageCandidates,
   resolveReportImages,
 } from "../../lib/report/reportImages"
-import { DEFAULT_REPORT_CONFIG, neutralizeReportConfigForFlag, type ReportConfig } from "../../lib/report/reportTypes"
+import {
+  DEFAULT_REPORT_CONFIG,
+  hydrateReportConfig,
+  neutralizeReportConfigForFlag,
+  resolveReportLayout,
+  type ReportConfig,
+} from "../../lib/report/reportTypes"
 import { ReportView } from "./ReportView"
 
 // Integration layer: live export data -> resolved model -> image sidecar ->
@@ -53,7 +59,12 @@ export default function ShotReportPage() {
         // Cross-type guard: a pasted cross-type reportId must not clobber that doc's config.
         if (full.reportType !== "shot-report") return
         const loaded = full.config as ReportConfig | undefined
-        setConfig(loaded ? { ...DEFAULT_REPORT_CONFIG, ...loaded } : DEFAULT_REPORT_CONFIG)
+        // hydrateReportConfig (not a raw {...DEFAULT_REPORT_CONFIG, ...loaded}
+        // spread) so a genuinely pre-R3 blob missing `layout` floors to
+        // "image-led" — the pre-recipes report it always rendered — instead of
+        // silently picking up DEFAULT_REPORT_CONFIG's current (production-sheet)
+        // default. A blob that DOES carry a persisted layout always wins.
+        setConfig(loaded ? hydrateReportConfig(loaded) : DEFAULT_REPORT_CONFIG)
         hydratedReportIdRef.current = reportId
       })
       .catch(() => {
@@ -133,10 +144,9 @@ export default function ShotReportPage() {
     void (async () => {
       const { generateShotReportPdf } = await import("../../lib/report/reportPdf")
       // Recipes ride their own flag; flag-off forces image-led so the PDF matches
-      // the on-screen layout (which ReportView also forces to image-led).
-      const layout = isFeatureEnabled("featureShotReportRecipes")
-        ? (config.layout ?? "image-led")
-        : "image-led"
+      // the on-screen layout (which ReportView also forces to image-led via the
+      // same resolveReportLayout — single source, can't drift).
+      const layout = resolveReportLayout(config, isFeatureEnabled("featureShotReportRecipes"))
       await generateShotReportPdf(
         model,
         imageMap,

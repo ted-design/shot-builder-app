@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { DEFAULT_REPORT_CONFIG, type ReportConfig } from "../reportTypes"
+import {
+  DEFAULT_REPORT_CONFIG,
+  LEGACY_REPORT_LAYOUT,
+  hydrateReportConfig,
+  resolveReportLayout,
+  type ReportConfig,
+} from "../reportTypes"
 import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
 import { DEFAULT_TALENT_CONFIG, type TalentConfig } from "../talentTypes"
 
@@ -10,33 +16,52 @@ describe("ReportConfig persistence round-trip", () => {
   })
 
   it("default-merges a pre-looksMode blob, filling looksMode from the default", () => {
-    // How ShotReportPage hydrates a persisted config; forward-compatible by design.
-    // An older blob written before looksMode existed must hydrate to looksMode "all".
+    // hydrateReportConfig is the REAL fn ShotReportPage calls to hydrate a
+    // persisted config — not a copy of its merge logic — so this breaks if
+    // that code path ever diverges. An older blob written before looksMode
+    // existed must hydrate to looksMode "all".
     const stored = JSON.parse('{"groupBy":"none","excludedShotIds":["x"]}')
-    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    const hydrated = hydrateReportConfig(stored)
     expect(hydrated.groupBy).toBe("none")
     expect(hydrated.excludedShotIds).toEqual(["x"])
     expect(hydrated.looksMode).toBe("all")
   })
 
-  it("default-merges a pre-layout blob to layout 'image-led' (R3 forward-compat)", () => {
-    // A pre-R3 shot-report doc has no layout — it must hydrate to the shipped image-led layout.
+  it("default-merges a pre-layout blob to LEGACY_REPORT_LAYOUT 'image-led' (R3 forward-compat) — even though DEFAULT_REPORT_CONFIG.layout is now a different value", () => {
+    // A pre-R3 shot-report doc has no layout at all — it must hydrate to the
+    // shipped image-led layout it always rendered, NOT to whatever NEW
+    // reports currently default to. Pin both sides of the decoupling so a
+    // future "just re-point the floor at the default" edit goes red here.
+    expect(DEFAULT_REPORT_CONFIG.layout).not.toBe("image-led")
+    expect(DEFAULT_REPORT_CONFIG.layout).toBe("production-sheet")
     const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all"}')
-    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    const hydrated = hydrateReportConfig(stored)
+    expect(hydrated.layout).toBe(LEGACY_REPORT_LAYOUT)
     expect(hydrated.layout).toBe("image-led")
+  })
+
+  it("a persisted layout ALWAYS wins over both the legacy floor and the current default", () => {
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"layout":"balanced-rows"}')
+    expect(hydrateReportConfig(stored).layout).toBe("balanced-rows")
+    const storedImageLed = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"layout":"image-led"}')
+    expect(hydrateReportConfig(storedImageLed).layout).toBe("image-led")
+  })
+
+  it("a brand-new report (no persisted doc) defaults to layout 'production-sheet' (2026-08-09 decision)", () => {
+    expect(DEFAULT_REPORT_CONFIG.layout).toBe("production-sheet")
   })
 
   it("default-merges a pre-hiddenStatuses blob to hiddenStatuses [] (R3-filter forward-compat)", () => {
     // A blob written before the status filter existed must hydrate to [] -> nothing hidden.
     const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led"}')
-    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    const hydrated = hydrateReportConfig(stored)
     expect(hydrated.hiddenStatuses).toEqual([])
   })
 
   it("default-merges a pre-Phase-B blob to sortBy 'shot-number' / sortDir 'asc' (R2 forward-compat)", () => {
     // A blob written before order-by existed must hydrate to the shipped legacy order.
     const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led","hiddenStatuses":[]}')
-    const hydrated: ReportConfig = { ...DEFAULT_REPORT_CONFIG, ...stored }
+    const hydrated = hydrateReportConfig(stored)
     expect(hydrated.sortBy).toBe("shot-number")
     expect(hydrated.sortDir).toBe("asc")
   })
@@ -44,6 +69,37 @@ describe("ReportConfig persistence round-trip", () => {
   it("round-trips sortBy/sortDir + the widened groupBy 'status' through JSON unchanged", () => {
     const config: ReportConfig = { groupBy: "status", excludedShotIds: [], sortBy: "talent", sortDir: "desc" }
     expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("resolveReportLayout — featureShotReportRecipes flag-off clamp", () => {
+  it("flag OFF always resolves to image-led, even for a fresh DEFAULT_REPORT_CONFIG (the mutation-check the 2026-08-09 default-recipe change must survive)", () => {
+    // DEFAULT_REPORT_CONFIG.layout is production-sheet — a naive
+    // `config.layout ?? "image-led"` with no flag branch would leak it
+    // through here. This is exactly the ShotReportListPage.handleCreate
+    // flag-off create path: a fresh default config, flag off.
+    expect(resolveReportLayout(DEFAULT_REPORT_CONFIG, false)).toBe("image-led")
+  })
+
+  it("flag OFF clamps to image-led even when config.layout explicitly carries a different recipe", () => {
+    const config: ReportConfig = { groupBy: "gender", excludedShotIds: [], layout: "balanced-rows" }
+    expect(resolveReportLayout(config, false)).toBe("image-led")
+  })
+
+  it("flag ON resolves DEFAULT_REPORT_CONFIG.layout (production-sheet) for a fresh config", () => {
+    expect(resolveReportLayout(DEFAULT_REPORT_CONFIG, true)).toBe("production-sheet")
+  })
+
+  it("flag ON respects an explicit persisted choice of any recipe", () => {
+    const imageLed: ReportConfig = { groupBy: "gender", excludedShotIds: [], layout: "image-led" }
+    const balanced: ReportConfig = { groupBy: "gender", excludedShotIds: [], layout: "balanced-rows" }
+    expect(resolveReportLayout(imageLed, true)).toBe("image-led")
+    expect(resolveReportLayout(balanced, true)).toBe("balanced-rows")
+  })
+
+  it("flag ON with layout absent falls back to image-led (matches the pre-R3-blob hydrate floor)", () => {
+    const config = { groupBy: "gender", excludedShotIds: [] } as ReportConfig
+    expect(resolveReportLayout(config, true)).toBe("image-led")
   })
 })
 

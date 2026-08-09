@@ -28,6 +28,7 @@ import {
   REPORT_LAYOUT_OPTIONS,
   REPORT_SORT_FIELD_OPTIONS,
   REPORT_STATUS_OPTIONS,
+  resolveReportLayout,
 } from "../../lib/report/reportTypes"
 import type { SortDir } from "../../lib/report/reportSort"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
@@ -649,10 +650,11 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const [printMode, setPrintMode] = useState(false)
 
   // Recipes ride their own flag; flag-off forces image-led so prod is byte-identical
-  // to the live R1/R2 report regardless of any persisted config.layout.
+  // to the live R1/R2 report regardless of any persisted config.layout (or of
+  // DEFAULT_REPORT_CONFIG.layout — resolveReportLayout ignores both when off).
   const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
   const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
-  const layout: ReportLayout = recipesEnabled ? (config.layout ?? "image-led") : "image-led"
+  const layout: ReportLayout = resolveReportLayout(config, recipesEnabled)
 
   const toggleExclude = (shotId: string): void => {
     const set = new Set(config.excludedShotIds)
