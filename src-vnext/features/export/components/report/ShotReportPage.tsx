@@ -60,11 +60,15 @@ export default function ShotReportPage() {
         if (full.reportType !== "shot-report") return
         const loaded = full.config as ReportConfig | undefined
         // hydrateReportConfig (not a raw {...DEFAULT_REPORT_CONFIG, ...loaded}
-        // spread) so a genuinely pre-R3 blob missing `layout` floors to
-        // "image-led" — the pre-recipes report it always rendered — instead of
-        // silently picking up DEFAULT_REPORT_CONFIG's current (production-sheet)
-        // default. A blob that DOES carry a persisted layout always wins.
-        setConfig(loaded ? hydrateReportConfig(loaded) : DEFAULT_REPORT_CONFIG)
+        // spread, and NOT a bare DEFAULT_REPORT_CONFIG when `loaded` is
+        // undefined) so a genuinely pre-R3 blob missing `config` entirely — or
+        // missing just `layout` — floors to "image-led", the pre-recipes report
+        // it always rendered, instead of silently picking up
+        // DEFAULT_REPORT_CONFIG's current (production-sheet) default. `loaded ??
+        // {}` matters: a bare `DEFAULT_REPORT_CONFIG` fallback here would hand a
+        // no-config legacy doc the NEW default, and the next save would persist
+        // it. A blob that DOES carry a persisted layout always wins.
+        setConfig(hydrateReportConfig(loaded ?? {}))
         hydratedReportIdRef.current = reportId
       })
       .catch(() => {

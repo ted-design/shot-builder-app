@@ -79,7 +79,34 @@ const BREAKABLE = new Set(["/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%"
  * injection. @react-pdf rejoins these parts byte-for-byte when a line doesn't
  * need to break, so a typical token (up to ~16 chars) always renders as one
  * contiguous run; only a token that's actually too wide for its column gets a
- * real line break (with a drawn hyphen, same as dictionary hyphenation).
+ * real line break.
+ *
+ * IMPORTANT — @react-pdf/textkit draws a REAL "-" (U+002D) glyph at every
+ * wrap it takes at a syllable boundary. This is unconditional: `breakLines`
+ * (textkit's line-break executor) calls `insertGlyph(line.length, HYPHEN,
+ * line)` for any break whose preceding syllable isn't followed by a literal
+ * space, with no way to opt a specific break out of it. So the break
+ * character MUST be the first character of the FOLLOWING syllable, never the
+ * last character of the preceding one — otherwise the natural break char
+ * (already present in the token) collides with textkit's own drawn hyphen and
+ * doubles: syllables ending "...W-", "TP-", ... would render
+ * "W--TP--LS--1066" wherever a wrap actually lands. Emitting the break char
+ * at the head of the next part instead — "W", "-TP", "-LS", "-1066" — means a
+ * wrap after "W" draws its hyphen there ("W-") and the following line starts
+ * clean with the token's own "-TP..."; no double hyphen ON THE SAME LINE, and
+ * no spurious "-" gets inserted next to a "@" or "." in a talent email/URL
+ * either. Verified two ways (see reportPdfShared.test.ts + the render suite
+ * reportRecipeStyleTokenSpacing.test.tsx): a unit-level check that no
+ * syllable both ends AND the next syllable starts with a breakable char
+ * (so a same-line "--" is structurally impossible), and a real
+ * renderToBuffer + content-stream text extraction confirming a token that
+ * FITS on one line (no wrap at all) round-trips byte-for-byte with no "--".
+ * A token forced to wrap across MULTIPLE physical lines is not checked this
+ * way — the flattened extractor concatenates separate lines' text runs with
+ * no line-boundary awareness, so it reports a same-string "--" at every wrap
+ * regardless of whether this fix is applied (that's an extractor blind spot,
+ * not a rendering defect — the unit-level check above is what actually
+ * proves the same-line property for that case).
  *
  * Previously this injected a literal U+200B between every breakable character.
  * That broke on real data: @react-pdf's non-embedded base-14 Helvetica path
@@ -95,14 +122,20 @@ const BREAKABLE = new Set(["/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%"
 export function hyphenateToken(word: string, chunk = 14): readonly string[] {
   const parts: string[] = []
   let current = ""
-  let run = 0
   for (const ch of word) {
+    // A breakable char starts the NEXT syllable (not ends this one) — see the
+    // doubled-hyphen note above. Guard current.length>0 so a token that opens
+    // with a breakable char (rare; e.g. a leading "-") doesn't emit a
+    // leading empty syllable.
+    if (BREAKABLE.has(ch) && current.length > 0) {
+      parts.push(current)
+      current = ch
+      continue
+    }
     current += ch
-    run += 1
-    if (BREAKABLE.has(ch) || run >= chunk) {
+    if (current.length >= chunk) {
       parts.push(current)
       current = ""
-      run = 0
     }
   }
   if (current) parts.push(current)

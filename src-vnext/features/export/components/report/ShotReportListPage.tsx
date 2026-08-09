@@ -59,7 +59,12 @@ export default function ShotReportListPage() {
   // Picker starts on the shipped default recipe (production-sheet as of the
   // 2026-08-09 decision) rather than a hardcoded "image-led" literal, so it
   // can't drift from DEFAULT_REPORT_CONFIG if the default changes again.
-  const [recipe, setRecipe] = useState<ReportLayout>(DEFAULT_REPORT_CONFIG.layout ?? "image-led")
+  // DEFAULT_REPORT_CONFIG.layout is always set at runtime — the interface
+  // types it optional (a persisted blob can lack it) but the shipped default
+  // constant always carries a value, so an "?? image-led" fallback here was
+  // dead code that quietly reintroduced the hardcoded literal this comment
+  // says to avoid.
+  const [recipe, setRecipe] = useState<ReportLayout>(DEFAULT_REPORT_CONFIG.layout!)
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
   const [pendingRename, setPendingRename] = useState<{ id: string; name: string } | null>(null)

@@ -22,12 +22,15 @@
 // contiguous run. Comment out the `hyphenationCallback` prop + restore
 // `breakLongToken(p.style)` in reportPdfProductionSheet.tsx to mutation-check:
 // the assertion goes red.
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import { inflateSync } from "node:zlib"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { ProductionSheetPdfDocument } from "../../../lib/report/reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "../../../lib/report/reportPdfBalancedRows"
+import { TalentPdfDocument } from "../../../lib/report/reportPdfTalent"
 import type { ReportModel, ReportShot } from "../../../lib/report/reportTypes"
+import { DEFAULT_HEADSHOT_CROP } from "../../../lib/report/talentTypes"
+import type { TalentModel } from "../../../lib/report/talentTypes"
 
 /**
  * Minimal PDF text-showing extractor for a base-14 (non-embedded, WinAnsi)
@@ -169,6 +172,14 @@ function modelWithStyle(style: string): ReportModel {
 const STYLE = "W-TP-LS-1066"
 
 describe("recipe PDF style-number spacing — a typical style # must render as ONE unbroken token", () => {
+  // console.warn is spied per-test (not module-level) so each `it` restores its
+  // own spy — but the restore must run AFTER the assertions read warn.mock.calls,
+  // never before (mockRestore clears recorded calls, same as mockReset). Mirrors
+  // reportRecipeOverflow.test.tsx's beforeEach/afterEach shape.
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it("production-sheet: extracted PDF text contains the style number contiguously, no inserted space", async () => {
     const buf = await renderToBuffer(
       <ProductionSheetPdfDocument model={modelWithStyle(STYLE)} imageMap={new Map()} />,
@@ -196,8 +207,11 @@ describe("recipe PDF style-number spacing — a typical style # must render as O
     const buf = await renderToBuffer(
       <ProductionSheetPdfDocument model={modelWithStyle(long)} imageMap={new Map()} />,
     )
-    warn.mockRestore()
     expect(buf.length).toBeGreaterThan(0)
+    // Read warn.mock.calls BEFORE any restore — vi.restoreAllMocks() in
+    // afterEach clears recorded calls (mockRestore ≡ mockReset + restore), so
+    // reading them here (not after an inline mockRestore()) is what makes this
+    // assertion falsifiable at all.
     const overflowWarning = warn.mock.calls
       .map((call) => call.map((a) => String(a)).join(" "))
       .some((line) => /can't wrap between pages|bigger than available page height/i.test(line))
@@ -208,5 +222,133 @@ describe("recipe PDF style-number spacing — a typical style # must render as O
     for (const chunk of long.split("-")) {
       expect(text).toContain(chunk)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// M2 — long-token coverage for the other two hyphenationCallback call sites
+// (BalancedRowsPdfDocument's style column, TalentPdfDocument's contact-value
+// email). The style-number cases above only exercised production-sheet's long
+// token; the M1 doubled-hyphen fix lives in the SHARED hyphenateToken, so a
+// wrap anywhere it's wired must never draw "--" or an unencodable U+000B.
+// Mutation check: reverting hyphenateToken's head-emission to the old
+// tail-emission (break char stays at the END of the preceding syllable)
+// reddens both — a wrap lands on a syllable already ending in "-", drawing a
+// second "-" right after it.
+// ---------------------------------------------------------------------------
+
+function talentModelWithEmail(email: string): TalentModel {
+  return {
+    project: { name: "Talent Contact Fixture", client: "unbound-merino", dateRange: null, talentCount: 1 },
+    groups: [
+      {
+        key: "W",
+        label: "Women",
+        count: 1,
+        items: [
+          {
+            id: "t1",
+            name: "Contact Value Talent",
+            gender: "W",
+            genderLabel: "Women",
+            agency: "Long Agency Co.",
+            email,
+            phone: null,
+            web: null,
+            headshot: null,
+            measurements: [],
+            excluded: false,
+            appears: [],
+            crop: DEFAULT_HEADSHOT_CROP,
+          },
+        ],
+      },
+    ],
+    layout: "detail",
+  }
+}
+
+describe("recipe PDF style-number spacing — M2 coverage for the other two hyphenationCallback call sites", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("balanced-rows: a pathologically long style number still renders with no can't-wrap warning, no reintroduced U+000B, and every chunk reaches the page", async () => {
+    // NOTE on what this can and can't prove: this token is intentionally long
+    // enough to wrap across SEVERAL physical lines in the style column. Once
+    // a wrap happens, @react-pdf/textkit draws its own "-" glyph as a
+    // SEPARATE text-showing op that closes that physical line, and the next
+    // line opens with the following syllable's own leading "-" — two
+    // genuinely different glyphs on two different lines, correct output. Our
+    // extractor only concatenates Tj/TJ operators in STREAM order with no
+    // line-boundary awareness (see its docstring: "NOT a general PDF
+    // parser"), so it flattens those two lines together and reports a
+    // same-string "--" for EVERY multi-line-wrapped token regardless of
+    // whether the fix is applied or reverted (verified empirically against
+    // both the fixed and pre-fix production-sheet renders — 5 "--" hits
+    // either way) — a `not.toContain("--")` assertion here would be a false
+    // positive on the extractor, not a real check. The unit-level "never
+    // draws two adjacent hyphens across a wrap point" test in
+    // reportPdfShared.test.ts covers the SAME-LINE doubling property
+    // directly, is genuinely falsifiable by reverting M1's head-emission,
+    // and doesn't share this blind spot. What real-render coverage on the
+    // wide/pathological case for THIS layout can still prove — and is worth
+    // proving, since balanced-rows wasn't exercised by the #508 overflow
+    // suite: no page-overflow warning, no reintroduced U+000B, no content lost.
+    const long = "PATHOLOGICALLY-LONG-STYLE-NUMBER-THAT-EXCEEDS-THE-COLUMN-WIDTH-1234567890"
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument model={modelWithStyle(long)} imageMap={new Map()} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    const overflowWarning = warn.mock.calls
+      .map((call) => call.map((a) => String(a)).join(" "))
+      .some((line) => /can't wrap between pages|bigger than available page height/i.test(line))
+    expect(overflowWarning).toBe(false)
+    const text = extractPdfText(buf)
+    // The OLD U+200B-injection bug's signature glyph (truncated to 0x0B) is a
+    // real character inserted INTO the string, independent of line wrapping —
+    // this check has no cross-line blind spot and would catch a regression
+    // to the pre-fix breakLongToken path.
+    expect(text).not.toContain("\u000B")
+    for (const chunk of long.split("-")) {
+      expect(text).toContain(chunk)
+    }
+  })
+
+  it("balanced-rows: a realistic long style number that still fits on one line round-trips byte-identical (no drawn hyphen at all)", async () => {
+    // Longer than the file's existing STYLE fixture ("W-TP-LS-1066", 12
+    // chars) but still under the style column's empirically-measured
+    // single-line budget (~20 chars of Helvetica-Bold at this column width —
+    // verified: a run of 20 "A"s still fits, 22 wraps), so unlike the
+    // pathological case above, a flattened-text "--" check here IS valid: no
+    // wrap means no drawn glyph, so the extracted text must equal the input
+    // exactly.
+    const long = "W-TP-LS-BLACK-1066"
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument model={modelWithStyle(long)} imageMap={new Map()} />,
+    )
+    const text = extractPdfText(buf)
+    expect(text).toContain(long)
+    expect(text).not.toContain("--")
+    expect(text).not.toContain("\u000B")
+  })
+
+  it("talent: a long agency email in a contact value renders with no '--' and no U+000B", async () => {
+    const long = "alexandra.whitfield-representation@a-very-long-talent-agency-domain-name.example.com"
+    const buf = await renderToBuffer(
+      <TalentPdfDocument model={talentModelWithEmail(long)} imageMap={new Map()} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    const text = extractPdfText(buf)
+    expect(text).not.toContain("--")
+    expect(text).not.toContain("\u000B")
+    // A short email (well under the column width) must still round-trip
+    // contiguously — the byte-identity guarantee for a fitting token.
+    const shortBuf = await renderToBuffer(
+      <TalentPdfDocument model={talentModelWithEmail("a@b.com")} imageMap={new Map()} />,
+    )
+    const shortText = extractPdfText(shortBuf)
+    expect(shortText).toContain("a@b.com")
   })
 })

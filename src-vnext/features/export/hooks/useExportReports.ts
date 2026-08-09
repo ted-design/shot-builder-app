@@ -21,7 +21,7 @@ import type {
   PageSettings,
   CustomVariable,
 } from "../types/exportBuilder"
-import type { ReportConfig, ReportLayout } from "../lib/report/reportTypes"
+import { LEGACY_REPORT_LAYOUT, type ReportConfig, type ReportLayout } from "../lib/report/reportTypes"
 import type { ProductInfoConfig } from "../lib/report/productInfoTypes"
 import type { TalentConfig } from "../lib/report/talentTypes"
 
@@ -106,7 +106,7 @@ export function mapReport(
     // Missing reportType => a legacy block-canvas doc (no migration).
     reportType: (data.reportType as ExportReportType) ?? "block-canvas",
     // Missing layout => image-led (the shipped recipe; pre-R3 docs render unchanged).
-    layout: config?.layout ?? "image-led",
+    layout: config?.layout ?? LEGACY_REPORT_LAYOUT,
     schemaVersion: (data.schemaVersion as number) ?? 1,
     updatedAt: ts?.toDate?.() ?? null,
     createdBy: (data.createdBy as string) ?? "",

@@ -13,13 +13,13 @@ describe("hyphenateToken", () => {
     expect(hyphenateToken(token).join("")).toBe(token)
   })
 
-  it("splits at every breakable character, keeping it attached to the preceding syllable", () => {
-    expect(hyphenateToken("W-TP-LS-1066")).toEqual(["W-", "TP-", "LS-", "1066"])
+  it("splits at every breakable character, keeping it attached to the FOLLOWING syllable (M1 fix — see reportPdfShared.ts docstring: @react-pdf/textkit draws an unconditional real hyphen at any syllable-boundary wrap, so a break char left at the tail of a syllable would double up with it)", () => {
+    expect(hyphenateToken("W-TP-LS-1066")).toEqual(["W", "-TP", "-LS", "-1066"])
   })
 
   it("splits at each of the / . ? & = _ - @ + : % # , ; break characters", () => {
     expect(hyphenateToken("a/b.c?d&e=f_g@h+i:j%k#l,m;n")).toEqual([
-      "a/", "b.", "c?", "d&", "e=", "f_", "g@", "h+", "i:", "j%", "k#", "l,", "m;", "n",
+      "a", "/b", ".c", "?d", "&e", "=f", "_g", "@h", "+i", ":j", "%k", "#l", ",m", ";n",
     ])
   })
 
@@ -42,6 +42,26 @@ describe("hyphenateToken", () => {
   })
 
   it("tokenHyphenation exposes hyphenateToken as a mutable string[] (the @react-pdf HyphenationCallback contract)", () => {
-    expect(tokenHyphenation("W-TP-LS-1066")).toEqual(["W-", "TP-", "LS-", "1066"])
+    expect(tokenHyphenation("W-TP-LS-1066")).toEqual(["W", "-TP", "-LS", "-1066"])
+  })
+
+  it("never draws two adjacent hyphens across a wrap point (M1): no syllable both ends AND the next syllable starts with a breakable char", () => {
+    // The doubling bug required a syllable ending in a breakable char
+    // immediately followed by @react-pdf's own drawn hyphen. Head-emission
+    // means only the FIRST syllable can lack a leading breakable char; every
+    // other syllable starts with one and none end with one, so a wrap can
+    // never produce "--".
+    const parts = hyphenateToken("W-TP-LS-1066")
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]!
+      if (i > 0) expect(BREAKABLE_FOR_TEST.has(p[0]!)).toBe(true)
+      expect(BREAKABLE_FOR_TEST.has(p[p.length - 1]!)).toBe(false)
+    }
   })
 })
+
+// Mirrors reportPdfShared.ts's private BREAKABLE set for the assertion above
+// (not exported — small enough to duplicate rather than export test-only surface).
+const BREAKABLE_FOR_TEST = new Set([
+  "/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%", "#", ",", ";",
+])
