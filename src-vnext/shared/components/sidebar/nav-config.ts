@@ -123,6 +123,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       },
       {
         type: "item",
+        item: { label: "Schedules", to: `${prefix}/schedules`, iconName: "calendar-days" },
+      },
+      {
+        type: "item",
         item: { label: "Call Sheet", to: `${prefix}/callsheet`, iconName: "calendar-days", desktopOnly: true },
       },
       {

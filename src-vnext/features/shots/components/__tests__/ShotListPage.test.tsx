@@ -730,6 +730,43 @@ describe("ShotListPage", () => {
     expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
   })
 
+  it("Export routes to the shot-reports list, not the superseded block-canvas export", () => {
+    mediaState.isDesktop = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedPathname: string | undefined
+    function PathnameObserver() {
+      const { pathname } = useLocation()
+      capturedPathname = pathname
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <PathnameObserver />
+              </>
+            }
+          />
+          <Route path="*" element={<PathnameObserver />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+    expect(capturedPathname).toBe("/projects/p1/export/reports")
+  })
+
   // ── 5e-II FAB ?create=1 consume-path gate (rules-vs-UI matrix item 5) ─────
 
   it("viewer + ?create=1: no dialog opens and the param is cleared without consuming the intent", async () => {

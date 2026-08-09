@@ -492,7 +492,7 @@ export default function ShotListPage() {
             {!isReviewSurface && (
               <>
                 {canExport && (
-                  <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
+                  <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export/reports`)}>
                     Export
                   </Button>
                 )}
@@ -545,7 +545,7 @@ export default function ShotListPage() {
           onShareOpen={() => setShareOpen(true)}
           onGroupSceneOpen={() => setGroupSceneOpen(true)}
           onMergeOpen={openMerge}
-          onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
+          onExportClick={() => navigate(`/projects/${projectId}/export/reports`)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
           onClearSelection={clearSelection}
@@ -601,6 +601,8 @@ export default function ShotListPage() {
             hasScenes={lanes.length > 0}
             displayCount={displayShots.length}
             totalCount={shots.length}
+            fields={fields}
+            onFieldsChange={setFields}
           />
 
           <KeyboardShortcutsDialog
