@@ -83,4 +83,21 @@ describe("LoginPage", () => {
 
     expect(screen.queryByTestId("emulator-login-form")).not.toBeInTheDocument()
   })
+
+  it("renders the 'built by Immediate' logo as the current SVG asset, not the legacy PNG", async () => {
+    const LoginPage = await loadLoginPage()
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+
+    const logos = screen.getAllByAltText("Immediate")
+    expect(logos.length).toBeGreaterThan(0)
+    // Light-mode variant (dark:hidden) is the one this test's jsdom renders by
+    // default (no `.dark` class on <html>) — assert its src explicitly.
+    const lightLogo = logos.find((img) => img.className.includes("dark:hidden"))
+    expect(lightLogo).toBeDefined()
+    expect(lightLogo).toHaveAttribute("src", "/images/brands/immediate-logo-black.svg")
+  })
 })
