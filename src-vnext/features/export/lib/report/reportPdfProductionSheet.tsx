@@ -5,7 +5,16 @@
 import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ReportGroup, ReportLook, ReportModel, ReportProduct, ReportShot } from "./reportTypes"
-import { COLOR, FONT, PAGE, STATUS, has, primaryLookImage, tokenHyphenation } from "./reportPdfShared"
+import {
+  COLOR,
+  FONT,
+  PAGE,
+  STATUS,
+  has,
+  primaryLookImage,
+  resolveAdditionalImageSrcs,
+  tokenHyphenation,
+} from "./reportPdfShared"
 import { sizeLabel } from "./reportModel"
 
 const PAD_X = 30
@@ -89,6 +98,16 @@ const s = StyleSheet.create({
   qty: { fontFamily: FONT.ui, fontSize: 6.5, color: COLOR.textSecondary },
   muted: { fontFamily: FONT.bodyItalic, color: COLOR.textSubtle },
 
+  // additional-images row (WS-C, 2026-08-11) — small supplementary thumbs,
+  // half the cover's 80x96 footprint (same 5:6 aspect), flex-wrap so a dense
+  // shot flows its extras across lines rather than forcing new pages. No
+  // wrap={false} anywhere in this block (or its container) — the shot must
+  // stay splittable, matching the #508 fix this recipe already depends on.
+  extraLabel: { fontFamily: FONT.uiBold, fontSize: 5, letterSpacing: 0.6, textTransform: "uppercase", color: COLOR.textSubtle, marginTop: 7, marginBottom: 3 },
+  extraRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  extraThumb: { width: 40, height: 48, backgroundColor: COLOR.surfaceSubtle, borderWidth: 0.5, borderColor: COLOR.rule, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  extraImg: { maxWidth: 40, maxHeight: 48, objectFit: "contain" },
+
   footer: { position: "absolute", bottom: 14, left: PAD_X, right: PAD_X, flexDirection: "row", justifyContent: "space-between", fontFamily: FONT.ui, fontSize: 6, color: COLOR.textDisabled, textTransform: "uppercase", letterSpacing: 0.5, borderTopWidth: 0.5, borderTopColor: COLOR.rule, paddingTop: 4 },
 })
 
@@ -121,7 +140,41 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
   )
 }
 
-function Row({ shot, imageMap }: { readonly shot: ReportShot; readonly imageMap: ReadonlyMap<string, string> }): JSX.Element {
+/** Additional-images row (WS-C): renders nothing when there's nothing extra
+ *  to show — the toggle is off, the shot has no additionalImages, or every
+ *  candidate failed to resolve. */
+function AdditionalImagesRow({
+  shot,
+  imageMap,
+}: {
+  readonly shot: ReportShot
+  readonly imageMap: ReadonlyMap<string, string>
+}): JSX.Element | null {
+  const srcs = resolveAdditionalImageSrcs(imageMap, shot.additionalImages)
+  if (srcs.length === 0) return null
+  return (
+    <View>
+      <Text style={s.extraLabel}>Additional references</Text>
+      <View style={s.extraRow}>
+        {srcs.map((src, i) => (
+          <View key={`${shot.id}-extra-${String(i)}`} style={s.extraThumb}>
+            <Image src={src} style={s.extraImg} />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+function Row({
+  shot,
+  imageMap,
+  showAdditionalImages,
+}: {
+  readonly shot: ReportShot
+  readonly imageMap: ReadonlyMap<string, string>
+  readonly showAdditionalImages: boolean
+}): JSX.Element {
   const flagged = shot.status === "on_hold"
   const st = STATUS[shot.status]
   const cand = primaryLookImage(shot)
@@ -157,6 +210,7 @@ function Row({ shot, imageMap }: { readonly shot: ReportShot; readonly imageMap:
         {shot.looks.map((lk) => (
           <LookBlock key={lk.id} look={lk} />
         ))}
+        {showAdditionalImages ? <AdditionalImagesRow shot={shot} imageMap={imageMap} /> : null}
       </View>
     </View>
   )
@@ -190,8 +244,12 @@ function GroupBand({ group }: { readonly group: ReportGroup }): JSX.Element {
 export function ProductionSheetPdfDocument(props: {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
+  /** WS-C additional-images toggle. Absent/false renders byte-identical to
+   *  pre-WS-C output — no new element in the tree at all (AdditionalImagesRow
+   *  is never invoked, not merely invoked-and-empty). */
+  readonly showAdditionalImages?: boolean
 }): JSX.Element {
-  const { model, imageMap } = props
+  const { model, imageMap, showAdditionalImages = false } = props
   // Count only printable shots — the rows omit excluded, so the masthead must too.
   const all = model.groups.flatMap((g) => g.shots).filter((x) => !x.excluded)
   const women = all.filter((x) => x.gender === "W").length
@@ -242,7 +300,7 @@ export function ProductionSheetPdfDocument(props: {
             <View key={group.key}>
               <GroupBand group={{ ...group, count: printable.length }} />
               {printable.map((shot) => (
-                <Row key={shot.id} shot={shot} imageMap={imageMap} />
+                <Row key={shot.id} shot={shot} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
               ))}
             </View>
           )

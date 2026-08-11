@@ -15,13 +15,22 @@ import type {
   ReportShot,
 } from "../../lib/report/reportTypes"
 import { formatOrderNote } from "../../lib/report/reportTypes"
-import { present, primaryLookImage, resolveSrc, statusMeta } from "./reportShared"
+import {
+  present,
+  primaryLookImage,
+  resolveAdditionalImageSrcs,
+  resolveSrc,
+  statusMeta,
+} from "./reportShared"
 import { sizeLabel } from "../../lib/report/reportModel"
 
 interface BodyProps {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  /** WS-C additional-images toggle. Absent/false renders byte-identical to
+   *  pre-WS-C output — AdditionalImagesRow is never invoked. */
+  readonly showAdditionalImages?: boolean
 }
 
 const GENDER_LABEL: Record<GenderKey, string> = { W: "Women", M: "Men", Mixed: "Mixed", "?": "Unresolved" }
@@ -77,16 +86,49 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
   )
 }
 
+/** Additional-images row (WS-C): renders nothing when there's nothing extra
+ *  to show — the toggle is off, the shot has no additionalImages, or every
+ *  candidate failed to resolve. */
+function AdditionalImagesRow({
+  shot,
+  imageMap,
+}: {
+  readonly shot: ReportShot
+  readonly imageMap: ReadonlyMap<string, string>
+}): JSX.Element | null {
+  const srcs = resolveAdditionalImageSrcs(imageMap, shot.additionalImages)
+  if (srcs.length === 0) return null
+  return (
+    <div className="sb-br-extra">
+      <span className="sb-br-extra-label">Additional references</span>
+      <div className="sb-br-extra-row">
+        {srcs.map((src, i) => (
+          <div className="sb-br-extra-thumb" key={`${shot.id}-extra-${i}`}>
+            <img
+              className="sb-img-native"
+              src={src}
+              alt={`${shot.title} — additional reference ${i + 1}`}
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Band({
   shot,
   imageMap,
   zebra,
   onToggleExclude,
+  showAdditionalImages,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly zebra: boolean
   readonly onToggleExclude: (shotId: string) => void
+  readonly showAdditionalImages: boolean
 }): JSX.Element {
   const imgSrc = resolveSrc(imageMap, primaryLookImage(shot))
   const st = statusMeta(shot.status)
@@ -155,6 +197,7 @@ function Band({
             <LookBlock key={lk.id} look={lk} />
           ))}
         </div>
+        {showAdditionalImages ? <AdditionalImagesRow shot={shot} imageMap={imageMap} /> : null}
       </div>
     </div>
   )
@@ -222,7 +265,35 @@ type Item =
 
 const PAGE_CAP = 4.0
 
-function buildStream(model: ReportModel): readonly Item[] {
+// Additional-images row weight (WS-C) — SCALES with thumb count, same fix and
+// same rationale as ProductionSheetReport.tsx's extraImagesWeight (a flat
+// per-shot bump under-charges a shot with many references far worse than one
+// with few, and `.sb-br-page` growing past its `min-height` under `@media
+// print { break-after: page }` produces a mis-placed footer / part-blank
+// physical page rather than a silent clip — still a pagination-fidelity bug).
+// Calibrated against reportStyles.ts, safety margin over the measured figure:
+//   - 1 weight unit = 177.6px (PAGE_CAP 4.0 over .sb-br-page's 7.4in content
+//     box: width 11in n/a here, padding 0.5in top / 0.55in sides / 0.6in
+//     bottom -> 8.5in - 0.5in - 0.6in = 7.4in)
+//   - thumbs per PRINT-mode line = 6 (panel width: page content 9.9in minus
+//     .sb-br-page 4px*2 print-mode band padding minus print --br-img-col 250px
+//     minus print .sb-br-band gap 22px ≈ 670px usable; .sb-br-extra-thumb 90px
+//     + .sb-br-extra-row gap 8px = 98px/thumb)
+//   - one line ≈ .sb-br-extra margin-top 14 + label (9px * 1.5 line-height) +
+//     margin-bottom 7 + thumb height 64px ≈ 98.5px ≈ 0.55 units — charged 0.6
+//   - each further wrapped line ≈ gap 8 + thumb 64 ≈ 72px ≈ 0.41 units —
+//     charged 0.45 for margin
+const EXTRA_THUMBS_PER_LINE = 6
+const EXTRA_FIRST_LINE_UNITS = 0.6
+const EXTRA_WRAP_LINE_UNITS = 0.45
+
+export function extraImagesWeight(count: number): number {
+  if (count <= 0) return 0
+  const lines = Math.ceil(count / EXTRA_THUMBS_PER_LINE)
+  return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
+}
+
+function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
   let z = 0
   for (const group of model.groups) {
@@ -231,15 +302,20 @@ function buildStream(model: ReportModel): readonly Item[] {
     stream.push({ kind: "group", group: { ...group, count: printable.length }, h: 0.8 })
     for (const shot of printable) {
       const multi = shot.looks.length > 1
-      stream.push({ kind: "band", shot, zebra: z % 2 === 1, h: multi ? 1.7 : 1.0 })
+      let h = multi ? 1.7 : 1.0
+      // Additional-images row (WS-C): see extraImagesWeight above. No-op when
+      // the toggle is off or the shot has nothing extra, so default-off
+      // pagination stays byte-identical to pre-WS-C.
+      if (showAdditionalImages) h += extraImagesWeight(shot.additionalImages?.length ?? 0)
+      stream.push({ kind: "band", shot, zebra: z % 2 === 1, h })
       z += 1
     }
   }
   return stream
 }
 
-function paginate(model: ReportModel): readonly (readonly Item[])[] {
-  const stream = buildStream(model)
+function paginate(model: ReportModel, showAdditionalImages: boolean): readonly (readonly Item[])[] {
+  const stream = buildStream(model, showAdditionalImages)
   const pages: Item[][] = [[]]
   let curH = 0
   stream.forEach((item, i) => {
@@ -263,8 +339,8 @@ function paginate(model: ReportModel): readonly (readonly Item[])[] {
   return pages
 }
 
-function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
-  const pages = useMemo(() => paginate(model), [model])
+function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = false }: BodyProps): JSX.Element {
+  const pages = useMemo(() => paginate(model, showAdditionalImages), [model, showAdditionalImages])
   const projLine = model.project.client
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -283,6 +359,7 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
                 imageMap={imageMap}
                 zebra={item.zebra}
                 onToggleExclude={onToggleExclude}
+                showAdditionalImages={showAdditionalImages}
               />
             )
           })}
@@ -298,7 +375,12 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
   )
 }
 
-export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
+export function BalancedRowsReport({
+  model,
+  imageMap,
+  onToggleExclude,
+  showAdditionalImages = false,
+}: BodyProps): JSX.Element {
   // Continuous zebra across groups (matches comp-c rhythm) — precomputed so the
   // render body stays pure. Counts printable shots only, so the screen rhythm
   // matches the paged/PDF stream (which filters excluded). Excluded (struck) rows
@@ -335,12 +417,18 @@ export function BalancedRowsReport({ model, imageMap, onToggleExclude }: BodyPro
                 imageMap={imageMap}
                 zebra={zebraById.get(shot.id) ?? false}
                 onToggleExclude={onToggleExclude}
+                showAdditionalImages={showAdditionalImages}
               />
             ))}
           </div>
         ))}
       </div>
-      <PagedView model={model} imageMap={imageMap} onToggleExclude={onToggleExclude} />
+      <PagedView
+        model={model}
+        imageMap={imageMap}
+        onToggleExclude={onToggleExclude}
+        showAdditionalImages={showAdditionalImages}
+      />
     </div>
   )
 }

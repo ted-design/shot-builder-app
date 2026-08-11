@@ -16,7 +16,9 @@ import {
   hydrateReportConfig,
   neutralizeReportConfigForFlag,
   resolveReportLayout,
+  resolveShowAdditionalImages,
   type ReportConfig,
+  type ReportLayout,
 } from "../../lib/report/reportTypes"
 import { ReportView } from "./ReportView"
 
@@ -131,11 +133,28 @@ export default function ShotReportPage() {
     [data, config],
   )
 
+  // Single-source effective additional-images value (same resolver
+  // handleExportPdf uses below) — gates the IMAGE FETCH, not just the render.
+  // Without this the fetch pipeline pays full cost (every look reference on
+  // every shot, fetched+transcoded) on every report load regardless of the
+  // toggle, the recipe, or a full featureReportConfig rollback — see
+  // collectReportImageCandidates's docstring.
+  const layout: ReportLayout = useMemo(
+    () => resolveReportLayout(config, isFeatureEnabled("featureShotReportRecipes")),
+    [config],
+  )
+  const showAdditionalImages = useMemo(
+    () => resolveShowAdditionalImages(config, layout, isFeatureEnabled("featureReportConfig")),
+    [config, layout],
+  )
+
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.
   useEffect(() => {
     let cancelled = false
-    const candidates = collectReportImageCandidates(model)
+    const candidates = collectReportImageCandidates(model, {
+      includeAdditionalImages: showAdditionalImages,
+    })
     if (candidates.length === 0) {
       setImageMap(new Map())
       return
@@ -154,7 +173,7 @@ export default function ShotReportPage() {
     return () => {
       cancelled = true
     }
-  }, [model])
+  }, [model, showAdditionalImages])
 
   const handleExportPdf = useCallback(() => {
     setExporting(true)
@@ -166,18 +185,27 @@ export default function ShotReportPage() {
       // the on-screen layout (which ReportView also forces to image-led via the
       // same resolveReportLayout — single source, can't drift).
       const layout = resolveReportLayout(config, isFeatureEnabled("featureShotReportRecipes"))
+      // Same single-source pattern for the additional-images row (WS-C) — the
+      // PDF export must agree with what ReportView renders on screen, so the
+      // exact same resolver (config, layout, featureReportConfig) decides both.
+      const showAdditionalImages = resolveShowAdditionalImages(
+        config,
+        layout,
+        isFeatureEnabled("featureReportConfig"),
+      )
       await generateShotReportPdf(
         model,
         imageMap,
         `${model.project.name} — Shot Report.pdf`,
         layout,
+        showAdditionalImages,
       )
     })()
       .catch((err) => toast.error(err instanceof Error ? err.message : "Couldn't export the PDF"))
       .finally(() => {
         setExporting(false)
       })
-  }, [model, imageMap, config.layout])
+  }, [model, imageMap, config.layout, config.showAdditionalImages])
 
   if (data.loading) {
     return (

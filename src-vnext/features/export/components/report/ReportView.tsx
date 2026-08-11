@@ -30,8 +30,10 @@ import {
   REPORT_LAYOUT_OPTIONS,
   REPORT_SORT_FIELD_OPTIONS,
   REPORT_STATUS_OPTIONS,
+  reportLayoutSupportsAdditionalImages,
   resolveReportFilters,
   resolveReportLayout,
+  resolveShowAdditionalImages,
 } from "../../lib/report/reportTypes"
 import type { SortDir } from "../../lib/report/reportSort"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
@@ -545,6 +547,10 @@ function ControlBar({
   layout,
   onSetLayout,
   showLayout,
+  showAdditionalImagesControl,
+  additionalImagesOn,
+  additionalImagesAvailable,
+  onSetShowAdditionalImages,
   showFilters,
   showSort,
   sortBy,
@@ -570,6 +576,15 @@ function ControlBar({
   readonly layout: ReportLayout
   readonly onSetLayout: (v: ReportLayout) => void
   readonly showLayout: boolean
+  // Gated with featureReportConfig, same as showFilters/showSort below — the
+  // control group doesn't render at all when the flag is off.
+  readonly showAdditionalImagesControl: boolean
+  readonly additionalImagesOn: boolean
+  // image-led has no height-estimator term for the row yet (v1) — the buttons
+  // stay visible (so the user's choice isn't silently forgotten switching
+  // layouts) but disabled/inert with an explanatory title on that recipe.
+  readonly additionalImagesAvailable: boolean
+  readonly onSetShowAdditionalImages: (v: boolean) => void
   readonly showFilters: boolean
   // showSort gates BOTH the flag-on "Status"/"Set" group-by options and the
   // order-by/direction controls (== featureReportConfig). Flag-off → neither appears.
@@ -592,6 +607,7 @@ function ControlBar({
   const groupLabelId = useId()
   const looksLabelId = useId()
   const recipeLabelId = useId()
+  const extraImagesLabelId = useId()
   const statusSelected = useMemo(() => new Set(statusFilter?.value ?? []), [statusFilter])
   const tagSelected = useMemo(() => new Set(tagFilter?.value ?? []), [tagFilter])
   return (
@@ -720,6 +736,57 @@ function ControlBar({
         </div>
       </div>
 
+      {showAdditionalImagesControl && (
+        <div className="sb-control-group" role="group" aria-labelledby={extraImagesLabelId}>
+          <span id={extraImagesLabelId} className="sb-control-label">
+            Extra images
+          </span>
+          <div className={"sb-seg" + (additionalImagesAvailable ? "" : " sb-seg--inert")}>
+            <button
+              type="button"
+              className="sb-seg-btn"
+              // aria-pressed only asserts a meaningful pressed/unpressed state
+              // when the control is actually live — on image-led (inert) the
+              // effective value is "not applicable", not "off", so the
+              // attribute is omitted rather than defaulting to a claim a
+              // screen reader would read as current and real.
+              aria-pressed={additionalImagesAvailable ? !additionalImagesOn : undefined}
+              disabled={!additionalImagesAvailable}
+              title={
+                additionalImagesAvailable
+                  ? undefined
+                  : "Not available on the Image-led recipe — switch to On-set sheet or All-rounder"
+              }
+              onClick={() => onSetShowAdditionalImages(false)}
+            >
+              Off
+            </button>
+            <button
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={additionalImagesAvailable ? additionalImagesOn : undefined}
+              disabled={!additionalImagesAvailable}
+              title={
+                additionalImagesAvailable
+                  ? undefined
+                  : "Not available on the Image-led recipe — switch to On-set sheet or All-rounder"
+              }
+              onClick={() => onSetShowAdditionalImages(true)}
+            >
+              On
+            </button>
+          </div>
+          {!additionalImagesAvailable && (
+            // VISIBLE explanation, not just a `title` on a disabled button — a
+            // disabled element is out of the tab order and receives no pointer
+            // events, so a hover-only tooltip is unreachable by keyboard and
+            // unreliable for assistive tech. This text carries the same
+            // guidance for everyone else.
+            <span className="sb-control-hint">Switch to On-set sheet or All-rounder</span>
+          )}
+        </div>
+      )}
+
       {showFilters && (
         <>
           <FilterModeGroup
@@ -808,6 +875,20 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, layout: next })
   }
 
+  // Additional-images row (WS-C). additionalImagesOn is the RAW persisted
+  // choice (drives the control's own pressed state, so switching layouts
+  // never silently forgets what the user picked). showAdditionalImages is the
+  // EFFECTIVE value the recipe body actually renders — resolveShowAdditionalImages
+  // is the single source ShotReportPage's PDF export reads too, so screen and
+  // PDF can't drift.
+  const additionalImagesOn = config.showAdditionalImages === true
+  const additionalImagesAvailable = reportLayoutSupportsAdditionalImages(layout)
+  const showAdditionalImages = resolveShowAdditionalImages(config, layout, reportConfigEnabled)
+  const setShowAdditionalImages = (next: boolean): void => {
+    if (next === additionalImagesOn) return
+    onConfigChange({ ...config, showAdditionalImages: next })
+  }
+
   // Unified filters (status + tag) — replaces the old standalone "Hide
   // statuses" toggle set. resolveReportFilters reads the migrated view (so a
   // legacy hiddenStatuses-only config still shows its prior selection as
@@ -893,6 +974,19 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         layout={layout}
         onSetLayout={setLayout}
         showLayout={recipesEnabled}
+        // Hide the control entirely (not just disable it) when it can NEVER
+        // become available: recipesEnabled off forces layout to "image-led"
+        // permanently (resolveReportLayout), so additionalImagesAvailable can
+        // never flip true and the disabled buttons' "switch to On-set sheet
+        // or All-rounder" guidance would point at a Recipe picker that
+        // showLayout is ALSO hiding — a dead end with no way out. Still shown
+        // (disabled, with that guidance) whenever recipesEnabled is true,
+        // even on image-led, since the Recipe picker is visible there and the
+        // guidance is actionable.
+        showAdditionalImagesControl={reportConfigEnabled && (additionalImagesAvailable || recipesEnabled)}
+        additionalImagesOn={additionalImagesOn}
+        additionalImagesAvailable={additionalImagesAvailable}
+        onSetShowAdditionalImages={setShowAdditionalImages}
         showFilters={reportConfigEnabled}
         showSort={reportConfigEnabled}
         sortBy={sortBy}
@@ -912,9 +1006,19 @@ export function ReportView(props: ReportViewProps): JSX.Element {
 
       <main className="sb-report">
         {layout === "production-sheet" ? (
-          <ProductionSheetReport model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+          <ProductionSheetReport
+            model={model}
+            imageMap={imageMap}
+            onToggleExclude={toggleExclude}
+            showAdditionalImages={showAdditionalImages}
+          />
         ) : layout === "balanced-rows" ? (
-          <BalancedRowsReport model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+          <BalancedRowsReport
+            model={model}
+            imageMap={imageMap}
+            onToggleExclude={toggleExclude}
+            showAdditionalImages={showAdditionalImages}
+          />
         ) : (
           <>
             <Masthead model={model} />

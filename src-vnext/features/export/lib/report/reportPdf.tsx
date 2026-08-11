@@ -621,9 +621,15 @@ function reportPdfDocument(
   model: ReportModel,
   imageMap: ReadonlyMap<string, string>,
   layout: ReportLayout,
+  showAdditionalImages: boolean,
 ): JSX.Element {
-  if (layout === "production-sheet") return <ProductionSheetPdfDocument model={model} imageMap={imageMap} />
-  if (layout === "balanced-rows") return <BalancedRowsPdfDocument model={model} imageMap={imageMap} />
+  // image-led is EXCLUDED v1 (see reportTypes.ts's reportLayoutSupportsAdditionalImages) —
+  // no showAdditionalImages prop exists on ShotReportPdfDocument at all, so a
+  // caller can't accidentally wire it through here even by passing true.
+  if (layout === "production-sheet")
+    return <ProductionSheetPdfDocument model={model} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
+  if (layout === "balanced-rows")
+    return <BalancedRowsPdfDocument model={model} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
   return <ShotReportPdfDocument model={model} imageMap={imageMap} />
 }
 
@@ -636,13 +642,14 @@ export async function generateShotReportPdf(
   imageMap: ReadonlyMap<string, string>,
   filename = "comprehensive-shot-report.pdf",
   layout: ReportLayout = "image-led",
+  showAdditionalImages = false,
 ): Promise<void> {
   // Guard against a zero-page PDF (corrupt) when every shot is excluded.
   if (!hasAnyIncludedShot(model)) {
     throw new Error("No shots to export")
   }
   const { pdf } = await import("@react-pdf/renderer")
-  const element = reportPdfDocument(model, imageMap, layout)
+  const element = reportPdfDocument(model, imageMap, layout, showAdditionalImages)
   const blob = await pdf(element).toBlob()
 
   const url = URL.createObjectURL(blob)

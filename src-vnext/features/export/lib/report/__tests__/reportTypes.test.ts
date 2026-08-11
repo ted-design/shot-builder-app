@@ -8,8 +8,10 @@ import {
   formatFilterSummary,
   hydrateReportConfig,
   neutralizeReportConfigForFlag,
+  reportLayoutSupportsAdditionalImages,
   resolveReportFilters,
   resolveReportLayout,
+  resolveShowAdditionalImages,
   type ReportConfig,
   type ReportFilterCondition,
 } from "../reportTypes"
@@ -258,6 +260,74 @@ describe("resolveReportLayout — featureShotReportRecipes flag-off clamp", () =
   it("flag ON with layout absent falls back to image-led (matches the pre-R3-blob hydrate floor)", () => {
     const config = { groupBy: "gender", excludedShotIds: [] } as ReportConfig
     expect(resolveReportLayout(config, true)).toBe("image-led")
+  })
+})
+
+describe("ReportConfig.showAdditionalImages (WS-C, 2026-08-11) — default, hydrate, neutralize", () => {
+  it("DEFAULT_REPORT_CONFIG carries showAdditionalImages: false — a brand-new report starts OFF", () => {
+    expect(DEFAULT_REPORT_CONFIG.showAdditionalImages).toBe(false)
+  })
+
+  it("hydrateReportConfig default-merges a pre-WS-C blob (no showAdditionalImages) to false", () => {
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"layout":"production-sheet"}')
+    expect(hydrateReportConfig(stored).showAdditionalImages).toBe(false)
+  })
+
+  it("hydrateReportConfig preserves a persisted showAdditionalImages:true verbatim", () => {
+    const stored = JSON.parse(
+      '{"groupBy":"gender","excludedShotIds":[],"layout":"production-sheet","showAdditionalImages":true}',
+    )
+    expect(hydrateReportConfig(stored).showAdditionalImages).toBe(true)
+  })
+
+  it("round-trips showAdditionalImages:true through JSON unchanged", () => {
+    const config: ReportConfig = { groupBy: "none", excludedShotIds: [], showAdditionalImages: true }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+
+  it("neutralizeReportConfigForFlag (flag off) forces showAdditionalImages to false — same rollback-safety class as filters/sortBy", () => {
+    const config: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: true }
+    expect(neutralizeReportConfigForFlag(config, false).showAdditionalImages).toBe(false)
+  })
+
+  it("neutralizeReportConfigForFlag (flag on) leaves showAdditionalImages verbatim", () => {
+    const config: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: true }
+    expect(neutralizeReportConfigForFlag(config, true).showAdditionalImages).toBe(true)
+  })
+})
+
+describe("reportLayoutSupportsAdditionalImages — image-led EXCLUDED v1", () => {
+  it("production-sheet and balanced-rows support the row", () => {
+    expect(reportLayoutSupportsAdditionalImages("production-sheet")).toBe(true)
+    expect(reportLayoutSupportsAdditionalImages("balanced-rows")).toBe(true)
+  })
+  it("image-led does not (no synced height-estimator term yet)", () => {
+    expect(reportLayoutSupportsAdditionalImages("image-led")).toBe(false)
+  })
+})
+
+describe("resolveShowAdditionalImages — single source for ReportView + ShotReportPage's PDF export", () => {
+  it("true only when the raw toggle is on, the layout supports it, AND the config flag is on", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: true }
+    expect(resolveShowAdditionalImages(on, "production-sheet", true)).toBe(true)
+    expect(resolveShowAdditionalImages(on, "balanced-rows", true)).toBe(true)
+  })
+
+  it("false when the raw toggle is off/absent, regardless of layout or flag", () => {
+    const off: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: false }
+    const absent: ReportConfig = { groupBy: "gender", excludedShotIds: [] }
+    expect(resolveShowAdditionalImages(off, "production-sheet", true)).toBe(false)
+    expect(resolveShowAdditionalImages(absent, "production-sheet", true)).toBe(false)
+  })
+
+  it("false on image-led even when the toggle is on and the config flag is on (v1 exclusion)", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: true }
+    expect(resolveShowAdditionalImages(on, "image-led", true)).toBe(false)
+  })
+
+  it("false when featureReportConfig is off, even with the toggle on and a supporting layout — same rollback-safety class as filters/sortBy", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showAdditionalImages: true }
+    expect(resolveShowAdditionalImages(on, "production-sheet", false)).toBe(false)
   })
 })
 
