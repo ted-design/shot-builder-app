@@ -2,6 +2,7 @@ import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane } from 
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { shotLaunchDateMs, shotRequirementsCount } from "@/features/shots/lib/shotProductReadiness"
+import { SHOT_STATUS_CYCLE, getShotStatusLabel } from "@/shared/lib/statusMappings"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,18 +68,24 @@ export const SORT_LABELS: Record<SortKey, string> = {
   requirements: "Requirements",
 }
 
+// Re-derived from the canonical SHOT_STATUS_CYCLE/getShotStatusLabel
+// (statusMappings.ts) — keep these names, consumers rely on them. Declared as
+// exhaustive typed LITERALS (not Object.fromEntries + `as Record<...>`) so TS
+// still flags a missing variant if ShotFirestoreStatus ever grows a member;
+// `Object.fromEntries` over a ReadonlyArray carries no union-coverage check,
+// so that shape compiled clean even with a status missing from the cycle.
 export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = {
-  todo: 0,
-  in_progress: 1,
-  on_hold: 2,
-  complete: 3,
+  todo: SHOT_STATUS_CYCLE.indexOf("todo"),
+  in_progress: SHOT_STATUS_CYCLE.indexOf("in_progress"),
+  on_hold: SHOT_STATUS_CYCLE.indexOf("on_hold"),
+  complete: SHOT_STATUS_CYCLE.indexOf("complete"),
 }
 
 export const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
-  todo: "Draft",
-  in_progress: "In Progress",
-  on_hold: "On Hold",
-  complete: "Shot",
+  todo: getShotStatusLabel("todo"),
+  in_progress: getShotStatusLabel("in_progress"),
+  on_hold: getShotStatusLabel("on_hold"),
+  complete: getShotStatusLabel("complete"),
 }
 
 // ---------------------------------------------------------------------------
@@ -364,7 +371,7 @@ export function groupShots(
 
   if (groupKey === "status") {
     const groups: ShotGroup[] = []
-    for (const s of ["todo", "in_progress", "on_hold", "complete"] as const) {
+    for (const s of SHOT_STATUS_CYCLE) {
       const list = shots.filter((shot) => shot.status === s)
       if (list.length === 0) continue
       groups.push({ key: s, label: STATUS_LABELS[s], shots: list })

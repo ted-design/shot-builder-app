@@ -3,6 +3,21 @@ import type { Shot, ProductAssignment, ShotLook, ShotReferenceImage, ShotTag } f
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 import { canonicalizeTag, deduplicateTags } from "@/shared/lib/tagDedup"
 import { normalizeReferenceLinks } from "@/features/shots/lib/referenceLinks"
+import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
+
+/**
+ * Normalize a raw Firestore `status` field to the canonical vocabulary.
+ * Anything outside the union (missing, legacy, or corrupt) falls back to
+ * "todo" — mirrors scripts/migrations/2025-09-add-project-and-status.ts's
+ * normaliseStatus policy. Measured zero out-of-union occurrences across all
+ * 601 shot docs in prod (2026-08-11), so this is inert safety, not a fix for
+ * an observed problem.
+ */
+function normalizeShotStatus(value: unknown): Shot["status"] {
+  return typeof value === "string" && (SHOT_STATUS_CYCLE as readonly string[]).includes(value)
+    ? (value as Shot["status"])
+    : "todo"
+}
 
 /**
  * Normalize a Firestore date field that may be a Timestamp or an ISO string.
@@ -376,7 +391,7 @@ export function mapShot(id: string, data: Record<string, unknown>): Shot {
     description: data["description"] as string | undefined,
     projectId: (data["projectId"] as string) ?? "",
     clientId: (data["clientId"] as string) ?? "",
-    status: (data["status"] as Shot["status"]) ?? "todo",
+    status: normalizeShotStatus(data["status"]),
     talent: (data["talent"] as string[]) ?? [],
     talentIds: data["talentIds"] as string[] | undefined,
     products: normalizeProducts(data["products"]),

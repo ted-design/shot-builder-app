@@ -18,23 +18,10 @@ const STATUS_DOT: Record<ReportShotStatus, string> = {
   on_hold: "sb-status--hold",
 }
 
-// The shipped image-led report keeps its original (pre-canonical) labels so its
-// live output is unchanged. The two R3 recipes use the CLAUDE.md canonical labels.
-const LEGACY_LABEL: Record<ReportShotStatus, string> = {
-  complete: "Shot",
-  todo: "To do",
-  in_progress: "In progress",
-  on_hold: "On hold",
-}
-
-/** Canonical labels (statusMappings.ts) — used by the production-sheet + balanced-rows recipes. */
+/** Canonical labels (statusMappings.ts) — used by all three report recipes
+ *  (image-led, production-sheet, balanced-rows). No per-recipe label exception. */
 export function statusMeta(status: ReportShotStatus): StatusMeta {
   return { dotClass: STATUS_DOT[status] ?? STATUS_DOT.todo, label: getShotStatusLabel(status) }
-}
-
-/** Original image-led labels — keeps the live report byte-identical. */
-export function statusMetaLegacy(status: ReportShotStatus): StatusMeta {
-  return { dotClass: STATUS_DOT[status] ?? STATUS_DOT.todo, label: LEGACY_LABEL[status] ?? LEGACY_LABEL.todo }
 }
 
 /** Resolve an image candidate to a usable src via the sidecar map, else null. */

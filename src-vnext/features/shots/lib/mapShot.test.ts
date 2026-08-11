@@ -381,4 +381,36 @@ describe("mapShot", () => {
     expect(shot.looks?.[0]?.products?.[0]?.familyId).toBe("fam-1")
     expect(shot.looks?.[0]?.references?.[0]?.id).toBe("ref-1")
   })
+
+  it("passes a valid canonical status value through unchanged", () => {
+    for (const status of ["todo", "in_progress", "on_hold", "complete"] as const) {
+      const shot = mapShot("s1", {
+        title: "Shot A",
+        projectId: "p1",
+        clientId: "c1",
+        createdAt: { seconds: 1, nanoseconds: 0 },
+        updatedAt: { seconds: 1, nanoseconds: 0 },
+        createdBy: "u1",
+        deleted: false,
+        status,
+      })
+      expect(shot.status).toBe(status)
+    }
+  })
+
+  it("normalizes a missing/legacy/corrupt status to 'todo'", () => {
+    for (const raw of [undefined, null, "", "in-progress", "Done", 42, {}]) {
+      const shot = mapShot("s1", {
+        title: "Shot A",
+        projectId: "p1",
+        clientId: "c1",
+        createdAt: { seconds: 1, nanoseconds: 0 },
+        updatedAt: { seconds: 1, nanoseconds: 0 },
+        createdBy: "u1",
+        deleted: false,
+        status: raw,
+      })
+      expect(shot.status).toBe("todo")
+    }
+  })
 })

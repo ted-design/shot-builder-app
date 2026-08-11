@@ -8,6 +8,7 @@ import type {
 } from "@/shared/types"
 import type { ExportData } from "../../hooks/useExportData"
 import { humanizeLabel } from "@/shared/lib/textUtils"
+import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
 import {
   REPORT_STATUS_LABEL,
   type GenderKey,
@@ -210,12 +211,9 @@ export const GROUP_LABEL: Record<GenderKey, string> = {
 }
 
 // Fixed bucket + sort order for shot status (workflow order, O4). Mirrors GROUP_ORDER.
-export const STATUS_GROUP_ORDER: readonly ReportShotStatus[] = [
-  "todo",
-  "in_progress",
-  "on_hold",
-  "complete",
-]
+// Derived from the canonical SHOT_STATUS_CYCLE (statusMappings.ts) — same
+// todo, in_progress, on_hold, complete order, not a separate local literal.
+export const STATUS_GROUP_ORDER: readonly ReportShotStatus[] = SHOT_STATUS_CYCLE
 
 /**
  * Reduce an entry's many appearance-statuses to the ONE it groups under (O2):

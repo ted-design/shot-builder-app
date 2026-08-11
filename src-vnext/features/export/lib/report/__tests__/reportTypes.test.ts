@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest"
 import {
   DEFAULT_REPORT_CONFIG,
   LEGACY_REPORT_LAYOUT,
+  REPORT_STATUS_LABEL,
+  REPORT_STATUS_OPTIONS,
   hydrateReportConfig,
   resolveReportLayout,
   type ReportConfig,
@@ -100,6 +102,31 @@ describe("resolveReportLayout — featureShotReportRecipes flag-off clamp", () =
   it("flag ON with layout absent falls back to image-led (matches the pre-R3-blob hydrate floor)", () => {
     const config = { groupBy: "gender", excludedShotIds: [] } as ReportConfig
     expect(resolveReportLayout(config, true)).toBe("image-led")
+  })
+})
+
+describe("REPORT_STATUS_LABEL / REPORT_STATUS_OPTIONS — 'Hide statuses' vocabulary", () => {
+  it("carries the canonical wording (statusMappings.ts), not a local literal", () => {
+    expect(REPORT_STATUS_LABEL).toEqual({
+      complete: "Shot",
+      in_progress: "In Progress",
+      on_hold: "On Hold",
+      todo: "Draft",
+    })
+  })
+
+  // Pins the rendered chip ORDER in all three "Hide statuses" control bars
+  // (ReportView, TalentReportView, ProductInfoReportView all derive from
+  // REPORT_STATUS_OPTIONS). Nothing else in the suite asserted this order,
+  // so a re-derivation that silently reshuffles the keys (e.g. building the
+  // map from a differently-ordered source) would ship unnoticed.
+  it("preserves the pre-existing 'Hide statuses' chip order: complete, in_progress, on_hold, todo", () => {
+    expect(REPORT_STATUS_OPTIONS.map((o) => o.value)).toEqual([
+      "complete",
+      "in_progress",
+      "on_hold",
+      "todo",
+    ])
   })
 })
 

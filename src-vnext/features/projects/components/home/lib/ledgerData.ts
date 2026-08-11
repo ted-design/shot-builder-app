@@ -28,6 +28,7 @@ import type {
   Shot,
   ShotFirestoreStatus,
 } from "@/shared/types"
+import { getShotStatusLabel } from "@/shared/lib/statusMappings"
 
 // ---------------------------------------------------------------------------
 // View-model shape
@@ -144,11 +145,14 @@ export function buildShotsRow(input: ShotsRowInput): LedgerRow {
   const total =
     input.totalShots ?? complete + inProgress + onHold + todo
 
+  // Labels are pulled from the canonical statusMappings.ts (SHOT_STATUS_MAP)
+  // rather than spelled out here — this ledger must never carry its own
+  // divergent shot-status wording (see shotStatusVocabulary.guard.test.ts).
   const segments: LedgerSegment[] = [
-    { key: "complete", label: "Shot", value: complete, colorVar: STAGE_COLOR.done },
-    { key: "in_progress", label: "In progress", value: inProgress, colorVar: STAGE_COLOR.progress },
-    { key: "on_hold", label: "On hold", value: onHold, colorVar: STAGE_COLOR.hold },
-    { key: "todo", label: "Draft", value: todo, colorVar: STAGE_COLOR.todo },
+    { key: "complete", label: getShotStatusLabel("complete"), value: complete, colorVar: STAGE_COLOR.done },
+    { key: "in_progress", label: getShotStatusLabel("in_progress"), value: inProgress, colorVar: STAGE_COLOR.progress },
+    { key: "on_hold", label: getShotStatusLabel("on_hold"), value: onHold, colorVar: STAGE_COLOR.hold },
+    { key: "todo", label: getShotStatusLabel("todo"), value: todo, colorVar: STAGE_COLOR.todo },
   ]
 
   const detail =

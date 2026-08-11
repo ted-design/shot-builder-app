@@ -1,5 +1,6 @@
 import type { FilterCondition } from "@/features/shots/lib/filterConditions"
 import { STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
+import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
 import { FilterConditionRow } from "./FilterConditionRow"
@@ -32,10 +33,11 @@ type ShotListFilterContentProps = {
 }
 
 // ---------------------------------------------------------------------------
-// Status options (derived from canonical STATUS_LABELS)
+// Status options — derived from canonical SHOT_STATUS_CYCLE/STATUS_LABELS
+// (statusMappings.ts), not a locally hardcoded tuple.
 // ---------------------------------------------------------------------------
 
-const STATUS_OPTIONS = (["todo", "in_progress", "on_hold", "complete"] as const).map((s) => ({
+const STATUS_OPTIONS = SHOT_STATUS_CYCLE.map((s) => ({
   value: s,
   label: STATUS_LABELS[s],
 }))

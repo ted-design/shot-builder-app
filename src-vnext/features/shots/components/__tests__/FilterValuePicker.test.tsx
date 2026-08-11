@@ -100,3 +100,83 @@ describe("FilterValuePicker talent picker — flag ON (scoped + searchable)", ()
     expect(screen.queryByText("Bob")).not.toBeInTheDocument() // unselected off-project, empty query
   })
 })
+
+// ---------------------------------------------------------------------------
+// Status picker — regression coverage for the fix in this PR: StatusPicker
+// previously ignored its `statusOptions` prop and built its own hardcoded
+// list; it now renders exactly what the caller passes. Mirrors the real
+// caller (ShotListFilterContent.tsx's STATUS_OPTIONS, derived from
+// SHOT_STATUS_CYCLE/STATUS_LABELS) rather than an arbitrary fixture, so this
+// test would catch that prop being dropped or renamed again.
+// ---------------------------------------------------------------------------
+
+const STATUS_OPTIONS = [
+  { value: "todo", label: "Draft" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "complete", label: "Shot" },
+]
+
+function renderStatusPicker(opts?: { value?: FilterValue }) {
+  const onChange = vi.fn()
+  const condition: FilterCondition = {
+    id: "c1",
+    field: "status",
+    operator: "in",
+    value: opts?.value ?? [],
+  }
+  render(
+    <FilterValuePicker
+      condition={condition}
+      onChange={onChange}
+      statusOptions={STATUS_OPTIONS}
+      tagOptions={[]}
+      talentRecords={[]}
+      locationRecords={[]}
+      productFamilies={[]}
+      projectId="p1"
+    />,
+  )
+  return { onChange }
+}
+
+describe("FilterValuePicker status picker", () => {
+  it("renders every option the caller passes via statusOptions — not a hardcoded list", () => {
+    renderStatusPicker()
+    expect(screen.getByText("Draft")).toBeInTheDocument()
+    expect(screen.getByText("In Progress")).toBeInTheDocument()
+    expect(screen.getByText("On Hold")).toBeInTheDocument()
+    expect(screen.getByText("Shot")).toBeInTheDocument()
+  })
+
+  it("shows the empty-options fallback when statusOptions is empty (proves it isn't self-sourcing)", () => {
+    const onChange = vi.fn()
+    const condition: FilterCondition = { id: "c1", field: "status", operator: "in", value: [] }
+    render(
+      <FilterValuePicker
+        condition={condition}
+        onChange={onChange}
+        statusOptions={[]}
+        tagOptions={[]}
+        talentRecords={[]}
+        locationRecords={[]}
+        productFamilies={[]}
+        projectId="p1"
+      />,
+    )
+    expect(screen.getByText("No options available")).toBeInTheDocument()
+    expect(screen.queryByText("Draft")).not.toBeInTheDocument()
+  })
+
+  it("toggles a status value through onChange", () => {
+    const { onChange } = renderStatusPicker()
+    fireEvent.click(screen.getByRole("checkbox", { name: "On Hold" }))
+    expect(onChange).toHaveBeenCalledWith(["on_hold"])
+  })
+
+  it("deselects an already-selected status", () => {
+    const { onChange } = renderStatusPicker({ value: ["on_hold"] })
+    fireEvent.click(screen.getByRole("checkbox", { name: "On Hold" }))
+    expect(onChange).toHaveBeenCalledWith([])
+  })
+})

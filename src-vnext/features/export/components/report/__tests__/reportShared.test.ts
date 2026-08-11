@@ -1,24 +1,24 @@
 import { describe, it, expect } from "vitest"
-import { statusMeta, statusMetaLegacy } from "../reportShared"
+import { statusMeta } from "../reportShared"
 
-// Locks the R3 label scoping: the two new recipes use the CLAUDE.md canonical
-// labels; the shipped image-led report keeps its original labels unchanged.
+// Locks the canonical status-label vocabulary (statusMappings.ts): all three
+// report recipes (image-led, production-sheet, balanced-rows) share it — no
+// per-recipe label exception.
 describe("report status labels", () => {
-  it("statusMeta (new recipes) uses canonical labels", () => {
+  it("statusMeta uses canonical labels", () => {
     expect(statusMeta("on_hold").label).toBe("On Hold")
     expect(statusMeta("todo").label).toBe("Draft")
     expect(statusMeta("in_progress").label).toBe("In Progress")
     expect(statusMeta("complete").label).toBe("Shot")
   })
 
-  it("statusMetaLegacy (image-led) keeps the original live labels", () => {
-    expect(statusMetaLegacy("on_hold").label).toBe("On hold")
-    expect(statusMetaLegacy("todo").label).toBe("To do")
-    expect(statusMetaLegacy("in_progress").label).toBe("In progress")
-    expect(statusMetaLegacy("complete").label).toBe("Shot")
-  })
-
-  it("both keep the same reserved dot palette", () => {
-    expect(statusMeta("on_hold").dotClass).toBe(statusMetaLegacy("on_hold").dotClass)
+  // The reserved green/amber/blue/gray dot palette (STATUS_DOT in
+  // reportShared.ts) has its own coverage — restored here after the prior
+  // statusMetaLegacy-comparison assertion was deleted with no replacement.
+  it("statusMeta assigns the reserved dot palette per status", () => {
+    expect(statusMeta("complete").dotClass).toBe("sb-status--complete")
+    expect(statusMeta("todo").dotClass).toBe("sb-status--todo")
+    expect(statusMeta("in_progress").dotClass).toBe("sb-status--progress")
+    expect(statusMeta("on_hold").dotClass).toBe("sb-status--hold")
   })
 })

@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { ShotFirestoreStatus } from "@/shared/types"
 import type { computeInsights } from "@/features/shots/lib/shotListFilters"
 import { STATUS_LABELS } from "@/features/shots/lib/shotListFilters"
+import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
 import { Button } from "@/ui/button"
 import { Checkbox } from "@/ui/checkbox"
 import {
@@ -28,21 +29,25 @@ type ShotStatusFilterProps = {
 // Status hue dots — mirror ShotStatusTapRow token usage (NO raw Tailwind colors).
 // The solid "*-text" token is the saturated hue for each status; using it as a
 // background gives a small filled dot that matches the status mappings.
-// ---------------------------------------------------------------------------
-
-const STATUS_DOT_CLASS: Record<ShotFirestoreStatus, string> = {
+//
+// Declared as an exhaustive typed LITERAL with each class spelled out in full
+// (NOT built via template-literal interpolation off getShotStatusColor), for
+// two reasons: (1) Tailwind's static scanner extracts class *tokens* from
+// source text — `` `bg-[var(--color-status-${expr}-text)]` `` is not a
+// scannable token, so an interpolated form silently drops out of the
+// generated CSS; (2) a literal keeps TS exhaustiveness (a missing variant
+// errors) where `Object.fromEntries(...) as Record<...>` would not. The
+// mapping mirrors getShotStatusColor(s) — see the test in
+// ShotStatusFilter.statusDot.test.ts, which locks the coupling. Exported
+// (not module-private) purely so that test can assert on it directly.
+export const STATUS_DOT_CLASS: Record<ShotFirestoreStatus, string> = {
   todo: "bg-[var(--color-status-gray-text)]",
   in_progress: "bg-[var(--color-status-blue-text)]",
   on_hold: "bg-[var(--color-status-amber-text)]",
   complete: "bg-[var(--color-status-green-text)]",
 }
 
-const STATUS_ORDER: readonly ShotFirestoreStatus[] = [
-  "todo",
-  "in_progress",
-  "on_hold",
-  "complete",
-]
+const STATUS_ORDER: readonly ShotFirestoreStatus[] = SHOT_STATUS_CYCLE
 
 // ---------------------------------------------------------------------------
 // Component

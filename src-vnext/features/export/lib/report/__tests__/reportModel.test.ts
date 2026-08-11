@@ -414,7 +414,7 @@ describe("deriveShotReportModel — R2 order-by (Phase B)", () => {
       sortDir: "asc",
     })
     expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"]) // in_progress/on_hold dropped
-    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["Draft", "Shot"]) // canonical labels (statusMappings.ts)
     // todo: both "Alice" -> tie-break shot-number 02<04
     expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S2", "S4"])
     // complete: "Bob" < "Zoe"
