@@ -1,6 +1,6 @@
 import { DEFAULT_TAGS } from "@/shared/lib/defaultTags"
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
-import type { ShotTag, ShotTagCategory } from "@/shared/types"
+import type { Shot, ShotTag, ShotTagCategory } from "@/shared/types"
 
 /**
  * Normalize a tag label for comparison: trim, collapse whitespace, lowercase.
@@ -56,4 +56,36 @@ export function deduplicateTags(tags: readonly ShotTag[]): readonly ShotTag[] {
     }
   }
   return [...seen.values()]
+}
+
+/**
+ * Tag-filter option list actually reachable by matching against `shot.tags`:
+ * one option per DISTINCT id currently on a shot, keyed by that raw id
+ * (first-seen label wins), NO default-tag seeding. This is deliberately the
+ * SAME shape and semantics as the shot list's own tag-filter options
+ * (useShotListState.ts's tagLabelById/tagOptions) — and deliberately
+ * DIFFERENT from computeAvailableTags (useAvailableTags.ts), which seeds
+ * every DEFAULT_TAGS entry unconditionally and collapses same-labelled tags
+ * across different shots down to ONE canonical id. That collapsing is
+ * correct for "what tag can I assign to a shot" (computeAvailableTags' job)
+ * but wrong for "what tag VALUE should a filter match": filterEngine.ts's
+ * evalSetArray matches a filter's selected value against the shot's own
+ * stored `tag.id` verbatim, so a filter option must carry an id that
+ * actually appears on a shot — never a canonicalized/collapsed stand-in for
+ * one, and never a default tag nobody has used yet (which would just filter
+ * the report to zero shots with no indication why).
+ */
+export function computeUsedTagOptions(
+  shots: readonly Shot[],
+): ReadonlyArray<{ readonly id: string; readonly label: string }> {
+  const byId = new Map<string, string>()
+  for (const shot of shots) {
+    for (const tag of shot.tags ?? []) {
+      if (!byId.has(tag.id)) byId.set(tag.id, tag.label)
+    }
+  }
+  const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+  return Array.from(byId.entries())
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => collator.compare(a.label, b.label))
 }

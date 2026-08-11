@@ -9,7 +9,6 @@ import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
 import { isFeatureEnabled } from "@/shared/lib/flags"
-import type { AvailableTag } from "@/features/shots/hooks/useAvailableTags"
 import type {
   ReportConfig,
   ReportFilterCondition,
@@ -43,6 +42,15 @@ import { GroupSortControls } from "./GroupSortControls"
 import { ProductionSheetReport } from "./ProductionSheetReport"
 import { BalancedRowsReport } from "./BalancedRowsReport"
 
+/** A tag filter option: id actually present on a shot + its label. Deliberately
+ *  narrower than useAvailableTags' `AvailableTag` (no usageCount/isDefault) —
+ *  see computeUsedTagOptions (tagDedup.ts) for why the report's Filters
+ *  control needs a different source than the tag-ASSIGNMENT UI. */
+export interface ReportTagOption {
+  readonly id: string
+  readonly label: string
+}
+
 export interface ReportViewProps {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
@@ -50,11 +58,14 @@ export interface ReportViewProps {
   readonly onConfigChange: (next: ReportConfig) => void
   readonly onExportPdf: () => void
   readonly exporting?: boolean
-  /** Tag options for the Filters control — the SAME source the shot list uses
-   *  (useAvailableTags / computeAvailableTags), passed down rather than fetched
-   *  here so this stays a pure, data-fetching-free component (existing tests
-   *  render it directly with no Firestore/auth providers mounted). */
-  readonly availableTags: readonly AvailableTag[]
+  /** Tag options for the Filters control — the SAME source and semantics the
+   *  shot list's own tag FILTER uses (useShotListState.ts's tagLabelById /
+   *  tagOptions, mirrored by computeUsedTagOptions in tagDedup.ts): one option
+   *  per id actually present on a shot, no default-tag seeding, no
+   *  cross-shot label collapsing. Passed down rather than fetched here so
+   *  this stays a pure, data-fetching-free component (existing tests render
+   *  it directly with no Firestore/auth providers mounted). */
+  readonly availableTags: readonly ReportTagOption[]
 }
 
 /** Primary look = first (image-led's whole-look accessor; distinct from the

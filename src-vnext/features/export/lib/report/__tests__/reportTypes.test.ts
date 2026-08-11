@@ -5,8 +5,10 @@ import {
   LEGACY_REPORT_LAYOUT,
   REPORT_STATUS_LABEL,
   REPORT_STATUS_OPTIONS,
+  formatFilterSummary,
   hydrateReportConfig,
   neutralizeReportConfigForFlag,
+  resolveReportFilters,
   resolveReportLayout,
   type ReportConfig,
   type ReportFilterCondition,
@@ -106,8 +108,12 @@ describe("hydrateReportConfig — legacy hiddenStatuses -> filters migration (20
     expect(hydrated.filters).toEqual([
       { id: LEGACY_HIDDEN_STATUSES_FILTER_ID, field: "status", operator: "notIn", value: ["on_hold", "todo"] },
     ])
-    // Tolerated on read (the raw value survives on the hydrated object)...
-    expect(hydrated.hiddenStatuses).toEqual(["on_hold", "todo"])
+    // hiddenStatuses is READ once (to synthesize the filter above) then
+    // cleared on the returned object — it has done its only job, and page
+    // state (which this becomes) must never carry a non-empty legacy value
+    // forward into a future unrelated save. See "hydrateReportConfig clears
+    // hiddenStatuses" below for the write-back guarantee this protects.
+    expect(hydrated.hiddenStatuses).toEqual([])
   })
 
   it("a legacy blob with an EMPTY hiddenStatuses does not synthesize a filter", () => {
@@ -136,6 +142,66 @@ describe("hydrateReportConfig — legacy hiddenStatuses -> filters migration (20
       filters: [],
     }
     expect(hydrateReportConfig(stored).filters).toEqual([])
+  })
+
+  it("hydrateReportConfig clears hiddenStatuses on EVERY path — migrated, already-filters, and no-op — so a future save can never re-persist it", () => {
+    // The write-back guarantee this protects: the hydrated object becomes
+    // live page state, and every non-filter setter in ReportView.tsx spreads
+    // `{...config, X}` — so anything left in `hiddenStatuses` here would get
+    // silently re-saved to Firestore on the next unrelated edit, forever.
+    const migrated = hydrateReportConfig({
+      groupBy: "gender",
+      excludedShotIds: [],
+      hiddenStatuses: ["on_hold", "todo"],
+    })
+    expect(migrated.hiddenStatuses).toEqual([])
+
+    const alreadyFilters = hydrateReportConfig({
+      groupBy: "gender",
+      excludedShotIds: [],
+      hiddenStatuses: ["on_hold"],
+      filters: [{ id: "tag", field: "tag", operator: "in", value: ["t1"] }],
+    })
+    expect(alreadyFilters.hiddenStatuses).toEqual([])
+
+    const brandNew = hydrateReportConfig({})
+    expect(brandNew.hiddenStatuses).toEqual([])
+  })
+})
+
+describe("resolveReportFilters — de-dupes a hand-edited blob to at most one condition per field", () => {
+  it("a hand-edited blob with TWO conditions on the same field collapses to ONE, last occurrence wins", () => {
+    // The Filters control itself can never produce this (setFieldFilter
+    // always replaces, never appends) — only a hand-edited/legacy blob can.
+    // Before this fix, the three readers of `filters` disagreed on what such
+    // a blob meant: ReportView's `.find()` read the FIRST condition,
+    // formatFilterSummary's Map read the LAST, and filterEngine ANDed BOTH.
+    const dup: ReportFilterCondition[] = [
+      { id: "status-1", field: "status", operator: "notIn", value: ["todo"] },
+      { id: "status-2", field: "status", operator: "in", value: ["complete", "on_hold"] },
+    ]
+    const resolved = resolveReportFilters({ filters: dup })
+    expect(resolved).toHaveLength(1)
+    expect(resolved[0]).toEqual(dup[1]) // last occurrence wins
+  })
+
+  it("the de-duped result is what formatFilterSummary and a ReportView-style .find() BOTH read — they can no longer disagree", () => {
+    const dup: ReportFilterCondition[] = [
+      { id: "status-1", field: "status", operator: "notIn", value: ["todo"] },
+      { id: "status-2", field: "status", operator: "in", value: ["complete", "on_hold"] },
+    ]
+    const resolved = resolveReportFilters({ filters: dup })
+    const foundFirst = resolved.find((f) => f.field === "status")
+    expect(foundFirst).toEqual(dup[1]) // .find() now sees the SAME (last) condition the summary counts
+    expect(formatFilterSummary(resolved)).toBe("filtered: status included (2)")
+  })
+
+  it("a normal single-condition-per-field blob is unaffected", () => {
+    const filters: ReportFilterCondition[] = [
+      { id: "status", field: "status", operator: "notIn", value: ["todo"] },
+      { id: "tag", field: "tag", operator: "in", value: ["t1"] },
+    ]
+    expect(resolveReportFilters({ filters })).toEqual(filters)
   })
 })
 

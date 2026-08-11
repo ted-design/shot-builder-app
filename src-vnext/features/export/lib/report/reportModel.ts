@@ -282,26 +282,41 @@ const SHOT_TIEBREAK = (a: ReportShot, b: ReportShot): number =>
 
 /**
  * "custom" comparator: respects the shot's own drag order (Shot.sortOrder).
- * A shot with NO real sortOrder (mapShot defaults a Firestore doc that's
- * never carried the field to 0, and no writer ever mints a real 0 — every
- * writer stamps `Date.now()` or a lane-relative offset) sorts to the END,
- * ordered among itself by shot-number — never interleaved with real custom
- * positions at the (arbitrary) value 0. Mirrors the "known ranks before
- * unknown" shape of compareByOrder above, applied to a numeric key instead
- * of a fixed literal order.
+ *
+ * `sortOrder: 0` is AMBIGUOUS at the per-shot level: mapShot defaults a
+ * Firestore doc that's never carried the field to 0, but the app's own
+ * reorder writers ALSO mint a real, meaningful 0 for the FIRST shot —
+ * persistShotOrder's full-reindex (`sortOrder: start + i` from index 0,
+ * reorderShots.ts) and range branches (`start = min(from, to)`, which is 0
+ * whenever the moved range includes the top of the list), and
+ * renumberShots/renumberShotsWithScenes (`newSortOrder = i` /
+ * `offsets[gIdx] + i`, first shot of the first scene = 0). Every drag
+ * reorder in the shot list goes through persistShotOrder with NO range
+ * (DraggableShotList.tsx), so it ALWAYS produces exactly one shot with a
+ * real sortOrder of 0. Treating that 0 as "missing" banished the shot the
+ * user just dragged to the top to the BOTTOM of the custom-order report.
+ *
+ * There is no way to tell "real 0" from "never touched" on a single shot —
+ * so, like useShots.ts's own client sort (useShots.ts:33), this decides at
+ * the SET level: if ANY shot in scope carries a non-zero sortOrder, a real
+ * custom order has been established for this project, and every sortOrder
+ * (0 included — it's simply rank #1) is trusted as-is. Only when EVERY shot
+ * is 0 (nobody has ever reordered) does the whole set fall back to
+ * shot-number order, matching useShots.ts's own "no real sortOrder" branch.
  */
-function compareCustomOrder(a: ReportShot, b: ReportShot): number {
-  const aOrder = a.sortOrder ?? 0
-  const bOrder = b.sortOrder ?? 0
-  const aMissing = aOrder === 0
-  const bMissing = bOrder === 0
-  if (aMissing !== bMissing) return aMissing ? 1 : -1
-  if (!aMissing) return aOrder - bOrder
-  return compareShotNumber(a.number, b.number)
+function compareCustomOrder(hasCustomOrder: boolean): (a: ReportShot, b: ReportShot) => number {
+  return (a, b) => {
+    if (!hasCustomOrder) return compareShotNumber(a.number, b.number)
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  }
 }
 
-/** Primary comparator for a shot sort field (R2). Item-shape-local (needs GROUP_ORDER / STATUS_GROUP_ORDER). */
-function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot) => number {
+/** Primary comparator for a shot sort field (R2). Item-shape-local (needs GROUP_ORDER / STATUS_GROUP_ORDER).
+ *  `hasCustomOrder` only matters for sortBy:"custom" — see compareCustomOrder. */
+function shotPrimaryFor(
+  sortBy: ReportSortField,
+  hasCustomOrder: boolean,
+): (a: ReportShot, b: ReportShot) => number {
   switch (sortBy) {
     case "shot-number":
       return (a, b) => compareShotNumber(a.number, b.number)
@@ -312,7 +327,7 @@ function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot)
     case "gender":
       return (a, b) => compareByOrder(GROUP_ORDER, a.gender, b.gender)
     case "custom":
-      return compareCustomOrder
+      return compareCustomOrder(hasCustomOrder)
     default:
       // Runtime safety: exportReports writes schemaless (no rules validation), so a
       // persisted/hand-edited config could carry an out-of-union sortBy. Fall back to
@@ -322,6 +337,12 @@ function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot)
   }
 }
 
+/** Fallback label for a real Lane doc whose `name` is empty/blank — distinct
+ *  from NO_SET_GROUP_LABEL so a genuinely-named-but-blank Set never collides
+ *  with (or gets mistaken for) the "no Set membership" bucket. Mirrors the
+ *  shot list's own wording for the identical case (shotListFilters.ts). */
+const UNNAMED_SET_LABEL = "Unnamed Set"
+
 /**
  * groupBy:"scene" ("Set" in the UI): one group per Lane, ordered by
  * Lane.sceneNumber then Lane.sortOrder (the same two-key order the shot list
@@ -330,24 +351,39 @@ function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot)
  * whose laneId no longer resolves to a live Lane doc (an orphaned reference —
  * guards against a crash if a Set is deleted out from under an open report),
  * lands in a trailing "No set" bucket — always LAST regardless of sceneNumber.
+ *
+ * Guard: only treat a laneId as orphaned when lanes have actually loaded
+ * (`laneById.size > 0`) — mirrors shotListFilters.ts's identical guard for
+ * the shot list's own "scene" grouping. Without it, a lanes read that's
+ * still loading (or that silently failed — useFirestoreCollection resolves
+ * `loading:false`/`data:[]` on a snapshot error) would present an EMPTY
+ * laneById, and every shot with a real laneId would incorrectly collapse
+ * into "No set" instead of keeping its real Set grouping.
  */
 function buildSceneGroups(
   shots: readonly ReportShot[],
   laneById: ReadonlyMap<string, Lane>,
 ): ReportGroup[] {
+  const lanesLoaded = laneById.size > 0
   const byLane = new Map<string, ReportShot[]>()
   for (const shot of shots) {
-    const key = shot.laneId != null && laneById.has(shot.laneId) ? shot.laneId : NO_SET_GROUP_KEY
+    const isOrphan = lanesLoaded && shot.laneId != null && !laneById.has(shot.laneId)
+    const key = shot.laneId != null && !isOrphan ? shot.laneId : NO_SET_GROUP_KEY
     const bucket = byLane.get(key)
     if (bucket) bucket.push(shot)
     else byLane.set(key, [shot])
   }
 
   const groups = [...byLane.entries()].map(([key, groupShots]): ReportGroup => {
-    const lane = laneById.get(key)
+    const lane = key === NO_SET_GROUP_KEY ? undefined : laneById.get(key)
+    // A real (non-orphaned, non-"No set") lane ALWAYS gets a real label —
+    // "Unnamed Set" for a blank `name`, never NO_SET_GROUP_LABEL, so it can't
+    // be mistaken for (or sort like) the trailing "No set" bucket below.
+    const label =
+      key === NO_SET_GROUP_KEY ? NO_SET_GROUP_LABEL : lane?.name || UNNAMED_SET_LABEL
     return {
       key,
-      label: lane?.name || NO_SET_GROUP_LABEL,
+      label,
       count: groupShots.length,
       shots: groupShots,
     }
@@ -412,6 +448,13 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
     }
   })
 
+  // Project-level "has a real custom order ever been established" — see
+  // compareCustomOrder's docstring. Scoped to ALL non-deleted shots (not just
+  // the report's own filtered subset), mirroring useShots.ts:33 exactly, so a
+  // report's own Status/Tags filters can never flip this decision by
+  // coincidentally excluding the shot that happens to carry the differentiator.
+  const hasCustomOrder = notDeleted.some((s) => s.sortOrder !== 0)
+
   // R2 order-by. Absent sortBy → verbatim legacy comparator (flag-off byte-identical
   // by construction). Defined → the shared stable engine with the id tie-break.
   const shots: ReportShot[] =
@@ -421,7 +464,12 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
           const [bk, bn, bs] = shotNumberSortKey(b.number)
           return ak - bk || an - bn || as.localeCompare(bs)
         })
-      : sortItemsStable(built, shotPrimaryFor(config.sortBy), SHOT_TIEBREAK, config.sortDir ?? "asc")
+      : sortItemsStable(
+          built,
+          shotPrimaryFor(config.sortBy, hasCustomOrder),
+          SHOT_TIEBREAK,
+          config.sortDir ?? "asc",
+        )
 
   const groups: ReportGroup[] =
     config.groupBy === "none"

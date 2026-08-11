@@ -161,10 +161,16 @@ export interface ReportConfig {
   /**
    * LEGACY status-hide list, superseded by `filters` below (2026-08-11 — the
    * unified filters control replaced the standalone "Hide statuses" toggle
-   * set). Tolerated on READ ONLY: `hydrateReportConfig` migrates a non-empty
-   * value into an equivalent `filters` entry exactly once, and no code path
-   * writes this field anymore. See `resolveReportFilters` for the precedence
-   * rule when a blob somehow carries both.
+   * set). Tolerated on READ from a raw/un-hydrated persisted blob only:
+   * `resolveReportFilters` reads it (when `filters` is absent) to synthesize
+   * an equivalent migrated filter. `hydrateReportConfig` clears it to `[]`
+   * on the object it RETURNS the moment migration has run (or was never
+   * needed) — so page state, and therefore every SAVE from then on (every
+   * non-filter setter spreads the current config wholesale), never carries a
+   * non-empty value forward. See `resolveReportFilters` for the precedence
+   * rule when a raw blob somehow carries both, and reportTypes.test.ts
+   * "hydrateReportConfig clears hiddenStatuses once resolved" for the
+   * write-back guarantee this depends on.
    */
   readonly hiddenStatuses?: readonly ReportShotStatus[]
   /**
@@ -187,6 +193,28 @@ export interface ReportConfig {
 export const LEGACY_HIDDEN_STATUSES_FILTER_ID = "legacy-hidden-statuses"
 
 /**
+ * De-dupe a filter list to AT MOST ONE condition per field, last occurrence
+ * wins. The Filters control itself can never produce two conditions on the
+ * same field (setFieldFilter always replaces, never appends — ReportView.tsx),
+ * so this only ever matters for a hand-edited/legacy blob — the exact class
+ * of input reportTypes.ts already defends against elsewhere (an out-of-union
+ * sortBy, reportModel.ts's shotPrimaryFor default). Without this, the THREE
+ * readers of `filters` disagreed on what a duplicate-field blob even means:
+ * ReportView's `.find()` read the FIRST condition, formatFilterSummary's Map
+ * read the LAST, and filterEngine's applyFilterConditions ANDed BOTH. Calling
+ * this from the single canonical resolveReportFilters below makes it
+ * impossible for those three to diverge — there is only ever one condition
+ * per field for any of them to read.
+ */
+function dedupeFiltersByField(
+  filters: readonly ReportFilterCondition[],
+): readonly ReportFilterCondition[] {
+  const byField = new Map<ReportFilterField, ReportFilterCondition>()
+  for (const f of filters) byField.set(f.field, f)
+  return [...byField.values()]
+}
+
+/**
  * The filters actually in force for a config, resolving the hiddenStatuses ->
  * filters migration's precedence. `filters` (even an explicit []) is always
  * authoritative once present — `hiddenStatuses` is never merged into it, so a
@@ -198,13 +226,14 @@ export const LEGACY_HIDDEN_STATUSES_FILTER_ID = "legacy-hidden-statuses"
  * `filters` and stop writing `hiddenStatuses`) and derive time
  * (deriveShotReportModel — so a raw/hand-built config that skips hydrate,
  * e.g. every existing hiddenStatuses-only test fixture, still filters
- * correctly without updating).
+ * correctly without updating). Always returns at most one condition per
+ * field — see dedupeFiltersByField.
  */
 export function resolveReportFilters(config: {
   readonly filters?: readonly ReportFilterCondition[]
   readonly hiddenStatuses?: readonly ReportShotStatus[]
 }): readonly ReportFilterCondition[] {
-  if (config.filters !== undefined) return config.filters
+  if (config.filters !== undefined) return dedupeFiltersByField(config.filters)
   const hidden = config.hiddenStatuses ?? []
   if (hidden.length === 0) return []
   return [{ id: LEGACY_HIDDEN_STATUSES_FILTER_ID, field: "status", operator: "notIn", value: hidden }]
@@ -215,14 +244,32 @@ const FILTER_FIELD_SUMMARY_LABEL: Record<ReportFilterField, string> = {
   tag: "tags",
 }
 
+// Mirrors FILTER_OPERATOR_OPTIONS' own Include/Exclude vocabulary (ReportView.tsx)
+// so the caption never describes an "in" filter and its exact opposite "notIn"
+// filter over the same field/value-count with identical text.
+const FILTER_OPERATOR_SUMMARY_WORD: Record<ReportFilterOperator, string> = {
+  in: "included",
+  notIn: "excluded",
+}
+
 /**
  * Honest "N active filters" clause appended to the recipe caption by
- * formatOrderNote, e.g. "filtered: status (2), tags (3)". A field with zero
+ * formatOrderNote, e.g. "filtered: status excluded (2), tags included (3)".
+ * Names the operator (included/excluded), NOT just a value count — "show
+ * only these two statuses" and "hide these two statuses" are opposite
+ * arrangements of the shots and must read differently. A field with zero
  * selected values is skipped (an operator chosen before any value is picked
  * isn't "active" yet). Field order is always status-then-tag regardless of
  * array order, so the caption reads identically no matter which the user
  * touched first. Returns null when nothing is active (formatOrderNote then
  * omits the clause entirely rather than printing "filtered: ").
+ *
+ * De-dupes by field first (resolveReportFilters below is the only producer
+ * of `filters` this ever sees on a normal path and already guarantees at
+ * most one condition per field, but a hand-edited/legacy blob could still
+ * carry two — see reportTypes.test.ts "a hand-edited blob with two
+ * conditions on the same field"). Last-write-wins, matching the field's own
+ * de-dupe order.
  */
 export function formatFilterSummary(filters: readonly ReportFilterCondition[]): string | null {
   const byField = new Map(filters.map((f) => [f.field, f]))
@@ -230,7 +277,8 @@ export function formatFilterSummary(filters: readonly ReportFilterCondition[]): 
   for (const field of ["status", "tag"] as const) {
     const condition = byField.get(field)
     if (condition && condition.value.length > 0) {
-      parts.push(`${FILTER_FIELD_SUMMARY_LABEL[field]} (${condition.value.length})`)
+      const word = FILTER_OPERATOR_SUMMARY_WORD[condition.operator]
+      parts.push(`${FILTER_FIELD_SUMMARY_LABEL[field]} ${word} (${condition.value.length})`)
     }
   }
   return parts.length === 0 ? null : `filtered: ${parts.join(", ")}`
@@ -289,11 +337,22 @@ export const LEGACY_REPORT_LAYOUT: ReportLayout = "image-led"
  * `DEFAULT_REPORT_CONFIG` alone, no `stored` at all) has an empty
  * `hiddenStatuses` too, so it resolves to `[]` and stays untouched — no
  * gratuitous `filters: []` gets written onto a config that never had one.
+ *
+ * The RETURNED object always has `hiddenStatuses: []`, regardless of what
+ * `stored.hiddenStatuses` carried: its only job was feeding
+ * `resolveReportFilters` above, and once that's run (migrated or not needed)
+ * the legacy field is spent. This is what makes `ReportConfig.hiddenStatuses`'s
+ * "no code path writes this field anymore" docstring actually true — the
+ * hydrated object becomes live page state, and every subsequent setConfig
+ * spreads the CURRENT config (ReportView.tsx's setGroupBy/setSortBy/etc.), so
+ * anything still sitting in `hiddenStatuses` here would otherwise get
+ * re-persisted to Firestore on the next unrelated edit, forever.
  */
 export function hydrateReportConfig(stored: Partial<ReportConfig>): ReportConfig {
   const merged = { ...DEFAULT_REPORT_CONFIG, layout: LEGACY_REPORT_LAYOUT, ...stored }
   const filters = resolveReportFilters(merged)
-  return filters.length === 0 ? merged : { ...merged, filters }
+  const withoutLegacyHiddenStatuses = { ...merged, hiddenStatuses: [] as readonly ReportShotStatus[] }
+  return filters.length === 0 ? withoutLegacyHiddenStatuses : { ...withoutLegacyHiddenStatuses, filters }
 }
 
 /**

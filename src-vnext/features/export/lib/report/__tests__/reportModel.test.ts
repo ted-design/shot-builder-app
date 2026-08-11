@@ -605,7 +605,7 @@ describe("model.order — the APPLIED order (so a recipe caption can never claim
       data({ shots: [shot({ id: "s1", shotNumber: "01", status: "todo" })] }),
       { groupBy: "gender", excludedShotIds: [], filters: [{ id: "status", field: "status", operator: "notIn", value: ["on_hold"] }] },
     )
-    expect(model.order.filterSummary).toBe("filtered: status (1)")
+    expect(model.order.filterSummary).toBe("filtered: status excluded (1)")
   })
 })
 
@@ -645,9 +645,9 @@ describe("formatOrderNote — honest, config-driven recipe caption (replaces the
     const note = formatOrderNote({
       sortBy: "shot-number",
       sortDir: "asc",
-      filterSummary: "filtered: status (2), tags (3)",
+      filterSummary: "filtered: status excluded (2), tags included (3)",
     })
-    expect(note).toBe("Sorted by shot # · filtered: status (2), tags (3)")
+    expect(note).toBe("Sorted by shot # · filtered: status excluded (2), tags included (3)")
   })
   it("a null/absent filterSummary appends nothing", () => {
     expect(formatOrderNote({ sortBy: "shot-number", sortDir: "asc", filterSummary: null })).toBe(
@@ -659,9 +659,9 @@ describe("formatOrderNote — honest, config-driven recipe caption (replaces the
       sortBy: "custom",
       sortDir: "asc",
       groupBy: "scene",
-      filterSummary: "filtered: tags (1)",
+      filterSummary: "filtered: tags included (1)",
     })
-    expect(note).toBe("Custom order · grouped by Set · filtered: tags (1)")
+    expect(note).toBe("Custom order · grouped by Set · filtered: tags included (1)")
   })
 })
 
@@ -678,11 +678,19 @@ describe("formatFilterSummary — the 'filtered: ...' clause formatOrderNote app
       { id: "tag", field: "tag", operator: "in", value: ["t1", "t2", "t3"] },
       { id: "status", field: "status", operator: "notIn", value: ["on_hold", "todo"] },
     ]
-    expect(formatFilterSummary(filters)).toBe("filtered: status (2), tags (3)")
+    expect(formatFilterSummary(filters)).toBe("filtered: status excluded (2), tags included (3)")
   })
   it("a single active field omits the other from the summary", () => {
     const filters: ReportFilterCondition[] = [{ id: "tag", field: "tag", operator: "in", value: ["t1"] }]
-    expect(formatFilterSummary(filters)).toBe("filtered: tags (1)")
+    expect(formatFilterSummary(filters)).toBe("filtered: tags included (1)")
+  })
+  it("names the OPERATOR, not just the count — 'include these 2' and 'exclude these 2' must read differently", () => {
+    // Same field, same value count, opposite arrangement of the actual shots.
+    const included: ReportFilterCondition[] = [{ id: "status", field: "status", operator: "in", value: ["complete", "todo"] }]
+    const excluded: ReportFilterCondition[] = [{ id: "status", field: "status", operator: "notIn", value: ["complete", "todo"] }]
+    expect(formatFilterSummary(included)).toBe("filtered: status included (2)")
+    expect(formatFilterSummary(excluded)).toBe("filtered: status excluded (2)")
+    expect(formatFilterSummary(included)).not.toBe(formatFilterSummary(excluded))
   })
 })
 
@@ -697,8 +705,14 @@ describe("resolveReportFilters — hiddenStatuses -> filters migration precedenc
     ])
   })
   it("filters present (even []) is authoritative — hiddenStatuses is ignored outright, never merged", () => {
+    // toEqual (content), not toBe (reference): resolveReportFilters now
+    // always routes `filters` through dedupeFiltersByField (see that fn's
+    // docstring), which allocates a fresh array even when there was nothing
+    // to dedupe. The load-bearing claim is unchanged — hiddenStatuses never
+    // appears — only the object identity, which was never a documented
+    // contract, changed.
     const filters: ReportFilterCondition[] = [{ id: "tag", field: "tag", operator: "in", value: ["t1"] }]
-    expect(resolveReportFilters({ filters, hiddenStatuses: ["on_hold"] })).toBe(filters)
+    expect(resolveReportFilters({ filters, hiddenStatuses: ["on_hold"] })).toEqual(filters)
     expect(resolveReportFilters({ filters: [], hiddenStatuses: ["on_hold"] })).toEqual([])
   })
 })
@@ -811,17 +825,63 @@ describe("deriveShotReportModel — sortBy:'custom' respects Shot.sortOrder", ()
     expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["B", "A"])
   })
 
-  it("shots with no real sortOrder (0 / default) fall back to shot-number order, ordered LAST", () => {
+  it("a REAL sortOrder:0 (the shot dragged to the top) sorts FIRST, not last — persistShotOrder's shape", () => {
+    // Exactly what persistShotOrder's full-reindex writes after a drag
+    // (reorderShots.ts:55, called with no range from every drag-and-drop —
+    // DraggableShotList.tsx:89): the dragged-to-top shot gets sortOrder 0,
+    // everything else keeps its 1-based index. useShots.ts (the shot list
+    // itself) sorts this shot FIRST — the report must agree.
     const d = data({
       shots: [
-        shot({ id: "hasOrder", shotNumber: "05", sortOrder: 100 }),
-        shot({ id: "noOrderHi", shotNumber: "10", sortOrder: 0 }),
-        shot({ id: "noOrderLo", shotNumber: "02", sortOrder: 0 }),
+        shot({ id: "top", shotNumber: "09", sortOrder: 0 }),
+        shot({ id: "second", shotNumber: "01", sortOrder: 1 }),
+        shot({ id: "third", shotNumber: "02", sortOrder: 2 }),
       ],
     })
     const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], sortBy: "custom", sortDir: "asc" })
-    // real sortOrder first, then the two missing-sortOrder shots by shot-number (02 < 10).
-    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["hasOrder", "noOrderLo", "noOrderHi"])
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["top", "second", "third"])
+  })
+
+  it("descending still keeps the real sortOrder:0 shot in its true rank (last when descending)", () => {
+    const d = data({
+      shots: [
+        shot({ id: "top", shotNumber: "09", sortOrder: 0 }),
+        shot({ id: "second", shotNumber: "01", sortOrder: 1 }),
+        shot({ id: "third", shotNumber: "02", sortOrder: 2 }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], sortBy: "custom", sortDir: "desc" })
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["third", "second", "top"])
+  })
+
+  it("nobody has EVER reordered this project (every shot is 0/default) — falls back to shot-number order", () => {
+    // No shot carries a non-zero sortOrder anywhere in the project, matching
+    // useShots.ts's own "no real sortOrder" branch (useShots.ts:33) — the
+    // whole set has never been through persistShotOrder/renumberShots, so
+    // there's no real drag order to honour yet.
+    const d = data({
+      shots: [
+        shot({ id: "hi", shotNumber: "10", sortOrder: 0 }),
+        shot({ id: "lo", shotNumber: "02", sortOrder: 0 }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], sortBy: "custom", sortDir: "asc" })
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["lo", "hi"])
+  })
+
+  it("a mix of real 0 and real non-zero sorts purely numerically — 0 is rank #1, not a sentinel", () => {
+    // Once hasCustomOrder is true, EVERY sortOrder (including 0) is a plain
+    // numeric rank with no special-cased value — this is what actually
+    // distinguishes the fix from the old "0 means missing" comparator.
+    const d = data({
+      shots: [
+        shot({ id: "middle", shotNumber: "05", sortOrder: 5 }),
+        shot({ id: "first", shotNumber: "01", sortOrder: 0 }),
+        shot({ id: "last", shotNumber: "09", sortOrder: 9 }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], sortBy: "custom", sortDir: "asc" })
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["first", "middle", "last"])
   })
 })
 
@@ -878,6 +938,63 @@ describe("deriveShotReportModel — groupBy:'scene' (\"Set\")", () => {
     })
     const model = deriveShotReportModel(d, { groupBy: "scene", excludedShotIds: [] })
     expect(model.groups.map((g) => g.label)).toEqual(["Zebra Set", "No set"])
+  })
+
+  it("orders by Lane.sceneNumber even when it DISAGREES with Lane.sortOrder — proves sceneNumber is the primary key, not sortOrder", () => {
+    // sceneFixture() above always has sceneNumber and sortOrder increasing
+    // together, so a mutation that swapped the primary key for sortOrder
+    // could ship undetected. Here they deliberately disagree: laneHigh has
+    // the higher sceneNumber but the LOWER sortOrder.
+    const d = data({
+      shots: [
+        shot({ id: "inHigh", shotNumber: "01", laneId: "laneHigh" }),
+        shot({ id: "inLow", shotNumber: "02", laneId: "laneLow" }),
+      ],
+      lanes: [
+        lane({ id: "laneHigh", name: "Scene Two", sceneNumber: 2, sortOrder: 0 }),
+        lane({ id: "laneLow", name: "Scene One", sceneNumber: 1, sortOrder: 1 }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "scene", excludedShotIds: [] })
+    // sceneNumber 1 ("Scene One") must lead despite its HIGHER sortOrder.
+    expect(model.groups.map((g) => g.label)).toEqual(["Scene One", "Scene Two"])
+  })
+
+  it("a real Lane with a blank/whitespace name gets 'Unnamed Set', sorted by its real sceneNumber — NOT mislabeled 'No set'", () => {
+    // Regression: `lane?.name || NO_SET_GROUP_LABEL` used to fall through on
+    // an empty string (mapLane defaults a nameless doc to ""), mislabeling a
+    // REAL Set "No set" while still sorting it by sceneNumber — producing
+    // two differently-positioned groups that both read "No set" on screen.
+    const d = data({
+      shots: [
+        shot({ id: "inBlank", shotNumber: "01", laneId: "blank" }),
+        shot({ id: "inNamed", shotNumber: "02", laneId: "named" }),
+        shot({ id: "trulyNoSet", shotNumber: "03" }),
+      ],
+      lanes: [
+        lane({ id: "blank", name: "", sceneNumber: 1, sortOrder: 0 }),
+        lane({ id: "named", name: "Kitchen", sceneNumber: 2, sortOrder: 1 }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "scene", excludedShotIds: [] })
+    expect(model.groups.map((g) => g.label)).toEqual(["Unnamed Set", "Kitchen", "No set"])
+    expect(model.groups.map((g) => g.key)).toEqual(["blank", "named", "__no_set__"])
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["inBlank"])
+  })
+
+  it("lanes not yet loaded (empty laneById) does NOT collapse real Set membership into 'No set'", () => {
+    // Guard mirrors shotListFilters.ts's identical "only orphan-check once
+    // lanes have loaded" rule. Without it, a lanes read still in flight (or
+    // one that silently failed — useFirestoreCollection resolves
+    // loading:false/data:[] on a snapshot error) would misclassify every
+    // shot with a real laneId as "No set".
+    const d = data({
+      shots: [shot({ id: "s1", shotNumber: "01", laneId: "laneA" })],
+      lanes: [], // lanes not loaded / failed — laneById is empty
+    })
+    const model = deriveShotReportModel(d, { groupBy: "scene", excludedShotIds: [] })
+    expect(model.groups.map((g) => g.key)).toEqual(["laneA"])
+    expect(model.groups[0]?.key).not.toBe("__no_set__")
   })
 })
 
