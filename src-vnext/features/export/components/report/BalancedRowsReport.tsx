@@ -293,6 +293,18 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
+// Base band height. A WS-C-1 hotfix nudged this 1.0/1.7 -> 1.05/1.75 for the
+// same reason as ProductionSheetReport's THUMBNAIL_FLOOR. Reverted on review
+// (PR #519 finding dom-preview-nudge-hits-the-wrong-branch) — see that
+// file's THUMBNAIL_FLOOR for the full writeup: the nudge applied to every
+// band unconditionally (extras on OR off), the removed Band
+// minPresenceAhead={60} turned out to be the actual source of PDF-side page
+// cost, and with it gone a real render of the PR's own boundary fixture
+// pages IDENTICALLY to origin/main (14 -> 14 at 20 shots, 4 -> 4 at the
+// 50-product+10-refs fixture). 1.0/1.7 are the measured-correct values again.
+const BASE_H_SINGLE = 1.0
+const BASE_H_MULTI = 1.7
+
 function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
   let z = 0
@@ -302,7 +314,7 @@ function buildStream(model: ReportModel, showAdditionalImages: boolean): readonl
     stream.push({ kind: "group", group: { ...group, count: printable.length }, h: 0.8 })
     for (const shot of printable) {
       const multi = shot.looks.length > 1
-      let h = multi ? 1.7 : 1.0
+      let h = multi ? BASE_H_MULTI : BASE_H_SINGLE
       // Additional-images row (WS-C): see extraImagesWeight above. No-op when
       // the toggle is off or the shot has nothing extra, so default-off
       // pagination stays byte-identical to pre-WS-C.

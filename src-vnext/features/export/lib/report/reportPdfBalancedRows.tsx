@@ -49,6 +49,11 @@ const s = StyleSheet.create({
   // band
   band: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: COLOR.rule, paddingVertical: 10 },
   bandZebra: { backgroundColor: COLOR.surfaceSubtle },
+  // imgCol is wrap={false} (WS-C-1, 2026-08-11) — same cover-shrink defect as
+  // production-sheet's thumbBox (see that file's comment): a splittable
+  // 210x150 image container gets resized down to whatever page space is left
+  // instead of moving whole to the next page. 150pt is far below page
+  // height, so this can never trigger "can't wrap between pages".
   imgCol: { width: IMG_COL, height: BAND_H, alignItems: "center", justifyContent: "center", overflow: "hidden", marginRight: 18 },
   img: { maxWidth: IMG_COL, maxHeight: BAND_H, objectFit: "contain" },
   noImg: { width: IMG_COL, height: BAND_H, backgroundColor: COLOR.surfaceSubtle, borderWidth: 0.5, borderColor: COLOR.rule, alignItems: "center", justifyContent: "center" },
@@ -97,10 +102,14 @@ const s = StyleSheet.create({
 
   // additional-images row (WS-C, 2026-08-11) — thumbs scaled proportionally to
   // the cover (IMG_COL x BAND_H, 210x150, ÷3 = 70x50, same 1.4 aspect).
-  // flex-wrap, no wrap={false} anywhere in this block or its container — the
-  // band must stay splittable (the #508 fix this recipe already depends on).
+  // flex-wrap CONTAINER stays splittable (no wrap={false} here) — many
+  // references still flow across pages, matching the #508 fix this recipe
+  // already depends on. What changed in WS-C-1 is EACH extraThumb box below.
   extraLabel: { fontFamily: FONT.uiBold, fontSize: 5.5, letterSpacing: 0.6, textTransform: "uppercase", color: COLOR.textSubtle, marginTop: 10, marginBottom: 5 },
   extraRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  // wrap={false} (WS-C-1) — same per-thumb straddle/duplicate defect as
+  // production-sheet's extraThumb (see that file's comment). The extraRow
+  // container above stays splittable so many thumbs still flow across pages.
   extraThumb: { width: 70, height: 50, backgroundColor: COLOR.surfaceSubtle, borderWidth: 0.5, borderColor: COLOR.rule, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   extraImg: { maxWidth: 70, maxHeight: 50, objectFit: "contain" },
 
@@ -163,10 +172,13 @@ function AdditionalImagesRow({
   if (srcs.length === 0) return null
   return (
     <View>
-      <Text style={s.extraLabel}>Additional references</Text>
+      {/* minPresenceAhead (WS-C-1) — matches LookBlock's lookLabel above: the
+       *  label must never be the last thing rendered on a page with its
+       *  thumbs pushed to the next one alone. */}
+      <Text style={s.extraLabel} minPresenceAhead={30}>Additional references</Text>
       <View style={s.extraRow}>
         {srcs.map((src, i) => (
-          <View key={`${shot.id}-extra-${String(i)}`} style={s.extraThumb}>
+          <View key={`${shot.id}-extra-${String(i)}`} style={s.extraThumb} wrap={false}>
             <Image src={src} style={s.extraImg} />
           </View>
         ))}
@@ -191,8 +203,16 @@ function Band({
   const st = STATUS[shot.status]
   const talent = shot.talent.map((t) => t.name).filter((n) => has(n))
   return (
+    // NOT minPresenceAhead — see reportPdfProductionSheet.tsx's Row for the
+    // full writeup (removed on review, PR #519 findings min-presence-ahead-*):
+    // @react-pdf gates the term on the child already fitting the remaining
+    // page, so it cannot prevent a genuine sliver-start, and measured cost on
+    // THIS recipe's default (extras-off) path was severe — 20 shots 10->17
+    // pages (+70%), 26 shots 13->23 (+77%) — for zero change to either
+    // violation invariant below on any fixture, extras on OR off. imgCol's
+    // wrap={false} below is what actually stops the shrink/straddle defect.
     <View style={[s.band, ...(zebra ? [s.bandZebra] : [])]}>
-      <View style={s.imgCol}>
+      <View style={s.imgCol} wrap={false}>
         {src ? <Image src={src} style={s.img} /> : <View style={s.noImg}><Text style={s.noImgTxt}>No image yet</Text></View>}
       </View>
       <View style={s.panel}>

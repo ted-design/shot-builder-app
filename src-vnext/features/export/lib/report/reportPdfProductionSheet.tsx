@@ -56,6 +56,12 @@ const s = StyleSheet.create({
   holdTxt: { fontFamily: FONT.uiBold, fontSize: 5, letterSpacing: 0.5, textTransform: "uppercase", color: COLOR.accent },
 
   thumbCol: { width: 92, borderRightWidth: 0.5, borderRightColor: COLOR.rule, padding: 6 },
+  // thumbBox is wrap={false} (WS-C-1, 2026-08-11) — a real prod export showed
+  // this cover box get SHRUNK-TO-FIT (e.g. 9.3x12.5pt) when the page break fell
+  // inside the Row: @react-pdf resizes a splittable image container to whatever
+  // remaining page space is left instead of moving it. Atomic means it now
+  // moves whole to the next page instead — small fixed box (96pt tall, far
+  // below page height), so it can never trigger "can't wrap between pages".
   thumbBox: { width: 80, height: 96, backgroundColor: COLOR.surfaceSubtle, borderWidth: 0.5, borderColor: COLOR.rule, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   thumbImg: { maxWidth: 80, maxHeight: 96, objectFit: "contain" },
   thumbNoImg: { fontFamily: FONT.ui, fontSize: 5.5, color: COLOR.textSubtle, textTransform: "uppercase" },
@@ -100,11 +106,21 @@ const s = StyleSheet.create({
 
   // additional-images row (WS-C, 2026-08-11) — small supplementary thumbs,
   // half the cover's 80x96 footprint (same 5:6 aspect), flex-wrap so a dense
-  // shot flows its extras across lines rather than forcing new pages. No
-  // wrap={false} anywhere in this block (or its container) — the shot must
-  // stay splittable, matching the #508 fix this recipe already depends on.
+  // shot flows its extras across MANY lines/pages — the extraRow CONTAINER
+  // stays splittable (no wrap={false} here), matching the #508 fix this
+  // recipe already depends on: a shot with dozens of references must still
+  // flow, not clip. What changed in the WS-C-1 hotfix is EACH extraThumb box
+  // below (see its own comment) — that's the level a real prod export showed
+  // straddling/shrinking at, not the row as a whole.
   extraLabel: { fontFamily: FONT.uiBold, fontSize: 5, letterSpacing: 0.6, textTransform: "uppercase", color: COLOR.textSubtle, marginTop: 7, marginBottom: 3 },
   extraRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  // wrap={false} (WS-C-1) — a real prod export showed ONE thumb here render
+  // PARTIALLY at a page's bottom edge, then duplicate in full at the top of
+  // the next page (@react-pdf's default splittable behavior for a leaf-image
+  // box that straddles a break). Atomic means an individual thumb that
+  // doesn't fit moves WHOLE to the next line/page instead — the extraRow
+  // container above stays splittable, so many thumbs still flow across pages,
+  // it's just that no single 40x48pt box ever straddles or shrinks anymore.
   extraThumb: { width: 40, height: 48, backgroundColor: COLOR.surfaceSubtle, borderWidth: 0.5, borderColor: COLOR.rule, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   extraImg: { maxWidth: 40, maxHeight: 48, objectFit: "contain" },
 
@@ -154,10 +170,13 @@ function AdditionalImagesRow({
   if (srcs.length === 0) return null
   return (
     <View>
-      <Text style={s.extraLabel}>Additional references</Text>
+      {/* minPresenceAhead (WS-C-1) — same "don't orphan a heading" pattern as
+       *  LookBlock's lookHead above: the label must never be the last thing
+       *  rendered on a page with its thumbs pushed to the next one alone. */}
+      <Text style={s.extraLabel} minPresenceAhead={30}>Additional references</Text>
       <View style={s.extraRow}>
         {srcs.map((src, i) => (
-          <View key={`${shot.id}-extra-${String(i)}`} style={s.extraThumb}>
+          <View key={`${shot.id}-extra-${String(i)}`} style={s.extraThumb} wrap={false}>
             <Image src={src} style={s.extraImg} />
           </View>
         ))}
@@ -181,13 +200,43 @@ function Row({
   const src = has(cand) ? imageMap.get(cand) : undefined
   const talent = shot.talent.filter((t) => has(t.name))
   return (
+    // NOT minPresenceAhead — tried in the original WS-C-1 hotfix as a "don't
+    // start a shot with a sliver" guard (~60pt, within the cover thumb's 96pt
+    // height) and REMOVED on review (PR #519 findings min-presence-ahead-*):
+    // @react-pdf only applies minPresenceAhead when the child already fits
+    // entirely on the remaining page (`!shouldSplit` — layout/lib/index.js
+    // `shouldBreak`); a Row that starts with a real sliver of room is exactly
+    // the `shouldSplit === true` case, so the term is unreachable for the
+    // scenario it was named after. What it DID do, measured: force every
+    // FITTING Row to the next page whenever <60pt would remain after it —
+    // +70-77% pages on balanced-rows' default (extras-off) path at 20-26
+    // shots, for zero change to either violation invariant below (0 with it,
+    // 0 without, on every fixture in this file). thumbBox's wrap={false}
+    // below is what actually stops the shrink/straddle defect; the sliver
+    // itself is #508's existing flow-across-pages behavior and is unaffected
+    // either way.
     <View style={[s.row, ...(flagged ? [s.rowFlag] : [])]}>
       <View style={s.spine}>
         <View style={[s.statusDot, { backgroundColor: st.color }]} />
         {flagged ? <Text style={s.holdTxt}>HOLD</Text> : null}
       </View>
+      {/* wrap={false} deliberately stays on the NESTED thumbBox, not thumbCol
+       *  — PR #519 finding nested-atomic-thumb-relies-on-the-spine-sibling
+       *  correctly identifies a latent fragility (@react-pdf's splitNodes has
+       *  an escape hatch that can re-shrink a wrap={false} leaf nested inside
+       *  a still-splittable container when it's the parent's first child with
+       *  an empty currentChildren; here `spine` precedes thumbCol and always
+       *  lands first, so it's not currently reachable) but its suggested fix
+       *  — move wrap={false} up to thumbCol, matching balanced-rows' imgCol —
+       *  is UNSAFE, not just unnecessary: unlike imgCol (explicit
+       *  height: BAND_H), thumbCol has no explicit height, so `row`'s default
+       *  flex `alignItems: stretch` makes thumbCol's real box the Row's FULL
+       *  (often many-pages-tall) height. Verified: making thumbCol atomic
+       *  reintroduces "can't wrap between pages" on every fixture in this
+       *  file's test suite. thumbBox's own explicit height: 96 is what keeps
+       *  wrap={false} safe here — leave it on the leaf. */}
       <View style={s.thumbCol}>
-        <View style={s.thumbBox}>
+        <View style={s.thumbBox} wrap={false}>
           {src ? <Image src={src} style={s.thumbImg} /> : <Text style={s.thumbNoImg}>No ref</Text>}
         </View>
         <Text style={s.talent}>

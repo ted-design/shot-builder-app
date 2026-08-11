@@ -311,13 +311,29 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
+// Thumbnail floor. A WS-C-1 hotfix nudged this 2.4 -> 2.5 on the theory that
+// making the PDF-side cover/extras thumbs atomic (wrap={false} — see
+// reportPdfProductionSheet.tsx) would cost real PDF pages the preview needed
+// to budget for. Reverted on review (PR #519 finding
+// dom-preview-nudge-hits-the-wrong-branch): the nudge applied unconditionally
+// to every shot regardless of showAdditionalImages, so it changed the
+// DEFAULT (extras-off) preview's pagination while being a no-op for the
+// extras-on case it was written for; separately, the Row/Band
+// minPresenceAhead={60} the same hotfix added (also reverted, see that
+// file's Row) turned out to be the real source of PDF-side page-count cost —
+// with it gone, a real render of the PR's own boundary fixture pages
+// IDENTICALLY to origin/main (9 -> 9 at 20 shots, 3 -> 3 at the 50-product+
+// 10-refs fixture), so there is no PDF-side inflation left for this floor to
+// compensate for. 2.4 is the measured-correct value again.
+const THUMBNAIL_FLOOR = 2.4
+
 export function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
   let prodRows = 0
   for (const l of shot.looks) prodRows += l.products.length
   let w = 1.7 + shot.looks.length * 0.55 + prodRows * 0.42
   if (present(shot.notes)) w += 0.6
   if (showAdditionalImages) w += extraImagesWeight(shot.additionalImages?.length ?? 0)
-  return Math.max(w, 2.4) // thumbnail floor
+  return Math.max(w, THUMBNAIL_FLOOR)
 }
 
 function paginate(model: ReportModel, showAdditionalImages: boolean): readonly PsPage[] {
