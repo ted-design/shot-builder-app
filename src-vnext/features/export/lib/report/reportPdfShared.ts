@@ -138,7 +138,24 @@ export function hyphenateToken(word: string, chunk = 14): readonly string[] {
  *  `hyphenationCallback` prop on that Text — do NOT pre-process the string. */
 export const tokenHyphenation: HyphenationCallback = (word) => [...hyphenateToken(word)]
 
-/** The shot's primary image candidate (looks[0] — the canonical primary, as image-led uses). */
+/** The shot's primary image candidate (looks[0] — the canonical primary, as image-led uses).
+ *  Already hero-first (see reportModel.ts's resolveLooks) — no changes needed here. */
 export function primaryLookImage(shot: ReportShot): string | null {
   return shot.looks[0]?.image ?? null
+}
+
+/** Resolve a shot's additional-images candidates (WS-C) to usable srcs via the
+ *  image sidecar. A candidate with no resolved src (a failed per-image fetch)
+ *  is simply dropped — there's no fixed slot to fill for an optional extra. */
+export function resolveAdditionalImageSrcs(
+  imageMap: ReadonlyMap<string, string>,
+  candidates: readonly string[] | undefined,
+): readonly string[] {
+  if (!candidates || candidates.length === 0) return []
+  const out: string[] = []
+  for (const c of candidates) {
+    const src = imageMap.get(c)
+    if (src) out.push(src)
+  }
+  return out
 }

@@ -44,7 +44,26 @@ export function isFlagged(status: ReportShotStatus): boolean {
 }
 
 /** The shot's primary image candidate. Model sorts looks by order, so looks[0]
- *  is the primary — same definition image-led uses (one canonical primary). */
+ *  is the primary — same definition image-led uses (one canonical primary).
+ *  Already hero-first (see reportModel.ts's resolveLooks) — this reader needs
+ *  no changes of its own for the WS-C cover semantics to apply here. */
 export function primaryLookImage(shot: ReportShot): string | null {
   return shot.looks[0]?.image ?? null
+}
+
+/** Resolve a shot's additional-images candidates (WS-C) to usable srcs via the
+ *  sidecar map. A candidate with no resolved src (a failed per-image fetch) is
+ *  simply dropped, not rendered as an empty/broken frame — unlike the single
+ *  cover thumbnail there is no fixed slot to fill for an optional extra. */
+export function resolveAdditionalImageSrcs(
+  imageMap: ReadonlyMap<string, string>,
+  candidates: readonly string[] | undefined,
+): readonly string[] {
+  if (!candidates || candidates.length === 0) return []
+  const out: string[] = []
+  for (const c of candidates) {
+    const src = imageMap.get(c)
+    if (src) out.push(src)
+  }
+  return out
 }

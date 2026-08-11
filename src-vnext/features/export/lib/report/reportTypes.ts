@@ -185,6 +185,22 @@ export interface ReportConfig {
   readonly sortBy?: ReportSortField
   /** R2 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
   readonly sortDir?: SortDir
+  /**
+   * Additional-images row (WS-C, 2026-08-11). OFF/absent renders exactly
+   * today's cover-only shot block — byte-identical output (see
+   * reportModel.test.ts / reportLayouts.test.tsx "showAdditionalImages
+   * absent/false renders nothing extra"). ON renders a row of small thumbs
+   * for each of the shot's OTHER look-reference images — see
+   * `ReportShot.additionalImages` for the exact derive + dedupe rule.
+   * production-sheet + balanced-rows only: image-led is EXCLUDED v1 (its
+   * height estimator, reportPdfHeights.ts, has no synced term for a second
+   * image row yet) — `reportLayoutSupportsAdditionalImages` /
+   * `resolveShowAdditionalImages` below are the single source that keeps the
+   * control inert and the row un-rendered on that recipe. Same rollback-safety
+   * class as `filters`/`sortBy` above: `neutralizeReportConfigForFlag` clears
+   * it when `featureReportConfig` is off.
+   */
+  readonly showAdditionalImages?: boolean
 }
 
 /** Stable id for the single synthetic filter `resolveReportFilters` folds a
@@ -302,6 +318,7 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   hiddenStatuses: [],
   sortBy: "shot-number",
   sortDir: "asc",
+  showAdditionalImages: false,
 }
 
 /**
@@ -392,7 +409,45 @@ export function neutralizeReportConfigForFlag(config: ReportConfig, flagOn: bool
     // A persisted "status" or "scene" would otherwise render past flag-off
     // (not byte-identical). The two legacy values were always user-settable.
     groupBy: config.groupBy === "gender" || config.groupBy === "none" ? config.groupBy : "gender",
+    // Same rollback-safety reasoning as the fields above: a config saved while
+    // featureReportConfig was ON could carry showAdditionalImages:true, and
+    // with the control hidden the user has no way to clear it themselves.
+    showAdditionalImages: false,
   }
+}
+
+/**
+ * Recipes that can render the additional-images row: production-sheet's small
+ * thumb row and balanced-rows' proportional one. image-led is EXCLUDED v1 —
+ * its height estimator (reportPdfHeights.ts, shared by the real PDF pagination
+ * AND the DOM print-preview's WYSIWYG packShotSheets) has no synced term for a
+ * second image row, so rendering it there would silently desync the two.
+ */
+export function reportLayoutSupportsAdditionalImages(layout: ReportLayout): boolean {
+  return layout === "production-sheet" || layout === "balanced-rows"
+}
+
+/**
+ * The additional-images row actually renders only when BOTH the user has
+ * turned it on (the raw persisted `config.showAdditionalImages`) AND both
+ * gates hold: the Phase-A/B config flag (`featureReportConfig` — same
+ * rollback-safety class `neutralizeReportConfigForFlag` enforces for
+ * `filters`/`sortBy` above) and the active recipe supporting the row (see
+ * `reportLayoutSupportsAdditionalImages`). Single source for ReportView's
+ * screen render, ShotReportPage's PDF export, and the ControlBar's own
+ * enabled/inert state, so the three can't drift from each other — mirrors
+ * `resolveReportLayout`'s role for `layout`.
+ */
+export function resolveShowAdditionalImages(
+  config: ReportConfig,
+  layout: ReportLayout,
+  reportConfigEnabled: boolean,
+): boolean {
+  return (
+    reportConfigEnabled &&
+    config.showAdditionalImages === true &&
+    reportLayoutSupportsAdditionalImages(layout)
+  )
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */
@@ -461,6 +516,25 @@ export interface ReportShot {
    * "No set", same as an id that no longer resolves to a live Lane doc.
    */
   readonly laneId?: string | null
+  /**
+   * Additional-images row (WS-C, 2026-08-11): every reference image on the
+   * shot's REPORTED looks (respects looksMode — the same visible-looks slice
+   * the shot's own `looks` array above already reflects), MINUS whichever
+   * image resolved as the shot's cover (`looks[0].image`) — deduped by
+   * RESOLVED IMAGE IDENTITY (downloadURL, falling back to path — the same
+   * candidate string the image sidecar keys on), never by reference id: a
+   * hero pointing at the same stored object as a reference is excluded no
+   * matter its id, and two references sharing a stored object collapse to
+   * one thumb. ALWAYS computed by deriveShotReportModel (cheap, pure)
+   * regardless of `ReportConfig.showAdditionalImages` — that flag only gates
+   * whether a recipe RENDERS this row, so the model never has a
+   * flag-shaped hole in it. OPTIONAL so the many pre-existing hand-built
+   * ReportShot fixtures (PDF pagination + style-token regression suites, the
+   * overflow gate) keep compiling unchanged — every reader treats an absent
+   * value as `[]` ("nothing extra to show"), matching a shot with no
+   * references.
+   */
+  readonly additionalImages?: readonly string[]
 }
 
 export interface ReportGroup {

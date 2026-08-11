@@ -16,6 +16,7 @@ import {
   hydrateReportConfig,
   neutralizeReportConfigForFlag,
   resolveReportLayout,
+  resolveShowAdditionalImages,
   type ReportConfig,
 } from "../../lib/report/reportTypes"
 import { ReportView } from "./ReportView"
@@ -166,18 +167,27 @@ export default function ShotReportPage() {
       // the on-screen layout (which ReportView also forces to image-led via the
       // same resolveReportLayout — single source, can't drift).
       const layout = resolveReportLayout(config, isFeatureEnabled("featureShotReportRecipes"))
+      // Same single-source pattern for the additional-images row (WS-C) — the
+      // PDF export must agree with what ReportView renders on screen, so the
+      // exact same resolver (config, layout, featureReportConfig) decides both.
+      const showAdditionalImages = resolveShowAdditionalImages(
+        config,
+        layout,
+        isFeatureEnabled("featureReportConfig"),
+      )
       await generateShotReportPdf(
         model,
         imageMap,
         `${model.project.name} — Shot Report.pdf`,
         layout,
+        showAdditionalImages,
       )
     })()
       .catch((err) => toast.error(err instanceof Error ? err.message : "Couldn't export the PDF"))
       .finally(() => {
         setExporting(false)
       })
-  }, [model, imageMap, config.layout])
+  }, [model, imageMap, config.layout, config.showAdditionalImages])
 
   if (data.loading) {
     return (

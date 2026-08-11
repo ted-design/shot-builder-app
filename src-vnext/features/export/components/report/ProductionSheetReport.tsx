@@ -13,13 +13,23 @@ import type {
   ReportProduct,
   ReportShot,
 } from "../../lib/report/reportTypes"
-import { isFlagged, present, primaryLookImage, resolveSrc, statusMeta } from "./reportShared"
+import {
+  isFlagged,
+  present,
+  primaryLookImage,
+  resolveAdditionalImageSrcs,
+  resolveSrc,
+  statusMeta,
+} from "./reportShared"
 import { sizeLabel } from "../../lib/report/reportModel"
 
 interface BodyProps {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  /** WS-C additional-images toggle. Absent/false renders byte-identical to
+   *  pre-WS-C output — AdditionalImagesRow is never invoked. */
+  readonly showAdditionalImages?: boolean
 }
 
 // --- product mini-table row: hero(neutral ▲) · family · style# · colour · size · qty
@@ -60,14 +70,47 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
   )
 }
 
+/** Additional-images row (WS-C): renders nothing when there's nothing extra
+ *  to show — the toggle is off, the shot has no additionalImages, or every
+ *  candidate failed to resolve. */
+function AdditionalImagesRow({
+  shot,
+  imageMap,
+}: {
+  readonly shot: ReportShot
+  readonly imageMap: ReadonlyMap<string, string>
+}): JSX.Element | null {
+  const srcs = resolveAdditionalImageSrcs(imageMap, shot.additionalImages)
+  if (srcs.length === 0) return null
+  return (
+    <div className="sb-ps-extra">
+      <span className="sb-ps-extra-label">Additional references</span>
+      <div className="sb-ps-extra-row">
+        {srcs.map((src, i) => (
+          <div className="sb-ps-extra-thumb" key={`${shot.id}-extra-${i}`}>
+            <img
+              className="sb-img-native"
+              src={src}
+              alt={`${shot.title} — additional reference ${i + 1}`}
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ShotRow({
   shot,
   imageMap,
   onToggleExclude,
+  showAdditionalImages,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  readonly showAdditionalImages: boolean
 }): JSX.Element {
   const flagged = isFlagged(shot.status)
   const st = statusMeta(shot.status)
@@ -124,6 +167,7 @@ function ShotRow({
             <LookBlock key={lk.id} look={lk} />
           ))}
         </div>
+        {showAdditionalImages ? <AdditionalImagesRow shot={shot} imageMap={imageMap} /> : null}
       </div>
     </div>
   )
@@ -237,15 +281,24 @@ const PAGE_CAP_FIRST = 13.0
 const PAGE_CAP_FULL = 15.2
 const GROUP_W = 1.4 + 0.9 // band + ruler
 
-function shotWeight(shot: ReportShot): number {
+function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
   let prodRows = 0
   for (const l of shot.looks) prodRows += l.products.length
   let w = 1.7 + shot.looks.length * 0.55 + prodRows * 0.42
   if (present(shot.notes)) w += 0.6
+  // Additional-images row (WS-C): a rough per-shot bump so the CSS weight-pack
+  // print PREVIEW (a hard-clipped fixed-height sheet, unlike the real PDF's
+  // flow layout) doesn't under-estimate and clip the row off the bottom of a
+  // page. Same "estimate, not measure" character as every other term here —
+  // not tuned to any exact row height, just enough to keep a shot carrying
+  // extra thumbs from landing at the very bottom of a full sheet. No-op (w
+  // unchanged) when the toggle is off or the shot has nothing extra, so the
+  // default-off pagination is byte-identical to pre-WS-C.
+  if (showAdditionalImages && (shot.additionalImages?.length ?? 0) > 0) w += 0.5
   return Math.max(w, 2.4) // thumbnail floor
 }
 
-function paginate(model: ReportModel): readonly PsPage[] {
+function paginate(model: ReportModel, showAdditionalImages: boolean): readonly PsPage[] {
   const pages: Block[][] = []
   let cur: Block[] = []
   let used = 0
@@ -261,12 +314,12 @@ function paginate(model: ReportModel): readonly PsPage[] {
     const printable = group.shots.filter((s) => !s.excluded)
     if (printable.length === 0) continue
     // Never strand a group band: start fresh if it + its first shot won't fit.
-    const firstW = printable[0] ? shotWeight(printable[0]) : 2.4
+    const firstW = printable[0] ? shotWeight(printable[0], showAdditionalImages) : 2.4
     if (used > 0 && used + GROUP_W + firstW > cap) flush()
     cur.push({ type: "group", group })
     used += GROUP_W
     for (const shot of printable) {
-      const w = shotWeight(shot)
+      const w = shotWeight(shot, showAdditionalImages)
       if (used + w > cap && cur.length > 0) {
         flush()
         cur.push({ type: "group", group, cont: true }) // continuation ruler
@@ -280,8 +333,8 @@ function paginate(model: ReportModel): readonly PsPage[] {
   return pages.map((blocks) => ({ blocks }))
 }
 
-function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
-  const pages = useMemo(() => paginate(model), [model])
+function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = false }: BodyProps): JSX.Element {
+  const pages = useMemo(() => paginate(model, showAdditionalImages), [model, showAdditionalImages])
   const projLine = model.project.client
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -304,6 +357,7 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
                 shot={blk.shot}
                 imageMap={imageMap}
                 onToggleExclude={onToggleExclude}
+                showAdditionalImages={showAdditionalImages}
               />
             ),
           )}
@@ -319,7 +373,12 @@ function PagedView({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element
   )
 }
 
-export function ProductionSheetReport({ model, imageMap, onToggleExclude }: BodyProps): JSX.Element {
+export function ProductionSheetReport({
+  model,
+  imageMap,
+  onToggleExclude,
+  showAdditionalImages = false,
+}: BodyProps): JSX.Element {
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   if (isEmpty) return <p className="sb-empty">No shots to report yet.</p>
   return (
@@ -333,13 +392,24 @@ export function ProductionSheetReport({ model, imageMap, onToggleExclude }: Body
             {/* count = printable; excluded rows still shown struck below */}
             <GroupBand group={{ ...group, count: group.shots.filter((s) => !s.excluded).length }} />
             {group.shots.map((shot) => (
-              <ShotRow key={shot.id} shot={shot} imageMap={imageMap} onToggleExclude={onToggleExclude} />
+              <ShotRow
+                key={shot.id}
+                shot={shot}
+                imageMap={imageMap}
+                onToggleExclude={onToggleExclude}
+                showAdditionalImages={showAdditionalImages}
+              />
             ))}
           </div>
         ))}
       </div>
       {/* Paged (print preview + @media print) */}
-      <PagedView model={model} imageMap={imageMap} onToggleExclude={onToggleExclude} />
+      <PagedView
+        model={model}
+        imageMap={imageMap}
+        onToggleExclude={onToggleExclude}
+        showAdditionalImages={showAdditionalImages}
+      />
     </div>
   )
 }

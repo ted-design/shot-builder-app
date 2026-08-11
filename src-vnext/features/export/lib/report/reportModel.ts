@@ -60,6 +60,15 @@ function pickLookDisplayImage(look: ShotLook): string | null {
   return chosen?.downloadURL ?? chosen?.path ?? null
 }
 
+/** Resolved image identity for a hero image or a look reference — the actual
+ *  stored object, not the reference id: downloadURL when present, else path.
+ *  This is the SAME candidate string pickLookDisplayImage above resolves to,
+ *  so a hero and a reference pointing at one stored object always compare
+ *  equal here even when their ids differ (WS-C dedupe rule). */
+function resolveImageIdentity(img: { readonly path: string; readonly downloadURL?: string }): string {
+  return img.downloadURL ?? img.path
+}
+
 /** Best image candidate for a styled product: assignment thumbs, then family thumbnail. */
 export function pickProductImage(
   p: ProductAssignment,
@@ -120,10 +129,16 @@ export function sortLooksByOrder(looks: readonly ShotLook[]): readonly ShotLook[
 
 function resolveLooks(
   shot: Shot,
+  sortedRawLooks: readonly ShotLook[],
   familyById: ReadonlyMap<string, ProductFamily>,
 ): readonly ReportLook[] {
-  const looks = sortLooksByOrder(shot.looks ?? [])
-  return looks.map((look, i): ReportLook => {
+  // Cover semantics (WS-C, 2026-08-11): Shot.heroImage WINS over the look's own
+  // reference/product-fallback logic, but ONLY for the PRIMARY look slot
+  // (index 0 below) — alt-look rendering under looksMode:"all" is untouched.
+  // Absent heroImage is a no-op (heroCandidate stays null), so a shot that has
+  // never set a hero renders byte-identical to pre-WS-C.
+  const heroCandidate = shot.heroImage ? resolveImageIdentity(shot.heroImage) : null
+  return sortedRawLooks.map((look, i): ReportLook => {
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
     const products = resolveProducts(look.products, look.heroProductId, familyById)
@@ -131,14 +146,42 @@ function resolveLooks(
     // no uploaded reference, so pre-shoot decks still show a thumbnail. Alt looks stay
     // reference-only (they keep their "no reference" slot rather than a product stand-in).
     // `hasReference` always tracks the real reference (the "references ready" counter
-    // must not count the product fallback).
+    // must not count the product fallback, and stays independent of Shot.heroImage too).
     const reference = pickLookDisplayImage(look)
     const productFallback = isAlt
       ? null
       : products.find((p) => p.isHero)?.img ?? products.find((p) => p.img)?.img ?? null
-    const image = reference ?? productFallback
+    const legacyImage = reference ?? productFallback
+    const image = i === 0 ? heroCandidate ?? legacyImage : legacyImage
     return { id: look.id, label, isAlt, image, hasReference: reference != null, products }
   })
+}
+
+/**
+ * Additional-images row (WS-C, 2026-08-11): every reference image on
+ * `visibleRawLooks` (the caller passes the looksMode-filtered slice — primary
+ * look only, or every rendered look), minus whichever image resolved as the
+ * shot's cover, deduped by RESOLVED IMAGE IDENTITY (see resolveImageIdentity)
+ * rather than reference id — so a hero that happens to point at the same
+ * stored object as a reference is excluded regardless of which id it carries,
+ * and two references sharing a stored object collapse to one thumb. Order
+ * preserved: look order, then reference order within a look.
+ */
+function resolveAdditionalImages(
+  visibleRawLooks: readonly ShotLook[],
+  coverIdentity: string | null,
+): readonly string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const look of visibleRawLooks) {
+    for (const ref of look.references ?? []) {
+      const identity = resolveImageIdentity(ref)
+      if (identity === coverIdentity || seen.has(identity)) continue
+      seen.add(identity)
+      out.push(identity)
+    }
+  }
+  return out
 }
 
 /** Shot gender cascade: explicit gender tag -> products' family genders -> "?". */
@@ -425,11 +468,16 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
   const filteredShots = applyFilterConditions(notDeleted, filters, { familyById })
 
   const built: ReportShot[] = filteredShots.map((shot): ReportShot => {
-    const looks = resolveLooks(shot, familyById)
+    const sortedRawLooks = sortLooksByOrder(shot.looks ?? [])
+    const looks = resolveLooks(shot, sortedRawLooks, familyById)
     // Gender resolves from ALL looks so grouping stays stable across looksMode.
     const gender = resolveShotGender(shot, looks)
     // primary-only is a display filter: keep only the primary look (looks[0]).
     const visibleLooks = primaryOnly ? looks.slice(0, 1) : looks
+    const visibleRawLooks = primaryOnly ? sortedRawLooks.slice(0, 1) : sortedRawLooks
+    // The resolved cover (hero-first, see resolveLooks) — additionalImages
+    // excludes whichever image this actually is, by resolved identity.
+    const coverIdentity = looks[0]?.image ?? null
     return {
       id: shot.id,
       number: shot.shotNumber ?? "",
@@ -445,6 +493,7 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       hasImage: visibleLooks.some((l) => l.hasReference),
       sortOrder: shot.sortOrder,
       laneId: shot.laneId ?? null,
+      additionalImages: resolveAdditionalImages(visibleRawLooks, coverIdentity),
     }
   })
 

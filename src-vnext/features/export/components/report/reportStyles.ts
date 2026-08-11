@@ -475,6 +475,14 @@ export const REPORT_STYLES = `
 .sb-ps-pt-size { font-family: var(--sb-font-ui); font-size: var(--sb-t-xs); color: var(--sb-ink); text-align: right; }
 .sb-ps-pt-qty { font-family: var(--sb-font-ui); font-size: var(--sb-t-xs); color: var(--sb-ink-2); text-align: right; }
 
+/* additional-images row (WS-C, 2026-08-11) — small supplementary thumbs, half
+   the cover's 80x96 footprint (same 5:6 aspect ratio) */
+.sb-ps-extra { margin-top: 9px; }
+.sb-ps-extra-label { display: block; font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-ink-3); font-weight: 600; margin-bottom: 5px; }
+.sb-ps-extra-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-ps-extra-thumb { width: 46px; aspect-ratio: 5 / 6; background: var(--sb-surface-sub); border: 1px solid var(--sb-rule); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.sb-ps-extra-thumb .sb-img-native { width: auto; max-width: 100%; max-height: 100%; height: auto; }
+
 /* production-sheet paged (print preview + @media print) */
 .sb-ps-paged { display: none; }
 .sb-ps-foot { display: none; }
@@ -555,6 +563,14 @@ export const REPORT_STYLES = `
 .sb-br-pr-colour { color: var(--sb-ink-2); }
 .sb-br-pr-size { color: var(--sb-ink); }
 .sb-br-pr-qty { text-align: right; color: var(--sb-ink-2); }
+
+/* additional-images row (WS-C, 2026-08-11) — thumbs scaled proportionally to
+   the cover (--br-img-col x --br-band-h, same 1.4 aspect ratio) */
+.sb-br-extra { margin-top: 14px; }
+.sb-br-extra-label { display: block; font-family: var(--sb-font-ui); font-weight: 600; font-size: var(--sb-t-3xs); letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-ink-3); margin-bottom: 7px; }
+.sb-br-extra-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sb-br-extra-thumb { width: 90px; height: 64px; background: var(--sb-surface-sub); border: 1px solid var(--sb-rule); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.sb-br-extra-thumb .sb-img-native { width: auto; height: auto; max-width: 100%; max-height: 100%; }
 
 /* balanced-rows paged (print preview + @media print) */
 .sb-br-paged { display: none; }

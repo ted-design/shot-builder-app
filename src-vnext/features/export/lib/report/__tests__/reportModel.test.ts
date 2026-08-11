@@ -411,6 +411,294 @@ describe("deriveShotReportModel", () => {
   })
 })
 
+describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
+  it("Shot.heroImage WINS over the existing reference when both are set and differ", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [{ id: "r1", path: "ref.jpg", downloadURL: "ref-url" }],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("hero-url")
+  })
+
+  it("hero absent -> byte-identical to today's look-reference logic (falls through to the reference)", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [{ id: "r1", path: "ref.jpg", downloadURL: "ref-url" }],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("ref-url")
+  })
+
+  it("hero absent, no reference either -> falls through to the pre-WS-C product-fallback, unchanged", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [{ id: "l0", order: 0, heroProductId: "fM", products: [{ familyId: "fM", thumbUrl: "prod-img" }] }],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("prod-img")
+  })
+
+  it("hero wins over the product fallback too when there is no reference at all", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          looks: [{ id: "l0", order: 0, heroProductId: "fM", products: [{ familyId: "fM", thumbUrl: "prod-img" }] }],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("hero-url")
+  })
+
+  it("hero-first applies ONLY to the primary look slot — alt looks keep their pre-existing reference-only behavior under looksMode:'all'", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          looks: [
+            { id: "l0", order: 0, products: [] }, // primary: no reference — hero wins
+            { id: "l1", order: 1, label: "Alt A", products: [] }, // alt: no reference — stays null, hero never applies
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const looks = m.groups[0]?.shots[0]?.looks
+    expect(looks?.[0]?.image).toBe("hero-url")
+    expect(looks?.[1]?.image).toBeNull()
+  })
+
+  it("hero-first does not change hasReference — the 'references ready' counter still tracks a real uploaded reference only", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          looks: [{ id: "l0", order: 0, products: [] }], // no reference — hero supplies the cover, but it's not a reference
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.hasReference).toBe(false)
+    expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
+  })
+
+  it("heroImage with only a path (no downloadURL survives the mapper in practice, but defend anyway) resolves via path", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero-path-only.jpg" } as unknown as Shot["heroImage"],
+          looks: [{ id: "l0", order: 0, products: [] }],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("hero-path-only.jpg")
+  })
+})
+
+describe("deriveShotReportModel — WS-C additional images (2026-08-11)", () => {
+  it("hero IS one of the references -> that reference is excluded from additionalImages, no duplicate", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "shared.jpg", downloadURL: "shared-url" },
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "shared.jpg", downloadURL: "shared-url" }, // same stored object as the hero
+                { id: "r2", path: "other.jpg", downloadURL: "other-url" },
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const s = m.groups[0]?.shots[0]
+    expect(s?.looks[0]?.image).toBe("shared-url") // hero wins as the cover
+    expect(s?.additionalImages).toEqual(["other-url"]) // the identical-identity reference is excluded, not duplicated
+  })
+
+  it("hero is a DISTINCT image from every reference -> all references render as additional", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "ref1.jpg", downloadURL: "ref1-url" },
+                { id: "r2", path: "ref2.jpg", downloadURL: "ref2-url" },
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.additionalImages).toEqual(["ref1-url", "ref2-url"])
+  })
+
+  it("no hero: the FIRST reference becomes the cover (today's logic) and is excluded from additionalImages", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "cover.jpg", downloadURL: "cover-url" },
+                { id: "r2", path: "extra.jpg", downloadURL: "extra-url" },
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const s = m.groups[0]?.shots[0]
+    expect(s?.looks[0]?.image).toBe("cover-url")
+    expect(s?.additionalImages).toEqual(["extra-url"])
+  })
+
+  it("looksMode:'primary-only' -> additionalImages sees only the PRIMARY look's references, never an alt look's", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            { id: "l0", order: 0, references: [{ id: "r1", path: "p1.jpg", downloadURL: "p1-url" }, { id: "r2", path: "p2.jpg", downloadURL: "p2-url" }], products: [] },
+            { id: "l1", order: 1, label: "Alt", references: [{ id: "r3", path: "a1.jpg", downloadURL: "a1-url" }], products: [] },
+          ],
+        }),
+      ],
+    })
+    const all = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const primary = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "primary-only" })
+    // "all": primary's cover (p1-url) excluded, p2 + the alt look's reference both show
+    expect(all.groups[0]?.shots[0]?.additionalImages).toEqual(["p2-url", "a1-url"])
+    // primary-only: the alt look's reference must never appear
+    expect(primary.groups[0]?.shots[0]?.additionalImages).toEqual(["p2-url"])
+  })
+
+  it("two references sharing the same stored object collapse to one additional thumb", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "cover.jpg", downloadURL: "cover-url" },
+                { id: "r2", path: "dup.jpg", downloadURL: "dup-url" },
+                { id: "r3", path: "dup.jpg", downloadURL: "dup-url" }, // same stored object, different reference id
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    expect(m.groups[0]?.shots[0]?.additionalImages).toEqual(["dup-url"])
+  })
+
+  it("a shot with no references at all derives an empty additionalImages array, not undefined", () => {
+    const d = data({
+      shots: [shot({ id: "s1", shotNumber: "01", looks: [{ id: "l0", order: 0, products: [] }] })],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [] })
+    expect(m.groups[0]?.shots[0]?.additionalImages).toEqual([])
+  })
+
+  it("additionalImages is derived regardless of any config toggle — the model has no flag-shaped hole in it", () => {
+    // deriveShotReportModel never reads a showAdditionalImages field; the model
+    // always carries the real derived list. Rendering it is a presentation
+    // concern (ReportConfig.showAdditionalImages), not a model concern.
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "cover.jpg", downloadURL: "cover-url" },
+                { id: "r2", path: "extra.jpg", downloadURL: "extra-url" },
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [] })
+    expect(m.groups[0]?.shots[0]?.additionalImages).toEqual(["extra-url"])
+  })
+})
+
 describe("deriveShotReportModel — R2 order-by (Phase B)", () => {
   // Worked example: groupBy 'status', sortBy 'talent', sortDir 'asc'. Ties fall to
   // the shot-number tie-break. Four shots, two talent names shared across statuses.

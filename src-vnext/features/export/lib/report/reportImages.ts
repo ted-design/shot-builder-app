@@ -6,7 +6,13 @@ import type { ReportModel } from "./reportTypes"
 // shared image pipeline. The resulting map (candidate -> dataUrl) is the sidecar
 // both renderers read, so screen and PDF show identical images.
 
-/** Collect every unique image candidate referenced by the model. */
+/** Collect every unique image candidate referenced by the model. `look.image`
+ *  already carries the hero-first cover value for the primary look (see
+ *  reportModel.ts's resolveLooks), so no separate hero-candidate walk is
+ *  needed here. `shot.additionalImages` (WS-C) is collected unconditionally —
+ *  the model always derives it regardless of ReportConfig.showAdditionalImages,
+ *  which only gates whether a recipe RENDERS the row (see
+ *  ReportShot.additionalImages / resolveShowAdditionalImages). */
 export function collectReportImageCandidates(model: ReportModel): readonly string[] {
   const set = new Set<string>()
   for (const group of model.groups) {
@@ -16,6 +22,7 @@ export function collectReportImageCandidates(model: ReportModel): readonly strin
         if (look.image) set.add(look.image)
         for (const p of look.products) if (p.img) set.add(p.img)
       }
+      for (const img of shot.additionalImages ?? []) set.add(img)
     }
   }
   return [...set]

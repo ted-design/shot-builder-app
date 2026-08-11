@@ -84,3 +84,106 @@ describe("BalancedRowsReport (comp-c)", () => {
     expect(queryByText(/sorted by shot/i)).toBeNull()
   })
 })
+
+// WS-C additional-images row (2026-08-11): default OFF renders byte-identical
+// to pre-WS-C output; ON renders exactly the resolved (deduped) extras.
+function modelWithExtras(): ReportModel {
+  return {
+    project: { name: "P", client: "c", shotCount: 1, dateRange: null },
+    groups: [
+      {
+        key: "all", label: "All shots", count: 1,
+        shots: [
+          {
+            id: "s1", number: "01", title: "Extras Shot", colorway: null, status: "todo",
+            gender: "?", notes: null, talent: [], excluded: false, hasImage: false,
+            looks: [{ id: "l1", label: "Primary", isAlt: false, image: "cover-cand", hasReference: true, products: [] }],
+            additionalImages: ["extra-1", "extra-2"],
+          },
+        ],
+      },
+    ],
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
+}
+
+const extrasImageMap = new Map([
+  ["cover-cand", "cover-src"],
+  ["extra-1", "extra-1-src"],
+  ["extra-2", "extra-2-src"],
+])
+
+describe("ProductionSheetReport — additional-images row (WS-C)", () => {
+  it("showAdditionalImages absent renders no extra row at all — byte-identical to pre-WS-C output", () => {
+    const { container } = render(
+      <ProductionSheetReport model={modelWithExtras()} imageMap={extrasImageMap} onToggleExclude={noop} />,
+    )
+    expect(container.querySelector(".sb-ps-extra")).toBeNull()
+  })
+
+  it("showAdditionalImages:false renders no extra row, even though the shot has additionalImages", () => {
+    const { container } = render(
+      <ProductionSheetReport
+        model={modelWithExtras()}
+        imageMap={extrasImageMap}
+        onToggleExclude={noop}
+        showAdditionalImages={false}
+      />,
+    )
+    expect(container.querySelector(".sb-ps-extra")).toBeNull()
+  })
+
+  it("showAdditionalImages:true renders exactly the shot's resolved additionalImages srcs, never the cover", () => {
+    const { container } = render(
+      <ProductionSheetReport
+        model={modelWithExtras()}
+        imageMap={extrasImageMap}
+        onToggleExclude={noop}
+        showAdditionalImages={true}
+      />,
+    )
+    // The recipe always renders BOTH a fluid (screen) copy and a paged (print
+    // preview) copy — scope to the fluid one so the assertion isn't doubled.
+    const fluid = container.querySelector(".sb-ps-fluid")!
+    const imgs = [...fluid.querySelectorAll(".sb-ps-extra-thumb img")].map((img) => img.getAttribute("src"))
+    expect(imgs).toEqual(["extra-1-src", "extra-2-src"])
+    expect(imgs).not.toContain("cover-src")
+  })
+
+  it("a shot with no additionalImages renders no extra row even when the toggle is on", () => {
+    const bare: ReportModel = {
+      ...modelWithExtras(),
+      groups: [{ ...modelWithExtras().groups[0]!, shots: [{ ...modelWithExtras().groups[0]!.shots[0]!, additionalImages: [] }] }],
+    }
+    const { container } = render(
+      <ProductionSheetReport model={bare} imageMap={extrasImageMap} onToggleExclude={noop} showAdditionalImages={true} />,
+    )
+    expect(container.querySelector(".sb-ps-extra")).toBeNull()
+  })
+})
+
+describe("BalancedRowsReport — additional-images row (WS-C)", () => {
+  it("showAdditionalImages absent renders no extra row at all — byte-identical to pre-WS-C output", () => {
+    const { container } = render(
+      <BalancedRowsReport model={modelWithExtras()} imageMap={extrasImageMap} onToggleExclude={noop} />,
+    )
+    expect(container.querySelector(".sb-br-extra")).toBeNull()
+  })
+
+  it("showAdditionalImages:true renders exactly the shot's resolved additionalImages srcs, never the cover", () => {
+    const { container } = render(
+      <BalancedRowsReport
+        model={modelWithExtras()}
+        imageMap={extrasImageMap}
+        onToggleExclude={noop}
+        showAdditionalImages={true}
+      />,
+    )
+    // The recipe always renders BOTH a fluid (screen) copy and a paged (print
+    // preview) copy — scope to the fluid one so the assertion isn't doubled.
+    const fluid = container.querySelector(".sb-br-fluid")!
+    const imgs = [...fluid.querySelectorAll(".sb-br-extra-thumb img")].map((img) => img.getAttribute("src"))
+    expect(imgs).toEqual(["extra-1-src", "extra-2-src"])
+    expect(imgs).not.toContain("cover-src")
+  })
+})

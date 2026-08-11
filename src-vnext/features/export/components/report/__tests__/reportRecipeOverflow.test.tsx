@@ -71,6 +71,73 @@ function overflowWarnings(warn: ReturnType<typeof vi.spyOn>): string[] {
     .filter((line) => OVERFLOW.test(line))
 }
 
+/** Rough page count from the raw PDF bytes: counts `/Type /Page` object dicts
+ *  (the `(?!s)` guard excludes `/Type /Pages`, the page-TREE node). Not a
+ *  general PDF parser — good enough to sanity-check "not zero, not runaway"
+ *  against a real @react-pdf render, same spirit as reportRecipeStyleTokenSpacing.test.tsx's
+ *  content-stream text extractor. */
+function countPdfPages(buf: Buffer): number {
+  const raw = buf.toString("latin1")
+  const matches = raw.match(/\/Type\s*\/Page(?!s)/g)
+  return matches ? matches.length : 0
+}
+
+// 1x1 transparent PNG — a real, valid image payload (not a garbage base64
+// string), matching the shape resolveReportImages/resolvePdfImageSrc actually
+// hand the renderer (a "data:" URL, resolved once and cached). @react-pdf/image
+// reads a data: URL directly (no fetch), so this works under @vitest-environment node.
+const TINY_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
+// WS-C (2026-08-11): the SAME "Everything Shot" as overflowModel() above, plus
+// 10 additional-images references — the realistic shape the spec asks for
+// ("50-product look PLUS 10 references with showAdditionalImages on"). The
+// shot is already several pages tall from the 50 products alone; this proves
+// the NEW row doesn't reintroduce a clip when composed with the existing
+// overflow behavior.
+const EXTRA_IMAGE_IDS = Array.from({ length: 10 }, (_, i) => `extra-${String(i)}`)
+const EXTRA_IMAGE_MAP = new Map(EXTRA_IMAGE_IDS.map((id) => [id, TINY_PNG] as const))
+
+function overflowModelWithAdditionalImages(): ReportModel {
+  const base = overflowModel()
+  const shot: ReportShot = { ...base.groups[0]!.shots[0]!, additionalImages: EXTRA_IMAGE_IDS }
+  return { ...base, groups: [{ ...base.groups[0]!, shots: [shot] }] }
+}
+
+// Stress fixture ISOLATING the additional-images row: a near-empty shot (one
+// product, no notes, no alt looks) whose ONLY source of height is a large
+// additionalImages row. At 400 thumbs this wraps to roughly 2.5–7x a single
+// page's usable height on BOTH recipes (production-sheet: ~14/line, 40x48pt
+// boxes; balanced-rows: ~6/line, 70x50pt boxes — see the derivation in the PR
+// description). Proves the row itself FLOWS across pages under real code
+// (zero warnings) — sized well past threshold so a fixture that merely fits
+// can't mask a regression (testing-discipline: "size 2-3x past threshold").
+const STRESS_IMAGE_COUNT = 400
+const STRESS_IMAGE_IDS = Array.from({ length: STRESS_IMAGE_COUNT }, (_, i) => `stress-${String(i)}`)
+const STRESS_IMAGE_MAP = new Map(STRESS_IMAGE_IDS.map((id) => [id, TINY_PNG] as const))
+
+function additionalImagesStressModel(): ReportModel {
+  const shot: ReportShot = {
+    id: "s1",
+    number: "01",
+    title: "Extras-Only Shot",
+    colorway: null,
+    status: "todo",
+    gender: "W",
+    notes: null,
+    talent: [],
+    excluded: false,
+    hasImage: false,
+    looks: [{ id: "l1", label: "Primary", isAlt: false, image: null, hasReference: false, products: [product(0)] }],
+    additionalImages: STRESS_IMAGE_IDS,
+  }
+  return {
+    project: { name: "Additional-Images Stress Fixture", client: "unbound-merino", shotCount: 1, dateRange: null },
+    groups: [{ key: "W", label: "Women", count: 1, shots: [shot] }],
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
+}
+
 describe("recipe PDF overflow — a page-busting shot must FLOW, never silently clip", () => {
   let warn: ReturnType<typeof vi.spyOn>
   beforeEach(() => {
@@ -89,6 +156,90 @@ describe("recipe PDF overflow — a page-busting shot must FLOW, never silently 
   it("balanced-rows renders the dense shot with NO can't-wrap warning", async () => {
     const buf = await renderToBuffer(<BalancedRowsPdfDocument model={overflowModel()} imageMap={new Map()} />)
     expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// WS-C (2026-08-11) — the additional-images row must be as flow-friendly as
+// the rest of the shot block. No new wrap={false} anywhere in AdditionalImagesRow
+// or its container (both PDF recipes) — mutation-verified below (manual,
+// documented in the PR description): temporarily re-adding wrap={false} to the
+// row's outer View in reportPdfProductionSheet.tsx / reportPdfBalancedRows.tsx
+// reddens BOTH "stress" cases here (the row alone then exceeds a page's usable
+// height), reverted after confirming.
+// ---------------------------------------------------------------------------
+describe("recipe PDF overflow — additional-images row (WS-C) must FLOW, never silently clip", () => {
+  let warn: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+  })
+  afterEach(() => {
+    warn.mockRestore()
+  })
+
+  it("production-sheet: 50-product shot + 10 references, showAdditionalImages ON — zero can't-wrap warnings, sane page count", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument
+        model={overflowModelWithAdditionalImages()}
+        imageMap={EXTRA_IMAGE_MAP}
+        showAdditionalImages={true}
+      />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    const pages = countPdfPages(buf)
+    expect(pages).toBeGreaterThan(0)
+    expect(pages).toBeLessThan(20) // sane — not a runaway/near-infinite flow
+  })
+
+  it("balanced-rows: 50-product shot + 10 references, showAdditionalImages ON — zero can't-wrap warnings, sane page count", async () => {
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument
+        model={overflowModelWithAdditionalImages()}
+        imageMap={EXTRA_IMAGE_MAP}
+        showAdditionalImages={true}
+      />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    const pages = countPdfPages(buf)
+    expect(pages).toBeGreaterThan(0)
+    expect(pages).toBeLessThan(20)
+  })
+
+  it("production-sheet: additional-images row ALONE (400 thumbs, well past one page) still FLOWS — zero can't-wrap warnings", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument
+        model={additionalImagesStressModel()}
+        imageMap={STRESS_IMAGE_MAP}
+        showAdditionalImages={true}
+      />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    expect(countPdfPages(buf)).toBeGreaterThan(1) // genuinely spans multiple pages
+  })
+
+  it("balanced-rows: additional-images row ALONE (400 thumbs, well past one page) still FLOWS — zero can't-wrap warnings", async () => {
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument
+        model={additionalImagesStressModel()}
+        imageMap={STRESS_IMAGE_MAP}
+        showAdditionalImages={true}
+      />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    expect(countPdfPages(buf)).toBeGreaterThan(1)
+  })
+
+  it("showAdditionalImages OFF (default) renders the IDENTICAL page count whether or not the model carries additionalImages — AdditionalImagesRow is never invoked, not merely invoked-and-empty", async () => {
+    const withoutField = await renderToBuffer(<ProductionSheetPdfDocument model={overflowModel()} imageMap={new Map()} />)
+    const withFieldButOff = await renderToBuffer(
+      <ProductionSheetPdfDocument model={overflowModelWithAdditionalImages()} imageMap={EXTRA_IMAGE_MAP} />,
+    )
+    expect(countPdfPages(withFieldButOff)).toBe(countPdfPages(withoutField))
     expect(overflowWarnings(warn)).toEqual([])
   })
 })
