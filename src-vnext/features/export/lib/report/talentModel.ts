@@ -5,15 +5,19 @@ import {
   formatLabeledMeasurements,
 } from "@/features/library/lib/measurementOptions"
 import type { ExportData } from "../../hooks/useExportData"
-import { formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
+import { buildStatusGroups, formatDateWindow, lookLabel, shotNumberSortKey, sortLooksByOrder, titleCaseSlug } from "./reportModel"
+import { compareText, sortItemsStable } from "./reportSort"
 import type {
+  HeadshotCrop,
   TalentAppearance,
   TalentConfig,
   TalentEntry,
   TalentGroup,
   TalentMeasurement,
   TalentModel,
+  TalentSortField,
 } from "./talentTypes"
+import { DEFAULT_HEADSHOT_CROP } from "./talentTypes"
 
 // Pure derivation: ExportData + TalentConfig -> TalentModel. No async, no image
 // bytes (headshot is a path/URL candidate resolved later). The single source both
@@ -61,6 +65,7 @@ function toEntry(
   t: TalentRecord,
   shots: readonly Shot[],
   excluded: ReadonlySet<string>,
+  crops: Record<string, HeadshotCrop>,
 ): TalentEntry {
   const appears = buildAppearances(t.id, shots)
   const label = genderDisplayLabel(t.gender)
@@ -82,6 +87,9 @@ function toEntry(
     measurements,
     excluded: excluded.has(t.id),
     appears,
+    // R4 part 2: fold the per-talent crop from the (neutralized) config; absent ->
+    // the centered default (so flag-off, where crops is clamped to {}, is byte-identical).
+    crop: crops[t.id] ?? DEFAULT_HEADSHOT_CROP,
   }
 }
 
@@ -129,6 +137,12 @@ function groupEntries(
         return { key, label: key, count: inGroup.length, items: inGroup }
       })
   }
+  if (groupBy === "status") {
+    // O2: one bucket per talent, keyed by their most-outstanding appearance status.
+    return buildStatusGroups(items, (t) => t.appears.map((a) => a.status)).map(
+      (b): TalentGroup => ({ key: b.key, label: b.label, count: b.count, items: b.items }),
+    )
+  }
   // agency
   const byAgency = new Map<string, TalentEntry[]>()
   for (const item of items) {
@@ -164,17 +178,55 @@ function agencyBucketSort(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
+// Secondary key for the talent sort — ALWAYS ascending (deterministic tie-break).
+const TALENT_TIEBREAK = (a: TalentEntry, b: TalentEntry): number =>
+  compareText(a.name, b.name) || compareText(a.id, b.id)
+
+/** Primary comparator for a talent sort field (R5). Reuses the bucket-order sorts. */
+function talentPrimaryFor(sortBy: TalentSortField): (a: TalentEntry, b: TalentEntry) => number {
+  switch (sortBy) {
+    case "name":
+      return (a, b) => compareText(a.name, b.name)
+    case "gender":
+      return (a, b) => genderBucketSort(a.genderLabel ?? UNRESOLVED, b.genderLabel ?? UNRESOLVED)
+    case "agency":
+      return (a, b) => agencyBucketSort(a.agency ?? NO_AGENCY, b.agency ?? NO_AGENCY)
+    default:
+      // Runtime safety (see reportModel.shotPrimaryFor): an out-of-union persisted
+      // sortBy falls back to the default field, never returns undefined.
+      return (a, b) => compareText(a.name, b.name)
+  }
+}
+
 /** Derive the resolved talent model from live export data + config. */
 export function deriveTalentModel(data: ExportData, config: TalentConfig): TalentModel {
   const excluded = new Set(config.excludedTalentIds)
+  // R3: statuses to hide (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const records =
     config.talentScope === "project-attached"
       ? projectAttachedTalent(data)
       : inShotsTalent(data)
+  // R4 part 2: per-talent crops from the (neutralized) config — {} flag-off.
+  const crops = config.headshotCrops ?? {}
 
-  const items = records
-    .map((t) => toEntry(t, data.shots, excluded))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const built = records
+    .map((t) => toEntry(t, data.shots, excluded, crops))
+    // R3: drop a talent only when EVERY appearance is a hidden status. A project-attached
+    // talent with no appearances (appears.length === 0) is kept — status can't hide what has no shots.
+    .filter(
+      (item) =>
+        hidden.size === 0 ||
+        item.appears.length === 0 ||
+        item.appears.some((a) => !hidden.has(a.status)),
+    )
+
+  // R5 order-by. Absent sortBy → verbatim legacy name order (flag-off byte-identical).
+  // Defined → the shared stable engine with the id tie-break.
+  const items =
+    config.sortBy === undefined
+      ? [...built].sort((a, b) => a.name.localeCompare(b.name))
+      : sortItemsStable(built, talentPrimaryFor(config.sortBy), TALENT_TIEBREAK, config.sortDir ?? "asc")
 
   return {
     project: {
@@ -184,6 +236,9 @@ export function deriveTalentModel(data: ExportData, config: TalentConfig): Talen
       talentCount: items.length,
     },
     groups: groupEntries(items, config.groupBy),
+    // R4 density: fold the resolved layout onto the model so BOTH renderers read a
+    // pre-neutralized value (the page feeds the NEUTRALIZED config, so flag-off → "detail").
+    layout: config.layout ?? "detail",
   }
 }
 

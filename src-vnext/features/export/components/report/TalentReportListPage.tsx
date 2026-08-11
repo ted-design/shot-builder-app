@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Plus, Trash2, Users } from "lucide-react"
+import { Pencil, Plus, Trash2, Users } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { Button, buttonVariants } from "@/ui/button"
 import { Input } from "@/ui/input"
 import {
@@ -15,6 +16,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/dialog"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
@@ -29,19 +37,20 @@ export default function TalentReportListPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const { clientId } = useAuth()
   const navigate = useNavigate()
-  const { reports, loading, createTalentReport, deleteReport } = useExportReports(
-    clientId,
-    projectId,
-  )
+  const { reports, loading, createTalentReport, deleteReport, renameReport } =
+    useExportReports(clientId, projectId)
 
   const talentReports = useMemo(
     () => reports.filter((r) => r.reportType === "talent"),
     [reports],
   )
 
+  const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
   const [newName, setNewName] = useState("")
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
+  const [pendingRename, setPendingRename] = useState<{ id: string; name: string } | null>(null)
+  const [renameDraft, setRenameDraft] = useState("")
 
   const openReport = useCallback(
     (reportId: string) =>
@@ -76,6 +85,24 @@ export default function TalentReportListPage() {
     },
     [deleteReport],
   )
+
+  const openRename = useCallback((id: string, name: string) => {
+    setPendingRename({ id, name })
+    setRenameDraft(name)
+  }, [])
+
+  const handleRename = useCallback(async () => {
+    if (!pendingRename) return
+    const name = renameDraft.trim()
+    setPendingRename(null)
+    if (!name || name === pendingRename.name) return
+    try {
+      await renameReport(pendingRename.id, name)
+      toast.success("Report renamed")
+    } catch {
+      toast.error("Couldn't rename the report")
+    }
+  }, [pendingRename, renameDraft, renameReport])
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -126,6 +153,17 @@ export default function TalentReportListPage() {
               <Button variant="outline" size="sm" onClick={() => openReport(r.id)}>
                 Open
               </Button>
+              {reportConfigEnabled && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openRename(r.id, r.name)}
+                  disabled={busy}
+                  aria-label={`Rename ${r.name}`}
+                >
+                  <Pencil />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -166,6 +204,39 @@ export default function TalentReportListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {reportConfigEnabled && (
+        <Dialog
+          open={pendingRename !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingRename(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename report</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameDraft.trim()) void handleRename()
+              }}
+              placeholder="Report name…"
+              aria-label="Report name"
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPendingRename(null)}>
+                Cancel
+              </Button>
+              <Button disabled={!renameDraft.trim()} onClick={() => void handleRename()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

@@ -166,6 +166,15 @@ export default function ShotListPage() {
   // Export rendered immediately on desktop (no flash-of-missing) and hidden
   // on tablet/mobile throughout — same device keying, pinned in tests.
   const canExport = affordances?.export ?? isDesktop
+  // featureShotReport gates the /export/reports route itself (routes/index.tsx)
+  // — it's only forced on in the live deploy workflow, not preview/dev/.env.
+  // Flag OFF must keep resolving to the legacy target (/export?preset=...) or
+  // Export dead-ends in NotFoundPage on every non-live environment. Single
+  // source so the header button and BulkActionBar can't drift (mirrors the
+  // gating AppShell.tsx already does for the Shot Reports nav item).
+  const exportTarget = isFeatureEnabled("featureShotReport")
+    ? `/projects/${projectId}/export/reports`
+    : `/projects/${projectId}/export?preset=shot-list`
   const canManageLifecycle = !roleResolving && (role === "admin" || role === "producer") && (affordances?.lifecycle ?? !isMobile)
   // Scene/lane writes (edit, delete, ungroup) consolidate on canEditScene
   // (rbac.ts), which mirrors the /lanes rule (firestore.rules:880-882,
@@ -505,7 +514,7 @@ export default function ShotListPage() {
             {!isReviewSurface && (
               <>
                 {canExport && (
-                  <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}>
+                  <Button variant="outline" onClick={() => navigate(exportTarget)}>
                     Export
                   </Button>
                 )}
@@ -558,7 +567,7 @@ export default function ShotListPage() {
           onShareOpen={() => setShareOpen(true)}
           onGroupSceneOpen={() => setGroupSceneOpen(true)}
           onMergeOpen={openMerge}
-          onExportClick={() => navigate(`/projects/${projectId}/export?preset=shot-list`)}
+          onExportClick={() => navigate(exportTarget)}
           onCreatePullOpen={() => setCreatePullOpen(true)}
           onBulkDeleteOpen={() => setBulkDeleteOpen(true)}
           onClearSelection={clearSelection}
@@ -614,6 +623,8 @@ export default function ShotListPage() {
             hasScenes={lanes.length > 0}
             displayCount={displayShots.length}
             totalCount={shots.length}
+            fields={fields}
+            onFieldsChange={setFields}
           />
 
           <KeyboardShortcutsDialog

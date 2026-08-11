@@ -12,6 +12,7 @@ export type NavItemIcon =
   | "clipboard-list"
   | "image"
   | "calendar-days"
+  | "list-checks"
   | "package"
   | "landmark"
   | "users"
@@ -120,6 +121,10 @@ export function buildNavConfig(projectId?: string, role?: string): NavConfig {
       {
         type: "item",
         item: { label: "Casting", to: `${prefix}/casting`, iconName: "user-check", surfaceBadge: "Reader" },
+      },
+      {
+        type: "item",
+        item: { label: "Schedules", to: `${prefix}/schedules`, iconName: "list-checks" },
       },
       {
         type: "item",

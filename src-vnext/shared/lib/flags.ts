@@ -148,12 +148,24 @@ export interface FeatureFlags {
    */
   readonly featureTalentReport: boolean
   /**
+   * Report configuration Phase A — the report-builder config controls that layer
+   * onto the existing report types: rename-after-create (all 3 report list pages)
+   * + the "Hide statuses" include/exclude-by-shot-status filter (all 3 report
+   * views). Gates ONLY the controls; the underlying model filter is inert while
+   * `config.hiddenStatuses` is empty (its only writer is the gated control), so
+   * flag-off is byte-identical. Default OFF; enabled via `VITE_REPORT_CONFIG=1`
+   * (or `true`) at build/dev time (featureTalentReport env-parse precedent). No
+   * URL/localStorage layer. Distinct from the per-type report flags — this rides
+   * on top of whichever report surfaces are already live/dark.
+   */
+  readonly featureReportConfig: boolean
+  /**
    * Sets initiative Phase 2 — the Set surface (a "Scene"/Lane reframed as a
    * "Set"). Gates ALL Phase-2 UI: the Set location field + "Apply to N shots"
    * action in the Set editor, the photo/video media control/column/filter, the
    * rich Set header line, and the Scene→Set rename. Default OFF; the flag-off
    * path is byte-identical to trunk. Enabled via `VITE_SETS=1` (or `true`) at
-   * build/dev time (featureTalentReport env-parse precedent). No URL/localStorage
+   * build/dev time (featureReportConfig env-parse precedent). No URL/localStorage
    * layer. Phase-1 schema (Lane.locationId, Shot.mediaType) is additive and not
    * flagged; only the consuming UI is gated here.
    */
@@ -175,6 +187,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShotReportRecipes: false,
   featureProductInfoReport: false,
   featureTalentReport: false,
+  featureReportConfig: false,
   featureSets: false,
 }
 
@@ -234,6 +247,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentReport:
       DEFAULT_FLAGS.featureTalentReport ||
       parseEnvFlag(import.meta.env.VITE_TALENT_REPORT),
+    featureReportConfig:
+      DEFAULT_FLAGS.featureReportConfig ||
+      parseEnvFlag(import.meta.env.VITE_REPORT_CONFIG),
     featureSets:
       DEFAULT_FLAGS.featureSets || parseEnvFlag(import.meta.env.VITE_SETS),
   }

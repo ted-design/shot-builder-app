@@ -63,7 +63,11 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
 // useShotListState.resolver.test.tsx.
 // 5e-III: featureShootSurface gates the View-as menu mount; default OFF here
 // (matches the rest of this legacy-pinned file). Flip per-test for the mount pin.
-const flagState = vi.hoisted(() => ({ shootSurface: false }))
+// featureShotReport gates the /export/reports route itself (routes/index.tsx)
+// and is only forced on in the live deploy workflow — default OFF here so the
+// legacy-pinned suite reflects preview/dev reality; flip per-test to pin the
+// flag-ON target.
+const flagState = vi.hoisted(() => ({ shootSurface: false, shotReport: false }))
 
 vi.mock("@/shared/lib/flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/lib/flags")>()
@@ -74,7 +78,9 @@ vi.mock("@/shared/lib/flags", async (importOriginal) => {
         ? false
         : flag === "featureShootSurface"
           ? flagState.shootSurface
-          : actual.isFeatureEnabled(flag),
+          : flag === "featureShotReport"
+            ? flagState.shotReport
+            : actual.isFeatureEnabled(flag),
   }
 })
 
@@ -148,6 +154,7 @@ describe("ShotListPage", () => {
     mediaState.isMobile = false
     mediaState.isDesktop = false
     flagState.shootSurface = false
+    flagState.shotReport = false
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -728,6 +735,85 @@ describe("ShotListPage", () => {
     renderPage("/projects/p1/shots")
 
     expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument()
+  })
+
+  it("Export routes to the shot-reports list when featureShotReport is on, not the superseded block-canvas export", () => {
+    mediaState.isDesktop = true
+    flagState.shotReport = true
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedPathname: string | undefined
+    function PathnameObserver() {
+      const { pathname } = useLocation()
+      capturedPathname = pathname
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <PathnameObserver />
+              </>
+            }
+          />
+          <Route path="*" element={<PathnameObserver />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+    expect(capturedPathname).toBe("/projects/p1/export/reports")
+  })
+
+  it("Export falls back to the legacy block-canvas export when featureShotReport is off — the route doesn't exist otherwise (routes/index.tsx gates it), and this app has no /export/reports catch-all", () => {
+    mediaState.isDesktop = true
+    flagState.shotReport = false
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha" })],
+      loading: false,
+      error: null,
+    })
+
+    let capturedPathname: string | undefined
+    let capturedSearch: string | undefined
+    function PathnameObserver() {
+      const { pathname, search } = useLocation()
+      capturedPathname = pathname
+      capturedSearch = search
+      return null
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/projects/p1/shots"]}>
+        <Routes>
+          <Route
+            path="/projects/:id/shots"
+            element={
+              <>
+                <ShotListPage />
+                <PathnameObserver />
+              </>
+            }
+          />
+          <Route path="*" element={<PathnameObserver />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Export" }))
+
+    expect(capturedPathname).toBe("/projects/p1/export")
+    expect(capturedSearch).toBe("?preset=shot-list")
   })
 
   // ── 5e-II FAB ?create=1 consume-path gate (rules-vs-UI matrix item 5) ─────

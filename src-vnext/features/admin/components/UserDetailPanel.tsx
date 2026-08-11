@@ -5,9 +5,10 @@ import { ExternalLink, FolderPlus } from "lucide-react"
 import { db } from "@/shared/lib/firebase"
 import { userDocPath } from "@/shared/lib/paths"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { ROLE, roleLabel } from "@/shared/lib/rbac"
+import { ROLE, roleLabel, isProjectScopedRole } from "@/shared/lib/rbac"
 import { deactivateUser, reactivateUser, bulkAddProjectMembers } from "@/features/admin/lib/adminWrites"
 import { ProjectAssignmentPicker, type ProjectAssignment } from "./ProjectAssignmentPicker"
+import { RoleProjectAssignmentDialog } from "./RoleProjectAssignmentDialog"
 import { Button } from "@/ui/button"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
@@ -77,6 +78,15 @@ export function UserDetailPanel({
   const [showReactivate, setShowReactivate] = useState(false)
   const [reactivateRole, setReactivateRole] = useState<Role>(role ?? ROLE.VIEWER)
   const [reactivating, setReactivating] = useState(false)
+  // Mount (reactivateAssignRole) and open (reactivateAssignOpen) are separate
+  // for the same reason as UserRoleSelect's assignDialogRole/assignOpen split:
+  // collapsing them kills the Radix exit animation, and reusing one mounted
+  // instance across a second reactivation keeps the dialog's own "reset on
+  // reopen" effect a real path. reactivateAssignRole freezes the role that
+  // was actually applied — reactivateRole itself is a live Select value the
+  // admin could keep changing after this fires.
+  const [reactivateAssignRole, setReactivateAssignRole] = useState<Role | null>(null)
+  const [reactivateAssignOpen, setReactivateAssignOpen] = useState(false)
   const [showAssignProjects, setShowAssignProjects] = useState(false)
   const [projectAssignments, setProjectAssignments] = useState<readonly ProjectAssignment[]>([])
   const [savingProjects, setSavingProjects] = useState(false)
@@ -166,6 +176,17 @@ export function UserDetailPanel({
       await reactivateUser({ targetUid: userId, role: reactivateRole, clientId })
       toast.success(`${displayName || email} has been reactivated as ${roleLabel(reactivateRole)}`)
       setShowReactivate(false)
+      // deactivateUser deletes every project member doc for this user
+      // (functions/index.js handleDeactivateUser) and reactivateUser only
+      // restores the Auth claim — so a project-scoped role reactivation
+      // guarantees zero project access unless we offer this follow-up.
+      // Existing memberships are genuinely empty here (that's what
+      // deactivation did), but the dialog re-derives them itself anyway for
+      // parity with the UserRoleSelect path.
+      if (isProjectScopedRole(reactivateRole)) {
+        setReactivateAssignRole(reactivateRole)
+        setReactivateAssignOpen(true)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reactivate user")
     } finally {
@@ -276,7 +297,7 @@ export function UserDetailPanel({
               assignments={projectAssignments}
               onChange={setProjectAssignments}
               existingProjectIds={existingProjectIds}
-              defaultRole={role === "admin" ? "producer" : role}
+              defaultRole={isProjectScopedRole(role) ? role : ROLE.PRODUCER}
             />
             {projectAssignments.length > 0 && (
               <Button
@@ -373,6 +394,21 @@ export function UserDetailPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* currentUser?.uid guard: skip the follow-up rather than open a dialog
+          whose Assign button can never write (see UserRoleSelect for the
+          same guard on the role-change path). */}
+      {reactivateAssignRole && currentUser?.uid && (
+        <RoleProjectAssignmentDialog
+          open={reactivateAssignOpen}
+          onOpenChange={setReactivateAssignOpen}
+          userId={userId}
+          userEmail={email}
+          newRole={reactivateAssignRole}
+          clientId={clientId}
+          addedBy={currentUser.uid}
+        />
+      )}
     </div>
   )
 }

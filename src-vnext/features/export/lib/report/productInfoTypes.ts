@@ -5,16 +5,81 @@
 // so screen and PDF can't drift. Image fields are *candidates* (a Storage path
 // or URL) resolved to data URLs once via reportImages — the model stays pure.
 
-import type { GenderKey } from "./reportTypes"
+import type { GenderKey, ReportShotStatus } from "./reportTypes"
+import type { SortDir } from "./reportSort"
 
-/** How families are grouped on the report. */
-export type ProductInfoGroupBy = "gender" | "product-type" | "none"
+/** How families are grouped on the report. "status" (O2) buckets each family by its
+ *  most-outstanding appearance status (one bucket per family). */
+export type ProductInfoGroupBy = "gender" | "product-type" | "status" | "none"
+
+// Product-info order-by (R5) field vocabulary. Product families carry no
+// shot-number/status/talent at entry level (those live per-appearance in
+// appears[]), so only entry-level keys are offered this ship. Exhaustive typed
+// literal → the option list derives from it.
+export type ProductInfoSortField = "style" | "gender"
+export const PRODUCT_INFO_SORT_FIELD_LABEL: Record<ProductInfoSortField, string> = {
+  style: "Style",
+  gender: "Gender",
+}
+export const PRODUCT_INFO_SORT_FIELD_OPTIONS: ReadonlyArray<{ readonly value: ProductInfoSortField; readonly label: string }> =
+  (Object.keys(PRODUCT_INFO_SORT_FIELD_LABEL) as ProductInfoSortField[]).map((value) => ({
+    value,
+    label: PRODUCT_INFO_SORT_FIELD_LABEL[value],
+  }))
 
 /** Which families surface: those styled into shots, or the whole library. */
 export type ProductInfoScope = "in-use" | "library"
 
 /** Image / column density. S/M/L is a display knob only (no letterbox). */
 export type ProductInfoImageSize = "s" | "m" | "l"
+
+/**
+ * Density variant (R4/Phase C). Mirrors the shot report's REPORT_LAYOUT_* pattern.
+ * - "gallery": image-forward editorial card grid — the shipped R4 output (default,
+ *   so flag-off + pre-Phase-C blobs resolve here and stay BYTE-IDENTICAL).
+ * - "index": compact spec/pull sheet — small thumb + tight tabular rows, more
+ *   families per landscape sheet. The density that actually reaches print/PDF
+ *   (imageSize never did — it is screen-only).
+ * Presentation-only: deriveProductInfoModel folds it onto the model but never
+ * reads it for grouping/sorting, so both renderers read one pre-neutralized value.
+ */
+export type ProductInfoLayout = "gallery" | "index"
+
+// Layout display labels — the single source for the picker + the in-report switch.
+// An exhaustive typed literal (TS flags a missing variant); the option list derives
+// from it so the strings aren't duplicated (mirror REPORT_LAYOUT_LABEL/OPTIONS).
+export const PRODUCT_INFO_LAYOUT_LABEL: Record<ProductInfoLayout, string> = {
+  gallery: "Gallery",
+  index: "Index",
+}
+export const PRODUCT_INFO_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ProductInfoLayout; readonly label: string }> =
+  (Object.keys(PRODUCT_INFO_LAYOUT_LABEL) as ProductInfoLayout[]).map((value) => ({
+    value,
+    label: PRODUCT_INFO_LAYOUT_LABEL[value],
+  }))
+
+/**
+ * Per-layout print/PDF packing — the SINGLE source of truth both renderers read
+ * so the on-screen paged preview and the @react-pdf export can't drift. `printCols`
+ * drives the grid column count; `cardsPerSheet` drives pagination. EYEBALL-GATE
+ * these against a real render (see reportPdfProductInfo IMAGE_MAX_HEIGHT note).
+ */
+export interface ProductInfoLayoutGeometry {
+  readonly printCols: number
+  readonly cardsPerSheet: number
+}
+export const PRODUCT_INFO_LAYOUT_GEOMETRY: Record<ProductInfoLayout, ProductInfoLayoutGeometry> = {
+  // gallery = image-forward SHOWCASE (issue #505, real-render calibrated 2026-08-05): 2 large
+  // cards side-by-side, one row per landscape sheet. The prior pre-Phase-C packing was 4×3=12,
+  // which stranded partial trailing pages — a real render fits only ONE card row (the card is tall:
+  // image + colours/sizes/appears), and a 2nd row strands the moment a card grows (3+ colourways
+  // wrap a chip row). So gallery is a 2-up showcase (printCols 2) rather than a fragile dense grid;
+  // fewer columns also means larger images. cardsPerSheet 2 = the row, robust for any product.
+  gallery: { printCols: 2, cardsPerSheet: 2 },
+  // index = new Phase-C variant. Calibrated against a real render (Q2-26 data): exactly 10 rows × 2
+  // fit one landscape sheet (22 stranded 2; 20 packs clean). Page-wrap is the safety net.
+  index: { printCols: 2, cardsPerSheet: 20 },
+}
 
 /** Persisted config — serializable; optional fields default-merge from older blobs. */
 export interface ProductInfoConfig {
@@ -23,6 +88,14 @@ export interface ProductInfoConfig {
   readonly imageSize: ProductInfoImageSize
   /** Families excluded by the user — struck on screen, omitted from the PDF. */
   readonly excludedFamilyIds: readonly string[]
+  /** Shot statuses to HIDE (R3): a family is dropped only when ALL its appearances are hidden-status. Defaults to []. */
+  readonly hiddenStatuses?: readonly ReportShotStatus[]
+  /** R5 order-by: primary sort key within each group. Absent → legacy styleName order (flag-off byte-identical). */
+  readonly sortBy?: ProductInfoSortField
+  /** R5 order-by direction. Absent → "asc". Flips the PRIMARY key only; tie-break stays ascending. */
+  readonly sortDir?: SortDir
+  /** R4 density variant. Absent → "gallery" (the shipped output; flag-off byte-identical). */
+  readonly layout?: ProductInfoLayout
 }
 
 export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
@@ -30,6 +103,33 @@ export const DEFAULT_PRODUCT_INFO_CONFIG: ProductInfoConfig = {
   productScope: "in-use",
   imageSize: "m",
   excludedFamilyIds: [],
+  hiddenStatuses: [],
+  sortBy: "style",
+  sortDir: "asc",
+  layout: "gallery",
+}
+
+/**
+ * Flag-off rollback safety — see reportTypes.neutralizeReportConfigForFlag.
+ * Strips the gated-off sort/hidden fields AND clamps the O2-widened `groupBy`
+ * back to its pre-O2 legal set, so a persisted "status" can't leak status-grouping
+ * flag-off (byte-identity).
+ */
+export function neutralizeProductInfoConfigForFlag(config: ProductInfoConfig, flagOn: boolean): ProductInfoConfig {
+  if (flagOn) return config
+  return {
+    ...config,
+    hiddenStatuses: [],
+    sortBy: undefined,
+    sortDir: undefined,
+    // R4: the density picker is gated, so flag-off must clamp back to the shipped
+    // "gallery" output (a persisted "index" would otherwise leak the dense layout).
+    layout: "gallery",
+    groupBy:
+      config.groupBy === "gender" || config.groupBy === "product-type" || config.groupBy === "none"
+        ? config.groupBy
+        : "gender",
+  }
 }
 
 /** One shot a family is styled into: its number, the look labels it appears in there, and that shot's status. */
@@ -75,4 +175,7 @@ export interface ProductInfoModel {
     readonly familyCount: number
   }
   readonly groups: readonly ProductInfoGroup[]
+  /** R4 density variant, resolved from the (neutralized) config at derive time.
+   *  Both the DOM view and the PDF read THIS pre-clamped value so they can't drift. */
+  readonly layout: ProductInfoLayout
 }

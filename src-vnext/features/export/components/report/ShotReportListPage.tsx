@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { Copy, FileText, Plus, Trash2 } from "lucide-react"
+import { Copy, FileText, Pencil, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
 import { badgeVariants } from "@/ui/badge"
@@ -18,6 +18,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/dialog"
 import { PageHeader } from "@/shared/components/PageHeader"
 import { EmptyState } from "@/shared/components/EmptyState"
 import { useExportReports } from "../../hooks/useExportReports"
@@ -25,6 +32,7 @@ import {
   DEFAULT_REPORT_CONFIG,
   REPORT_LAYOUT_LABEL,
   REPORT_LAYOUT_OPTIONS,
+  resolveReportLayout,
   type ReportConfig,
   type ReportLayout,
 } from "../../lib/report/reportTypes"
@@ -37,7 +45,7 @@ export default function ShotReportListPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const { clientId } = useAuth()
   const navigate = useNavigate()
-  const { reports, loading, createShotReport, loadReport, deleteReport } =
+  const { reports, loading, createShotReport, loadReport, deleteReport, renameReport } =
     useExportReports(clientId, projectId)
 
   const shotReports = useMemo(
@@ -46,10 +54,21 @@ export default function ShotReportListPage() {
   )
 
   const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
+  const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
   const [newName, setNewName] = useState("")
-  const [recipe, setRecipe] = useState<ReportLayout>("image-led")
+  // Picker starts on the shipped default recipe (production-sheet as of the
+  // 2026-08-09 decision) rather than a hardcoded "image-led" literal, so it
+  // can't drift from DEFAULT_REPORT_CONFIG if the default changes again.
+  // DEFAULT_REPORT_CONFIG.layout is always set at runtime — the interface
+  // types it optional (a persisted blob can lack it) but the shipped default
+  // constant always carries a value, so an "?? image-led" fallback here was
+  // dead code that quietly reintroduced the hardcoded literal this comment
+  // says to avoid.
+  const [recipe, setRecipe] = useState<ReportLayout>(DEFAULT_REPORT_CONFIG.layout!)
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
+  const [pendingRename, setPendingRename] = useState<{ id: string; name: string } | null>(null)
+  const [renameDraft, setRenameDraft] = useState("")
 
   const openReport = useCallback(
     (reportId: string) => navigate(`/projects/${projectId}/export/report?reportId=${reportId}`),
@@ -59,11 +78,14 @@ export default function ShotReportListPage() {
   const handleCreate = useCallback(async () => {
     setBusy(true)
     try {
-      // Recipes flag-off => always image-led, so the create config can't smuggle
-      // an unreviewed layout into prod.
+      // Recipes flag-off => always image-led (via the shared clamp, NOT a raw
+      // DEFAULT_REPORT_CONFIG spread — DEFAULT_REPORT_CONFIG.layout is now
+      // production-sheet, so spreading it verbatim would persist the new
+      // default into a doc created while the flag is off: dev/preview, or a
+      // flag rollback, would then smuggle an unreviewed layout into prod).
       const config = recipesEnabled
         ? { ...DEFAULT_REPORT_CONFIG, layout: recipe }
-        : DEFAULT_REPORT_CONFIG
+        : { ...DEFAULT_REPORT_CONFIG, layout: resolveReportLayout(DEFAULT_REPORT_CONFIG, recipesEnabled) }
       const id = await createShotReport(newName.trim() || "Untitled report", config)
       setNewName("")
       openReport(id)
@@ -80,7 +102,13 @@ export default function ShotReportListPage() {
       try {
         const full = await loadReport(sourceId)
         // This list only handles shot-report docs; config narrows to ReportConfig.
-        const sourceConfig = (full?.config as ReportConfig | undefined) ?? DEFAULT_REPORT_CONFIG
+        // createShotReport always writes a config, so the fallback below is
+        // defensive-only (a malformed/legacy doc) — still clamp its layout so
+        // that edge case can't smuggle the new default past a flag-off create.
+        const sourceConfig = (full?.config as ReportConfig | undefined) ?? {
+          ...DEFAULT_REPORT_CONFIG,
+          layout: resolveReportLayout(DEFAULT_REPORT_CONFIG, recipesEnabled),
+        }
         const id = await createShotReport(`${sourceName} (copy)`, sourceConfig)
         openReport(id)
       } catch {
@@ -89,7 +117,7 @@ export default function ShotReportListPage() {
         setBusy(false)
       }
     },
-    [createShotReport, loadReport, openReport],
+    [createShotReport, loadReport, openReport, recipesEnabled],
   )
 
   const handleDelete = useCallback(
@@ -103,6 +131,24 @@ export default function ShotReportListPage() {
     },
     [deleteReport],
   )
+
+  const openRename = useCallback((id: string, name: string) => {
+    setPendingRename({ id, name })
+    setRenameDraft(name)
+  }, [])
+
+  const handleRename = useCallback(async () => {
+    if (!pendingRename) return
+    const name = renameDraft.trim()
+    setPendingRename(null)
+    if (!name || name === pendingRename.name) return
+    try {
+      await renameReport(pendingRename.id, name)
+      toast.success("Report renamed")
+    } catch {
+      toast.error("Couldn't rename the report")
+    }
+  }, [pendingRename, renameDraft, renameReport])
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -181,6 +227,17 @@ export default function ShotReportListPage() {
               >
                 <Copy /> Recipe
               </Button>
+              {reportConfigEnabled && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openRename(r.id, r.name)}
+                  disabled={busy}
+                  aria-label={`Rename ${r.name}`}
+                >
+                  <Pencil />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -221,6 +278,39 @@ export default function ShotReportListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {reportConfigEnabled && (
+        <Dialog
+          open={pendingRename !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingRename(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename report</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameDraft.trim()) void handleRename()
+              }}
+              placeholder="Report name…"
+              aria-label="Report name"
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPendingRename(null)}>
+                Cancel
+              </Button>
+              <Button disabled={!renameDraft.trim()} onClick={() => void handleRename()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

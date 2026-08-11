@@ -133,6 +133,16 @@ describeOrSkip("firestore.rules — exportReports (shot-report docs)", () => {
     const db = authed("prod-b", CLIENT_A, "producer")
     await assertFails(updateDoc(reportRef(db, REPORT_OWNED), { createdBy: "prod-b" }))
   })
+
+  it("[9] producer UPDATE of name (rename) succeeds, preserving createdBy (renameReport path)", async () => {
+    const db = authed("prod-a", CLIENT_A, "producer")
+    await assertSucceeds(
+      updateDoc(reportRef(db, REPORT_OWNED), {
+        name: "Renamed",
+        updatedBy: "prod-a",
+      }),
+    )
+  })
 })
 
 // Visible skip notice so developers know why zero rules tests ran locally.

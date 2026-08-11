@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { z } from "zod"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
-import { ROLE, roleLabel } from "@/shared/lib/rbac"
+import { ROLE, roleLabel, isProjectScopedRole } from "@/shared/lib/rbac"
 import { ROLE_DESCRIPTIONS } from "@/shared/lib/roleDescriptions"
 import { inviteOrUpdateUser, bulkAddProjectMembers } from "@/features/admin/lib/adminWrites"
 import { ProjectAssignmentPicker, type ProjectAssignment } from "./ProjectAssignmentPicker"
@@ -224,7 +224,7 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
         <ProjectAssignmentPicker
           assignments={projectAssignments}
           onChange={setProjectAssignments}
-          defaultRole={role === "admin" ? "producer" : role}
+          defaultRole={isProjectScopedRole(role) ? role : ROLE.PRODUCER}
         />
       </div>
     </ResponsiveDialog>

@@ -42,6 +42,7 @@ function model(): ReportModel {
         ],
       },
     ],
+    order: { sortBy: "shot-number", sortDir: "asc" },
   }
 }
 
@@ -71,5 +72,15 @@ describe("BalancedRowsReport (comp-c)", () => {
     // first fact value ("Shots") = 2 printable
     expect(container.querySelector(".sb-br-fact-v")?.textContent).toBe("2")
     expect(getAllByText("Trail Crew").length).toBeGreaterThan(0)
+  })
+
+  it("renders the honest, config-driven order note — never a hardcoded 'shot no.' claim", () => {
+    const talentSorted: ReportModel = { ...model(), order: { sortBy: "talent", sortDir: "desc" } }
+    const { getAllByText, queryByText } = render(
+      <BalancedRowsReport model={talentSorted} imageMap={new Map()} onToggleExclude={noop} />,
+    )
+    // caption reflects the ACTUAL applied order (model.order), so it can't lie
+    expect(getAllByText("Sorted by talent, descending").length).toBeGreaterThan(0)
+    expect(queryByText(/sorted by shot/i)).toBeNull()
   })
 })

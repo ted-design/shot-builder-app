@@ -23,6 +23,7 @@ export const TALENT_STYLES = `
   --sb-ink-disabled: oklch(0.72 0.008 55);
   --sb-rule: oklch(0.90 0.004 50);
   --sb-rule-strong: oklch(0.83 0.005 50);
+  --sb-red: #eb1400;   /* Immediate Red — owns HOLD, and ONLY hold, on this surface */
 
   /* Type scale (px) */
   --sb-t-3xs: 9px; --sb-t-2xs: 10px; --sb-t-xs: 12px; --sb-t-sm: 13px;
@@ -233,6 +234,79 @@ export const TALENT_STYLES = `
 .sb-tr-s-title { color: var(--sb-ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-tr-s-looks { flex: 0 0 auto; color: var(--sb-ink-3); font-size: var(--sb-t-xs); }
 
+/* ============ contact-sheet density (R4) ============ */
+/* Casting board: headshot-forward uniform grid, denser than detail. Hides
+   contact/measurements/per-shot list (done in the card). Part 2: fixed 4:5 COVER
+   crop with an adjustable focal point + zoom (inline style from entry.crop, matched
+   to the PDF). RED = HOLD only. */
+.sb-tr-root[data-layout="contact-sheet"] .sb-tr-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: clamp(18px, 2vw, 26px);
+}
+.sb-tr-cs-card { display: flex; flex-direction: column; gap: 9px; position: relative; break-inside: avoid; }
+.sb-tr-cs-frame {
+  width: 100%; aspect-ratio: 4 / 5; position: relative;
+  background: var(--sb-surface-sub);
+  border: 1px solid var(--sb-rule); border-radius: 2px; overflow: hidden;
+}
+/* base cover — the per-crop object-position/transform arrive inline on the img */
+.sb-tr-cs-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sb-tr-cs-initials {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-family: var(--sb-font-display); font-size: var(--sb-t-2xl); color: var(--sb-ink-3);
+}
+
+/* headshot crop picker (SCREEN-ONLY, flag-gated) — a draggable focal-point dot over
+   a dim surface + a zoom slider. Appears on card hover so the grid stays clean. No
+   red here (RED stays HOLD-only) and no drop shadow (rings use outline/border). */
+.sb-tr-crop-picker {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none; transition: opacity 0.12s ease;
+}
+.sb-tr-cs-card:hover .sb-tr-crop-picker,
+.sb-tr-cs-card:focus-within .sb-tr-crop-picker { opacity: 1; pointer-events: auto; }
+.sb-tr-crop-surface {
+  flex: 1 1 auto; position: relative; cursor: crosshair; touch-action: none;
+  background: color-mix(in oklch, var(--sb-ink) 20%, transparent);
+}
+.sb-tr-crop-focal {
+  position: absolute; width: 16px; height: 16px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2px solid var(--sb-paper);
+  outline: 1px solid var(--sb-ink); background: color-mix(in oklch, var(--sb-ink) 55%, transparent);
+  pointer-events: none;
+}
+.sb-tr-crop-zoom {
+  display: flex; align-items: center; gap: 8px; padding: 6px 9px;
+  background: color-mix(in oklch, var(--sb-paper) 90%, transparent);
+  backdrop-filter: blur(4px); border-top: 1px solid var(--sb-rule);
+}
+.sb-tr-crop-zoom-label {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--sb-ink-2); flex: 0 0 auto;
+}
+.sb-tr-crop-zoom input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--sb-ink); }
+.sb-tr-cs-name-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.sb-tr-cs-name {
+  font-family: var(--sb-font-display); font-weight: 600; font-size: var(--sb-t-lg);
+  line-height: 1.1; letter-spacing: -0.005em; color: var(--sb-ink);
+}
+.sb-tr-cs-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sb-tr-cs-stat {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding-top: 7px; border-top: 1px solid var(--sb-rule);
+}
+.sb-tr-cs-count {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-2xs); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--sb-ink-2);
+}
+/* the one red on this surface — talent with any on-hold shot */
+.sb-tr-hold-flag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-red);
+}
+.sb-tr-hold-flag::before { content: ""; width: 8px; height: 8px; background: var(--sb-red); border-radius: 1px; }
+
 /* per-card exclude toggle (screen only) */
 .sb-tr-exclude-toggle {
   position: absolute; top: 8px; right: 8px; z-index: 3;
@@ -243,13 +317,16 @@ export const TALENT_STYLES = `
   padding: 5px 11px; opacity: 0; transition: opacity 0.12s ease;
 }
 .sb-tr-card:hover .sb-tr-exclude-toggle,
-.sb-tr-card:focus-within .sb-tr-exclude-toggle { opacity: 1; }
+.sb-tr-card:focus-within .sb-tr-exclude-toggle,
+.sb-tr-cs-card:hover .sb-tr-exclude-toggle,
+.sb-tr-cs-card:focus-within .sb-tr-exclude-toggle { opacity: 1; }
 .sb-tr-exclude-toggle[aria-pressed="true"] { opacity: 1; color: var(--sb-ink); border-color: var(--sb-ink); }
 .sb-tr-exclude-toggle:focus-visible { outline: 2px solid var(--sb-ink); outline-offset: 2px; opacity: 1; }
 
 /* excluded — visible but struck + dimmed (reversible) */
 .sb-tr-excluded { opacity: 0.42; }
-.sb-tr-excluded .sb-tr-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+.sb-tr-excluded .sb-tr-name,
+.sb-tr-excluded .sb-tr-cs-name { text-decoration: line-through; text-decoration-thickness: 1px; }
 .sb-tr-excluded .sb-tr-exclude-toggle { opacity: 1; }
 
 /* paged (print preview) — hidden on screen until print-mode -------------- */

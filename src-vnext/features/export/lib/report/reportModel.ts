@@ -9,6 +9,7 @@ import type {
 import type { ExportData } from "../../hooks/useExportData"
 import { humanizeLabel } from "@/shared/lib/textUtils"
 import {
+  REPORT_STATUS_LABEL,
   type GenderKey,
   type ReportConfig,
   type ReportGroup,
@@ -16,8 +17,22 @@ import {
   type ReportModel,
   type ReportProduct,
   type ReportShot,
+  type ReportShotStatus,
+  type ReportSortField,
   type ReportTalent,
 } from "./reportTypes"
+import {
+  compareByOrder,
+  compareShotNumber,
+  compareText,
+  orderedBuckets,
+  shotNumberSortKey,
+  sortItemsStable,
+} from "./reportSort"
+
+// Re-exported so talentModel / productInfoModel keep their existing
+// `import { shotNumberSortKey } from "./reportModel"` — single source of truth.
+export { shotNumberSortKey } from "./reportSort"
 
 // Pure derivation: ExportData + config -> ReportModel. No async, no image bytes
 // (image fields are path/URL candidates resolved later). The single source both
@@ -154,12 +169,6 @@ function resolveTalent(
   })
 }
 
-/** Sort key for shot numbers: numerics first (ascending), then non-numerics alpha. */
-export function shotNumberSortKey(n: string): [number, number, string] {
-  const num = Number.parseInt(n, 10)
-  return Number.isNaN(num) ? [1, 0, n] : [0, num, n]
-}
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 /** Parse a "YYYY-MM-DD" date-only string into parts; null if malformed. (No Date() — avoids TZ shift.) */
@@ -200,15 +209,99 @@ export const GROUP_LABEL: Record<GenderKey, string> = {
   "?": "Unresolved",
 }
 
+// Fixed bucket + sort order for shot status (workflow order, O4). Mirrors GROUP_ORDER.
+export const STATUS_GROUP_ORDER: readonly ReportShotStatus[] = [
+  "todo",
+  "in_progress",
+  "on_hold",
+  "complete",
+]
+
+/**
+ * Reduce an entry's many appearance-statuses to the ONE it groups under (O2):
+ * its **most-outstanding** (least-done) appearance = the status with the lowest
+ * `STATUS_GROUP_ORDER` index. So a product/talent appearing in any un-shot shot
+ * lands in that outstanding bucket, and each item appears in exactly one group.
+ * Returns `null` for an item with no appearances (a never-shot library entry) —
+ * the caller buckets those under a "No shots" group. An out-of-union status ranks
+ * last (never spuriously "most outstanding").
+ */
+export function mostOutstandingStatus(
+  statuses: readonly ReportShotStatus[],
+): ReportShotStatus | null {
+  let best: ReportShotStatus | null = null
+  let bestRank = Number.POSITIVE_INFINITY
+  for (const s of statuses) {
+    const idx = STATUS_GROUP_ORDER.indexOf(s)
+    const rank = idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+    if (rank < bestRank) {
+      bestRank = rank
+      best = s
+    }
+  }
+  return best
+}
+
+/** Bucket key/label for entries with no appearances when grouping by status (O2). */
+export const NO_SHOTS_GROUP_KEY = "__no_shots__"
+export const NO_SHOTS_GROUP_LABEL = "No shots"
+
+/**
+ * Group entries (products/talent) by their most-outstanding appearance status (O2).
+ * One bucket per item; `statusesOf` extracts an item's appearance statuses. Buckets
+ * are ordered by `STATUS_GROUP_ORDER`; within a bucket the input order is preserved
+ * (so the R5 sort already applied to `items` survives). Items with no appearances
+ * fall into a trailing "No shots" bucket. The two report models map the result onto
+ * their own Group shape.
+ */
+export function buildStatusGroups<T>(
+  items: readonly T[],
+  statusesOf: (item: T) => readonly ReportShotStatus[],
+): ReadonlyArray<{ readonly key: string; readonly label: string; readonly count: number; readonly items: readonly T[] }> {
+  return orderedBuckets(
+    items,
+    (item) => mostOutstandingStatus(statusesOf(item)) ?? NO_SHOTS_GROUP_KEY,
+    (a, b) => compareByOrder(STATUS_GROUP_ORDER, a, b),
+    (k) => (k === NO_SHOTS_GROUP_KEY ? NO_SHOTS_GROUP_LABEL : REPORT_STATUS_LABEL[k as ReportShotStatus]),
+  )
+}
+
+// Secondary key for the shot sort — ALWAYS ascending (deterministic tie-break):
+// spec-mandated shot number, then id as the final determinism guarantee.
+const SHOT_TIEBREAK = (a: ReportShot, b: ReportShot): number =>
+  compareShotNumber(a.number, b.number) || compareText(a.id, b.id)
+
+/** Primary comparator for a shot sort field (R2). Item-shape-local (needs GROUP_ORDER / STATUS_GROUP_ORDER). */
+function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot) => number {
+  switch (sortBy) {
+    case "shot-number":
+      return (a, b) => compareShotNumber(a.number, b.number)
+    case "talent":
+      return (a, b) => compareText(a.talent[0]?.name, b.talent[0]?.name)
+    case "status":
+      return (a, b) => compareByOrder(STATUS_GROUP_ORDER, a.status, b.status)
+    case "gender":
+      return (a, b) => compareByOrder(GROUP_ORDER, a.gender, b.gender)
+    default:
+      // Runtime safety: exportReports writes schemaless (no rules validation), so a
+      // persisted/hand-edited config could carry an out-of-union sortBy. Fall back to
+      // the default field rather than returning undefined (which sortItemsStable would
+      // call, throwing and killing the whole report render).
+      return (a, b) => compareShotNumber(a.number, b.number)
+  }
+}
+
 /** Derive the resolved report model from live export data + config. */
 export function deriveShotReportModel(data: ExportData, config: ReportConfig): ReportModel {
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const talentById = new Map(data.talent.map((t) => [t.id, t]))
   const excluded = new Set(config.excludedShotIds)
+  // R3: statuses to hide entirely (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const primaryOnly = config.looksMode === "primary-only"
 
-  const shots: ReportShot[] = data.shots
-    .filter((s) => !s.deleted)
+  const built: ReportShot[] = data.shots
+    .filter((s) => !s.deleted && !hidden.has(s.status))
     .map((shot): ReportShot => {
       const looks = resolveLooks(shot, familyById)
       // Gender resolves from ALL looks so grouping stays stable across looksMode.
@@ -230,19 +323,39 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
         hasImage: visibleLooks.some((l) => l.hasReference),
       }
     })
-    .sort((a, b) => {
-      const [ak, an, as] = shotNumberSortKey(a.number)
-      const [bk, bn, bs] = shotNumberSortKey(b.number)
-      return ak - bk || an - bn || as.localeCompare(bs)
-    })
+
+  // R2 order-by. Absent sortBy → verbatim legacy comparator (flag-off byte-identical
+  // by construction). Defined → the shared stable engine with the id tie-break.
+  const shots: ReportShot[] =
+    config.sortBy === undefined
+      ? [...built].sort((a, b) => {
+          const [ak, an, as] = shotNumberSortKey(a.number)
+          const [bk, bn, bs] = shotNumberSortKey(b.number)
+          return ak - bk || an - bn || as.localeCompare(bs)
+        })
+      : sortItemsStable(built, shotPrimaryFor(config.sortBy), SHOT_TIEBREAK, config.sortDir ?? "asc")
 
   const groups: ReportGroup[] =
     config.groupBy === "none"
       ? [{ key: "all", label: "All shots", count: shots.length, shots }]
-      : GROUP_ORDER.map((key): ReportGroup => {
-          const inGroup = shots.filter((s) => s.gender === key)
-          return { key, label: GROUP_LABEL[key], count: inGroup.length, shots: inGroup }
-        }).filter((g) => g.count > 0)
+      : config.groupBy === "status"
+        ? orderedBuckets(
+            shots,
+            (s) => s.status,
+            (a, b) => compareByOrder(STATUS_GROUP_ORDER, a, b),
+            (k) => REPORT_STATUS_LABEL[k as ReportShotStatus],
+          ).map(
+            (b): ReportGroup => ({
+              key: b.key as ReportShotStatus,
+              label: b.label,
+              count: b.count,
+              shots: b.items,
+            }),
+          )
+        : GROUP_ORDER.map((key): ReportGroup => {
+            const inGroup = shots.filter((s) => s.gender === key)
+            return { key, label: GROUP_LABEL[key], count: inGroup.length, shots: inGroup }
+          }).filter((g) => g.count > 0)
 
   return {
     project: {
@@ -252,6 +365,10 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       dateRange: formatDateWindow(data.project?.shootDates),
     },
     groups,
+    // The applied order (absent sortBy → the legacy ascending shot-number sort
+    // above). Set here so a recipe caption can never claim an order the shots
+    // don't have; flag-off this is always {shot-number, asc}, matching legacy.
+    order: { sortBy: config.sortBy ?? "shot-number", sortDir: config.sortDir ?? "asc" },
   }
 }
 

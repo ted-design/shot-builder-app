@@ -247,6 +247,64 @@ export const PRODUCT_INFO_STYLES = `
 .sb-pir-excluded .sb-pir-card-name { text-decoration: line-through; text-decoration-thickness: 1px; }
 .sb-pir-excluded .sb-pir-exclude-toggle { opacity: 1; }
 
+/* ======================================================================== */
+/* INDEX layout (R4 density) — compact spec-sheet rows. RED-FREE: the hero    */
+/* mark is the canonical INK dot + uppercase INK tag (weight, not colour).    */
+/* Only applies under [data-layout="index"] so gallery stays byte-identical.  */
+/* ======================================================================== */
+.sb-pir-root[data-layout="index"] .sb-pir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 0 clamp(24px, 3vw, 48px);
+}
+.sb-pir-irow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--sb-rule);
+}
+.sb-pir-ithumb {
+  width: 34px; height: 44px; background: var(--sb-surface);
+  border: 1px solid var(--sb-rule); border-radius: 1px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.sb-pir-ithumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.sb-pir-ithumb-noimg {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); color: var(--sb-ink-disabled);
+}
+.sb-pir-imain { min-width: 0; }
+.sb-pir-iname-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 2px; }
+.sb-pir-iname {
+  font-family: var(--sb-font-display); font-weight: 600; font-size: var(--sb-t-sm);
+  line-height: 1.14; letter-spacing: -0.005em; color: var(--sb-ink);
+}
+.sb-pir-irow.sb-pir-is-hero .sb-pir-iname { font-weight: 800; }
+.sb-pir-imeta {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-xs); color: var(--sb-ink-2);
+  line-height: 1.35; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+}
+.sb-pir-imeta .sb-pir-style-no { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.sb-pir-imeta-sep { color: var(--sb-ink-disabled); }
+.sb-pir-ishots { display: flex; align-items: center; gap: 5px; justify-self: end; white-space: nowrap; }
+.sb-pir-ishots-n {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-xs); font-weight: 600;
+  color: var(--sb-ink); font-variant-numeric: tabular-nums;
+}
+.sb-pir-ishots-dots { display: inline-flex; gap: 3px; }
+
+/* canonical INK hero mark (dot + uppercase tag by weight) — NOT the red gallery tag */
+.sb-pir-index-hero { display: inline-flex; align-items: center; gap: 4px; }
+.sb-pir-index-hero-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sb-ink); flex: 0 0 auto; }
+.sb-pir-index-hero-tag {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-ink);
+}
+
+/* Index paged sheet — tighter body, no big card gaps (cols come from --sb-pir-print-cols=2) */
+.sb-pir-root[data-layout="index"] .sb-pir-sheet-body { gap: 0 0.42in; align-content: start; }
+.sb-pir-root[data-layout="index"] .sb-pir-sheet .sb-pir-irow { padding: 5px 0; }
+
 /* paged (print preview) — hidden on screen until print-mode -------------- */
 .sb-pir-paged { display: none; }
 .sb-pir-sheet { display: none; }
@@ -285,7 +343,9 @@ export const PRODUCT_INFO_STYLES = `
 }
 .sb-pir-sheet .sb-pir-card { break-inside: avoid; page-break-inside: avoid; }
 .sb-pir-sheet .sb-pir-card-name { font-size: var(--sb-t-sm); }
-.sb-pir-sheet .sb-pir-card-frame img { max-height: 2.3in; width: auto; max-width: 100%; object-fit: contain; }
+/* 2-up SHOWCASE (issue #505): match the PDF gallery image cap (IMAGE_MAX_HEIGHT 330pt ≈ 4.58in)
+   so the on-screen print preview and the @react-pdf export don't drift. Was 2.3in for the old 4×3. */
+.sb-pir-sheet .sb-pir-card-frame img { max-height: 4.58in; width: auto; max-width: 100%; object-fit: contain; }
 
 @media print {
   @page { size: letter landscape; margin: 0; }

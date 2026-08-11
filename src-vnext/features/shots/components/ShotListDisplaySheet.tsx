@@ -1,5 +1,5 @@
 import type { ViewMode, ShotsListFields } from "@/features/shots/lib/shotListFilters"
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/ui/sheet"
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/ui/sheet"
 import { Checkbox } from "@/ui/checkbox"
 import { Button } from "@/ui/button"
 import { Separator } from "@/ui/separator"
@@ -64,6 +64,7 @@ export function ShotListDisplaySheet({
       <SheetContent side={isMobile ? "bottom" : "right"} className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Display</SheetTitle>
+          <SheetDescription>Choose which fields show on each shot.</SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">

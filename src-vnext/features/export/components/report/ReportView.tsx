@@ -19,13 +19,23 @@ import type {
   ReportModel,
   ReportProduct,
   ReportShot,
+  ReportShotStatus,
+  ReportSortField,
   ReportTalent,
 } from "../../lib/report/reportTypes"
-import { REPORT_LAYOUT_OPTIONS } from "../../lib/report/reportTypes"
+import {
+  DEFAULT_REPORT_CONFIG,
+  REPORT_LAYOUT_OPTIONS,
+  REPORT_SORT_FIELD_OPTIONS,
+  REPORT_STATUS_OPTIONS,
+  resolveReportLayout,
+} from "../../lib/report/reportTypes"
+import type { SortDir } from "../../lib/report/reportSort"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
 import { packShotSheets } from "../../lib/report/reportPdfHeights"
 import { REPORT_STYLES } from "./reportStyles"
 import { resolveSrc, statusMetaLegacy } from "./reportShared"
+import { GroupSortControls } from "./GroupSortControls"
 import { ProductionSheetReport } from "./ProductionSheetReport"
 import { BalancedRowsReport } from "./BalancedRowsReport"
 
@@ -432,6 +442,14 @@ function ControlBar({
   layout,
   onSetLayout,
   showLayout,
+  showStatusFilter,
+  showSort,
+  sortBy,
+  onSetSortBy,
+  sortDir,
+  onSetSortDir,
+  hiddenStatuses,
+  onToggleStatus,
   onExportPdf,
   exporting,
   canExport,
@@ -446,6 +464,16 @@ function ControlBar({
   readonly layout: ReportLayout
   readonly onSetLayout: (v: ReportLayout) => void
   readonly showLayout: boolean
+  readonly showStatusFilter: boolean
+  // showSort gates BOTH the flag-on "Status" group-by option and the order-by/
+  // direction controls (== featureReportConfig). Flag-off → neither appears.
+  readonly showSort: boolean
+  readonly sortBy: ReportSortField
+  readonly onSetSortBy: (v: ReportSortField) => void
+  readonly sortDir: SortDir
+  readonly onSetSortDir: (v: SortDir) => void
+  readonly hiddenStatuses: readonly ReportShotStatus[]
+  readonly onToggleStatus: (v: ReportShotStatus) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly canExport: boolean
@@ -455,6 +483,7 @@ function ControlBar({
   const groupLabelId = useId()
   const looksLabelId = useId()
   const recipeLabelId = useId()
+  const statusLabelId = useId()
   return (
     <div className="sb-controlbar no-print" role="region" aria-label="Report controls">
       {showLayout ? (
@@ -523,8 +552,29 @@ function ControlBar({
           >
             None
           </button>
+          {showSort && (
+            <button
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={groupBy === "status"}
+              onClick={() => onSetGroupBy("status")}
+            >
+              Status
+            </button>
+          )}
         </div>
       </div>
+
+      {showSort && (
+        <GroupSortControls
+          classes={{ group: "sb-control-group", label: "sb-control-label", seg: "sb-seg", segBtn: "sb-seg-btn" }}
+          sortOptions={REPORT_SORT_FIELD_OPTIONS}
+          sortBy={sortBy}
+          onSortBy={onSetSortBy}
+          sortDir={sortDir}
+          onSortDir={onSetSortDir}
+        />
+      )}
 
       <div className="sb-control-group" role="group" aria-labelledby={looksLabelId}>
         <span id={looksLabelId} className="sb-control-label">
@@ -549,6 +599,27 @@ function ControlBar({
           </button>
         </div>
       </div>
+
+      {showStatusFilter && (
+        <div className="sb-control-group" role="group" aria-labelledby={statusLabelId}>
+          <span id={statusLabelId} className="sb-control-label">
+            Hide statuses
+          </span>
+          <div className="sb-seg">
+            {REPORT_STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className="sb-seg-btn"
+                aria-pressed={hiddenStatuses.includes(opt.value)}
+                onClick={() => onToggleStatus(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button
         type="button"
@@ -579,9 +650,11 @@ export function ReportView(props: ReportViewProps): JSX.Element {
   const [printMode, setPrintMode] = useState(false)
 
   // Recipes ride their own flag; flag-off forces image-led so prod is byte-identical
-  // to the live R1/R2 report regardless of any persisted config.layout.
+  // to the live R1/R2 report regardless of any persisted config.layout (or of
+  // DEFAULT_REPORT_CONFIG.layout — resolveReportLayout ignores both when off).
   const recipesEnabled = isFeatureEnabled("featureShotReportRecipes")
-  const layout: ReportLayout = recipesEnabled ? (config.layout ?? "image-led") : "image-led"
+  const reportConfigEnabled = isFeatureEnabled("featureReportConfig")
+  const layout: ReportLayout = resolveReportLayout(config, recipesEnabled)
 
   const toggleExclude = (shotId: string): void => {
     const set = new Set(config.excludedShotIds)
@@ -609,6 +682,28 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, layout: next })
   }
 
+  // R3 status filter — a multi-select toggle set (distinct from the single-select
+  // controls above). An absent field default-merges to [] at read.
+  const hiddenStatuses = config.hiddenStatuses ?? []
+  const toggleStatus = (status: ReportShotStatus): void => {
+    const set = new Set(hiddenStatuses)
+    if (set.has(status)) set.delete(status)
+    else set.add(status)
+    onConfigChange({ ...config, hiddenStatuses: [...set] })
+  }
+
+  // R2 order-by — absent fields default-merge to the shipped legacy order.
+  const sortBy: ReportSortField = config.sortBy ?? DEFAULT_REPORT_CONFIG.sortBy ?? "shot-number"
+  const sortDir: SortDir = config.sortDir ?? "asc"
+  const setSortBy = (next: ReportSortField): void => {
+    if (next === sortBy) return
+    onConfigChange({ ...config, sortBy: next })
+  }
+  const setSortDir = (next: SortDir): void => {
+    if (next === sortDir) return
+    onConfigChange({ ...config, sortDir: next })
+  }
+
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   // Export is blocked when every shot is excluded — a PDF with zero pages is corrupt.
   const canExport = hasAnyIncludedShot(model)
@@ -634,6 +729,14 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         layout={layout}
         onSetLayout={setLayout}
         showLayout={recipesEnabled}
+        showStatusFilter={reportConfigEnabled}
+        showSort={reportConfigEnabled}
+        sortBy={sortBy}
+        onSetSortBy={setSortBy}
+        sortDir={sortDir}
+        onSetSortDir={setSortDir}
+        hiddenStatuses={hiddenStatuses}
+        onToggleStatus={toggleStatus}
         onExportPdf={onExportPdf}
         exporting={exporting}
         canExport={canExport}

@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "Immediate Production Hub",
+  "short_name": "Production Hub",
+  "description": "Production planning, by Immediate.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0E0E0E",
+  "background_color": "#eaeaea",
+  "icons": [
+    {
+      "src": "/images/brands/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/brands/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/brands/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

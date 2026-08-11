@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
-import { DEFAULT_REPORT_CONFIG } from "../reportTypes"
+import { deriveShotReportModel, formatDateWindow, mostOutstandingStatus, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
+import { DEFAULT_REPORT_CONFIG, formatOrderNote, neutralizeReportConfigForFlag, type ReportConfig, type ReportSortField } from "../reportTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot, TalentRecord } from "@/shared/types"
 
@@ -179,6 +179,32 @@ describe("deriveShotReportModel", () => {
     expect(model.groups).toHaveLength(1)
     expect(model.groups[0]?.key).toBe("all")
     expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["live"])
+  })
+
+  it("R3: hides shots whose status is in hiddenStatuses (gone from every group + shotCount)", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "hold", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "done", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+    const model = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], hiddenStatuses: ["on_hold"] })
+    expect(model.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["done"])
+    expect(model.project.shotCount).toBe(1)
+  })
+
+  it("R3: an omitted hiddenStatuses is byte-identical to [] — nothing is hidden", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "hold", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+    const omitted = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [] })
+    const empty = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], hiddenStatuses: [] })
+    expect(omitted.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["hold"])
+    expect(empty.groups.flatMap((g) => g.shots).map((s) => s.id)).toEqual(["hold"])
   })
 
   const twoLookShot = () =>
@@ -366,6 +392,114 @@ describe("deriveShotReportModel", () => {
   })
 })
 
+describe("deriveShotReportModel — R2 order-by (Phase B)", () => {
+  // Worked example: groupBy 'status', sortBy 'talent', sortDir 'asc'. Ties fall to
+  // the shot-number tie-break. Four shots, two talent names shared across statuses.
+  const worked = () =>
+    data({
+      talent: [talent("tZoe", "Zoe"), talent("tAlice", "Alice"), talent("tBob", "Bob")],
+      shots: [
+        shot({ id: "S1", shotNumber: "01", status: "complete", talentIds: ["tZoe"] }),
+        shot({ id: "S2", shotNumber: "02", status: "todo", talentIds: ["tAlice"] }),
+        shot({ id: "S3", shotNumber: "03", status: "complete", talentIds: ["tBob"] }),
+        shot({ id: "S4", shotNumber: "04", status: "todo", talentIds: ["tAlice"] }),
+      ],
+    })
+
+  it("groups by status (workflow order, empties dropped) and sorts by talent within each group", () => {
+    const model = deriveShotReportModel(worked(), {
+      groupBy: "status",
+      excludedShotIds: [],
+      sortBy: "talent",
+      sortDir: "asc",
+    })
+    expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"]) // in_progress/on_hold dropped
+    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    // todo: both "Alice" -> tie-break shot-number 02<04
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S2", "S4"])
+    // complete: "Bob" < "Zoe"
+    expect(model.groups[1]?.shots.map((s) => s.id)).toEqual(["S3", "S1"])
+  })
+
+  it("flag-off byte-identical: a flag-ON config, run through the ShotReportPage neutralizer, deep-equals the default", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({ id: "S1", shotNumber: "01", status: "complete", tags: [{ id: "g", label: "Women", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "S2", shotNumber: "02", status: "todo", tags: [{ id: "g", label: "Men", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "S3", shotNumber: "03", status: "complete", tags: [{ id: "g", label: "Women", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        shot({ id: "S4", shotNumber: "04", status: "todo", tags: [{ id: "g", label: "Men", color: "b", category: "gender" }], looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+      ],
+    })
+    const persisted: ReportConfig = {
+      groupBy: "status",
+      excludedShotIds: [],
+      sortBy: "talent",
+      sortDir: "desc",
+      hiddenStatuses: ["todo"],
+    }
+    // The REAL neutralizer the ShotReportPage runs flag-off (shared pure fn), so
+    // this test breaks if that code path ever diverges — not an inline copy of it.
+    const neutralized = neutralizeReportConfigForFlag(persisted, false)
+    expect(deriveShotReportModel(d, neutralized)).toEqual(deriveShotReportModel(d, DEFAULT_REPORT_CONFIG))
+  })
+
+  it("crash-safe: an out-of-union persisted sortBy falls back to shot-number order, never throws", () => {
+    // exportReports writes schemaless (no rules validation), so a hand-edited/corrupt
+    // sortBy can reach the derive. It must degrade, not kill the whole report render.
+    const d = data({
+      shots: [
+        shot({ id: "S_a", shotNumber: "10", status: "todo" }),
+        shot({ id: "S_b", shotNumber: "02", status: "todo" }),
+      ],
+    })
+    const corrupt = { groupBy: "none", excludedShotIds: [], sortBy: "not-a-field", sortDir: "asc" } as unknown as ReportConfig
+    const model = deriveShotReportModel(d, corrupt)
+    // Falls back to the shot-number comparator: "02" before "10".
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S_b", "S_a"])
+  })
+
+  it("stable + deterministic: equal-status shots break the tie NUMERICALLY (2 before 10), not lexicographically", () => {
+    const model = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S_a", shotNumber: "10", status: "todo" }),
+          shot({ id: "S_b", shotNumber: "02", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "status", sortDir: "asc" },
+    )
+    expect(model.groups[0]?.key).toBe("all")
+    expect(model.groups[0]?.shots.map((s) => s.id)).toEqual(["S_b", "S_a"])
+  })
+
+  it("desc flips the primary key only — the shot-number tie-break stays ascending", () => {
+    const a = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S1", shotNumber: "01", status: "todo" }),
+          shot({ id: "S2", shotNumber: "02", status: "todo" }),
+          shot({ id: "S3", shotNumber: "03", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "shot-number", sortDir: "desc" },
+    )
+    expect(a.groups[0]?.shots.map((s) => s.id)).toEqual(["S3", "S2", "S1"])
+
+    const b = deriveShotReportModel(
+      data({
+        shots: [
+          shot({ id: "S_x", shotNumber: "10", status: "todo" }),
+          shot({ id: "S_y", shotNumber: "02", status: "todo" }),
+        ],
+      }),
+      { groupBy: "none", excludedShotIds: [], sortBy: "status", sortDir: "desc" },
+    )
+    // status desc reorders buckets, but the two equal-status shots keep ASC shot-number tie-break
+    expect(b.groups[0]?.shots.map((s) => s.id)).toEqual(["S_y", "S_x"])
+  })
+})
+
 describe("sizeLabel", () => {
   it("shows the concrete size for a single scope", () => {
     expect(sizeLabel("single", "M")).toEqual({ text: "M", pending: false })
@@ -410,5 +544,58 @@ describe("titleCaseSlug", () => {
   })
   it("capitalizes a single-char slug", () => {
     expect(titleCaseSlug("c")).toBe("C")
+  })
+})
+
+describe("mostOutstandingStatus (O2 status-grouping reduction)", () => {
+  it("returns the least-done (lowest STATUS_GROUP_ORDER) status among appearances", () => {
+    expect(mostOutstandingStatus(["complete", "todo"])).toBe("todo")
+    expect(mostOutstandingStatus(["complete", "on_hold"])).toBe("on_hold")
+    expect(mostOutstandingStatus(["on_hold", "in_progress"])).toBe("in_progress")
+    expect(mostOutstandingStatus(["complete", "complete"])).toBe("complete")
+  })
+  it("is order-insensitive", () => {
+    expect(mostOutstandingStatus(["todo", "complete"])).toBe("todo")
+    expect(mostOutstandingStatus(["complete", "todo"])).toBe("todo")
+  })
+  it("returns null for an item with no appearances", () => {
+    expect(mostOutstandingStatus([])).toBeNull()
+  })
+})
+
+describe("model.order — the APPLIED order (so a recipe caption can never claim an order the shots don't have)", () => {
+  it("absent sortBy (flag-off / legacy) → order = {shot-number, asc}, matching the verbatim legacy sort", () => {
+    const model = deriveShotReportModel(data({}), { groupBy: "gender", excludedShotIds: [] })
+    expect(model.order).toEqual({ sortBy: "shot-number", sortDir: "asc" })
+  })
+  it("a chosen sortBy/sortDir flows into model.order verbatim", () => {
+    const model = deriveShotReportModel(data({}), { groupBy: "none", excludedShotIds: [], sortBy: "talent", sortDir: "desc" })
+    expect(model.order).toEqual({ sortBy: "talent", sortDir: "desc" })
+  })
+  it("neutralizing (flag off) a persisted talent/desc config resets order to legacy — the shots are re-sorted, and so is the caption", () => {
+    const raw: ReportConfig = { groupBy: "status", excludedShotIds: [], sortBy: "talent", sortDir: "desc" }
+    const model = deriveShotReportModel(data({}), neutralizeReportConfigForFlag(raw, false))
+    expect(model.order).toEqual({ sortBy: "shot-number", sortDir: "asc" })
+  })
+})
+
+describe("formatOrderNote — honest, config-driven recipe caption (replaces the hardcoded 'sorted by shot no.' lie)", () => {
+  it("default order reads 'Sorted by shot #'", () => {
+    expect(formatOrderNote({ sortBy: "shot-number", sortDir: "asc" })).toBe("Sorted by shot #")
+  })
+  it("a talent/descending order is described honestly and never says 'shot'", () => {
+    const note = formatOrderNote({ sortBy: "talent", sortDir: "desc" })
+    expect(note).toBe("Sorted by talent, descending")
+    expect(note).not.toMatch(/shot/i)
+  })
+  it("status ascending reads 'Sorted by status'", () => {
+    expect(formatOrderNote({ sortBy: "status", sortDir: "asc" })).toBe("Sorted by status")
+  })
+  it("falls back to shot # (never throws) on an out-of-union persisted sortBy", () => {
+    // exportReports is schemaless; a corrupted/legacy blob can carry an invalid
+    // sortBy. shotPrimaryFor sorts such shots by shot-number, so the caption
+    // honestly reads "shot #" rather than crashing on an undefined label.
+    const note = formatOrderNote({ sortBy: "retired-field" as ReportSortField, sortDir: "asc" })
+    expect(note).toBe("Sorted by shot #")
   })
 })
