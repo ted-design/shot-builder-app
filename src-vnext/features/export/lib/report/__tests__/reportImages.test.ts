@@ -105,4 +105,124 @@ describe("collectReportImageCandidates", () => {
   it("empty model returns an empty candidate list", () => {
     expect(collectReportImageCandidates(model([]))).toEqual([])
   })
+
+  it("defaults to including additionalImages when no options are passed (back-compat for hand-built-model callers)", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m)).toEqual(["cover-url", "extra-1"])
+  })
+})
+
+// includeAdditionalImages (fix for: additionalImages fetched/transcoded even
+// when showAdditionalImages is off) — the REAL caller, ShotReportPage, must
+// pass the SAME effective value resolveShowAdditionalImages computes for
+// rendering, so a report with the toggle off (the shipped default), on
+// image-led (v1-excluded), or under a featureReportConfig rollback never pays
+// the fetch+transcode cost for a row that can never be seen.
+describe("collectReportImageCandidates — includeAdditionalImages gate", () => {
+  it("includeAdditionalImages:false excludes shot.additionalImages from the candidate list entirely", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1", "extra-2"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: false })).toEqual(["cover-url"])
+  })
+
+  it("includeAdditionalImages:false still collects the cover, product, and talent candidates — only additionalImages is gated", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        talent: [{ id: "t1", name: "A", img: "headshot-url" }],
+        looks: [
+          {
+            id: "l0",
+            label: "Primary",
+            isAlt: false,
+            image: "cover-url",
+            hasReference: true,
+            products: [
+              { family: "Crew", style: null, colour: null, size: null, sizeScope: null, qty: 1, gender: "?", isHero: true, img: "prod-img" },
+            ],
+          },
+        ],
+        additionalImages: ["extra-1"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: false })).toEqual([
+      "headshot-url",
+      "cover-url",
+      "prod-img",
+    ])
+  })
+
+  it("includeAdditionalImages:true (explicit) behaves exactly like the pre-existing unconditional collection", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: true })).toEqual(["cover-url", "extra-1"])
+  })
+})
+
+// Excluded shots (findings: additionalImages fetched even for shots the user
+// excluded from the report — every recipe filters excluded shots out before
+// render, so their additionalImages candidates can never be seen either way).
+describe("collectReportImageCandidates — excluded shots", () => {
+  it("an excluded shot's additionalImages are never collected, even with the gate on", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        excluded: true,
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1", "extra-2"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: true })).toEqual(["cover-url"])
+  })
+
+  it("an excluded shot's cover/product/talent candidates are still collected (the on-screen fluid view shows them struck-through)", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        excluded: true,
+        talent: [{ id: "t1", name: "A", img: "headshot-url" }],
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: true })).toEqual(["headshot-url", "cover-url"])
+  })
+
+  it("a non-excluded shot's additionalImages are unaffected by a sibling excluded shot", () => {
+    const m = model([
+      shot({
+        id: "s1",
+        excluded: true,
+        looks: [{ id: "l0", label: "Primary", isAlt: false, image: "excluded-cover", hasReference: true, products: [] }],
+        additionalImages: ["excluded-extra"],
+      }),
+      shot({
+        id: "s2",
+        excluded: false,
+        looks: [{ id: "l1", label: "Primary", isAlt: false, image: "cover-url", hasReference: true, products: [] }],
+        additionalImages: ["extra-1"],
+      }),
+    ])
+    expect(collectReportImageCandidates(m, { includeAdditionalImages: true })).toEqual([
+      "excluded-cover",
+      "cover-url",
+      "extra-1",
+    ])
+  })
 })

@@ -140,10 +140,23 @@ describe("ReportView — Extra images effective render (resolveShowAdditionalIma
     expect(container.querySelector(".sb-ps-extra")).toBeNull()
   })
 
-  it("ON + image-led renders NO extra-images row — the v1 exclusion holds even with the raw toggle on", () => {
+  // NOTE on what this test can and can't prove: on layout:"image-led",
+  // ReportView never mounts ProductionSheetReport/BalancedRowsReport at all
+  // (see the root render's layout switch) — so `.sb-ps-extra`/`.sb-br-extra`
+  // are structurally absent regardless of what resolveShowAdditionalImages
+  // returns; this assertion would pass even if that function's image-led
+  // exclusion term were deleted. The FALSIFIABLE coverage of
+  // resolveShowAdditionalImages's own image-led exclusion lives in
+  // reportTypes.test.ts (`resolveShowAdditionalImages(true, "image-led",
+  // true) === false`), not here. What THIS test verifies is the (real, worth
+  // keeping) end-to-end guarantee that turning the raw toggle on while
+  // viewing image-led never leaks an additional-image's resolved src into the
+  // rendered DOM through any path.
+  it("ON + image-led: no additional-image src leaks into the DOM, and neither recipe's extras row can mount", () => {
     const config: ReportConfig = { ...DEFAULT_REPORT_CONFIG, layout: "image-led", showAdditionalImages: true }
     const { container } = renderReportView(config, modelWithExtras(), vi.fn())
     expect(container.querySelector(".sb-ps-extra")).toBeNull()
     expect(container.querySelector(".sb-br-extra")).toBeNull()
+    expect(container.querySelector('img[src="extra-1-src"]')).toBeNull()
   })
 })

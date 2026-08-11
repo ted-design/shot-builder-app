@@ -741,11 +741,16 @@ function ControlBar({
           <span id={extraImagesLabelId} className="sb-control-label">
             Extra images
           </span>
-          <div className="sb-seg">
+          <div className={"sb-seg" + (additionalImagesAvailable ? "" : " sb-seg--inert")}>
             <button
               type="button"
               className="sb-seg-btn"
-              aria-pressed={!additionalImagesOn}
+              // aria-pressed only asserts a meaningful pressed/unpressed state
+              // when the control is actually live — on image-led (inert) the
+              // effective value is "not applicable", not "off", so the
+              // attribute is omitted rather than defaulting to a claim a
+              // screen reader would read as current and real.
+              aria-pressed={additionalImagesAvailable ? !additionalImagesOn : undefined}
               disabled={!additionalImagesAvailable}
               title={
                 additionalImagesAvailable
@@ -759,7 +764,7 @@ function ControlBar({
             <button
               type="button"
               className="sb-seg-btn"
-              aria-pressed={additionalImagesOn}
+              aria-pressed={additionalImagesAvailable ? additionalImagesOn : undefined}
               disabled={!additionalImagesAvailable}
               title={
                 additionalImagesAvailable
@@ -771,6 +776,14 @@ function ControlBar({
               On
             </button>
           </div>
+          {!additionalImagesAvailable && (
+            // VISIBLE explanation, not just a `title` on a disabled button — a
+            // disabled element is out of the tab order and receives no pointer
+            // events, so a hover-only tooltip is unreachable by keyboard and
+            // unreliable for assistive tech. This text carries the same
+            // guidance for everyone else.
+            <span className="sb-control-hint">Switch to On-set sheet or All-rounder</span>
+          )}
         </div>
       )}
 
@@ -961,7 +974,16 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         layout={layout}
         onSetLayout={setLayout}
         showLayout={recipesEnabled}
-        showAdditionalImagesControl={reportConfigEnabled}
+        // Hide the control entirely (not just disable it) when it can NEVER
+        // become available: recipesEnabled off forces layout to "image-led"
+        // permanently (resolveReportLayout), so additionalImagesAvailable can
+        // never flip true and the disabled buttons' "switch to On-set sheet
+        // or All-rounder" guidance would point at a Recipe picker that
+        // showLayout is ALSO hiding — a dead end with no way out. Still shown
+        // (disabled, with that guidance) whenever recipesEnabled is true,
+        // even on image-led, since the Recipe picker is visible there and the
+        // guidance is actionable.
+        showAdditionalImagesControl={reportConfigEnabled && (additionalImagesAvailable || recipesEnabled)}
         additionalImagesOn={additionalImagesOn}
         additionalImagesAvailable={additionalImagesAvailable}
         onSetShowAdditionalImages={setShowAdditionalImages}

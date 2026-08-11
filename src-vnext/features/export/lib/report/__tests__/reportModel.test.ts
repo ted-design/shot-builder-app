@@ -411,14 +411,22 @@ describe("deriveShotReportModel", () => {
   })
 })
 
-describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
-  it("Shot.heroImage WINS over the existing reference when both are set and differ", () => {
+// A MANUAL hero upload always writes to this exact Storage path
+// (uploadHeroImage, uploadImage.ts) — the same convention reportModel.ts's
+// isManualHeroImage / ActiveLookCoverReferencesPanel.tsx / HeroImageSection.tsx
+// all key off. Every fixture below that wants "hero WINS" uses this shape;
+// fixtures proving a SYNTHESIZED heroImage does NOT win use an arbitrary path
+// that does not end in "/hero.webp" (see the second describe block).
+const MANUAL_HERO = { path: "clients/c1/shots/s1/hero.webp", downloadURL: "hero-url" }
+
+describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11, corrected: manual hero only)", () => {
+  it("a MANUAL Shot.heroImage (path ends /hero.webp) WINS over the existing reference when both are set and differ", () => {
     const d = data({
       shots: [
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          heroImage: MANUAL_HERO,
           looks: [
             {
               id: "l0",
@@ -470,14 +478,14 @@ describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
     expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("prod-img")
   })
 
-  it("hero wins over the product fallback too when there is no reference at all", () => {
+  it("manual hero wins over the product fallback too when there is no reference at all", () => {
     const d = data({
       productFamilies: FAMILIES,
       shots: [
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          heroImage: MANUAL_HERO,
           looks: [{ id: "l0", order: 0, heroProductId: "fM", products: [{ familyId: "fM", thumbUrl: "prod-img" }] }],
         }),
       ],
@@ -492,7 +500,7 @@ describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          heroImage: MANUAL_HERO,
           looks: [
             { id: "l0", order: 0, products: [] }, // primary: no reference — hero wins
             { id: "l1", order: 1, label: "Alt A", products: [] }, // alt: no reference — stays null, hero never applies
@@ -512,7 +520,7 @@ describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          heroImage: MANUAL_HERO,
           looks: [{ id: "l0", order: 0, products: [] }], // no reference — hero supplies the cover, but it's not a reference
         }),
       ],
@@ -522,30 +530,120 @@ describe("deriveShotReportModel — WS-C hero-first cover (2026-08-11)", () => {
     expect(m.groups[0]?.shots[0]?.hasImage).toBe(false)
   })
 
-  it("heroImage with only a path (no downloadURL survives the mapper in practice, but defend anyway) resolves via path", () => {
+  it("a manual heroImage with only a path (no downloadURL survives the mapper in practice, but defend anyway) resolves via path", () => {
     const d = data({
       shots: [
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero-path-only.jpg" } as unknown as Shot["heroImage"],
+          heroImage: { path: "clients/c1/shots/s1/hero.webp" } as unknown as Shot["heroImage"],
           looks: [{ id: "l0", order: 0, products: [] }],
         }),
       ],
     })
     const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
-    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("hero-path-only.jpg")
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("clients/c1/shots/s1/hero.webp")
   })
 })
 
-describe("deriveShotReportModel — WS-C additional images (2026-08-11)", () => {
-  it("hero IS one of the references -> that reference is excluded from additionalImages, no duplicate", () => {
+// Regression coverage for the confirmed bug: mapShot.normalizeHeroImage
+// SYNTHESIZES Shot.heroImage for virtually every shot (Priority 1 = the
+// ACTIVE look's display image/hero product — mapShot.ts:139), and
+// ShotLooksSection's look-tab click ("setActiveLookForCover") patches
+// `activeLookId` on a routine edit. Before the fix, resolveLooks trusted ANY
+// heroImage (synthesized or manual) as the cover override — so clicking a
+// look tab silently swapped the report's cover to whichever look merely
+// became ACTIVE, demoting the primary (order 0) look's own reference to an
+// "additional" thumb, even though the report's own primary-look definition
+// (sortLooksByOrder / looks[0]) never changed. isManualHeroImage fixes this
+// by requiring the heroImage to be a genuine manual upload (path ends
+// "/hero.webp") before it can override the primary look's cover.
+describe("deriveShotReportModel — hero-first does NOT follow a synthesized (active-look) heroImage", () => {
+  it("a heroImage synthesized from the ACTIVE (non-primary) look is IGNORED — the primary look's own reference stays the cover", () => {
     const d = data({
       shots: [
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "shared.jpg", downloadURL: "shared-url" },
+          activeLookId: "l1",
+          // Synthesized shape (as mapShot.normalizeHeroImage Priority 1 would
+          // produce from the ACTIVE alt look's own reference) — NOT a manual
+          // upload: no "/hero.webp" in the path.
+          heroImage: { path: "alt-ref.jpg", downloadURL: "alt-ref-url" },
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [{ id: "r1", path: "primary-ref.jpg", downloadURL: "primary-ref-url" }],
+              products: [],
+            },
+            {
+              id: "l1",
+              order: 1,
+              label: "Alt",
+              references: [{ id: "r2", path: "alt-ref.jpg", downloadURL: "alt-ref-url" }],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const looks = m.groups[0]?.shots[0]?.looks
+    // Primary look's cover is its OWN reference — unaffected by which look is "active".
+    expect(looks?.[0]?.image).toBe("primary-ref-url")
+    // The alt look renders its own reference, in its own slot — nothing swapped.
+    expect(looks?.[1]?.image).toBe("alt-ref-url")
+  })
+
+  it("clicking a look tab (activeLookId change) never moves the primary look's reference into additionalImages", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          activeLookId: "l1",
+          heroImage: { path: "alt-ref.jpg", downloadURL: "alt-ref-url" }, // synthesized from the now-active alt look
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [{ id: "r1", path: "primary-ref.jpg", downloadURL: "primary-ref-url" }],
+              products: [],
+            },
+            {
+              id: "l1",
+              order: 1,
+              label: "Alt",
+              references: [{ id: "r2", path: "alt-ref.jpg", downloadURL: "alt-ref-url" }],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    const s = m.groups[0]?.shots[0]
+    // The primary look's own reference is still the cover (coverIdentity),
+    // so it's excluded from additionalImages — it must NOT get demoted into
+    // this list just because a different look became "active". The alt
+    // look's own reference legitimately appears here too (looksMode:"all"
+    // shows every look's references as additional alongside its own slot —
+    // see the looksMode:"primary-only" test below for the same rule), but
+    // "primary-ref-url" — the shot's actual cover — must never be in it.
+    expect(s?.additionalImages).toEqual(["alt-ref-url"])
+    expect(s?.additionalImages).not.toContain("primary-ref-url")
+  })
+})
+
+describe("deriveShotReportModel — WS-C additional images (2026-08-11)", () => {
+  it("a MANUAL hero IS one of the references -> that reference is excluded from additionalImages, no duplicate", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          heroImage: { path: "clients/c1/shots/s1/hero.webp", downloadURL: "shared-url" },
           looks: [
             {
               id: "l0",
@@ -566,13 +664,13 @@ describe("deriveShotReportModel — WS-C additional images (2026-08-11)", () => 
     expect(s?.additionalImages).toEqual(["other-url"]) // the identical-identity reference is excluded, not duplicated
   })
 
-  it("hero is a DISTINCT image from every reference -> all references render as additional", () => {
+  it("a MANUAL hero is a DISTINCT image from every reference -> all references render as additional", () => {
     const d = data({
       shots: [
         shot({
           id: "s1",
           shotNumber: "01",
-          heroImage: { path: "hero.jpg", downloadURL: "hero-url" },
+          heroImage: MANUAL_HERO,
           looks: [
             {
               id: "l0",
@@ -661,6 +759,51 @@ describe("deriveShotReportModel — WS-C additional images (2026-08-11)", () => 
     })
     const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
     expect(m.groups[0]?.shots[0]?.additionalImages).toEqual(["dup-url"])
+  })
+
+  // Regression: a Firestore doc that only ever stored `path` normalizes
+  // (mapShot.ts's normalizeReferences) to `{ path, downloadURL: undefined }`,
+  // while a sibling entry stored with both fields normalizes to
+  // `{ path, downloadURL: <the URL> }` — even when both point at the exact
+  // same Storage object. Before the fix, resolveImageIdentity returned
+  // `downloadURL ?? path` verbatim, so those two entries produced DIFFERENT
+  // identity strings (a bare path vs. a full https URL) and the dedupe
+  // silently missed the collision.
+  it("a reference stored with only `path` and a sibling stored with a full Firebase downloadURL pointing at the SAME object dedupe to one thumb", () => {
+    const d = data({
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          looks: [
+            {
+              id: "l0",
+              order: 0,
+              references: [
+                { id: "r1", path: "cover.jpg", downloadURL: "cover-url" },
+                // Only `path` set — the shape normalizeReferences produces for a
+                // doc that never stored a downloadURL (downloadURL is optional
+                // on ShotReferenceImage, so this is a structurally valid fixture).
+                { id: "r2", path: "clients/c1/shots/s1/refs/dup.webp" },
+                // The SAME Storage object, but stored (and normalized) with a
+                // full Firebase download URL instead.
+                {
+                  id: "r3",
+                  path: "clients/c1/shots/s1/refs/dup.webp",
+                  downloadURL:
+                    "https://firebasestorage.googleapis.com/v0/b/bucket/o/clients%2Fc1%2Fshots%2Fs1%2Frefs%2Fdup.webp?alt=media",
+                },
+              ],
+              products: [],
+            },
+          ],
+        }),
+      ],
+    })
+    const m = deriveShotReportModel(d, { groupBy: "none", excludedShotIds: [], looksMode: "all" })
+    // One thumb, not two — r2 and r3 resolve to the SAME canonical identity
+    // (the decoded Storage path), so the second occurrence is deduped.
+    expect(m.groups[0]?.shots[0]?.additionalImages).toHaveLength(1)
   })
 
   it("a shot with no references at all derives an empty additionalImages array, not undefined", () => {

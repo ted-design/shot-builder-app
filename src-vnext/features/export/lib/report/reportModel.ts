@@ -60,13 +60,45 @@ function pickLookDisplayImage(look: ShotLook): string | null {
   return chosen?.downloadURL ?? chosen?.path ?? null
 }
 
+/** Extract the raw Storage path from a Firebase download URL, when the string
+ *  IS one (e.g. "https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<encoded
+ *  path>?..."). Returns null for anything else (a bare path, a non-Firebase
+ *  URL, a data: URL). Mirrors resolvePdfImageSrc.ts's
+ *  parseFirebaseDownloadUrlToStoragePath byte-for-byte — duplicated, not
+ *  imported, because that module pulls in firebase/storage + the live
+ *  storage client and this one is a PURE derivation (see the file header).
+ *  Keep the two in sync if either changes. */
+function parseFirebaseDownloadUrlToStoragePath(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname !== "firebasestorage.googleapis.com") return null
+    const marker = "/o/"
+    const idx = parsed.pathname.indexOf(marker)
+    if (idx === -1) return null
+    const encoded = parsed.pathname.slice(idx + marker.length)
+    return decodeURIComponent(encoded)
+  } catch {
+    return null
+  }
+}
+
 /** Resolved image identity for a hero image or a look reference — the actual
- *  stored object, not the reference id: downloadURL when present, else path.
- *  This is the SAME candidate string pickLookDisplayImage above resolves to,
- *  so a hero and a reference pointing at one stored object always compare
- *  equal here even when their ids differ (WS-C dedupe rule). */
+ *  stored object, not the reference id. Canonicalizes to the underlying
+ *  Storage PATH whenever downloadURL is a recognizable Firebase download URL
+ *  (parseFirebaseDownloadUrlToStoragePath above), so a reference normalized
+ *  with only `path` (mapShot.ts's normalizeReferences omits downloadURL when
+ *  the raw doc only ever stored a path) and a sibling normalized with a full
+ *  `downloadURL` pointing at the SAME stored object compare equal here —
+ *  without this, the WS-C dedupe (additionalImages / cover-exclusion) can
+ *  silently miss the collision (one candidate is a bare path, the other a
+ *  full https URL) and the same image renders, and gets fetched, twice.
+ *  Falls back to the raw downloadURL, then path, when it isn't a parseable
+ *  Firebase URL (a non-Firebase host, or a bare path already). */
 function resolveImageIdentity(img: { readonly path: string; readonly downloadURL?: string }): string {
-  return img.downloadURL ?? img.path
+  if (img.downloadURL) {
+    return parseFirebaseDownloadUrlToStoragePath(img.downloadURL) ?? img.downloadURL
+  }
+  return img.path
 }
 
 /** Best image candidate for a styled product: assignment thumbs, then family thumbnail. */
@@ -127,17 +159,43 @@ export function sortLooksByOrder(looks: readonly ShotLook[]): readonly ShotLook[
   return [...looks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 }
 
+// Storage filename `uploadHeroImage` (uploadImage.ts) always writes a manual
+// hero upload to: the ONLY way Shot.heroImage.path ends in this today. Every
+// OTHER heroImage shape (the vast majority — see isManualHeroImage below) is
+// mapShot.normalizeHeroImage SYNTHESIZING a candidate from the shot's looks/
+// products/attachments, not a distinct user choice. Same convention already
+// used to gate the manual "Reset cover" affordance — ActiveLookCoverReferencesPanel.tsx
+// and HeroImageSection.tsx both key off this exact substring.
+const MANUAL_HERO_PATH_MARKER = "/hero.webp"
+
+/** True only for a hero image the user explicitly uploaded via HeroImageSection
+ *  (Shot.heroImage.path === `clients/<c>/shots/<id>/hero.webp`) — NOT for a
+ *  heroImage mapShot synthesized from the active look / a look's displayImageId /
+ *  a hero product / a legacy attachment (normalizeHeroImage, mapShot.ts:139).
+ *  That synthesis runs for virtually every shot, and its Priority-1 term reads
+ *  `Shot.activeLookId` — the SAME field ShotLooksSection's look-tab click
+ *  ("setActiveLookForCover") patches on a routine edit, with a DIFFERENT
+ *  precedence than this model's own sortLooksByOrder/looks[0] "primary look".
+ *  Trusting a synthesized heroImage as the report cover would silently swap
+ *  the cover to whichever look is merely ACTIVE (last clicked in the editor)
+ *  instead of the report's own primary (order 0) look. */
+function isManualHeroImage(heroImage: Shot["heroImage"]): boolean {
+  return !!heroImage?.path && heroImage.path.includes(MANUAL_HERO_PATH_MARKER)
+}
+
 function resolveLooks(
   shot: Shot,
   sortedRawLooks: readonly ShotLook[],
   familyById: ReadonlyMap<string, ProductFamily>,
 ): readonly ReportLook[] {
-  // Cover semantics (WS-C, 2026-08-11): Shot.heroImage WINS over the look's own
-  // reference/product-fallback logic, but ONLY for the PRIMARY look slot
-  // (index 0 below) — alt-look rendering under looksMode:"all" is untouched.
-  // Absent heroImage is a no-op (heroCandidate stays null), so a shot that has
-  // never set a hero renders byte-identical to pre-WS-C.
-  const heroCandidate = shot.heroImage ? resolveImageIdentity(shot.heroImage) : null
+  // Cover semantics (WS-C, 2026-08-11): a MANUALLY-uploaded Shot.heroImage
+  // (isManualHeroImage above) WINS over the look's own reference/product-
+  // fallback logic, but ONLY for the PRIMARY look slot (index 0 below) —
+  // alt-look rendering under looksMode:"all" is untouched. A synthesized
+  // heroImage (the common case — see isManualHeroImage) is a no-op here,
+  // same as an absent one, so a shot that has never uploaded a manual hero
+  // renders byte-identical to pre-WS-C.
+  const heroCandidate = isManualHeroImage(shot.heroImage) ? resolveImageIdentity(shot.heroImage!) : null
   return sortedRawLooks.map((look, i): ReportLook => {
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)

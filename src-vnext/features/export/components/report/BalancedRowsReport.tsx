@@ -265,6 +265,34 @@ type Item =
 
 const PAGE_CAP = 4.0
 
+// Additional-images row weight (WS-C) — SCALES with thumb count, same fix and
+// same rationale as ProductionSheetReport.tsx's extraImagesWeight (a flat
+// per-shot bump under-charges a shot with many references far worse than one
+// with few, and `.sb-br-page` growing past its `min-height` under `@media
+// print { break-after: page }` produces a mis-placed footer / part-blank
+// physical page rather than a silent clip — still a pagination-fidelity bug).
+// Calibrated against reportStyles.ts, safety margin over the measured figure:
+//   - 1 weight unit = 177.6px (PAGE_CAP 4.0 over .sb-br-page's 7.4in content
+//     box: width 11in n/a here, padding 0.5in top / 0.55in sides / 0.6in
+//     bottom -> 8.5in - 0.5in - 0.6in = 7.4in)
+//   - thumbs per PRINT-mode line = 6 (panel width: page content 9.9in minus
+//     .sb-br-page 4px*2 print-mode band padding minus print --br-img-col 250px
+//     minus print .sb-br-band gap 22px ≈ 670px usable; .sb-br-extra-thumb 90px
+//     + .sb-br-extra-row gap 8px = 98px/thumb)
+//   - one line ≈ .sb-br-extra margin-top 14 + label (9px * 1.5 line-height) +
+//     margin-bottom 7 + thumb height 64px ≈ 98.5px ≈ 0.55 units — charged 0.6
+//   - each further wrapped line ≈ gap 8 + thumb 64 ≈ 72px ≈ 0.41 units —
+//     charged 0.45 for margin
+const EXTRA_THUMBS_PER_LINE = 6
+const EXTRA_FIRST_LINE_UNITS = 0.6
+const EXTRA_WRAP_LINE_UNITS = 0.45
+
+export function extraImagesWeight(count: number): number {
+  if (count <= 0) return 0
+  const lines = Math.ceil(count / EXTRA_THUMBS_PER_LINE)
+  return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
+}
+
 function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
   let z = 0
@@ -275,12 +303,10 @@ function buildStream(model: ReportModel, showAdditionalImages: boolean): readonl
     for (const shot of printable) {
       const multi = shot.looks.length > 1
       let h = multi ? 1.7 : 1.0
-      // Additional-images row (WS-C): a rough per-shot bump so the CSS
-      // weight-pack print PREVIEW (a hard-clipped fixed-height sheet, unlike
-      // the real PDF's flow layout) doesn't under-estimate and clip the row
-      // off the bottom of a page. No-op when the toggle is off or the shot
-      // has nothing extra, so default-off pagination stays byte-identical.
-      if (showAdditionalImages && (shot.additionalImages?.length ?? 0) > 0) h += 0.4
+      // Additional-images row (WS-C): see extraImagesWeight above. No-op when
+      // the toggle is off or the shot has nothing extra, so default-off
+      // pagination stays byte-identical to pre-WS-C.
+      if (showAdditionalImages) h += extraImagesWeight(shot.additionalImages?.length ?? 0)
       stream.push({ kind: "band", shot, zebra: z % 2 === 1, h })
       z += 1
     }

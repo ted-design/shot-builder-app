@@ -82,6 +82,21 @@ function countPdfPages(buf: Buffer): number {
   return matches ? matches.length : 0
 }
 
+/** Rough count of embedded IMAGE XObjects from the raw PDF bytes (`/Subtype
+ *  /Image` object dicts). A page-count comparison can't distinguish
+ *  "AdditionalImagesRow never invoked" from "invoked and returned null" from
+ *  "invoked, rendered, but the extra content didn't cross a page boundary" —
+ *  all three produce identical page counts. This CAN distinguish the first
+ *  two from the third: overflowModel()'s fixture carries zero images anywhere
+ *  (every look/product/talent `image`/`img` is null), so a real @react-pdf
+ *  render of it embeds zero Image XObjects — any non-zero count means
+ *  SOMETHING drew an image that shouldn't have. */
+function countPdfImageXObjects(buf: Buffer): number {
+  const raw = buf.toString("latin1")
+  const matches = raw.match(/\/Subtype\s*\/Image/g)
+  return matches ? matches.length : 0
+}
+
 // 1x1 transparent PNG — a real, valid image payload (not a garbage base64
 // string), matching the shape resolveReportImages/resolvePdfImageSrc actually
 // hand the renderer (a "data:" URL, resolved once and cached). @react-pdf/image
@@ -189,8 +204,16 @@ describe("recipe PDF overflow — additional-images row (WS-C) must FLOW, never 
     expect(buf.length).toBeGreaterThan(0)
     expect(overflowWarnings(warn)).toEqual([])
     const pages = countPdfPages(buf)
-    expect(pages).toBeGreaterThan(0)
-    expect(pages).toBeLessThan(20) // sane — not a runaway/near-infinite flow
+    // MEASURED against the real @react-pdf render (not the "temporary stderr
+    // probe, since removed" the PR description cited — this bound IS the
+    // reproducible measurement, committed): 3 pages, matching the PR's own
+    // claimed "production-sheet 3pp" figure. A loose (0, 20) bound can't fail
+    // for almost any mutation of the additional-images row (wrong thumb size,
+    // row rendered twice, row dropped, toggle ignored); this tight a window
+    // around the measured value can. Small tolerance (2-5) for incidental
+    // spacing/font changes elsewhere in the recipe that aren't this row's concern.
+    expect(pages).toBeGreaterThanOrEqual(2)
+    expect(pages).toBeLessThanOrEqual(5)
   })
 
   it("balanced-rows: 50-product shot + 10 references, showAdditionalImages ON — zero can't-wrap warnings, sane page count", async () => {
@@ -204,8 +227,11 @@ describe("recipe PDF overflow — additional-images row (WS-C) must FLOW, never 
     expect(buf.length).toBeGreaterThan(0)
     expect(overflowWarnings(warn)).toEqual([])
     const pages = countPdfPages(buf)
-    expect(pages).toBeGreaterThan(0)
-    expect(pages).toBeLessThan(20)
+    // MEASURED: 4 pages, matching the PR's own claimed "balanced-rows 4pp"
+    // figure — see the production-sheet case above for why a tight, pinned
+    // window (not the prior (0, 20) bound) is the falsifiable version of this check.
+    expect(pages).toBeGreaterThanOrEqual(3)
+    expect(pages).toBeLessThanOrEqual(6)
   })
 
   it("production-sheet: additional-images row ALONE (400 thumbs, well past one page) still FLOWS — zero can't-wrap warnings", async () => {
@@ -241,5 +267,17 @@ describe("recipe PDF overflow — additional-images row (WS-C) must FLOW, never 
     )
     expect(countPdfPages(withFieldButOff)).toBe(countPdfPages(withoutField))
     expect(overflowWarnings(warn)).toEqual([])
+    // Page count alone can't tell "never invoked" apart from "invoked and
+    // returned null" apart from "invoked, rendered, but the extra content
+    // didn't cross a page boundary" — all three produce identical page
+    // counts on this dense (already multi-page) fixture. This is the
+    // sharper, falsifiable version: overflowModel()'s shot carries ZERO
+    // images anywhere (every look/product/talent image candidate is null —
+    // see the fixture above), so a real render of it embeds zero Image
+    // XObjects. If AdditionalImagesRow rendered despite the toggle being
+    // off, its thumbs (drawn from EXTRA_IMAGE_MAP's real TINY_PNG payloads)
+    // would show up here even on a page count that happened not to move.
+    expect(countPdfImageXObjects(withoutField)).toBe(0)
+    expect(countPdfImageXObjects(withFieldButOff)).toBe(0)
   })
 })

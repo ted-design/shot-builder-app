@@ -18,6 +18,7 @@ import {
   resolveReportLayout,
   resolveShowAdditionalImages,
   type ReportConfig,
+  type ReportLayout,
 } from "../../lib/report/reportTypes"
 import { ReportView } from "./ReportView"
 
@@ -132,11 +133,28 @@ export default function ShotReportPage() {
     [data, config],
   )
 
+  // Single-source effective additional-images value (same resolver
+  // handleExportPdf uses below) — gates the IMAGE FETCH, not just the render.
+  // Without this the fetch pipeline pays full cost (every look reference on
+  // every shot, fetched+transcoded) on every report load regardless of the
+  // toggle, the recipe, or a full featureReportConfig rollback — see
+  // collectReportImageCandidates's docstring.
+  const layout: ReportLayout = useMemo(
+    () => resolveReportLayout(config, isFeatureEnabled("featureShotReportRecipes")),
+    [config],
+  )
+  const showAdditionalImages = useMemo(
+    () => resolveShowAdditionalImages(config, layout, isFeatureEnabled("featureReportConfig")),
+    [config, layout],
+  )
+
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.
   useEffect(() => {
     let cancelled = false
-    const candidates = collectReportImageCandidates(model)
+    const candidates = collectReportImageCandidates(model, {
+      includeAdditionalImages: showAdditionalImages,
+    })
     if (candidates.length === 0) {
       setImageMap(new Map())
       return
@@ -155,7 +173,7 @@ export default function ShotReportPage() {
     return () => {
       cancelled = true
     }
-  }, [model])
+  }, [model, showAdditionalImages])
 
   const handleExportPdf = useCallback(() => {
     setExporting(true)

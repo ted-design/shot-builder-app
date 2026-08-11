@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { hyphenateToken, tokenHyphenation } from "../reportPdfShared"
+import { hyphenateToken, resolveAdditionalImageSrcs, tokenHyphenation } from "../reportPdfShared"
 
 // hyphenateToken feeds @react-pdf's hyphenationCallback (see reportPdfShared.ts
 // for the full root-cause writeup). The property that matters: rejoining the
@@ -65,3 +65,31 @@ describe("hyphenateToken", () => {
 const BREAKABLE_FOR_TEST = new Set([
   "/", ".", "?", "&", "=", "_", "-", "@", "+", ":", "%", "#", ",", ";",
 ])
+
+// resolveAdditionalImageSrcs (WS-C, 2026-08-11) — the PDF-recipe TWIN of
+// components/report/reportShared.ts's function of the same name (the DOM
+// recipes' resolver). Byte-identical implementations; this file previously
+// tested only hyphenateToken/tokenHyphenation, so the drop-vs-placeholder
+// rule below — the behaviour that deliberately differs from the cover
+// thumbnail's fixed-slot placeholder — was asserted on the DOM side only
+// (reportShared.test.ts) and could drift silently on this twin. Mirrors
+// reportShared.test.ts's cases exactly.
+describe("resolveAdditionalImageSrcs (PDF copy)", () => {
+  it("resolves every candidate present in the map, in order", () => {
+    const map = new Map([
+      ["a", "src-a"],
+      ["b", "src-b"],
+    ])
+    expect(resolveAdditionalImageSrcs(map, ["a", "b"])).toEqual(["src-a", "src-b"])
+  })
+
+  it("drops a candidate with no resolved src instead of rendering an empty slot", () => {
+    const map = new Map([["a", "src-a"]])
+    expect(resolveAdditionalImageSrcs(map, ["a", "missing", "b"])).toEqual(["src-a"])
+  })
+
+  it("returns [] for undefined or empty candidates — no crash", () => {
+    expect(resolveAdditionalImageSrcs(new Map(), undefined)).toEqual([])
+    expect(resolveAdditionalImageSrcs(new Map(), [])).toEqual([])
+  })
+})

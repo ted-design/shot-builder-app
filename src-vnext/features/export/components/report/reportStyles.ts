@@ -323,6 +323,12 @@ export const REPORT_STYLES = `
 .sb-seg-btn + .sb-seg-btn { border-left: 1px solid var(--sb-rule); }
 .sb-seg-btn[aria-pressed="true"] { background: var(--sb-ink); color: var(--sb-paper); }
 .sb-seg-btn:focus-visible { outline: 2px solid var(--sb-ink); outline-offset: -2px; }
+.sb-seg-btn:disabled { cursor: default; opacity: 0.5; }
+.sb-seg--inert { opacity: 0.85; }
+.sb-control-hint {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); color: var(--sb-ink-3);
+  font-style: italic;
+}
 .sb-export-btn {
   margin-left: auto; appearance: none; cursor: pointer;
   display: inline-flex; align-items: center; gap: 8px;

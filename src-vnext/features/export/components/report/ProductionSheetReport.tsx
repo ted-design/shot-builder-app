@@ -281,20 +281,42 @@ const PAGE_CAP_FIRST = 13.0
 const PAGE_CAP_FULL = 15.2
 const GROUP_W = 1.4 + 0.9 // band + ruler
 
-function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
+// Additional-images row weight (WS-C) — SCALES with thumb count, not a flat
+// per-shot bump. `.sb-ps-page` is a fixed-height `overflow: hidden` sheet
+// (reportStyles.ts), so under-charging this row silently CLIPS it off the
+// bottom of a page with no marker; a flat charge under-counts a shot with
+// many references far worse than one with few. Calibrated against the
+// shipped CSS (reportStyles.ts), same "estimate, not measure" character as
+// every other term in shotWeight, with a safety margin over the measured
+// figure rather than the bare minimum:
+//   - 1 weight unit = 48px (PAGE_CAP_FULL 15.2 over .sb-ps-page's 7.6in
+//     content box: height 8.5in, padding 0.42/0.5/0.48in, box-sizing: border-box)
+//   - thumbs per PRINT-mode line = 15 (page content 10in minus --ps-col-status
+//     30px minus print --ps-col-thumb 112px minus .sb-ps-body's 14px*2 padding
+//     ≈ 790px usable; .sb-ps-extra-thumb 46px + .sb-ps-extra-row gap 6px = 52px/thumb)
+//   - one line ≈ .sb-ps-extra margin-top 9 + label (9px * 1.5 line-height) +
+//     margin-bottom 5 + thumb height (46px @ 5:6 aspect-ratio) 55.2 ≈ 83px ≈
+//     1.7 units — charged 1.8 for margin
+//   - each further wrapped line ≈ .sb-ps-extra-row gap 6 + thumb 55.2 ≈ 61px ≈
+//     1.28 units — charged 1.3 for margin
+// No-op (0) when the shot has nothing extra, so default-off pagination stays
+// byte-identical to pre-WS-C (shotWeight only calls this when the toggle is on).
+export const EXTRA_THUMBS_PER_LINE = 15
+const EXTRA_FIRST_LINE_UNITS = 1.8
+const EXTRA_WRAP_LINE_UNITS = 1.3
+
+export function extraImagesWeight(count: number): number {
+  if (count <= 0) return 0
+  const lines = Math.ceil(count / EXTRA_THUMBS_PER_LINE)
+  return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
+}
+
+export function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
   let prodRows = 0
   for (const l of shot.looks) prodRows += l.products.length
   let w = 1.7 + shot.looks.length * 0.55 + prodRows * 0.42
   if (present(shot.notes)) w += 0.6
-  // Additional-images row (WS-C): a rough per-shot bump so the CSS weight-pack
-  // print PREVIEW (a hard-clipped fixed-height sheet, unlike the real PDF's
-  // flow layout) doesn't under-estimate and clip the row off the bottom of a
-  // page. Same "estimate, not measure" character as every other term here —
-  // not tuned to any exact row height, just enough to keep a shot carrying
-  // extra thumbs from landing at the very bottom of a full sheet. No-op (w
-  // unchanged) when the toggle is off or the shot has nothing extra, so the
-  // default-off pagination is byte-identical to pre-WS-C.
-  if (showAdditionalImages && (shot.additionalImages?.length ?? 0) > 0) w += 0.5
+  if (showAdditionalImages) w += extraImagesWeight(shot.additionalImages?.length ?? 0)
   return Math.max(w, 2.4) // thumbnail floor
 }
 
