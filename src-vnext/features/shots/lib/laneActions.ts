@@ -148,6 +148,18 @@ export async function assignShotsToLane(params: {
   return updated
 }
 
+/**
+ * Sets Phase 2 — ids of every shot currently assigned to a Set (Lane). Backs the
+ * Set editor's "Apply location to N shots" action. Pure + testable; the caller
+ * feeds these ids to `bulkUpdateLocation`.
+ */
+export function shotIdsInLane(
+  shots: ReadonlyArray<Pick<Shot, "id" | "laneId">>,
+  laneId: string,
+): string[] {
+  return shots.filter((s) => s.laneId === laneId).map((s) => s.id)
+}
+
 export async function ungroupAllShotsFromLane(params: {
   readonly shots: ReadonlyArray<Shot>
   readonly laneId: string

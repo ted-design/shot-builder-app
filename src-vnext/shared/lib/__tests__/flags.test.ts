@@ -236,4 +236,27 @@ describe("feature flags", () => {
       expect(isFeatureEnabled("featureTalentReport")).toBe(false)
     }
   })
+
+  it("defaults featureSets to false (Sets Phase 2 UI is dark on main; Phase 1 schema is additive/unflagged)", () => {
+    expect(getFeatureFlags().featureSets).toBe(false)
+    expect(isFeatureEnabled("featureSets")).toBe(false)
+  })
+
+  it("VITE_SETS='1' or 'true' enables featureSets", () => {
+    vi.stubEnv("VITE_SETS", "1")
+    expect(isFeatureEnabled("featureSets")).toBe(true)
+
+    vi.stubEnv("VITE_SETS", "true")
+    expect(isFeatureEnabled("featureSets")).toBe(true)
+
+    vi.stubEnv("VITE_SETS", "TRUE")
+    expect(isFeatureEnabled("featureSets")).toBe(true)
+  })
+
+  it("any other VITE_SETS value stays off (no URL/localStorage override layer)", () => {
+    for (const value of ["0", "false", "", "yes", "on"]) {
+      vi.stubEnv("VITE_SETS", value)
+      expect(isFeatureEnabled("featureSets")).toBe(false)
+    }
+  })
 })
