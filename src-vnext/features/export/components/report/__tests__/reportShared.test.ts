@@ -11,4 +11,14 @@ describe("report status labels", () => {
     expect(statusMeta("in_progress").label).toBe("In Progress")
     expect(statusMeta("complete").label).toBe("Shot")
   })
+
+  // The reserved green/amber/blue/gray dot palette (STATUS_DOT in
+  // reportShared.ts) has its own coverage — restored here after the prior
+  // statusMetaLegacy-comparison assertion was deleted with no replacement.
+  it("statusMeta assigns the reserved dot palette per status", () => {
+    expect(statusMeta("complete").dotClass).toBe("sb-status--complete")
+    expect(statusMeta("todo").dotClass).toBe("sb-status--todo")
+    expect(statusMeta("in_progress").dotClass).toBe("sb-status--progress")
+    expect(statusMeta("on_hold").dotClass).toBe("sb-status--hold")
+  })
 })

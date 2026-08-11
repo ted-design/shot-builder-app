@@ -72,9 +72,10 @@ describe("StatusLedger", () => {
     renderLedger()
     // detail line: "48 shots · 6 scenes"
     expect(screen.getByText("48 shots · 6 scenes")).toBeInTheDocument()
-    // legend labels for the 4-segment shot bar
-    expect(screen.getByText("In progress")).toBeInTheDocument()
-    expect(screen.getByText("On hold")).toBeInTheDocument()
+    // legend labels for the 4-segment shot bar — canonical wording
+    // (statusMappings.ts SHOT_STATUS_MAP), matching the shot list/editor/reports.
+    expect(screen.getByText("In Progress")).toBeInTheDocument()
+    expect(screen.getByText("On Hold")).toBeInTheDocument()
     // the in-progress count (14) appears as a legend value (unique across rows)
     expect(screen.getByText("14")).toBeInTheDocument()
   })

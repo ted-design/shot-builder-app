@@ -69,14 +69,24 @@ export const SORT_LABELS: Record<SortKey, string> = {
 }
 
 // Re-derived from the canonical SHOT_STATUS_CYCLE/getShotStatusLabel
-// (statusMappings.ts) — keep these names, consumers rely on them.
-export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = Object.fromEntries(
-  SHOT_STATUS_CYCLE.map((s, i) => [s, i]),
-) as Record<ShotFirestoreStatus, number>
+// (statusMappings.ts) — keep these names, consumers rely on them. Declared as
+// exhaustive typed LITERALS (not Object.fromEntries + `as Record<...>`) so TS
+// still flags a missing variant if ShotFirestoreStatus ever grows a member;
+// `Object.fromEntries` over a ReadonlyArray carries no union-coverage check,
+// so that shape compiled clean even with a status missing from the cycle.
+export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = {
+  todo: SHOT_STATUS_CYCLE.indexOf("todo"),
+  in_progress: SHOT_STATUS_CYCLE.indexOf("in_progress"),
+  on_hold: SHOT_STATUS_CYCLE.indexOf("on_hold"),
+  complete: SHOT_STATUS_CYCLE.indexOf("complete"),
+}
 
-export const STATUS_LABELS: Record<ShotFirestoreStatus, string> = Object.fromEntries(
-  SHOT_STATUS_CYCLE.map((s) => [s, getShotStatusLabel(s)]),
-) as Record<ShotFirestoreStatus, string>
+export const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
+  todo: getShotStatusLabel("todo"),
+  in_progress: getShotStatusLabel("in_progress"),
+  on_hold: getShotStatusLabel("on_hold"),
+  complete: getShotStatusLabel("complete"),
+}
 
 // ---------------------------------------------------------------------------
 // Sort
