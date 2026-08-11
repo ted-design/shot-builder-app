@@ -293,6 +293,14 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
+// Base band-height nudge (WS-C-1, 2026-08-11): 1.0/1.7 -> 1.05/1.75. Same
+// rationale as ProductionSheetReport's THUMBNAIL_FLOOR — the PDF-side fix made
+// the cover image column ATOMIC (wrap={false} — see reportPdfBalancedRows.tsx),
+// so a real export can no longer shrink it to fit a page's last bit of room.
+// Small screen-only margin, not a measured recalibration.
+const BASE_H_SINGLE = 1.05
+const BASE_H_MULTI = 1.75
+
 function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
   let z = 0
@@ -302,7 +310,7 @@ function buildStream(model: ReportModel, showAdditionalImages: boolean): readonl
     stream.push({ kind: "group", group: { ...group, count: printable.length }, h: 0.8 })
     for (const shot of printable) {
       const multi = shot.looks.length > 1
-      let h = multi ? 1.7 : 1.0
+      let h = multi ? BASE_H_MULTI : BASE_H_SINGLE
       // Additional-images row (WS-C): see extraImagesWeight above. No-op when
       // the toggle is off or the shot has nothing extra, so default-off
       // pagination stays byte-identical to pre-WS-C.

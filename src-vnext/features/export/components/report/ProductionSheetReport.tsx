@@ -311,13 +311,24 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
+// Thumbnail floor (WS-C-1, 2026-08-11): nudged 2.4 -> 2.5. The PDF-side fix
+// made the cover thumb + extras thumbs ATOMIC (wrap={false} — see
+// reportPdfProductionSheet.tsx), so a real export can no longer squeeze a
+// shot's images smaller to fit a page's last few points of room; that
+// leftover "free" capacity the print-preview's weight budget was implicitly
+// (if invisibly) exploiting near a page boundary is gone. A small screen-only
+// margin keeps the preview's page-break estimate from running slightly
+// optimistic against the real PDF — not a measured recalibration, just
+// enough to not systematically under-count.
+const THUMBNAIL_FLOOR = 2.5
+
 export function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
   let prodRows = 0
   for (const l of shot.looks) prodRows += l.products.length
   let w = 1.7 + shot.looks.length * 0.55 + prodRows * 0.42
   if (present(shot.notes)) w += 0.6
   if (showAdditionalImages) w += extraImagesWeight(shot.additionalImages?.length ?? 0)
-  return Math.max(w, 2.4) // thumbnail floor
+  return Math.max(w, THUMBNAIL_FLOOR)
 }
 
 function paginate(model: ReportModel, showAdditionalImages: boolean): readonly PsPage[] {
