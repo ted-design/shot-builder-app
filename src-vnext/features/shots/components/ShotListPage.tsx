@@ -53,7 +53,8 @@ import { SceneHeader } from "@/features/shots/components/SceneHeader"
 import { SceneDetailSheet } from "@/features/shots/components/SceneDetailSheet"
 import { GroupIntoSceneDialog } from "@/features/shots/components/GroupIntoSceneDialog"
 import { ShotMergeWizard } from "@/features/shots/components/ShotMergeWizard"
-import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane } from "@/features/shots/lib/laneActions"
+import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane, shotIdsInLane } from "@/features/shots/lib/laneActions"
+import { bulkUpdateLocation } from "@/features/shots/lib/bulkShotUpdates"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
@@ -118,6 +119,18 @@ export default function ShotListPage() {
   const editSceneShotCount = useMemo(
     () => (editSceneId ? shots.filter((s) => s.laneId === editSceneId).length : 0),
     [editSceneId, shots],
+  )
+
+  // Sets Phase 2 — apply the open Set's location to every shot in it (an explicit
+  // action in the Set editor; assigning a shot to a Set never copies location
+  // automatically). Reuses the existing bulk-location write.
+  const handleApplyLocationToShots = useCallback(
+    async (locationId: string, locationName: string): Promise<number> => {
+      if (!editSceneId || !clientId) return 0
+      const ids = shotIdsInLane(shots, editSceneId)
+      return bulkUpdateLocation(clientId, ids, locationId, locationName, user)
+    },
+    [editSceneId, clientId, shots, user],
   )
 
   const toggleSceneCollapse = useCallback((key: string) => {
@@ -1202,6 +1215,7 @@ export default function ShotListPage() {
         shotCount={editSceneShotCount}
         siblingLanes={lanes}
         canEditScene={canManageLanes}
+        onApplyLocationToShots={handleApplyLocationToShots}
       />
 
     </ErrorBoundary>

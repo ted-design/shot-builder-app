@@ -8,8 +8,11 @@ import {
 } from "@/ui/sheet"
 import { Input } from "@/ui/input"
 import { Textarea } from "@/ui/textarea"
+import { Button } from "@/ui/button"
 import { SCENE_COLORS, getSceneColor } from "@/features/shots/lib/sceneColors"
 import { updateLane, type LanePatch } from "@/features/shots/lib/laneActions"
+import { LocationPicker } from "@/features/shots/components/LocationPicker"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { toast } from "sonner"
 import type { Lane } from "@/shared/types"
 
@@ -28,6 +31,17 @@ interface SceneDetailSheetProps {
   readonly siblingLanes?: ReadonlyArray<Lane>
   /** Required capability gate mirroring the /lanes write rule; when false the fields render as read-only display values. */
   readonly canEditScene: boolean
+  /**
+   * Sets Phase 2 — apply this Set's location to its shots. When provided (and
+   * the featureSets flag is on), setting/changing the Set's Location reveals an
+   * explicit "Apply to N shots" action; the parent owns the shot roster and the
+   * bulk write, and returns how many shots it updated. Inheritance is a
+   * deliberate action, never automatic (Ted's Phase-2 decision).
+   */
+  readonly onApplyLocationToShots?: (
+    locationId: string,
+    locationName: string,
+  ) => Promise<number>
 }
 
 // ---------------------------------------------------------------------------
@@ -51,12 +65,22 @@ export function SceneDetailSheet({
   shotCount,
   siblingLanes,
   canEditScene,
+  onApplyLocationToShots,
 }: SceneDetailSheetProps) {
+  const setsEnabled = isFeatureEnabled("featureSets")
+
   // Local state for form fields
   const [name, setName] = useState("")
   const [sceneNumber, setSceneNumber] = useState("")
   const [direction, setDirection] = useState("")
   const [notes, setNotes] = useState("")
+  // Sets Phase 2 — Set location + explicit "apply to shots" action.
+  const [locationId, setLocationId] = useState<string | undefined>(undefined)
+  const [locationName, setLocationName] = useState<string | undefined>(undefined)
+  // Offer to apply only after the user changes the location this session (not on
+  // open) — so re-opening a Set with a location doesn't nag.
+  const [applyOffered, setApplyOffered] = useState(false)
+  const [applying, setApplying] = useState(false)
 
   // Sync local state when sheet opens for a DIFFERENT lane.
   // Gate via initKey so Firestore snapshot echoes (same lane.id, new object ref) don't
@@ -73,6 +97,9 @@ export function SceneDetailSheet({
       setSceneNumber(lane.sceneNumber != null ? String(lane.sceneNumber) : "")
       setDirection(lane.direction ?? "")
       setNotes(lane.notes ?? "")
+      setLocationId(lane.locationId)
+      setLocationName(lane.locationName)
+      setApplyOffered(false)
     }
   }, [lane, open])
 
@@ -202,6 +229,36 @@ export function SceneDetailSheet({
     }
   }, [notes, lane, savePatch])
 
+  // Sets Phase 2 — set the Set's location on the Lane, then offer to apply it to
+  // the Set's shots (an explicit action; assigning a shot to a Set never copies
+  // location automatically — Ted's Phase-2 decision).
+  const handleLocationSave = useCallback(
+    (id: string, locName: string) => {
+      if (!lane) return
+      setLocationId(id)
+      setLocationName(locName)
+      void savePatch({ locationId: id, locationName: locName })
+      setApplyOffered(true)
+    },
+    [lane, savePatch],
+  )
+
+  const handleApplyLocation = useCallback(async () => {
+    if (!onApplyLocationToShots || !locationId || !locationName) return
+    setApplying(true)
+    try {
+      const n = await onApplyLocationToShots(locationId, locationName)
+      toast.success(
+        n === 1 ? "Location applied to 1 shot" : `Location applied to ${n} shots`,
+      )
+      setApplyOffered(false)
+    } catch {
+      toast.error("Failed to apply location to shots")
+    } finally {
+      setApplying(false)
+    }
+  }, [onApplyLocationToShots, locationId, locationName])
+
   // Keep the Sheet mounted even when lane is null so that a deletion-while-open
   // scenario still plays Radix's close animation. When lane is null we render
   // an empty shell inside SheetContent instead of returning null at the component
@@ -325,6 +382,70 @@ export function SceneDetailSheet({
               />
             )}
           </fieldset>
+
+          {/* Location (Sets Phase 2) */}
+          {setsEnabled && (
+            <div data-testid="set-location-field">
+              <label className="text-2xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5 block">
+                Location
+              </label>
+              {canEditScene ? (
+                <>
+                  <LocationPicker
+                    selectedId={locationId}
+                    selectedName={locationName}
+                    onSave={handleLocationSave}
+                    projectId={projectId}
+                  />
+                  {applyOffered &&
+                    onApplyLocationToShots &&
+                    locationId &&
+                    displayShotCount > 0 && (
+                      <div
+                        className="mt-2 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface-subtle)] p-2.5"
+                        data-testid="set-location-apply"
+                      >
+                        <p className="text-xs text-[var(--color-text-secondary)] mb-2">
+                          Apply{" "}
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {locationName}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-semibold text-[var(--color-text)]">
+                            {displayShotCount === 1
+                              ? "1 shot"
+                              : `${displayShotCount} shots`}
+                          </span>{" "}
+                          in this set?
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => void handleApplyLocation()}
+                            disabled={applying}
+                            data-testid="set-location-apply-confirm"
+                          >
+                            {applying ? "Applying…" : "Apply"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setApplyOffered(false)}
+                            disabled={applying}
+                          >
+                            Not now
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                </>
+              ) : (
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  {lane.locationName || "Not set"}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Creative Direction */}
           <div>
