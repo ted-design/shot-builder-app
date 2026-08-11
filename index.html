@@ -7,7 +7,33 @@
     <link rel="preconnect" href="https://use.typekit.net" crossorigin>
     <link rel="stylesheet" href="https://use.typekit.net/gph3jzg.css">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Production Hub</title>
+    <title>Immediate — Production Hub</title>
+
+    <!-- Favicon: real multi-size .ico first (16/32/48, opaque #0E0E0E
+         plate) for legacy UAs and bookmark bars that only ever request
+         /favicon.ico directly and ignore <link> entirely, then the PNG
+         fallback (opaque dark plate + light outline, matches the invert
+         mark so it reads on dark browser chrome too), then the
+         theme-aware SVG declared LAST so Chromium/WebKit pick it — they
+         select the last usable declared icon and neither honours the
+         `media` attribute on <link rel="icon"> (only Firefox does). The
+         SVG itself carries the light/dark swap internally via a
+         prefers-color-scheme media query in its own <style>, which
+         Chromium and WebKit DO honour inside an SVG favicon. -->
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/brands/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/brands/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/images/brands/immediate-icon-favicon.svg">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <!-- theme-color: media-qualified tags first, unconditional fallback
+         LAST. The UA walks meta[name=theme-color] in tree order and uses
+         the first whose `media` matches (an absent media matches
+         unconditionally) — so the fallback must come after the qualified
+         tags or it always wins and the light-mode tag never fires. -->
+    <meta name="theme-color" content="#F5F5F5" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0E0E0E" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#0E0E0E">
+
     <!-- Dark mode initialization - prevents FOUC (Flash of Unstyled Content) -->
     <script>
       (function() {

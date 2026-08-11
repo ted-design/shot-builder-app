@@ -2,6 +2,7 @@ import type { ProductAssignment, ProductFamily, Shot } from "@/shared/types"
 import { matchesHeroProductId } from "@/features/shots/lib/lookHeroes"
 import type { ExportData } from "../../hooks/useExportData"
 import {
+  buildStatusGroups,
   GROUP_LABEL,
   GROUP_ORDER,
   lookLabel,
@@ -11,6 +12,7 @@ import {
   formatDateWindow,
   titleCaseSlug,
 } from "./reportModel"
+import { compareByOrder, compareText, sortItemsStable } from "./reportSort"
 import type { GenderKey, ReportShotStatus } from "./reportTypes"
 import type {
   ProductInfoAppearance,
@@ -18,6 +20,7 @@ import type {
   ProductInfoEntry,
   ProductInfoGroup,
   ProductInfoModel,
+  ProductInfoSortField,
 } from "./productInfoTypes"
 
 // Pure derivation: ExportData + ProductInfoConfig -> ProductInfoModel. No async,
@@ -179,6 +182,27 @@ function toEntry(
   }
 }
 
+// Secondary key for the product sort — ALWAYS ascending (deterministic tie-break).
+// Products have no shot number; the deterministic secondary is styleName then id.
+const PRODUCT_TIEBREAK = (a: ProductInfoEntry, b: ProductInfoEntry): number =>
+  compareText(a.styleName, b.styleName) || compareText(a.id, b.id)
+
+/** Primary comparator for a product-info sort field (R5). */
+function productPrimaryFor(
+  sortBy: ProductInfoSortField,
+): (a: ProductInfoEntry, b: ProductInfoEntry) => number {
+  switch (sortBy) {
+    case "style":
+      return (a, b) => compareText(a.styleName, b.styleName)
+    case "gender":
+      return (a, b) => compareByOrder(GROUP_ORDER, a.gender, b.gender)
+    default:
+      // Runtime safety (see reportModel.shotPrimaryFor): an out-of-union persisted
+      // sortBy falls back to the default field, never returns undefined.
+      return (a, b) => compareText(a.styleName, b.styleName)
+  }
+}
+
 function groupEntries(
   items: readonly ProductInfoEntry[],
   groupBy: ProductInfoConfig["groupBy"],
@@ -201,6 +225,12 @@ function groupEntries(
         return { key, label: key, count: inGroup.length, items: inGroup }
       })
   }
+  if (groupBy === "status") {
+    // O2: one bucket per family, keyed by its most-outstanding appearance status.
+    return buildStatusGroups(items, (e) => e.appears.map((a) => a.status)).map(
+      (b): ProductInfoGroup => ({ key: b.key, label: b.label, count: b.count, items: b.items }),
+    )
+  }
   return GROUP_ORDER.map((key): ProductInfoGroup => {
     const inGroup = items.filter((i) => i.gender === key)
     return { key, label: GROUP_LABEL[key], count: inGroup.length, items: inGroup }
@@ -214,6 +244,8 @@ export function deriveProductInfoModel(
 ): ProductInfoModel {
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const excluded = new Set(config.excludedFamilyIds)
+  // R3: statuses to hide (undefined on pre-R3 blobs -> empty set -> no-op).
+  const hidden = new Set(config.hiddenStatuses ?? [])
   const aggByFamily = walkInUse(data.shots, familyById)
 
   // in-use: families styled into non-deleted shots, resolved against the library.
@@ -225,9 +257,23 @@ export function deriveProductInfoModel(
           .map((id) => familyById.get(id))
           .filter((f): f is ProductFamily => f != null && f.deleted !== true)
 
-  const items = families
+  const built = families
     .map((family) => toEntry(family, aggByFamily.get(family.id), excluded))
-    .sort((a, b) => a.styleName.localeCompare(b.styleName))
+    // R3: drop a family only when EVERY appearance is a hidden status. A never-shot
+    // library family (appears.length === 0) is kept — status can't hide what has no shots.
+    .filter(
+      (item) =>
+        hidden.size === 0 ||
+        item.appears.length === 0 ||
+        item.appears.some((a) => !hidden.has(a.status)),
+    )
+
+  // R5 order-by. Absent sortBy → verbatim legacy styleName order (flag-off
+  // byte-identical). Defined → the shared stable engine with the id tie-break.
+  const items =
+    config.sortBy === undefined
+      ? [...built].sort((a, b) => a.styleName.localeCompare(b.styleName))
+      : sortItemsStable(built, productPrimaryFor(config.sortBy), PRODUCT_TIEBREAK, config.sortDir ?? "asc")
 
   return {
     project: {
@@ -237,6 +283,10 @@ export function deriveProductInfoModel(
       familyCount: items.length,
     },
     groups: groupEntries(items, config.groupBy),
+    // R4 density: presentation-only, folded onto the model from the (already
+    // neutralized) config so DOM + PDF read one pre-clamped value. Never used for
+    // grouping/sorting above. Absent → the shipped "gallery" output.
+    layout: config.layout ?? "gallery",
   }
 }
 

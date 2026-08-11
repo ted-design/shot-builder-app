@@ -56,6 +56,42 @@ describe("buildNavConfig", () => {
     }
   })
 
+  it("project config includes a Schedules entry pointing at the project-scoped schedules route", () => {
+    const config = buildNavConfig("p1")
+    const schedules = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Schedules",
+    )
+    expect(schedules).toBeDefined()
+    if (schedules?.type === "item") {
+      expect(schedules.item.to).toBe("/projects/p1/schedules")
+    }
+  })
+
+  it("Schedules appears before Call Sheet", () => {
+    const config = buildNavConfig("p1")
+    const items = config.entries
+      .filter((e) => e.type === "item")
+      .map((e) => (e as { type: "item"; item: { label: string } }).item.label)
+    const schedulesIdx = items.indexOf("Schedules")
+    const callSheetIdx = items.indexOf("Call Sheet")
+    expect(schedulesIdx).toBeGreaterThanOrEqual(0)
+    expect(schedulesIdx).toBeLessThan(callSheetIdx)
+  })
+
+  it("Schedules and Call Sheet resolve to different icons — they sit adjacent in the collapsed icon rail", () => {
+    const config = buildNavConfig("p1")
+    const schedules = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Schedules",
+    )
+    const callSheet = config.entries.find(
+      (e) => e.type === "item" && e.item.label === "Call Sheet",
+    )
+    expect(schedules?.type === "item" && schedules.item.iconName).toBe("list-checks")
+    expect(callSheet?.type === "item" && callSheet.item.iconName).toBe("calendar-days")
+    expect(schedules?.type === "item" && callSheet?.type === "item" && schedules.item.iconName)
+      .not.toBe(callSheet?.type === "item" && callSheet.item.iconName)
+  })
+
   it("Call Sheet is marked desktopOnly", () => {
     const config = buildNavConfig("p1")
     const callSheet = config.entries.find(

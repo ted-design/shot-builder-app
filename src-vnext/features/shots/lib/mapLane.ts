@@ -28,6 +28,9 @@ export function mapLane(id: string, data: Record<string, unknown>): Lane {
     sceneNumber,
     direction: (data["direction"] as string | null) ?? undefined,
     notes: (data["notes"] as string | null) ?? undefined,
+    // Sets: a Set (Lane) is built at one location; shots inherit it on assign.
+    locationId: (data["locationId"] as string | null) ?? undefined,
+    locationName: (data["locationName"] as string | null) ?? undefined,
     createdAt: data["createdAt"] as Timestamp,
     updatedAt: data["updatedAt"] as Timestamp,
     createdBy: (data["createdBy"] as string) ?? "",

@@ -6,7 +6,8 @@
 import type { JSX } from "react"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import type { ReportGroup, ReportLook, ReportModel, ReportProduct, ReportShot } from "./reportTypes"
-import { COLOR, FONT, PAGE, STATUS, has, primaryLookImage } from "./reportPdfShared"
+import { formatOrderNote } from "./reportTypes"
+import { COLOR, FONT, PAGE, STATUS, has, primaryLookImage, tokenHyphenation } from "./reportPdfShared"
 import { sizeLabel } from "./reportModel"
 
 const PAD_X = 34
@@ -99,7 +100,7 @@ function ProductRow({ p }: { readonly p: ReportProduct }): JSX.Element {
           {p.isHero ? <Text style={s.heroTag}>{"  HERO"}</Text> : null}
         </Text>
       </View>
-      <Text style={[s.style, s.cStyle, ...(has(p.style) ? [] : [s.muted])]}>{has(p.style) ? p.style : "—"}</Text>
+      <Text style={[s.style, s.cStyle, ...(has(p.style) ? [] : [s.muted])]} hyphenationCallback={tokenHyphenation}>{has(p.style) ? p.style : "—"}</Text>
       <Text style={[s.colour, s.cColour, ...(has(p.colour) ? [] : [s.muted])]}>{has(p.colour) ? p.colour : "—"}</Text>
       <Text style={[s.size, s.cSize, ...(sizePending ? [s.muted] : [])]}>{sizeText}</Text>
       <Text style={[s.qty, s.cQty]}>{p.qty != null ? `×${p.qty}` : "—"}</Text>
@@ -111,7 +112,7 @@ function LookBlock({ look }: { readonly look: ReportLook }): JSX.Element {
   const n = look.products.length
   return (
     <View style={[s.look, ...(look.isAlt ? [s.lookAlt] : [])]}>
-      <View style={s.lookLabel}>
+      <View style={s.lookLabel} minPresenceAhead={30}>
         <Text style={s.lookLabelTxt}>{look.label}</Text>
         <Text style={s.lkTag}>{n === 1 ? "1 piece" : `${n} pieces`}</Text>
       </View>
@@ -136,7 +137,7 @@ function Band({ shot, imageMap, zebra }: { readonly shot: ReportShot; readonly i
   const st = STATUS[shot.status]
   const talent = shot.talent.map((t) => t.name).filter((n) => has(n))
   return (
-    <View style={[s.band, ...(zebra ? [s.bandZebra] : [])]} wrap={false}>
+    <View style={[s.band, ...(zebra ? [s.bandZebra] : [])]}>
       <View style={s.imgCol}>
         {src ? <Image src={src} style={s.img} /> : <View style={s.noImg}><Text style={s.noImgTxt}>No image yet</Text></View>}
       </View>
@@ -176,12 +177,12 @@ function Band({ shot, imageMap, zebra }: { readonly shot: ReportShot; readonly i
   )
 }
 
-function GroupHead({ group }: { readonly group: ReportGroup }): JSX.Element {
+function GroupHead({ group, note }: { readonly group: ReportGroup; readonly note: string }): JSX.Element {
   return (
     <View style={s.groupHead} wrap={false} minPresenceAhead={60}>
       <Text style={s.groupTitle}>{group.label}</Text>
       <Text style={s.groupCount}>{group.count === 1 ? "1 shot" : `${group.count} shots`}</Text>
-      <Text style={s.groupNote}>Grouped · sorted by shot no.</Text>
+      <Text style={s.groupNote}>{note}</Text>
     </View>
   )
 }
@@ -233,7 +234,7 @@ export function BalancedRowsPdfDocument(props: {
           if (printable.length === 0) return null
           return (
             <View key={group.key}>
-              <GroupHead group={{ ...group, count: printable.length }} />
+              <GroupHead group={{ ...group, count: printable.length }} note={formatOrderNote(model.order)} />
               {printable.map((shot) => {
                 const zebra = z % 2 === 1
                 z += 1

@@ -267,12 +267,12 @@ export default function LoginPage() {
             built by
           </span>
           <img
-            src="/images/brands/immediate-logo-black.png"
+            src="/images/brands/immediate-logo-black.svg"
             alt="Immediate"
             className="h-5 w-auto dark:hidden"
           />
           <img
-            src="/images/brands/immediate-logo-white.png"
+            src="/images/brands/immediate-logo-white.svg"
             alt="Immediate"
             className="hidden h-5 w-auto dark:block"
           />

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
+import { isFeatureEnabled } from "@/shared/lib/flags"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
 import {
@@ -11,6 +12,7 @@ import {
 import { resolveReportImages } from "../../lib/report/reportImages"
 import {
   DEFAULT_TALENT_CONFIG,
+  neutralizeTalentConfigForFlag,
   type TalentConfig,
 } from "../../lib/report/talentTypes"
 import { TalentReportView } from "./TalentReportView"
@@ -106,7 +108,17 @@ export default function TalentReportPage() {
     }
   }, [])
 
-  const model = useMemo(() => deriveTalentModel(data, config), [data, config])
+  // Flag-off rollback-safety: strip the gated-off Phase-A/B config fields so the
+  // derive runs its verbatim legacy path (byte-identical). Shared pure neutralizer
+  // so the flag-off test holds the real code. Build-time flag → not a memo dep.
+  const model = useMemo(
+    () =>
+      deriveTalentModel(
+        data,
+        neutralizeTalentConfigForFlag(config, isFeatureEnabled("featureReportConfig")),
+      ),
+    [data, config],
+  )
 
   // Resolve every image candidate to a data URL once the model is known.
   // resolvePdfImageSrc caches module-side, so re-resolving on config change is cheap.

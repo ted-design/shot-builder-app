@@ -3,7 +3,11 @@ import {
   collectProductInfoImageCandidates,
   deriveProductInfoModel,
 } from "../productInfoModel"
-import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
+import {
+  DEFAULT_PRODUCT_INFO_CONFIG,
+  neutralizeProductInfoConfigForFlag,
+  type ProductInfoConfig,
+} from "../productInfoTypes"
 import type { ExportData } from "../../../hooks/useExportData"
 import type { ProductFamily, Shot } from "@/shared/types"
 
@@ -218,6 +222,63 @@ describe("deriveProductInfoModel — library scope", () => {
   })
 })
 
+describe("deriveProductInfoModel — R3 status filter", () => {
+  it("drops a family whose ONLY appearance is a hidden status", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+          shot({ id: "s2", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toEqual(["fW"]) // fM only appeared in an on_hold shot
+    expect(model.project.familyCount).toBe(1)
+  })
+
+  it("keeps a family that also appears in a visible-status shot (drop-only; full appears retained)", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [
+          shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+          shot({ id: "s2", shotNumber: "02", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        ],
+      }),
+      cfg({ groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const e = find(model, "fM")
+    expect(e).toBeDefined() // still visible via the complete shot
+    // Phase-A drop-only rule: survivors keep EVERY appearance, incl. the hidden-status one.
+    expect(e?.appears.map((a) => `${a.number}:${a.status}`)).toEqual(["01:on_hold", "02:complete"])
+  })
+
+  it("an omitted hiddenStatuses is byte-identical to [] — nothing dropped", () => {
+    const d = data({
+      productFamilies: FAMILIES,
+      shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+    })
+    expect(flat(deriveProductInfoModel(d, cfg({ groupBy: "none" }))).map((i) => i.id)).toEqual(["fM"])
+    expect(flat(deriveProductInfoModel(d, cfg({ groupBy: "none", hiddenStatuses: [] }))).map((i) => i.id)).toEqual(["fM"])
+  })
+
+  it("does NOT drop a library never-shot family under a status filter (appears.length === 0 guard)", () => {
+    const model = deriveProductInfoModel(
+      data({
+        productFamilies: FAMILIES,
+        shots: [shot({ id: "s1", shotNumber: "01", status: "on_hold", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+      }),
+      cfg({ productScope: "library", groupBy: "none", hiddenStatuses: ["on_hold"] }),
+    )
+    const ids = flat(model).map((i) => i.id)
+    expect(ids).toContain("fW") // never styled into a shot -> survives the status filter
+    expect(ids).not.toContain("fM") // only appeared on_hold -> dropped
+  })
+})
+
 describe("deriveProductInfoModel — grouping", () => {
   const styled = () =>
     data({
@@ -246,6 +307,39 @@ describe("deriveProductInfoModel — grouping", () => {
     expect(model.groups).toHaveLength(1)
     expect(model.groups[0]?.key).toBe("all")
     expect(model.groups[0]?.items.map((i) => i.styleName)).toEqual(["Merino Crew", "Wool Pant"])
+  })
+})
+
+describe("deriveProductInfoModel — R5 order-by (Phase B)", () => {
+  const styled = () =>
+    data({
+      productFamilies: [
+        fam({ id: "P1", styleName: "Zeta", gender: "men" }),
+        fam({ id: "P2", styleName: "Alpha", gender: "women" }),
+        fam({ id: "P3", styleName: "Beta", gender: "men" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [
+          { familyId: "P1" }, { familyId: "P2" }, { familyId: "P3" },
+        ] }] }),
+      ],
+    })
+
+  it("sortBy 'gender' asc: gender by GROUP_ORDER (W<M), styleName tie-break within a gender", () => {
+    const model = deriveProductInfoModel(styled(), cfg({ groupBy: "none", sortBy: "gender", sortDir: "asc" }))
+    // P2 (W) first; then M group tie-broken by styleName Beta(P3) < Zeta(P1)
+    expect(flat(model).map((i) => i.id)).toEqual(["P2", "P3", "P1"])
+  })
+
+  it("default sortBy 'style' reproduces alpha-by-styleName order (Alpha, Beta, Zeta)", () => {
+    const model = deriveProductInfoModel(styled(), cfg({ groupBy: "none", sortBy: "style", sortDir: "asc" }))
+    expect(flat(model).map((i) => i.styleName)).toEqual(["Alpha", "Beta", "Zeta"])
+    expect(flat(model).map((i) => i.id)).toEqual(["P2", "P3", "P1"])
+  })
+
+  it("an absent sortBy is byte-identical to the legacy styleName order", () => {
+    const legacy = deriveProductInfoModel(styled(), { groupBy: "none", productScope: "in-use", imageSize: "m", excludedFamilyIds: [] })
+    expect(flat(legacy).map((i) => i.styleName)).toEqual(["Alpha", "Beta", "Zeta"])
   })
 })
 
@@ -386,5 +480,102 @@ describe("deriveProductInfoModel — entry fields & images", () => {
     )
     expect(model.project.dateRange).toBe("Jun 2–4, 2026")
     expect(model.project.familyCount).toBe(2)
+  })
+})
+
+describe("deriveProductInfoModel — group-by status (O2)", () => {
+  // fM appears in a complete AND a todo shot; fW only in a complete shot.
+  const mixed = () =>
+    data({
+      productFamilies: [
+        fam({ id: "fM", styleName: "Merino Crew", gender: "men", productType: "Tops" }),
+        fam({ id: "fW", styleName: "Wool Pant", gender: "women", productType: "Bottoms" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] }),
+        shot({ id: "s3", shotNumber: "03", status: "complete", looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }] }),
+      ],
+    })
+
+  it("buckets each family by its MOST-OUTSTANDING appearance; one bucket per family, status-ordered", () => {
+    const model = deriveProductInfoModel(mixed(), cfg({ groupBy: "status" }))
+    // fM (complete+todo) → To do (least done); fW (complete only) → Complete. todo precedes complete.
+    expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.items.map((i) => i.id))).toEqual([["fM"], ["fW"]])
+    // Each family lands in exactly one bucket — no double-counting.
+    expect(flat(model).map((i) => i.id).sort()).toEqual(["fM", "fW"])
+  })
+
+  it("preserves the R5 within-bucket order (order-by style, desc)", () => {
+    const d = data({
+      productFamilies: [
+        fam({ id: "fA", styleName: "Alpha", gender: "men" }),
+        fam({ id: "fZ", styleName: "Zeta", gender: "men" }),
+      ],
+      shots: [
+        shot({ id: "s1", shotNumber: "01", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fA" }] }] }),
+        shot({ id: "s2", shotNumber: "02", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fZ" }] }] }),
+      ],
+    })
+    const model = deriveProductInfoModel(d, cfg({ groupBy: "status", sortBy: "style", sortDir: "desc" }))
+    expect(model.groups).toHaveLength(1)
+    expect(model.groups[0]?.key).toBe("todo")
+    expect(model.groups[0]?.items.map((i) => i.styleName)).toEqual(["Zeta", "Alpha"])
+  })
+
+  it("puts never-shot library families in a trailing 'No shots' bucket", () => {
+    const d = data({
+      productFamilies: [
+        fam({ id: "fA", styleName: "Active", gender: "men" }),
+        fam({ id: "fZ", styleName: "Never", gender: "women" }),
+      ],
+      shots: [shot({ id: "s1", shotNumber: "01", status: "todo", looks: [{ id: "l", order: 0, products: [{ familyId: "fA" }] }] })],
+    })
+    const model = deriveProductInfoModel(d, cfg({ productScope: "library", groupBy: "status" }))
+    const last = model.groups[model.groups.length - 1]
+    expect(model.groups[0]?.key).toBe("todo") // real-status buckets first
+    expect(last?.label).toBe("No shots")
+    expect(last?.items.map((i) => i.id)).toEqual(["fZ"])
+  })
+
+  it("flag-off: the real neutralizer clamps a persisted 'status' + sort + layout back to legacy gender/gallery (byte-identical)", () => {
+    const d = mixed()
+    // Include a persisted layout:"index" — flag-off must clamp it to gallery so model.layout
+    // (and every other field) matches the default derive exactly.
+    const persisted = cfg({ groupBy: "status", sortBy: "gender", sortDir: "desc", hiddenStatuses: ["todo"], layout: "index" })
+    // The shared pure neutralizer the page runs flag-off — not an inline copy.
+    const neutralized = neutralizeProductInfoConfigForFlag(persisted, false)
+    expect(neutralized.layout).toBe("gallery")
+    expect(deriveProductInfoModel(d, neutralized)).toEqual(deriveProductInfoModel(d, DEFAULT_PRODUCT_INFO_CONFIG))
+    expect(neutralizeProductInfoConfigForFlag(persisted, true)).toBe(persisted) // flag-on = identity
+  })
+})
+
+describe("deriveProductInfoModel — layout (R4 density) folded onto the model", () => {
+  const one = () =>
+    data({
+      productFamilies: [fam({ id: "fM", styleName: "Merino Crew", gender: "men" })],
+      shots: [shot({ id: "s1", shotNumber: "01", looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }] })],
+    })
+
+  it("defaults model.layout to 'gallery' when config carries no layout (pre-Phase-C blob)", () => {
+    const { layout, ...rest } = DEFAULT_PRODUCT_INFO_CONFIG
+    void layout
+    const model = deriveProductInfoModel(one(), rest as typeof DEFAULT_PRODUCT_INFO_CONFIG)
+    expect(model.layout).toBe("gallery")
+  })
+
+  it("carries an explicit config.layout onto model.layout (both variants)", () => {
+    expect(deriveProductInfoModel(one(), cfg({ layout: "gallery" })).layout).toBe("gallery")
+    expect(deriveProductInfoModel(one(), cfg({ layout: "index" })).layout).toBe("index")
+  })
+
+  it("layout is presentation-only — it never changes grouping/items", () => {
+    const gallery = deriveProductInfoModel(one(), cfg({ layout: "gallery" }))
+    const index = deriveProductInfoModel(one(), cfg({ layout: "index" }))
+    expect(index.groups).toEqual(gallery.groups)
+    expect(index.project).toEqual(gallery.project)
   })
 })

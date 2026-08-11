@@ -147,6 +147,18 @@ export interface FeatureFlags {
    * URL/localStorage layer.
    */
   readonly featureTalentReport: boolean
+  /**
+   * Report configuration Phase A — the report-builder config controls that layer
+   * onto the existing report types: rename-after-create (all 3 report list pages)
+   * + the "Hide statuses" include/exclude-by-shot-status filter (all 3 report
+   * views). Gates ONLY the controls; the underlying model filter is inert while
+   * `config.hiddenStatuses` is empty (its only writer is the gated control), so
+   * flag-off is byte-identical. Default OFF; enabled via `VITE_REPORT_CONFIG=1`
+   * (or `true`) at build/dev time (featureTalentReport env-parse precedent). No
+   * URL/localStorage layer. Distinct from the per-type report flags — this rides
+   * on top of whichever report surfaces are already live/dark.
+   */
+  readonly featureReportConfig: boolean
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -164,6 +176,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   featureShotReportRecipes: false,
   featureProductInfoReport: false,
   featureTalentReport: false,
+  featureReportConfig: false,
 }
 
 /** '1' / 'true' (case-insensitive) parse, matching LoginPage.tsx:18-19. */
@@ -222,6 +235,9 @@ export function getFeatureFlags(): FeatureFlags {
     featureTalentReport:
       DEFAULT_FLAGS.featureTalentReport ||
       parseEnvFlag(import.meta.env.VITE_TALENT_REPORT),
+    featureReportConfig:
+      DEFAULT_FLAGS.featureReportConfig ||
+      parseEnvFlag(import.meta.env.VITE_REPORT_CONFIG),
   }
 }
 

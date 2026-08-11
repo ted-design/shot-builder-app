@@ -400,6 +400,11 @@ function ShotDetailEditorBody() {
           <EffectiveRoleChip />
           <div className="ml-auto flex items-center gap-2">
             {canExport && (
+              // DEFERRED (split-brain, acknowledged): this still targets the
+              // legacy block-canvas export, not the shot-reports flow the
+              // list-page Export button now resolves to when
+              // featureShotReport is on. Left as-is until the export
+              // wayfinding pass reconciles the two targets.
               <Button
                 variant="outline"
                 onClick={() =>

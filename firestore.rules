@@ -954,6 +954,17 @@ service cloud.firestore {
               request.resource.data.sceneNumber >= 1 &&
               request.resource.data.sceneNumber <= 9999
             )
+          ) &&
+          // Sets: the Set's location (a Location doc id) + denormalized name.
+          (
+            !('locationId' in request.resource.data) ||
+            request.resource.data.locationId == null ||
+            (request.resource.data.locationId is string && request.resource.data.locationId.size() <= 200)
+          ) &&
+          (
+            !('locationName' in request.resource.data) ||
+            request.resource.data.locationName == null ||
+            (request.resource.data.locationName is string && request.resource.data.locationName.size() <= 500)
           );
         allow delete: if clientMatches(clientId) &&
           (isAdmin() || producerCanAccessProject(clientId, projectId) ||

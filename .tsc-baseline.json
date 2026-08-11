@@ -6,6 +6,12 @@
     "sample": "No overload matches this call."
   },
   {
+    "file": "src-vnext/features/admin/components/RoleProjectAssignmentDialog.tsx",
+    "code": "TS2769",
+    "count": 1,
+    "sample": "No overload matches this call."
+  },
+  {
     "file": "src-vnext/features/admin/components/UserDetailPanel.tsx",
     "code": "TS2769",
     "count": 1,
