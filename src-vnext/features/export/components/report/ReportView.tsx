@@ -9,8 +9,12 @@ import { useId, useMemo, useState } from "react"
 import type { JSX } from "react"
 import { Loader2 } from "lucide-react"
 import { isFeatureEnabled } from "@/shared/lib/flags"
+import type { AvailableTag } from "@/features/shots/hooks/useAvailableTags"
 import type {
   ReportConfig,
+  ReportFilterCondition,
+  ReportFilterField,
+  ReportFilterOperator,
   ReportGroup,
   ReportGroupBy,
   ReportLayout,
@@ -19,7 +23,6 @@ import type {
   ReportModel,
   ReportProduct,
   ReportShot,
-  ReportShotStatus,
   ReportSortField,
   ReportTalent,
 } from "../../lib/report/reportTypes"
@@ -28,6 +31,7 @@ import {
   REPORT_LAYOUT_OPTIONS,
   REPORT_SORT_FIELD_OPTIONS,
   REPORT_STATUS_OPTIONS,
+  resolveReportFilters,
   resolveReportLayout,
 } from "../../lib/report/reportTypes"
 import type { SortDir } from "../../lib/report/reportSort"
@@ -46,6 +50,11 @@ export interface ReportViewProps {
   readonly onConfigChange: (next: ReportConfig) => void
   readonly onExportPdf: () => void
   readonly exporting?: boolean
+  /** Tag options for the Filters control — the SAME source the shot list uses
+   *  (useAvailableTags / computeAvailableTags), passed down rather than fetched
+   *  here so this stays a pure, data-fetching-free component (existing tests
+   *  render it directly with no Firestore/auth providers mounted). */
+  readonly availableTags: readonly AvailableTag[]
 }
 
 /** Primary look = first (image-led's whole-look accessor; distinct from the
@@ -429,6 +438,89 @@ function PagedView({
 }
 
 // ---------------------------------------------------------------------------
+// Filters control (replaces the old standalone "Hide statuses" toggle set) —
+// ONE unified vocabulary for status + tag, each with its own include/exclude
+// mode and a multi-select value seg. Two small local components (mirrors the
+// mode+values pairing in GroupSortControls' "Order by"/"Direction") rather
+// than one combined group, so each keeps its own role="group" + label, same
+// a11y shape as every other control in this bar.
+// ---------------------------------------------------------------------------
+const FILTER_OPERATOR_OPTIONS: ReadonlyArray<{ readonly value: ReportFilterOperator; readonly label: string }> = [
+  { value: "in", label: "Include" },
+  { value: "notIn", label: "Exclude" },
+]
+
+function FilterModeGroup({
+  label,
+  operator,
+  onSetOperator,
+}: {
+  readonly label: string
+  readonly operator: ReportFilterOperator
+  readonly onSetOperator: (op: ReportFilterOperator) => void
+}): JSX.Element {
+  const labelId = useId()
+  return (
+    <div className="sb-control-group" role="group" aria-labelledby={labelId}>
+      <span id={labelId} className="sb-control-label">
+        {label} mode
+      </span>
+      <div className="sb-seg">
+        {FILTER_OPERATOR_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className="sb-seg-btn"
+            aria-pressed={operator === opt.value}
+            onClick={() => onSetOperator(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FilterValuesGroup({
+  label,
+  options,
+  selected,
+  onToggleValue,
+}: {
+  readonly label: string
+  readonly options: ReadonlyArray<{ readonly value: string; readonly label: string }>
+  readonly selected: ReadonlySet<string>
+  readonly onToggleValue: (value: string) => void
+}): JSX.Element {
+  const labelId = useId()
+  return (
+    <div className="sb-control-group" role="group" aria-labelledby={labelId}>
+      <span id={labelId} className="sb-control-label">
+        {label}
+      </span>
+      {options.length === 0 ? (
+        <span className="sb-muted">None yet</span>
+      ) : (
+        <div className="sb-seg">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={selected.has(opt.value)}
+              onClick={() => onToggleValue(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Sticky control bar (never prints): Screen/Print toggle, Group-by switch,
 // Export PDF button.
 // ---------------------------------------------------------------------------
@@ -442,14 +534,17 @@ function ControlBar({
   layout,
   onSetLayout,
   showLayout,
-  showStatusFilter,
+  showFilters,
   showSort,
   sortBy,
   onSetSortBy,
   sortDir,
   onSetSortDir,
-  hiddenStatuses,
-  onToggleStatus,
+  statusFilter,
+  tagFilter,
+  availableTagOptions,
+  onSetFilterOperator,
+  onToggleFilterValue,
   onExportPdf,
   exporting,
   canExport,
@@ -464,16 +559,19 @@ function ControlBar({
   readonly layout: ReportLayout
   readonly onSetLayout: (v: ReportLayout) => void
   readonly showLayout: boolean
-  readonly showStatusFilter: boolean
-  // showSort gates BOTH the flag-on "Status" group-by option and the order-by/
-  // direction controls (== featureReportConfig). Flag-off → neither appears.
+  readonly showFilters: boolean
+  // showSort gates BOTH the flag-on "Status"/"Set" group-by options and the
+  // order-by/direction controls (== featureReportConfig). Flag-off → neither appears.
   readonly showSort: boolean
   readonly sortBy: ReportSortField
   readonly onSetSortBy: (v: ReportSortField) => void
   readonly sortDir: SortDir
   readonly onSetSortDir: (v: SortDir) => void
-  readonly hiddenStatuses: readonly ReportShotStatus[]
-  readonly onToggleStatus: (v: ReportShotStatus) => void
+  readonly statusFilter: ReportFilterCondition | undefined
+  readonly tagFilter: ReportFilterCondition | undefined
+  readonly availableTagOptions: ReadonlyArray<{ readonly value: string; readonly label: string }>
+  readonly onSetFilterOperator: (field: ReportFilterField, op: ReportFilterOperator) => void
+  readonly onToggleFilterValue: (field: ReportFilterField, value: string) => void
   readonly onExportPdf: () => void
   readonly exporting: boolean
   readonly canExport: boolean
@@ -483,7 +581,8 @@ function ControlBar({
   const groupLabelId = useId()
   const looksLabelId = useId()
   const recipeLabelId = useId()
-  const statusLabelId = useId()
+  const statusSelected = useMemo(() => new Set(statusFilter?.value ?? []), [statusFilter])
+  const tagSelected = useMemo(() => new Set(tagFilter?.value ?? []), [tagFilter])
   return (
     <div className="sb-controlbar no-print" role="region" aria-label="Report controls">
       {showLayout ? (
@@ -562,6 +661,16 @@ function ControlBar({
               Status
             </button>
           )}
+          {showSort && (
+            <button
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={groupBy === "scene"}
+              onClick={() => onSetGroupBy("scene")}
+            >
+              Set
+            </button>
+          )}
         </div>
       </div>
 
@@ -600,25 +709,31 @@ function ControlBar({
         </div>
       </div>
 
-      {showStatusFilter && (
-        <div className="sb-control-group" role="group" aria-labelledby={statusLabelId}>
-          <span id={statusLabelId} className="sb-control-label">
-            Hide statuses
-          </span>
-          <div className="sb-seg">
-            {REPORT_STATUS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className="sb-seg-btn"
-                aria-pressed={hiddenStatuses.includes(opt.value)}
-                onClick={() => onToggleStatus(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {showFilters && (
+        <>
+          <FilterModeGroup
+            label="Status"
+            operator={statusFilter?.operator ?? "notIn"}
+            onSetOperator={(op) => onSetFilterOperator("status", op)}
+          />
+          <FilterValuesGroup
+            label="Status"
+            options={REPORT_STATUS_OPTIONS}
+            selected={statusSelected}
+            onToggleValue={(v) => onToggleFilterValue("status", v)}
+          />
+          <FilterModeGroup
+            label="Tags"
+            operator={tagFilter?.operator ?? "in"}
+            onSetOperator={(op) => onSetFilterOperator("tag", op)}
+          />
+          <FilterValuesGroup
+            label="Tags"
+            options={availableTagOptions}
+            selected={tagSelected}
+            onToggleValue={(v) => onToggleFilterValue("tag", v)}
+          />
+        </>
       )}
 
       <button
@@ -646,7 +761,7 @@ function ControlBar({
 // Root.
 // ---------------------------------------------------------------------------
 export function ReportView(props: ReportViewProps): JSX.Element {
-  const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false } = props
+  const { model, imageMap, config, onConfigChange, onExportPdf, exporting = false, availableTags } = props
   const [printMode, setPrintMode] = useState(false)
 
   // Recipes ride their own flag; flag-off forces image-led so prod is byte-identical
@@ -682,15 +797,53 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, layout: next })
   }
 
-  // R3 status filter — a multi-select toggle set (distinct from the single-select
-  // controls above). An absent field default-merges to [] at read.
-  const hiddenStatuses = config.hiddenStatuses ?? []
-  const toggleStatus = (status: ReportShotStatus): void => {
-    const set = new Set(hiddenStatuses)
-    if (set.has(status)) set.delete(status)
-    else set.add(status)
-    onConfigChange({ ...config, hiddenStatuses: [...set] })
+  // Unified filters (status + tag) — replaces the old standalone "Hide
+  // statuses" toggle set. resolveReportFilters reads the migrated view (so a
+  // legacy hiddenStatuses-only config still shows its prior selection as
+  // pre-checked "Exclude" chips) without requiring hydrateReportConfig to
+  // have run first. Every write here clears hiddenStatuses — once the user
+  // touches the new control, filters is authoritative and the legacy field
+  // stops being written (still tolerated on READ — see reportTypes.ts).
+  const filters = resolveReportFilters(config)
+  const statusFilter = filters.find((f) => f.field === "status")
+  const tagFilter = filters.find((f) => f.field === "tag")
+
+  const setFieldFilter = (
+    field: ReportFilterField,
+    operator: ReportFilterOperator,
+    value: readonly string[],
+  ): void => {
+    const rest = filters.filter((f) => f.field !== field)
+    onConfigChange({
+      ...config,
+      filters: [...rest, { id: field, field, operator, value }],
+      hiddenStatuses: [],
+    })
   }
+
+  const setFilterOperator = (field: ReportFilterField, operator: ReportFilterOperator): void => {
+    const existing = filters.find((f) => f.field === field)
+    setFieldFilter(field, operator, existing?.value ?? [])
+  }
+
+  // "Status" defaults to Exclude (matches the pre-existing "Hide statuses"
+  // behavior); "Tags" defaults to Include (the more natural "show only these"
+  // reading for a fresh tag pick) — only applied the FIRST time a value is
+  // toggled for that field, before any operator has been chosen.
+  const toggleFilterValue = (field: ReportFilterField, value: string): void => {
+    const existing = filters.find((f) => f.field === field)
+    const operator = existing?.operator ?? (field === "status" ? "notIn" : "in")
+    const currentValues = existing?.value ?? []
+    const nextValues = currentValues.includes(value)
+      ? currentValues.filter((v) => v !== value)
+      : [...currentValues, value]
+    setFieldFilter(field, operator, nextValues)
+  }
+
+  const availableTagOptions = useMemo(
+    () => availableTags.map((t) => ({ value: t.id, label: t.label })),
+    [availableTags],
+  )
 
   // R2 order-by — absent fields default-merge to the shipped legacy order.
   const sortBy: ReportSortField = config.sortBy ?? DEFAULT_REPORT_CONFIG.sortBy ?? "shot-number"
@@ -729,14 +882,17 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         layout={layout}
         onSetLayout={setLayout}
         showLayout={recipesEnabled}
-        showStatusFilter={reportConfigEnabled}
+        showFilters={reportConfigEnabled}
         showSort={reportConfigEnabled}
         sortBy={sortBy}
         onSetSortBy={setSortBy}
         sortDir={sortDir}
         onSetSortDir={setSortDir}
-        hiddenStatuses={hiddenStatuses}
-        onToggleStatus={toggleStatus}
+        statusFilter={statusFilter}
+        tagFilter={tagFilter}
+        availableTagOptions={availableTagOptions}
+        onSetFilterOperator={setFilterOperator}
+        onToggleFilterValue={toggleFilterValue}
         onExportPdf={onExportPdf}
         exporting={exporting}
         canExport={canExport}

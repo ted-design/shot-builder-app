@@ -1,12 +1,15 @@
 import { describe, it, expect } from "vitest"
 import {
   DEFAULT_REPORT_CONFIG,
+  LEGACY_HIDDEN_STATUSES_FILTER_ID,
   LEGACY_REPORT_LAYOUT,
   REPORT_STATUS_LABEL,
   REPORT_STATUS_OPTIONS,
   hydrateReportConfig,
+  neutralizeReportConfigForFlag,
   resolveReportLayout,
   type ReportConfig,
+  type ReportFilterCondition,
 } from "../reportTypes"
 import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
 import { DEFAULT_TALENT_CONFIG, type TalentConfig } from "../talentTypes"
@@ -71,6 +74,93 @@ describe("ReportConfig persistence round-trip", () => {
   it("round-trips sortBy/sortDir + the widened groupBy 'status' through JSON unchanged", () => {
     const config: ReportConfig = { groupBy: "status", excludedShotIds: [], sortBy: "talent", sortDir: "desc" }
     expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+
+  it("round-trips groupBy 'scene' and sortBy 'custom' through JSON unchanged", () => {
+    const config: ReportConfig = { groupBy: "scene", excludedShotIds: [], sortBy: "custom", sortDir: "asc" }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+
+  it("round-trips a persisted filters array through JSON unchanged", () => {
+    const config: ReportConfig = {
+      groupBy: "none",
+      excludedShotIds: [],
+      filters: [{ id: "tag", field: "tag", operator: "in", value: ["t1", "t2"] }],
+    }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+describe("hydrateReportConfig — legacy hiddenStatuses -> filters migration (2026-08-11)", () => {
+  it("a genuinely pre-filters blob (no filters, no hiddenStatuses) hydrates with filters absent", () => {
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led"}')
+    const hydrated = hydrateReportConfig(stored)
+    expect(hydrated.filters).toBeUndefined()
+  })
+
+  it("a legacy blob with a non-empty hiddenStatuses migrates to an equivalent status/notIn filter", () => {
+    const stored = JSON.parse(
+      '{"groupBy":"gender","excludedShotIds":[],"looksMode":"all","layout":"image-led","hiddenStatuses":["on_hold","todo"]}',
+    )
+    const hydrated = hydrateReportConfig(stored)
+    expect(hydrated.filters).toEqual([
+      { id: LEGACY_HIDDEN_STATUSES_FILTER_ID, field: "status", operator: "notIn", value: ["on_hold", "todo"] },
+    ])
+    // Tolerated on read (the raw value survives on the hydrated object)...
+    expect(hydrated.hiddenStatuses).toEqual(["on_hold", "todo"])
+  })
+
+  it("a legacy blob with an EMPTY hiddenStatuses does not synthesize a filter", () => {
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"hiddenStatuses":[]}')
+    expect(hydrateReportConfig(stored).filters).toBeUndefined()
+  })
+
+  it("both present: a blob that already carries `filters` is left untouched — hiddenStatuses is never merged in (no double-apply)", () => {
+    const storedFilters: ReportFilterCondition[] = [{ id: "tag", field: "tag", operator: "in", value: ["t1"] }]
+    const stored: Partial<ReportConfig> = {
+      groupBy: "gender",
+      excludedShotIds: [],
+      hiddenStatuses: ["on_hold"],
+      filters: storedFilters,
+    }
+    const hydrated = hydrateReportConfig(stored)
+    expect(hydrated.filters).toEqual(storedFilters)
+    expect(hydrated.filters).toHaveLength(1) // NOT 2 — the hiddenStatuses entry was never appended
+  })
+
+  it("both present with filters explicitly [] — the empty array wins, hiddenStatuses stays inert", () => {
+    const stored: Partial<ReportConfig> = {
+      groupBy: "gender",
+      excludedShotIds: [],
+      hiddenStatuses: ["on_hold"],
+      filters: [],
+    }
+    expect(hydrateReportConfig(stored).filters).toEqual([])
+  })
+})
+
+describe("neutralizeReportConfigForFlag — filters/custom/scene stripped the same way as sortBy/hiddenStatuses", () => {
+  it("flag off strips filters, clamps groupBy 'scene' back to 'gender', and blanks sortBy (so 'custom' can't leak through)", () => {
+    const config: ReportConfig = {
+      groupBy: "scene",
+      excludedShotIds: [],
+      sortBy: "custom",
+      sortDir: "asc",
+      filters: [{ id: "tag", field: "tag", operator: "in", value: ["t1"] }],
+    }
+    const neutralized = neutralizeReportConfigForFlag(config, false)
+    expect(neutralized.filters).toBeUndefined()
+    expect(neutralized.sortBy).toBeUndefined()
+    expect(neutralized.groupBy).toBe("gender")
+  })
+
+  it("flag on returns the config verbatim, filters and all", () => {
+    const config: ReportConfig = {
+      groupBy: "scene",
+      excludedShotIds: [],
+      filters: [{ id: "status", field: "status", operator: "in", value: ["todo"] }],
+    }
+    expect(neutralizeReportConfigForFlag(config, true)).toBe(config)
   })
 })
 

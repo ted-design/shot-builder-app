@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
+import { computeAvailableTags } from "@/features/shots/hooks/useAvailableTags"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
 import { deriveShotReportModel } from "../../lib/report/reportModel"
@@ -35,6 +36,14 @@ export default function ShotReportPage() {
   const [imageMap, setImageMap] = useState<ReadonlyMap<string, string>>(new Map())
   const [imagesLoading, setImagesLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // Tag options for the Filters control — the SAME aggregation the shot list's
+  // own tag picker uses (computeAvailableTags), run over the shots `data`
+  // already fetched above. Deliberately NOT a second useAvailableTags()/
+  // useShots() subscription: that would make ShotReportPage's data-fetching
+  // hook graph depend on Firestore/auth context that this page's own tests
+  // don't always mount, and it's the exact same shots list either way.
+  const availableTags = useMemo(() => computeAvailableTags(data.shots), [data.shots])
 
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // The reportId that has finished hydrating. Edits made while a report is still
@@ -186,6 +195,7 @@ export default function ShotReportPage() {
         model={model}
         imageMap={imageMap}
         config={config}
+        availableTags={availableTags}
         onConfigChange={handleConfigChange}
         onExportPdf={handleExportPdf}
         exporting={exporting}
