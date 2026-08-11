@@ -311,16 +311,21 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
-// Thumbnail floor (WS-C-1, 2026-08-11): nudged 2.4 -> 2.5. The PDF-side fix
-// made the cover thumb + extras thumbs ATOMIC (wrap={false} — see
-// reportPdfProductionSheet.tsx), so a real export can no longer squeeze a
-// shot's images smaller to fit a page's last few points of room; that
-// leftover "free" capacity the print-preview's weight budget was implicitly
-// (if invisibly) exploiting near a page boundary is gone. A small screen-only
-// margin keeps the preview's page-break estimate from running slightly
-// optimistic against the real PDF — not a measured recalibration, just
-// enough to not systematically under-count.
-const THUMBNAIL_FLOOR = 2.5
+// Thumbnail floor. A WS-C-1 hotfix nudged this 2.4 -> 2.5 on the theory that
+// making the PDF-side cover/extras thumbs atomic (wrap={false} — see
+// reportPdfProductionSheet.tsx) would cost real PDF pages the preview needed
+// to budget for. Reverted on review (PR #519 finding
+// dom-preview-nudge-hits-the-wrong-branch): the nudge applied unconditionally
+// to every shot regardless of showAdditionalImages, so it changed the
+// DEFAULT (extras-off) preview's pagination while being a no-op for the
+// extras-on case it was written for; separately, the Row/Band
+// minPresenceAhead={60} the same hotfix added (also reverted, see that
+// file's Row) turned out to be the real source of PDF-side page-count cost —
+// with it gone, a real render of the PR's own boundary fixture pages
+// IDENTICALLY to origin/main (9 -> 9 at 20 shots, 3 -> 3 at the 50-product+
+// 10-refs fixture), so there is no PDF-side inflation left for this floor to
+// compensate for. 2.4 is the measured-correct value again.
+const THUMBNAIL_FLOOR = 2.4
 
 export function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
   let prodRows = 0

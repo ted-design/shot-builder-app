@@ -231,7 +231,20 @@ function readBalancedDict(raw: string, start: number): { dict: string; end: numb
 }
 
 /** Locate `N 0 obj`, read its (possibly nested) dict, and — if a `stream`
- *  follows — its decoded data (FlateDecode-inflated, or raw if uncompressed). */
+ *  follows — its decoded data (FlateDecode-inflated, or raw if uncompressed).
+ *
+ *  The stream's byte length comes from the dict's own `/Length`, NOT from
+ *  scanning for the literal "endstream" and stripping a trailing newline —
+ *  pdfkit (via @react-pdf) emits exactly `stream\n<DATA>\nendstream`, so a
+ *  scan-and-strip approach that (wrongly) tries to also eat a trailing `\r`
+ *  removes a genuine byte of Flate data whenever that byte happens to be
+ *  0x0D, and inflateSync throws Z_BUF_ERROR ("unexpected end of file") —
+ *  reproduced live during this file's own review (see PR #519 finding
+ *  pdf-stream-reader-strips-a-real-data-byte). /Length is authoritative:
+ *  pdfkit's PDFReference increments `data.Length` by exactly the number of
+ *  bytes it pushes into `this.chunks`, and finalize() writes those chunks
+ *  verbatim (node_modules/@react-pdf/pdfkit/lib/pdfkit.js `initDeflate`/
+ *  `finalize`) — so `dataStart + Length` is always the exact end offset. */
 function getPdfObject(raw: string, buf: Buffer, objNum: number): { dict: string; data: Buffer | null } {
   const re = new RegExp(`(?:^|[^0-9])${objNum}\\s+0\\s+obj`)
   const m = re.exec(raw)
@@ -245,11 +258,9 @@ function getPdfObject(raw: string, buf: Buffer, objNum: number): { dict: string;
   let dataStart = end + streamRel + "stream".length
   if (raw[dataStart] === "\r") dataStart += 1
   if (raw[dataStart] === "\n") dataStart += 1
-  const endstreamAt = raw.indexOf("endstream", dataStart)
-  if (endstreamAt === -1) throw new Error(`endstream not found for object ${objNum}`)
-  let dataEnd = endstreamAt
-  if (raw[dataEnd - 1] === "\n") dataEnd -= 1
-  if (raw[dataEnd - 1] === "\r") dataEnd -= 1
+  const lengthM = /\/Length\s+(\d+)/.exec(dict)
+  if (!lengthM) throw new Error(`object ${objNum} 0 obj: stream dict has no direct /Length`)
+  const dataEnd = dataStart + Number(lengthM[1])
   const rawData = buf.subarray(dataStart, dataEnd)
   const data = dict.includes("/FlateDecode") ? inflateSync(rawData) : rawData
   return { dict, data }
@@ -355,6 +366,57 @@ function findUniformSizeViolations(pages: readonly PdfPageImages[], expectedHeig
       }
     })
   })
+  return out
+}
+
+/** `findUniformSizeViolations` pools every recipe height into ONE accepted
+ *  set — so a cover thumb shrunk into the extras thumb's tolerance band (the
+ *  same 0.75-aspect shrink-to-fit defect, just landing in-band instead of
+ *  out-of-band) passes it silently: reproduced with only thumbBox's
+ *  wrap={false} reverted, a 21-shot/24-note-repeat dense-multi-page render
+ *  produces a 49.10pt cover (the 95pt standard shrunk ~48%) that
+ *  findUniformSizeViolations accepts because 49.10 sits inside the extras
+ *  band's [41.36, 52.64]pt tolerance (see PR #519 finding
+ *  uniform-size-band-pools-cover-and-extras). This is a role-aware
+ *  COMPLEMENT to it, not a replacement: each band gets its own tolerance
+ *  window and each rect is credited to the single band it's nearest to (the
+ *  two recipes' standard heights are far enough apart — 95pt/47pt,
+ *  150pt/49pt — that their ±12% windows never overlap), so a rect that
+ *  wanders from the cover count into the extras count changes both counts
+ *  even though every individual height still "matches something". */
+interface SizeBand {
+  readonly label: string
+  readonly heightPt: number
+  readonly expectedCount: number
+}
+
+function findSizeBandCountMismatches(pages: readonly PdfPageImages[], bands: readonly SizeBand[]): string[] {
+  const actual = new Map<string, number>(bands.map((b) => [b.label, 0]))
+  let unmatched = 0
+  pages.forEach((page) => {
+    page.rects.forEach((r) => {
+      const h = r.y1 - r.y0
+      let best: SizeBand | null = null
+      let bestDiff = Infinity
+      for (const b of bands) {
+        const diff = Math.abs(h - b.heightPt)
+        if (diff <= b.heightPt * UNIFORM_SIZE_TOLERANCE_RATIO && diff < bestDiff) {
+          best = b
+          bestDiff = diff
+        }
+      }
+      if (best) actual.set(best.label, (actual.get(best.label) ?? 0) + 1)
+      else unmatched += 1
+    })
+  })
+  const out: string[] = []
+  for (const b of bands) {
+    const got = actual.get(b.label) ?? 0
+    if (got !== b.expectedCount) {
+      out.push(`band "${b.label}" (~${b.heightPt}pt): expected ${b.expectedCount} images, got ${got}`)
+    }
+  }
+  if (unmatched > 0) out.push(`${unmatched} image(s) matched no band at all (see findUniformSizeViolations)`)
   return out
 }
 
@@ -673,6 +735,16 @@ describe.each(BOUNDARY_SHOT_COUNTS)("recipe PDF boundary scan (WS-C-1) — %i sh
     expect(totalRects).toBe(shotCount * 5) // 1 cover + 4 extras per shot, nothing dropped
     expect(findContainmentViolations(pages)).toEqual([])
     expect(findUniformSizeViolations(pages, PRODUCTION_SHEET_STANDARD_HEIGHTS)).toEqual([])
+    // Role-aware complement to the line above (see findSizeBandCountMismatches'
+    // docstring): a cover shrunk INTO the extras tolerance band still matches
+    // "something" in the union check, but shorts the cover count and inflates
+    // the extras count. Exact counts here catch that.
+    expect(
+      findSizeBandCountMismatches(pages, [
+        { label: "cover", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[0], expectedCount: shotCount },
+        { label: "extras", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[1], expectedCount: shotCount * 4 },
+      ]),
+    ).toEqual([])
   })
 
   it("balanced-rows: every placed image is fully on-page and standard-sized (no straddle, no shrink)", async () => {
@@ -685,15 +757,29 @@ describe.each(BOUNDARY_SHOT_COUNTS)("recipe PDF boundary scan (WS-C-1) — %i sh
     expect(totalRects).toBe(shotCount * 5)
     expect(findContainmentViolations(pages)).toEqual([])
     expect(findUniformSizeViolations(pages, BALANCED_ROWS_STANDARD_HEIGHTS)).toEqual([])
+    expect(
+      findSizeBandCountMismatches(pages, [
+        { label: "cover", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[0], expectedCount: shotCount },
+        { label: "extras", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[1], expectedCount: shotCount * 4 },
+      ]),
+    ).toEqual([])
   })
 })
 
 // Page-count sanity (WS-C-1 spec item 2: "verify this does NOT change page
-// counts dramatically... ± a page is fine"). MEASURED against the real
-// pre-fix and post-fix renders of the 20-shot fixture: production-sheet
-// 8 -> 9 pages, balanced-rows 13 -> 13 pages — well inside a generous bound
-// that still catches a gross regression (e.g. minPresenceAhead sized in the
-// wrong units, or applied per-product instead of per-shot).
+// counts dramatically... ± a page is fine"). RE-MEASURED (PR #519 review —
+// the original comment here, "8 -> 9" / "13 -> 13", did not reproduce; see
+// finding page-count-measured-comment-does-not-reproduce) against real
+// origin/main vs the current fixed tree for the 20-shot fixture:
+// production-sheet 9 -> 9 pages, balanced-rows 14 -> 14 pages — UNCHANGED.
+// The Row/Band minPresenceAhead={60} in the original WS-C-1 hotfix (removed
+// on review, see reportPdfProductionSheet.tsx's Row / reportPdfBalancedRows.tsx's
+// Band) was what had moved these numbers (to 11 / 14 — no change on
+// balanced-rows even with it, since its Band already started every boundary
+// shot at a page top); thumbBox/imgCol's wrap={false}, which is what actually
+// fixes the defect, costs zero pages on this fixture. Bounds stay generous
+// enough to still catch a gross regression (e.g. a per-product instead of
+// per-shot weight, or the fix reintroducing pagination cost some other way).
 describe("recipe PDF boundary scan (WS-C-1) — page count stays sane", () => {
   it("production-sheet: 20-shot boundary fixture paginates within a generous, non-degenerate bound", async () => {
     const buf = await renderToBuffer(
@@ -712,6 +798,19 @@ describe("recipe PDF boundary scan (WS-C-1) — page count stays sane", () => {
     expect(pageCount).toBeGreaterThanOrEqual(10)
     expect(pageCount).toBeLessThanOrEqual(18)
   })
+
+  it("balanced-rows: 20-shot boundary fixture, showAdditionalImages OFF (the shipped default) — the case the ON-only comment above cannot see", async () => {
+    // PR #519 finding min-presence-ahead-inflates-page-count: the removed
+    // Row/Band minPresenceAhead={60} inflated THIS specific path (extras off,
+    // the default) by up to +77% on balanced-rows — invisible to every test
+    // in this suite before this one, since every other boundary/dense fixture
+    // renders with showAdditionalImages={true}. Bound is real origin/main (10
+    // pages) plus slack, not the inflated (17) figure minPresenceAhead produced.
+    const buf = await renderToBuffer(<BalancedRowsPdfDocument model={boundaryModel(20)} imageMap={boundaryImageMap(20)} />)
+    const pageCount = parsePdfPageImages(buf).length
+    expect(pageCount).toBeGreaterThanOrEqual(7)
+    expect(pageCount).toBeLessThanOrEqual(13)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -728,7 +827,7 @@ describe("recipe PDF boundary scan (WS-C-1) — page count stays sane", () => {
 // (vs the 95pt standard) here — see the mutation-evidence note below.
 // ---------------------------------------------------------------------------
 
-function denseMultiPageShot(id: string, num: string, nProducts: number, extras: number): ReportShot {
+function denseMultiPageShot(id: string, num: string, nProducts: number, extras: number, noteRepeat = 10): ReportShot {
   return {
     id,
     number: num,
@@ -736,7 +835,7 @@ function denseMultiPageShot(id: string, num: string, nProducts: number, extras: 
     colorway: "Charcoal / Bone",
     status: "on_hold",
     gender: "W",
-    notes: "Deliberately long styling note to add height. ".repeat(10),
+    notes: noteRepeat > 0 ? "Deliberately long styling note to add height. ".repeat(noteRepeat) : null,
     talent: [{ id: `${id}-t1`, name: "Alexandra Whitfield", img: null }],
     excluded: false,
     hasImage: true,
@@ -754,9 +853,9 @@ function denseMultiPageShot(id: string, num: string, nProducts: number, extras: 
   }
 }
 
-function denseMultiPageModel(shotCount: number, nProducts: number, extras: number): ReportModel {
+function denseMultiPageModel(shotCount: number, nProducts: number, extras: number, noteRepeat = 10): ReportModel {
   const shots = Array.from({ length: shotCount }, (_, i) =>
-    denseMultiPageShot(`dm${i}`, String(i + 1).padStart(2, "0"), nProducts, extras),
+    denseMultiPageShot(`dm${i}`, String(i + 1).padStart(2, "0"), nProducts, extras, noteRepeat),
   )
   return {
     project: { name: "Dense Multi-Page Fixture", client: "unbound-merino", shotCount, dateRange: null },
@@ -784,8 +883,21 @@ describe("recipe PDF boundary scan (WS-C-1) — dense multi-page shots (each sho
     )
     const pages = parsePdfPageImages(buf)
     expect(pages.length).toBeGreaterThan(3) // 3 shots, each already several pages tall alone
+    // 3 covers + 30 extras (10/shot), nothing dropped — both violation helpers
+    // below return [] on a page with zero rects, so without this a future
+    // regression that stops images from being placed/resolved at all would
+    // leave this test vacuously green (see PR #519 finding
+    // dense-fixture-has-no-rect-count-assertion).
+    const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+    expect(totalRects).toBe(33)
     expect(findContainmentViolations(pages)).toEqual([])
     expect(findUniformSizeViolations(pages, PRODUCTION_SHEET_STANDARD_HEIGHTS)).toEqual([])
+    expect(
+      findSizeBandCountMismatches(pages, [
+        { label: "cover", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[0], expectedCount: 3 },
+        { label: "extras", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[1], expectedCount: 30 },
+      ]),
+    ).toEqual([])
   })
 
   it("balanced-rows: every placed image is fully on-page and standard-sized (no straddle, no shrink)", async () => {
@@ -794,7 +906,149 @@ describe("recipe PDF boundary scan (WS-C-1) — dense multi-page shots (each sho
     )
     const pages = parsePdfPageImages(buf)
     expect(pages.length).toBeGreaterThan(3)
+    const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+    expect(totalRects).toBe(33)
     expect(findContainmentViolations(pages)).toEqual([])
     expect(findUniformSizeViolations(pages, BALANCED_ROWS_STANDARD_HEIGHTS)).toEqual([])
+    expect(
+      findSizeBandCountMismatches(pages, [
+        { label: "cover", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[0], expectedCount: 3 },
+        { label: "extras", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[1], expectedCount: 30 },
+      ]),
+    ).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// WS-C-1 review fixup (PR #519 finding extras-thumb-fix-ships-with-zero-coverage)
+// — every fixture above uses 4 extras/shot (boundary scan) or 10 (dense),
+// never dense enough for extraThumb's own wrap={false} to be the thing that
+// prevents a straddle: mutation-verified by reverting ONLY extraThumb's
+// wrap={false} (both recipes) and sweeping extras-heavy shapes — 6 shots x 4
+// products x 7 extras is the cheapest shape that reddens (balanced-rows,
+// containment: "page 2 image #9: rect [278.6,-13.3 .. 315.4,35.7]", i.e. a
+// thumb straddling 13.3pt below the page origin — the exact defect class
+// WS-C-1 exists to catch, on the extras half of the fix specifically).
+// ---------------------------------------------------------------------------
+describe("recipe PDF boundary scan (WS-C-1) — extras-heavy shots (extraThumb's own wrap={false} is load-bearing)", () => {
+  const EXTRAS_HEAVY_SHOT_COUNT = 6
+  const EXTRAS_HEAVY_PRODUCTS = 4
+  const EXTRAS_HEAVY_EXTRAS = 7
+
+  function extrasHeavyShot(id: string, num: string): ReportShot {
+    return {
+      id,
+      number: num,
+      title: `Extras-Heavy Shot ${num}`,
+      colorway: "Charcoal / Bone",
+      status: "todo",
+      gender: "W",
+      notes: "A short styling note.",
+      talent: [{ id: `${id}-t1`, name: "Alexandra Whitfield", img: null }],
+      excluded: false,
+      hasImage: true,
+      looks: [
+        {
+          id: `${id}-l1`,
+          label: "Primary",
+          isAlt: false,
+          image: `${id}-cover`,
+          hasReference: true,
+          products: Array.from({ length: EXTRAS_HEAVY_PRODUCTS }, (_, i) => boundaryProduct(i)),
+        },
+      ],
+      additionalImages: Array.from({ length: EXTRAS_HEAVY_EXTRAS }, (_, i) => `${id}-extra-${i}`),
+    }
+  }
+
+  const model: ReportModel = {
+    project: { name: "Extras-Heavy Fixture", client: "unbound-merino", shotCount: EXTRAS_HEAVY_SHOT_COUNT, dateRange: null },
+    groups: [
+      {
+        key: "W",
+        label: "Women",
+        count: EXTRAS_HEAVY_SHOT_COUNT,
+        shots: Array.from({ length: EXTRAS_HEAVY_SHOT_COUNT }, (_, i) => extrasHeavyShot(`eh${i}`, String(i + 1).padStart(2, "0"))),
+      },
+    ],
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
+  const imageMap = new Map<string, string>()
+  for (let i = 0; i < EXTRAS_HEAVY_SHOT_COUNT; i++) {
+    imageMap.set(`eh${i}-cover`, PORTRAIT_PNG)
+    for (let e = 0; e < EXTRAS_HEAVY_EXTRAS; e++) imageMap.set(`eh${i}-extra-${e}`, PORTRAIT_PNG)
+  }
+
+  it("production-sheet: every placed image is fully on-page (extraThumb straddle check)", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument model={model} imageMap={imageMap} showAdditionalImages={true} />,
+    )
+    const pages = parsePdfPageImages(buf)
+    const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+    expect(totalRects).toBe(EXTRAS_HEAVY_SHOT_COUNT * (1 + EXTRAS_HEAVY_EXTRAS))
+    expect(findContainmentViolations(pages)).toEqual([])
+  })
+
+  it("balanced-rows: every placed image is fully on-page (extraThumb straddle check)", async () => {
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument model={model} imageMap={imageMap} showAdditionalImages={true} />,
+    )
+    const pages = parsePdfPageImages(buf)
+    const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+    expect(totalRects).toBe(EXTRAS_HEAVY_SHOT_COUNT * (1 + EXTRAS_HEAVY_EXTRAS))
+    expect(findContainmentViolations(pages)).toEqual([])
+  })
+
+  it("balanced-rows: showAdditionalImages OFF — the shipped default with an extras-heavy model still renders cleanly", async () => {
+    // PR #519 finding boundary-gate-never-exercises-extras-off: every test
+    // above (this file's whole boundary/dense/pooled-band/extras-heavy
+    // suite) renders with the toggle ON. This is the complement — same dense
+    // model, toggle off, confirming the cover-thumb fix (which applies
+    // unconditionally, unlike extraThumb which only renders when the row is
+    // invoked at all) doesn't need the toggle to stay clean.
+    const buf = await renderToBuffer(<BalancedRowsPdfDocument model={model} imageMap={imageMap} />)
+    const pages = parsePdfPageImages(buf)
+    expect(findContainmentViolations(pages)).toEqual([])
+    expect(findUniformSizeViolations(pages, BALANCED_ROWS_STANDARD_HEIGHTS)).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// WS-C-1 review fixup (PR #519 finding uniform-size-band-pools-cover-and-extras
+// / uniform-size-gate-union-masks-cover-shrink) — findUniformSizeViolations
+// pools every recipe height into ONE accepted set, so a cover thumb shrunk
+// INTO the extras thumb's own tolerance band passes it silently: that's the
+// exact defect class WS-C-1 exists to catch, missed by the union check alone.
+//
+// This fixture (production-sheet, 3 shots x 21 products x 10 extras, a
+// 24-repeat note) is a MEASURED reproduction, found by sweeping
+// denseMultiPageModel across product/note-length combinations with only
+// thumbBox's wrap={false} reverted: it lands a shrunk cover at 49.10pt —
+// inside the extras band's [41.36, 52.64]pt window — while
+// findUniformSizeViolations reports ZERO violations. findSizeBandCountMismatches
+// (bucketing by nearest expected height and asserting exact per-band counts)
+// is what actually catches it: the cover band comes up one short and the
+// extras band comes up one over.
+// ---------------------------------------------------------------------------
+describe("recipe PDF boundary scan (WS-C-1) — cover shrink landing inside the extras tolerance band", () => {
+  const POOLED_BAND_SHOT_COUNT = 3
+  const POOLED_BAND_PRODUCTS = 21
+  const POOLED_BAND_EXTRAS = 10
+  const POOLED_BAND_NOTE_REPEAT = 24
+  const model = denseMultiPageModel(POOLED_BAND_SHOT_COUNT, POOLED_BAND_PRODUCTS, POOLED_BAND_EXTRAS, POOLED_BAND_NOTE_REPEAT)
+  const imageMap = denseMultiPageImageMap(POOLED_BAND_SHOT_COUNT, POOLED_BAND_EXTRAS)
+
+  it("production-sheet: per-band counts stay exact even though a pooled union check cannot see the shrink", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument model={model} imageMap={imageMap} showAdditionalImages={true} />,
+    )
+    const pages = parsePdfPageImages(buf)
+    expect(findContainmentViolations(pages)).toEqual([])
+    expect(
+      findSizeBandCountMismatches(pages, [
+        { label: "cover", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[0], expectedCount: POOLED_BAND_SHOT_COUNT },
+        { label: "extras", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[1], expectedCount: POOLED_BAND_SHOT_COUNT * POOLED_BAND_EXTRAS },
+      ]),
+    ).toEqual([])
   })
 })

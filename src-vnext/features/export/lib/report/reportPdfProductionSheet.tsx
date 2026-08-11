@@ -200,18 +200,41 @@ function Row({
   const src = has(cand) ? imageMap.get(cand) : undefined
   const talent = shot.talent.filter((t) => has(t.name))
   return (
-    // minPresenceAhead (WS-C-1) — a real prod export showed a Row start with
-    // almost no vertical space remaining, leaving just a SLIVER of the cover
-    // thumb visible at a page's bottom edge. ~60pt (within the cover thumb's
-    // 96pt height) means a new shot won't begin unless at least the thumb +
-    // a line of identity text can plausibly fit; the Row ITSELF stays
-    // wrap:true (default/splittable) — #508's flow-across-pages behavior for
-    // a shot denser than one page is unchanged, this only gates the START.
-    <View style={[s.row, ...(flagged ? [s.rowFlag] : [])]} minPresenceAhead={60}>
+    // NOT minPresenceAhead — tried in the original WS-C-1 hotfix as a "don't
+    // start a shot with a sliver" guard (~60pt, within the cover thumb's 96pt
+    // height) and REMOVED on review (PR #519 findings min-presence-ahead-*):
+    // @react-pdf only applies minPresenceAhead when the child already fits
+    // entirely on the remaining page (`!shouldSplit` — layout/lib/index.js
+    // `shouldBreak`); a Row that starts with a real sliver of room is exactly
+    // the `shouldSplit === true` case, so the term is unreachable for the
+    // scenario it was named after. What it DID do, measured: force every
+    // FITTING Row to the next page whenever <60pt would remain after it —
+    // +70-77% pages on balanced-rows' default (extras-off) path at 20-26
+    // shots, for zero change to either violation invariant below (0 with it,
+    // 0 without, on every fixture in this file). thumbBox's wrap={false}
+    // below is what actually stops the shrink/straddle defect; the sliver
+    // itself is #508's existing flow-across-pages behavior and is unaffected
+    // either way.
+    <View style={[s.row, ...(flagged ? [s.rowFlag] : [])]}>
       <View style={s.spine}>
         <View style={[s.statusDot, { backgroundColor: st.color }]} />
         {flagged ? <Text style={s.holdTxt}>HOLD</Text> : null}
       </View>
+      {/* wrap={false} deliberately stays on the NESTED thumbBox, not thumbCol
+       *  — PR #519 finding nested-atomic-thumb-relies-on-the-spine-sibling
+       *  correctly identifies a latent fragility (@react-pdf's splitNodes has
+       *  an escape hatch that can re-shrink a wrap={false} leaf nested inside
+       *  a still-splittable container when it's the parent's first child with
+       *  an empty currentChildren; here `spine` precedes thumbCol and always
+       *  lands first, so it's not currently reachable) but its suggested fix
+       *  — move wrap={false} up to thumbCol, matching balanced-rows' imgCol —
+       *  is UNSAFE, not just unnecessary: unlike imgCol (explicit
+       *  height: BAND_H), thumbCol has no explicit height, so `row`'s default
+       *  flex `alignItems: stretch` makes thumbCol's real box the Row's FULL
+       *  (often many-pages-tall) height. Verified: making thumbCol atomic
+       *  reintroduces "can't wrap between pages" on every fixture in this
+       *  file's test suite. thumbBox's own explicit height: 96 is what keeps
+       *  wrap={false} safe here — leave it on the leaf. */}
       <View style={s.thumbCol}>
         <View style={s.thumbBox} wrap={false}>
           {src ? <Image src={src} style={s.thumbImg} /> : <Text style={s.thumbNoImg}>No ref</Text>}

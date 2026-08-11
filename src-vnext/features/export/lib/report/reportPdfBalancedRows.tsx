@@ -203,11 +203,15 @@ function Band({
   const st = STATUS[shot.status]
   const talent = shot.talent.map((t) => t.name).filter((n) => has(n))
   return (
-    // minPresenceAhead (WS-C-1) — same "don't start a shot with a sliver"
-    // guard as production-sheet's Row: ~60pt so a new Band won't begin unless
-    // at least the cover image + a line can plausibly fit. Band ITSELF stays
-    // wrap:true (default/splittable) — #508's flow behavior is unchanged.
-    <View style={[s.band, ...(zebra ? [s.bandZebra] : [])]} minPresenceAhead={60}>
+    // NOT minPresenceAhead — see reportPdfProductionSheet.tsx's Row for the
+    // full writeup (removed on review, PR #519 findings min-presence-ahead-*):
+    // @react-pdf gates the term on the child already fitting the remaining
+    // page, so it cannot prevent a genuine sliver-start, and measured cost on
+    // THIS recipe's default (extras-off) path was severe — 20 shots 10->17
+    // pages (+70%), 26 shots 13->23 (+77%) — for zero change to either
+    // violation invariant below on any fixture, extras on OR off. imgCol's
+    // wrap={false} below is what actually stops the shrink/straddle defect.
+    <View style={[s.band, ...(zebra ? [s.bandZebra] : [])]}>
       <View style={s.imgCol} wrap={false}>
         {src ? <Image src={src} style={s.img} /> : <View style={s.noImg}><Text style={s.noImgTxt}>No image yet</Text></View>}
       </View>

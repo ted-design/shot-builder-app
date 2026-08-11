@@ -293,13 +293,17 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
-// Base band-height nudge (WS-C-1, 2026-08-11): 1.0/1.7 -> 1.05/1.75. Same
-// rationale as ProductionSheetReport's THUMBNAIL_FLOOR — the PDF-side fix made
-// the cover image column ATOMIC (wrap={false} — see reportPdfBalancedRows.tsx),
-// so a real export can no longer shrink it to fit a page's last bit of room.
-// Small screen-only margin, not a measured recalibration.
-const BASE_H_SINGLE = 1.05
-const BASE_H_MULTI = 1.75
+// Base band height. A WS-C-1 hotfix nudged this 1.0/1.7 -> 1.05/1.75 for the
+// same reason as ProductionSheetReport's THUMBNAIL_FLOOR. Reverted on review
+// (PR #519 finding dom-preview-nudge-hits-the-wrong-branch) — see that
+// file's THUMBNAIL_FLOOR for the full writeup: the nudge applied to every
+// band unconditionally (extras on OR off), the removed Band
+// minPresenceAhead={60} turned out to be the actual source of PDF-side page
+// cost, and with it gone a real render of the PR's own boundary fixture
+// pages IDENTICALLY to origin/main (14 -> 14 at 20 shots, 4 -> 4 at the
+// 50-product+10-refs fixture). 1.0/1.7 are the measured-correct values again.
+const BASE_H_SINGLE = 1.0
+const BASE_H_MULTI = 1.7
 
 function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
