@@ -311,7 +311,7 @@ export const REPORT_STYLES = `
   letter-spacing: 0.10em; text-transform: uppercase; color: var(--sb-ink-3);
 }
 .sb-seg {
-  display: inline-flex; align-items: stretch;
+  display: inline-flex; align-items: stretch; flex-wrap: wrap;
   border: 1px solid var(--sb-rule-strong); border-radius: 999px; overflow: hidden;
   background: var(--sb-paper);
 }

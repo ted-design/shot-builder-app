@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { useShots } from "@/features/shots/hooks/useShots"
 import { DEFAULT_TAGS } from "@/shared/lib/defaultTags"
-import type { ShotTag } from "@/shared/types"
+import type { Shot, ShotTag } from "@/shared/types"
 import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 import { normalizeTagLabel, findCanonicalTag } from "@/shared/lib/tagDedup"
 
@@ -26,52 +26,60 @@ function normalizeTag(raw: unknown): ShotTag | null {
   }
 }
 
-export function useAvailableTags() {
-  const { data: shots, loading, error } = useShots()
+/**
+ * Pure aggregation: every tag in use across `shots`, deduped against the
+ * canonical default set, ranked by usage. Extracted from the `useAvailableTags`
+ * hook body so a consumer that ALREADY has a shots array in hand (e.g. the
+ * export report, which fetches shots once via useExportData) can reuse the
+ * exact same aggregation without opening a second Firestore subscription —
+ * "same source the list uses" without a second `useShots()`.
+ */
+export function computeAvailableTags(shots: readonly Shot[]): readonly AvailableTag[] {
+  const tagMap = new Map<string, AvailableTag>()
 
-  const tags = useMemo<readonly AvailableTag[]>(() => {
-    const tagMap = new Map<string, AvailableTag>()
+  for (const t of DEFAULT_TAGS) {
+    tagMap.set(normalizeTagLabel(t.label), { ...t, usageCount: 0, isDefault: true })
+  }
 
-    for (const t of DEFAULT_TAGS) {
-      tagMap.set(normalizeTagLabel(t.label), { ...t, usageCount: 0, isDefault: true })
-    }
+  for (const shot of shots) {
+    const raw = shot.tags
+    if (!Array.isArray(raw)) continue
 
-    for (const shot of shots) {
-      const raw = shot.tags
-      if (!Array.isArray(raw)) continue
+    for (const maybeTag of raw) {
+      const normalized = normalizeTag(maybeTag)
+      if (!normalized) continue
 
-      for (const maybeTag of raw) {
-        const normalized = normalizeTag(maybeTag)
-        if (!normalized) continue
+      const labelKey = normalizeTagLabel(normalized.label)
+      const canonical = findCanonicalTag(normalized.label)
+      const next: AvailableTag = {
+        id: canonical?.id ?? normalized.id,
+        label: canonical?.label ?? normalized.label,
+        color: canonical?.color ?? normalized.color,
+        category: canonical?.category ?? normalized.category ?? "other",
+        usageCount: 1,
+        isDefault: Boolean(canonical),
+      }
 
-        const labelKey = normalizeTagLabel(normalized.label)
-        const canonical = findCanonicalTag(normalized.label)
-        const next: AvailableTag = {
-          id: canonical?.id ?? normalized.id,
-          label: canonical?.label ?? normalized.label,
-          color: canonical?.color ?? normalized.color,
-          category: canonical?.category ?? normalized.category ?? "other",
-          usageCount: 1,
-          isDefault: Boolean(canonical),
-        }
-
-        const existing = tagMap.get(labelKey)
-        if (existing) {
-          tagMap.set(labelKey, {
-            ...existing,
-            usageCount: existing.usageCount + 1,
-            isDefault: existing.isDefault || next.isDefault,
-          })
-        } else {
-          tagMap.set(labelKey, next)
-        }
+      const existing = tagMap.get(labelKey)
+      if (existing) {
+        tagMap.set(labelKey, {
+          ...existing,
+          usageCount: existing.usageCount + 1,
+          isDefault: existing.isDefault || next.isDefault,
+        })
+      } else {
+        tagMap.set(labelKey, next)
       }
     }
+  }
 
-    return [...tagMap.values()].sort(
-      (a, b) => b.usageCount - a.usageCount || a.label.localeCompare(b.label),
-    )
-  }, [shots])
+  return [...tagMap.values()].sort(
+    (a, b) => b.usageCount - a.usageCount || a.label.localeCompare(b.label),
+  )
+}
 
+export function useAvailableTags() {
+  const { data: shots, loading, error } = useShots()
+  const tags = useMemo<readonly AvailableTag[]>(() => computeAvailableTags(shots), [shots])
   return { tags, loading, error }
 }

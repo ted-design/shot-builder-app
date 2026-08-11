@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { isFeatureEnabled } from "@/shared/lib/flags"
+import { computeUsedTagOptions } from "@/shared/lib/tagDedup"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
 import { deriveShotReportModel } from "../../lib/report/reportModel"
@@ -35,6 +36,20 @@ export default function ShotReportPage() {
   const [imageMap, setImageMap] = useState<ReadonlyMap<string, string>>(new Map())
   const [imagesLoading, setImagesLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // Tag options for the Filters control — the SAME source and semantics as
+  // the shot list's own tag FILTER (useShotListState.ts's tagLabelById /
+  // tagOptions): one option per id actually present on a shot, run over the
+  // shots `data` already fetched above. Deliberately NOT computeAvailableTags
+  // (useAvailableTags.ts) — that seeds every DEFAULT_TAGS entry unconditionally
+  // and collapses same-labelled tags across shots to one canonical id, which
+  // is right for "what tag can I assign" but wrong for "what tag VALUE should
+  // this filter match" (filterEngine.ts matches the shot's own raw tag.id).
+  // Also deliberately NOT a second useAvailableTags()/useShots() subscription:
+  // that would make ShotReportPage's data-fetching hook graph depend on
+  // Firestore/auth context that this page's own tests don't always mount,
+  // and it's the exact same shots list either way.
+  const availableTags = useMemo(() => computeUsedTagOptions(data.shots), [data.shots])
 
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // The reportId that has finished hydrating. Edits made while a report is still
@@ -186,6 +201,7 @@ export default function ShotReportPage() {
         model={model}
         imageMap={imageMap}
         config={config}
+        availableTags={availableTags}
         onConfigChange={handleConfigChange}
         onExportPdf={handleExportPdf}
         exporting={exporting}

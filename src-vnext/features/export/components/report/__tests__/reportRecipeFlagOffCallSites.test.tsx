@@ -43,6 +43,7 @@ describe("ReportView screen render — featureShotReportRecipes OFF clamps to im
         model={emptyModel()}
         imageMap={new Map()}
         config={config}
+        availableTags={[]}
         onConfigChange={vi.fn()}
         onExportPdf={vi.fn()}
       />,
@@ -59,6 +60,7 @@ describe("ReportView screen render — featureShotReportRecipes OFF clamps to im
         model={emptyModel()}
         imageMap={new Map()}
         config={config}
+        availableTags={[]}
         onConfigChange={vi.fn()}
         onExportPdf={vi.fn()}
       />,

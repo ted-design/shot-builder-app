@@ -1,4 +1,5 @@
 import type {
+  Lane,
   ProductAssignment,
   ProductFamily,
   Shot,
@@ -9,8 +10,11 @@ import type {
 import type { ExportData } from "../../hooks/useExportData"
 import { humanizeLabel } from "@/shared/lib/textUtils"
 import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
+import { applyFilterConditions } from "@/features/shots/lib/filterEngine"
 import {
   REPORT_STATUS_LABEL,
+  formatFilterSummary,
+  resolveReportFilters,
   type GenderKey,
   type ReportConfig,
   type ReportGroup,
@@ -244,6 +248,13 @@ export function mostOutstandingStatus(
 export const NO_SHOTS_GROUP_KEY = "__no_shots__"
 export const NO_SHOTS_GROUP_LABEL = "No shots"
 
+/** Bucket key/label for groupBy:"scene" ("Set") shots with no laneId, or whose
+ *  laneId no longer resolves to a live Lane doc (an orphaned reference — same
+ *  treatment the shot list gives it: don't crash, don't drop the shot, show it
+ *  unset). Always sorts last (see buildSceneGroups). */
+export const NO_SET_GROUP_KEY = "__no_set__"
+export const NO_SET_GROUP_LABEL = "No set"
+
 /**
  * Group entries (products/talent) by their most-outstanding appearance status (O2).
  * One bucket per item; `statusesOf` extracts an item's appearance statuses. Buckets
@@ -269,8 +280,43 @@ export function buildStatusGroups<T>(
 const SHOT_TIEBREAK = (a: ReportShot, b: ReportShot): number =>
   compareShotNumber(a.number, b.number) || compareText(a.id, b.id)
 
-/** Primary comparator for a shot sort field (R2). Item-shape-local (needs GROUP_ORDER / STATUS_GROUP_ORDER). */
-function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot) => number {
+/**
+ * "custom" comparator: respects the shot's own drag order (Shot.sortOrder).
+ *
+ * `sortOrder: 0` is AMBIGUOUS at the per-shot level: mapShot defaults a
+ * Firestore doc that's never carried the field to 0, but the app's own
+ * reorder writers ALSO mint a real, meaningful 0 for the FIRST shot —
+ * persistShotOrder's full-reindex (`sortOrder: start + i` from index 0,
+ * reorderShots.ts) and range branches (`start = min(from, to)`, which is 0
+ * whenever the moved range includes the top of the list), and
+ * renumberShots/renumberShotsWithScenes (`newSortOrder = i` /
+ * `offsets[gIdx] + i`, first shot of the first scene = 0). Every drag
+ * reorder in the shot list goes through persistShotOrder with NO range
+ * (DraggableShotList.tsx), so it ALWAYS produces exactly one shot with a
+ * real sortOrder of 0. Treating that 0 as "missing" banished the shot the
+ * user just dragged to the top to the BOTTOM of the custom-order report.
+ *
+ * There is no way to tell "real 0" from "never touched" on a single shot —
+ * so, like useShots.ts's own client sort (useShots.ts:33), this decides at
+ * the SET level: if ANY shot in scope carries a non-zero sortOrder, a real
+ * custom order has been established for this project, and every sortOrder
+ * (0 included — it's simply rank #1) is trusted as-is. Only when EVERY shot
+ * is 0 (nobody has ever reordered) does the whole set fall back to
+ * shot-number order, matching useShots.ts's own "no real sortOrder" branch.
+ */
+function compareCustomOrder(hasCustomOrder: boolean): (a: ReportShot, b: ReportShot) => number {
+  return (a, b) => {
+    if (!hasCustomOrder) return compareShotNumber(a.number, b.number)
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  }
+}
+
+/** Primary comparator for a shot sort field (R2). Item-shape-local (needs GROUP_ORDER / STATUS_GROUP_ORDER).
+ *  `hasCustomOrder` only matters for sortBy:"custom" — see compareCustomOrder. */
+function shotPrimaryFor(
+  sortBy: ReportSortField,
+  hasCustomOrder: boolean,
+): (a: ReportShot, b: ReportShot) => number {
   switch (sortBy) {
     case "shot-number":
       return (a, b) => compareShotNumber(a.number, b.number)
@@ -280,6 +326,8 @@ function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot)
       return (a, b) => compareByOrder(STATUS_GROUP_ORDER, a.status, b.status)
     case "gender":
       return (a, b) => compareByOrder(GROUP_ORDER, a.gender, b.gender)
+    case "custom":
+      return compareCustomOrder(hasCustomOrder)
     default:
       // Runtime safety: exportReports writes schemaless (no rules validation), so a
       // persisted/hand-edited config could carry an out-of-union sortBy. Fall back to
@@ -289,38 +337,123 @@ function shotPrimaryFor(sortBy: ReportSortField): (a: ReportShot, b: ReportShot)
   }
 }
 
+/** Fallback label for a real Lane doc whose `name` is empty/blank — distinct
+ *  from NO_SET_GROUP_LABEL so a genuinely-named-but-blank Set never collides
+ *  with (or gets mistaken for) the "no Set membership" bucket. Mirrors the
+ *  shot list's own wording for the identical case (shotListFilters.ts). */
+const UNNAMED_SET_LABEL = "Unnamed Set"
+
+/**
+ * groupBy:"scene" ("Set" in the UI): one group per Lane, ordered by
+ * Lane.sceneNumber then Lane.sortOrder (the same two-key order the shot list
+ * itself sorts scene groups by — see shotListFilters.ts's "scene" groupKey),
+ * ties broken alphabetically on the lane name. A shot with no laneId, OR
+ * whose laneId no longer resolves to a live Lane doc (an orphaned reference —
+ * guards against a crash if a Set is deleted out from under an open report),
+ * lands in a trailing "No set" bucket — always LAST regardless of sceneNumber.
+ *
+ * Guard: only treat a laneId as orphaned when lanes have actually loaded
+ * (`laneById.size > 0`) — mirrors shotListFilters.ts's identical guard for
+ * the shot list's own "scene" grouping. Without it, a lanes read that's
+ * still loading (or that silently failed — useFirestoreCollection resolves
+ * `loading:false`/`data:[]` on a snapshot error) would present an EMPTY
+ * laneById, and every shot with a real laneId would incorrectly collapse
+ * into "No set" instead of keeping its real Set grouping.
+ */
+function buildSceneGroups(
+  shots: readonly ReportShot[],
+  laneById: ReadonlyMap<string, Lane>,
+): ReportGroup[] {
+  const lanesLoaded = laneById.size > 0
+  const byLane = new Map<string, ReportShot[]>()
+  for (const shot of shots) {
+    const isOrphan = lanesLoaded && shot.laneId != null && !laneById.has(shot.laneId)
+    const key = shot.laneId != null && !isOrphan ? shot.laneId : NO_SET_GROUP_KEY
+    const bucket = byLane.get(key)
+    if (bucket) bucket.push(shot)
+    else byLane.set(key, [shot])
+  }
+
+  const groups = [...byLane.entries()].map(([key, groupShots]): ReportGroup => {
+    const lane = key === NO_SET_GROUP_KEY ? undefined : laneById.get(key)
+    // A real (non-orphaned, non-"No set") lane ALWAYS gets a real label —
+    // "Unnamed Set" for a blank `name`, never NO_SET_GROUP_LABEL, so it can't
+    // be mistaken for (or sort like) the trailing "No set" bucket below.
+    const label =
+      key === NO_SET_GROUP_KEY ? NO_SET_GROUP_LABEL : lane?.name || UNNAMED_SET_LABEL
+    return {
+      key,
+      label,
+      count: groupShots.length,
+      shots: groupShots,
+    }
+  })
+
+  groups.sort((a, b) => {
+    if (a.key === NO_SET_GROUP_KEY) return 1
+    if (b.key === NO_SET_GROUP_KEY) return -1
+    const laneA = laneById.get(a.key)
+    const laneB = laneById.get(b.key)
+    const sceneA = laneA?.sceneNumber ?? Number.POSITIVE_INFINITY
+    const sceneB = laneB?.sceneNumber ?? Number.POSITIVE_INFINITY
+    if (sceneA !== sceneB) return sceneA - sceneB
+    const orderA = laneA?.sortOrder ?? 0
+    const orderB = laneB?.sortOrder ?? 0
+    if (orderA !== orderB) return orderA - orderB
+    return compareText(a.label, b.label)
+  })
+
+  return groups
+}
+
 /** Derive the resolved report model from live export data + config. */
 export function deriveShotReportModel(data: ExportData, config: ReportConfig): ReportModel {
   const familyById = new Map(data.productFamilies.map((f) => [f.id, f]))
   const talentById = new Map(data.talent.map((t) => [t.id, t]))
+  const laneById = new Map((data.lanes ?? []).map((l) => [l.id, l]))
   const excluded = new Set(config.excludedShotIds)
-  // R3: statuses to hide entirely (undefined on pre-R3 blobs -> empty set -> no-op).
-  const hidden = new Set(config.hiddenStatuses ?? [])
   const primaryOnly = config.looksMode === "primary-only"
 
-  const built: ReportShot[] = data.shots
-    .filter((s) => !s.deleted && !hidden.has(s.status))
-    .map((shot): ReportShot => {
-      const looks = resolveLooks(shot, familyById)
-      // Gender resolves from ALL looks so grouping stays stable across looksMode.
-      const gender = resolveShotGender(shot, looks)
-      // primary-only is a display filter: keep only the primary look (looks[0]).
-      const visibleLooks = primaryOnly ? looks.slice(0, 1) : looks
-      return {
-        id: shot.id,
-        number: shot.shotNumber ?? "",
-        title: shot.title || "Untitled shot",
-        colorway: shot.description ?? null,
-        status: shot.status,
-        gender,
-        notes: shot.notesAddendum ?? shot.notes ?? null,
-        talent: resolveTalent(shot, talentById),
-        looks: visibleLooks,
-        excluded: excluded.has(shot.id),
-        // "References ready" = has a real uploaded reference, NOT the product-image plate fallback.
-        hasImage: visibleLooks.some((l) => l.hasReference),
-      }
-    })
+  // Unified filters (status + tag). resolveReportFilters folds a legacy
+  // hiddenStatuses list into an equivalent status/notIn filter when `filters`
+  // itself is absent (DEFAULT_REPORT_CONFIG and every pre-filters config take
+  // this path, so output stays byte-identical). applyFilterConditions is the
+  // SAME engine the shot list runs (filterEngine.ts) — AND-across-fields,
+  // OR-within-a-field's values — reused verbatim, not reimplemented.
+  const filters = resolveReportFilters(config)
+  const notDeleted = data.shots.filter((s) => !s.deleted)
+  const filteredShots = applyFilterConditions(notDeleted, filters, { familyById })
+
+  const built: ReportShot[] = filteredShots.map((shot): ReportShot => {
+    const looks = resolveLooks(shot, familyById)
+    // Gender resolves from ALL looks so grouping stays stable across looksMode.
+    const gender = resolveShotGender(shot, looks)
+    // primary-only is a display filter: keep only the primary look (looks[0]).
+    const visibleLooks = primaryOnly ? looks.slice(0, 1) : looks
+    return {
+      id: shot.id,
+      number: shot.shotNumber ?? "",
+      title: shot.title || "Untitled shot",
+      colorway: shot.description ?? null,
+      status: shot.status,
+      gender,
+      notes: shot.notesAddendum ?? shot.notes ?? null,
+      talent: resolveTalent(shot, talentById),
+      looks: visibleLooks,
+      excluded: excluded.has(shot.id),
+      // "References ready" = has a real uploaded reference, NOT the product-image plate fallback.
+      hasImage: visibleLooks.some((l) => l.hasReference),
+      sortOrder: shot.sortOrder,
+      laneId: shot.laneId ?? null,
+    }
+  })
+
+  // Project-level "has a real custom order ever been established" — see
+  // compareCustomOrder's docstring. Scoped to ALL non-deleted shots (not just
+  // the report's own filtered subset), mirroring useShots.ts:33 exactly, so a
+  // report's own Status/Tags filters can never flip this decision by
+  // coincidentally excluding the shot that happens to carry the differentiator.
+  const hasCustomOrder = notDeleted.some((s) => s.sortOrder !== 0)
 
   // R2 order-by. Absent sortBy → verbatim legacy comparator (flag-off byte-identical
   // by construction). Defined → the shared stable engine with the id tie-break.
@@ -331,7 +464,12 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
           const [bk, bn, bs] = shotNumberSortKey(b.number)
           return ak - bk || an - bn || as.localeCompare(bs)
         })
-      : sortItemsStable(built, shotPrimaryFor(config.sortBy), SHOT_TIEBREAK, config.sortDir ?? "asc")
+      : sortItemsStable(
+          built,
+          shotPrimaryFor(config.sortBy, hasCustomOrder),
+          SHOT_TIEBREAK,
+          config.sortDir ?? "asc",
+        )
 
   const groups: ReportGroup[] =
     config.groupBy === "none"
@@ -350,10 +488,12 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
               shots: b.items,
             }),
           )
-        : GROUP_ORDER.map((key): ReportGroup => {
-            const inGroup = shots.filter((s) => s.gender === key)
-            return { key, label: GROUP_LABEL[key], count: inGroup.length, shots: inGroup }
-          }).filter((g) => g.count > 0)
+        : config.groupBy === "scene"
+          ? buildSceneGroups(shots, laneById)
+          : GROUP_ORDER.map((key): ReportGroup => {
+              const inGroup = shots.filter((s) => s.gender === key)
+              return { key, label: GROUP_LABEL[key], count: inGroup.length, shots: inGroup }
+            }).filter((g) => g.count > 0)
 
   return {
     project: {
@@ -363,10 +503,16 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       dateRange: formatDateWindow(data.project?.shootDates),
     },
     groups,
-    // The applied order (absent sortBy → the legacy ascending shot-number sort
-    // above). Set here so a recipe caption can never claim an order the shots
-    // don't have; flag-off this is always {shot-number, asc}, matching legacy.
-    order: { sortBy: config.sortBy ?? "shot-number", sortDir: config.sortDir ?? "asc" },
+    // The applied order/group/filters (absent sortBy → the legacy ascending
+    // shot-number sort above). Set here so a recipe caption can never claim an
+    // arrangement the shots don't actually have; flag-off this is always
+    // {shot-number, asc, gender/none, no filters}, matching legacy exactly.
+    order: {
+      sortBy: config.sortBy ?? "shot-number",
+      sortDir: config.sortDir ?? "asc",
+      groupBy: config.groupBy,
+      filterSummary: formatFilterSummary(filters),
+    },
   }
 }
 
