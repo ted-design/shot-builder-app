@@ -26,7 +26,7 @@ import type {
   ReportLook,
   ReportProduct,
 } from "./reportTypes"
-import { COLOR, FONT, PAGE, STATUS_LEGACY, has } from "./reportPdfShared"
+import { COLOR, FONT, PAGE, STATUS, has } from "./reportPdfShared"
 import { hasAnyIncludedShot, sizeLabel } from "./reportModel"
 import {
   packShotSheets,
@@ -477,7 +477,7 @@ function Plate({
   const primary = shot.looks[0]
   const heroCandidate = primary?.image ?? null
   const heroSrc = has(heroCandidate) ? imageMap.get(heroCandidate) : undefined
-  const status = STATUS_LEGACY[shot.status]
+  const status = STATUS[shot.status]
   const talent = shot.talent.filter((t) => has(t.name))
 
   // Width + keep-together are owned by the column wrapper in the Page; this is

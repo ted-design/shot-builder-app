@@ -2,6 +2,7 @@ import type { Shot, ShotFirestoreStatus, ProductFamily, ProductSku, Lane } from 
 import { extractShotAssignedProducts } from "@/shared/lib/shotProducts"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
 import { shotLaunchDateMs, shotRequirementsCount } from "@/features/shots/lib/shotProductReadiness"
+import { SHOT_STATUS_CYCLE, getShotStatusLabel } from "@/shared/lib/statusMappings"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,19 +68,15 @@ export const SORT_LABELS: Record<SortKey, string> = {
   requirements: "Requirements",
 }
 
-export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = {
-  todo: 0,
-  in_progress: 1,
-  on_hold: 2,
-  complete: 3,
-}
+// Re-derived from the canonical SHOT_STATUS_CYCLE/getShotStatusLabel
+// (statusMappings.ts) — keep these names, consumers rely on them.
+export const STATUS_ORDER: Record<ShotFirestoreStatus, number> = Object.fromEntries(
+  SHOT_STATUS_CYCLE.map((s, i) => [s, i]),
+) as Record<ShotFirestoreStatus, number>
 
-export const STATUS_LABELS: Record<ShotFirestoreStatus, string> = {
-  todo: "Draft",
-  in_progress: "In Progress",
-  on_hold: "On Hold",
-  complete: "Shot",
-}
+export const STATUS_LABELS: Record<ShotFirestoreStatus, string> = Object.fromEntries(
+  SHOT_STATUS_CYCLE.map((s) => [s, getShotStatusLabel(s)]),
+) as Record<ShotFirestoreStatus, string>
 
 // ---------------------------------------------------------------------------
 // Sort
@@ -364,7 +361,7 @@ export function groupShots(
 
   if (groupKey === "status") {
     const groups: ShotGroup[] = []
-    for (const s of ["todo", "in_progress", "on_hold", "complete"] as const) {
+    for (const s of SHOT_STATUS_CYCLE) {
       const list = shots.filter((shot) => shot.status === s)
       if (list.length === 0) continue
       groups.push({ key: s, label: STATUS_LABELS[s], shots: list })

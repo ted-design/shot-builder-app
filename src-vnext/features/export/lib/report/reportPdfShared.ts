@@ -43,7 +43,8 @@ const STATUS_COLOR: Record<ReportShot["status"], string> = {
   on_hold: "#D97706",
 }
 
-// Canonical labels (statusMappings.ts) — used by the production-sheet + balanced-rows PDFs.
+// Canonical labels (statusMappings.ts) — used by all three PDF layouts
+// (image-led, production-sheet, balanced-rows). No per-layout label exception.
 export const STATUS: Record<
   ReportShot["status"],
   { readonly color: string; readonly label: string }
@@ -52,17 +53,6 @@ export const STATUS: Record<
   in_progress: { color: STATUS_COLOR.in_progress, label: getShotStatusLabel("in_progress") },
   todo: { color: STATUS_COLOR.todo, label: getShotStatusLabel("todo") },
   on_hold: { color: STATUS_COLOR.on_hold, label: getShotStatusLabel("on_hold") },
-}
-
-// Original image-led PDF labels — keeps the shipped report byte-identical.
-export const STATUS_LEGACY: Record<
-  ReportShot["status"],
-  { readonly color: string; readonly label: string }
-> = {
-  complete: { color: STATUS_COLOR.complete, label: "Shot" },
-  in_progress: { color: STATUS_COLOR.in_progress, label: "In progress" },
-  todo: { color: STATUS_COLOR.todo, label: "To do" },
-  on_hold: { color: STATUS_COLOR.on_hold, label: "On hold" },
 }
 
 export function has(v: string | null | undefined): v is string {

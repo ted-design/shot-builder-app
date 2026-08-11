@@ -4,7 +4,6 @@ import { Switch } from "@/ui/switch"
 import { Input } from "@/ui/input"
 import { Label } from "@/ui/label"
 import { isFeatureEnabled } from "@/shared/lib/flags"
-import { STATUS_LABELS } from "../lib/shotListFilters"
 import type {
   FilterCondition,
   FilterValue,
@@ -86,13 +85,17 @@ function CheckboxList({
 // Set pickers
 // ---------------------------------------------------------------------------
 
-function StatusPicker({ condition, onChange }: { readonly condition: FilterCondition; readonly onChange: (v: FilterValue) => void }) {
+function StatusPicker({
+  condition,
+  onChange,
+  statusOptions,
+}: {
+  readonly condition: FilterCondition
+  readonly onChange: (v: FilterValue) => void
+  readonly statusOptions: readonly { value: string; label: string }[]
+}) {
   const selected = asStringArray(condition.value)
-  const options = (["todo", "in_progress", "on_hold", "complete"] as const).map((s) => ({
-    value: s,
-    label: STATUS_LABELS[s],
-  }))
-  return <CheckboxList options={options} selected={[...selected]} onChange={onChange} />
+  return <CheckboxList options={statusOptions} selected={[...selected]} onChange={onChange} />
 }
 
 function MissingPicker({ condition, onChange }: { readonly condition: FilterCondition; readonly onChange: (v: FilterValue) => void }) {
@@ -309,6 +312,7 @@ function DatePicker({ condition, onChange }: { readonly condition: FilterConditi
 export function FilterValuePicker({
   condition,
   onChange,
+  statusOptions,
   tagOptions,
   talentRecords,
   locationRecords,
@@ -317,7 +321,7 @@ export function FilterValuePicker({
 }: FilterValuePickerProps) {
   switch (condition.field) {
     case "status":
-      return <StatusPicker condition={condition} onChange={onChange} />
+      return <StatusPicker condition={condition} onChange={onChange} statusOptions={statusOptions} />
     case "tag":
       return <TagPicker condition={condition} onChange={onChange} tagOptions={tagOptions} />
     case "missing":

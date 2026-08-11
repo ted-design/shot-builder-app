@@ -500,9 +500,9 @@ describe("deriveProductInfoModel — group-by status (O2)", () => {
 
   it("buckets each family by its MOST-OUTSTANDING appearance; one bucket per family, status-ordered", () => {
     const model = deriveProductInfoModel(mixed(), cfg({ groupBy: "status" }))
-    // fM (complete+todo) → To do (least done); fW (complete only) → Complete. todo precedes complete.
+    // fM (complete+todo) → Draft (least done); fW (complete only) → Shot. todo precedes complete.
     expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"])
-    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["Draft", "Shot"]) // canonical labels (statusMappings.ts)
     expect(model.groups.map((g) => g.items.map((i) => i.id))).toEqual([["fM"], ["fW"]])
     // Each family lands in exactly one bucket — no double-counting.
     expect(flat(model).map((i) => i.id).sort()).toEqual(["fM", "fW"])

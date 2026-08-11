@@ -5,6 +5,7 @@
 // the model stays pure (no async, no image bytes).
 
 import type { SortDir } from "./reportSort"
+import { SHOT_STATUS_CYCLE, getShotStatusLabel } from "@/shared/lib/statusMappings"
 
 export type ReportGroupBy = "gender" | "none" | "status"
 
@@ -35,15 +36,13 @@ export const REPORT_LAYOUT_OPTIONS: ReadonlyArray<{ readonly value: ReportLayout
   }))
 
 // Status-filter (R3) display labels — the single source for the "Hide statuses"
-// multi-select shared by all three report views. An exhaustive typed literal (TS
-// flags a missing variant); the option list derives from it so the strings aren't
-// duplicated. ReportShotStatus is declared below (type aliases hoist within a module).
-export const REPORT_STATUS_LABEL: Record<ReportShotStatus, string> = {
-  complete: "Complete",
-  in_progress: "In progress",
-  on_hold: "On hold",
-  todo: "To do",
-}
+// multi-select shared by all three report views. Derived from the canonical
+// SHOT_STATUS_CYCLE/getShotStatusLabel (statusMappings.ts) rather than a local
+// literal, so the report can't drift from the list/editor vocabulary.
+// ReportShotStatus is declared below (type aliases hoist within a module).
+export const REPORT_STATUS_LABEL: Record<ReportShotStatus, string> = Object.fromEntries(
+  SHOT_STATUS_CYCLE.map((s) => [s, getShotStatusLabel(s)]),
+) as Record<ReportShotStatus, string>
 export const REPORT_STATUS_OPTIONS: ReadonlyArray<{ readonly value: ReportShotStatus; readonly label: string }> =
   (Object.keys(REPORT_STATUS_LABEL) as ReportShotStatus[]).map((value) => ({
     value,

@@ -34,7 +34,7 @@ import type { SortDir } from "../../lib/report/reportSort"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
 import { packShotSheets } from "../../lib/report/reportPdfHeights"
 import { REPORT_STYLES } from "./reportStyles"
-import { resolveSrc, statusMetaLegacy } from "./reportShared"
+import { resolveSrc, statusMeta } from "./reportShared"
 import { GroupSortControls } from "./GroupSortControls"
 import { ProductionSheetReport } from "./ProductionSheetReport"
 import { BalancedRowsReport } from "./BalancedRowsReport"
@@ -214,7 +214,7 @@ function PlateCaption({
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
 }): JSX.Element {
-  const st = statusMetaLegacy(shot.status)
+  const st = statusMeta(shot.status)
   return (
     <div className="sb-plate-caption">
       <div className="sb-caption-topline">

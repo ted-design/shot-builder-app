@@ -406,9 +406,9 @@ describe("deriveTalentModel — group-by status (O2)", () => {
 
   it("buckets each talent by their MOST-OUTSTANDING appearance; one bucket per talent, status-ordered", () => {
     const model = deriveTalentModel(mixed(), cfg({ groupBy: "status" }))
-    // tA (complete+todo) → To do; tB (complete only) → Complete. todo precedes complete.
+    // tA (complete+todo) → Draft; tB (complete only) → Shot. todo precedes complete.
     expect(model.groups.map((g) => g.key)).toEqual(["todo", "complete"])
-    expect(model.groups.map((g) => g.label)).toEqual(["To do", "Complete"])
+    expect(model.groups.map((g) => g.label)).toEqual(["Draft", "Shot"]) // canonical labels (statusMappings.ts)
     expect(model.groups.map((g) => g.items.map((i) => i.id))).toEqual([["tA"], ["tB"]])
     expect(flat(model).map((i) => i.id).sort()).toEqual(["tA", "tB"])
   })
