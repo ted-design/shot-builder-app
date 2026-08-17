@@ -23,6 +23,14 @@ vi.mock("sonner", () => ({
   },
 }))
 
+// Stubbed — DuplicateProjectDialog has its own test file
+// (DuplicateProjectDialog.test.tsx) covering its Firestore/navigate
+// behavior. Here we only assert the menu wires it up correctly.
+vi.mock("@/features/projects/components/DuplicateProjectDialog", () => ({
+  DuplicateProjectDialog: ({ open }: { readonly open: boolean }) =>
+    open ? <div data-testid="duplicate-project-dialog-stub" /> : null,
+}))
+
 import { ProjectActionsMenu } from "@/features/projects/components/ProjectActionsMenu"
 
 function makeProject(overrides: Partial<Project> = {}): Project {
@@ -62,5 +70,36 @@ describe("ProjectActionsMenu", () => {
     render(<ProjectActionsMenu project={makeProject()} onEdit={() => undefined} />)
 
     expect(screen.queryByTitle("Project actions")).not.toBeInTheDocument()
+  })
+
+  it("hides 'Duplicate project…' for a viewer role — explicit assertion, not just the menu's early-return", () => {
+    mockRole = "viewer"
+
+    render(<ProjectActionsMenu project={makeProject()} onEdit={() => undefined} />)
+
+    expect(screen.queryByText("Duplicate project…")).not.toBeInTheDocument()
+  })
+
+  it("shows 'Duplicate project…' for producer (same predicate that gates project creation UI)", async () => {
+    mockRole = "producer"
+    const user = userEvent.setup()
+
+    render(<ProjectActionsMenu project={makeProject()} onEdit={() => undefined} />)
+    await user.click(screen.getByTitle("Project actions"))
+
+    expect(screen.getByText("Duplicate project…")).toBeInTheDocument()
+  })
+
+  it("clicking 'Duplicate project…' opens DuplicateProjectDialog", async () => {
+    mockRole = "admin"
+    const user = userEvent.setup()
+
+    render(<ProjectActionsMenu project={makeProject()} onEdit={() => undefined} />)
+    expect(screen.queryByTestId("duplicate-project-dialog-stub")).not.toBeInTheDocument()
+
+    await user.click(screen.getByTitle("Project actions"))
+    await user.click(screen.getByText("Duplicate project…"))
+
+    expect(screen.getByTestId("duplicate-project-dialog-stub")).toBeInTheDocument()
   })
 })

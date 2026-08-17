@@ -11,6 +11,7 @@ import { db } from "@/shared/lib/firebase"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { projectsPath, shotsPath } from "@/shared/lib/paths"
 import { mapProject } from "@/features/projects/hooks/useProjects"
+import { filterEligibleTransferTargets } from "@/features/projects/lib/transferTargets"
 import {
   copyShotToProject,
   duplicateShotInProject,
@@ -133,12 +134,7 @@ export function ShotLifecycleActionsMenu({
   }, [clientId, menuDataLoaded, menuDataLoading, shot.projectId, canTransferAcrossProjects])
 
   const targetProjects = useMemo(() => {
-    return projects.filter(
-      (project) =>
-        project.id !== shot.projectId &&
-        project.status !== "archived" &&
-        !project.deletedAt,
-    )
+    return filterEligibleTransferTargets(projects, shot.projectId)
   }, [projects, shot.projectId])
 
   const targetProjectName = useMemo(() => {

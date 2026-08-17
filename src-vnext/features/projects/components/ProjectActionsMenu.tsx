@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu"
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog"
+import { DuplicateProjectDialog } from "@/features/projects/components/DuplicateProjectDialog"
 import { MoreHorizontal } from "lucide-react"
 
 interface ProjectActionsMenuProps {
@@ -34,6 +35,7 @@ export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: Pro
   const [busy, setBusy] = useState(false)
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [duplicateOpen, setDuplicateOpen] = useState(false)
 
   const status = project.status ?? "active"
   const markActionInteraction = () => onActionInteraction?.()
@@ -155,6 +157,16 @@ export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: Pro
           >
             Edit details…
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.stopPropagation()
+              markActionInteraction()
+              setDuplicateOpen(true)
+            }}
+            disabled={busy}
+          >
+            Duplicate project…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={(e) => {
@@ -223,6 +235,15 @@ export function ProjectActionsMenu({ project, onEdit, onActionInteraction }: Pro
         onConfirm={() => {
           markActionInteraction()
           void deleteProject()
+        }}
+      />
+
+      <DuplicateProjectDialog
+        project={project}
+        open={duplicateOpen}
+        onOpenChange={(next) => {
+          setDuplicateOpen(next)
+          markActionInteraction()
         }}
       />
     </>

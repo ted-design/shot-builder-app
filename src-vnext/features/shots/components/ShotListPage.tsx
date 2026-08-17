@@ -155,6 +155,11 @@ export default function ShotListPage() {
   // claim (firestore.rules:193-204) — the backend cannot see a project
   // promotion, so the UI must not advertise Share from the effective role.
   const canShare = globalRole === "admin" || globalRole === "producer"
+  // Bulk "Copy to project…" / "Move to project…" — same GLOBAL-claim gate as
+  // ShotLifecycleActionsMenu's canTransferAcrossProjects (5e-II rules-honesty
+  // split): the shots move/create-in-target rules arms are global-claim-only,
+  // no project-promotion path, so this is pinned to globalRole, not `role`.
+  const canTransferAcrossProjects = globalRole === "admin" || globalRole === "producer"
   // NO role gate, by locked decision: export is device-only. The export
   // backend rules (exportTemplates firestore.rules:641-651, exportReports
   // :868-877) don't gate this affordance; the per-share export toggle is 5f.
@@ -575,6 +580,8 @@ export default function ShotListPage() {
           canExport={canExport}
           locations={locationRecords}
           talent={talentRecords}
+          canTransferAcrossProjects={canTransferAcrossProjects}
+          currentProjectId={projectId}
         />
       )}
 
