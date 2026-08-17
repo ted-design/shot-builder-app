@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, type ReactNode } from "react"
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   DndContext,
   closestCenter,
@@ -460,7 +460,37 @@ export function ShotsTable({
   const { columns, visibleColumns, setColumnWidth, toggleVisibility, reorderColumns, resetToDefaults } =
     useTableColumns(storageKey, SHOT_TABLE_COLUMNS)
 
-  const { startResize } = useColumnResize({ onWidthChange: setColumnWidth })
+  // -- Column resize: hold the live width in local state during the drag and
+  // only persist (localStorage write, via setColumnWidth) once on mouseup.
+  // useColumnResize already rAF-coalesces onWidthChange; this additionally
+  // keeps every intermediate frame OFF the persist path entirely. The override
+  // is applied only to the colgroup/header below — row cells don't render
+  // per-column pixel widths, so `visibleColumns` (and therefore row memoization
+  // in RowCells/SortableRow) is untouched by an in-progress drag.
+  const [dragWidthOverride, setDragWidthOverride] = useState<{ key: string; width: number } | null>(null)
+
+  const handleColumnWidthChange = useCallback((key: string, width: number) => {
+    setDragWidthOverride({ key, width })
+  }, [])
+
+  const handleColumnResizeEnd = useCallback(
+    (key: string, width: number) => {
+      setColumnWidth(key, width)
+      setDragWidthOverride(null)
+    },
+    [setColumnWidth],
+  )
+
+  const { startResize } = useColumnResize({
+    onWidthChange: handleColumnWidthChange,
+    onResizeEnd: handleColumnResizeEnd,
+  })
+
+  const columnDisplayWidth = useCallback(
+    (col: TableColumnConfig): number =>
+      dragWidthOverride?.key === col.key ? dragWidthOverride.width : col.width,
+    [dragWidthOverride],
+  )
 
   // -- Keyboard nav --
   const tableRef = useRef<HTMLTableElement>(null)
@@ -569,7 +599,7 @@ export function ShotsTable({
               {showDragColumn && <col style={{ width: 36 }} />}
               {selectionEnabled && <col style={{ width: 40 }} />}
               {visibleColumns.map((c) => (
-                <col key={c.key} style={{ width: c.width }} />
+                <col key={c.key} style={{ width: columnDisplayWidth(c) }} />
               ))}
               {showLifecycleActions && <col style={{ width: 64 }} />}
               <col style={{ width: 110 }} />
@@ -598,7 +628,7 @@ export function ShotsTable({
                   <ResizableHeader
                     key={col.key}
                     columnKey={col.key}
-                    width={col.width}
+                    width={columnDisplayWidth(col)}
                     onStartResize={startResize}
                     className={
                       col.key === "shotNumber"
