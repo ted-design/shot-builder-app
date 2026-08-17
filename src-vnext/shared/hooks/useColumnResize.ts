@@ -32,6 +32,10 @@ export function useColumnResize(opts: {
   } | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const pendingRef = useRef<{ key: string; width: number } | null>(null)
+  // Last width delivered or scheduled during THIS drag. Unlike pendingRef it is
+  // NOT cleared when a frame flushes, so mouseup can always report the true
+  // end-of-drag width even when the final rAF already painted.
+  const lastWidthRef = useRef<{ key: string; width: number } | null>(null)
 
   const flushPending = useCallback(() => {
     rafIdRef.current = null
@@ -48,6 +52,7 @@ export function useColumnResize(opts: {
       const delta = e.clientX - state.startX
       const newWidth = Math.max(minWidth, Math.min(maxWidth, state.startWidth + delta))
       pendingRef.current = { key: state.key, width: newWidth }
+      lastWidthRef.current = pendingRef.current
       if (rafIdRef.current === null) {
         rafIdRef.current = requestAnimationFrame(flushPending)
       }
@@ -62,6 +67,8 @@ export function useColumnResize(opts: {
     }
     const pending = pendingRef.current
     pendingRef.current = null
+    const last = lastWidthRef.current
+    lastWidthRef.current = null
     const state = stateRef.current
     stateRef.current = null
     setIsResizing(false)
@@ -73,12 +80,13 @@ export function useColumnResize(opts: {
     // Flush any frame the rAF never got to paint so onWidthChange still sees
     // the true end-of-drag width, then report the single resize-end signal.
     if (pending) onWidthChange(pending.key, pending.width)
-    onResizeEnd?.(state.key, pending?.width ?? state.startWidth)
+    onResizeEnd?.(state.key, last?.width ?? state.startWidth)
   }, [handleMouseMove, onWidthChange, onResizeEnd])
 
   const startResize = useCallback(
     (key: string, startX: number, currentWidth: number) => {
       stateRef.current = { key, startX, startWidth: currentWidth }
+      lastWidthRef.current = null
       setIsResizing(true)
       document.body.style.cursor = "col-resize"
       document.body.style.userSelect = "none"

@@ -106,6 +106,28 @@ describe("useColumnResize", () => {
     expect(onResizeEnd).toHaveBeenCalledWith("name", 240)
   })
 
+  it("reports the DRAGGED width on mouseup even when the last frame already flushed", () => {
+    const onWidthChange = vi.fn()
+    const onResizeEnd = vi.fn()
+    const { result } = renderHook(() => useColumnResize({ onWidthChange, onResizeEnd }))
+
+    act(() => {
+      result.current.startResize("name", 100, 200)
+    })
+    act(() => {
+      fireMouseMove(150) // width 250
+      flushRaf() // the frame paints; the pending entry is consumed
+    })
+    expect(onWidthChange).toHaveBeenCalledWith("name", 250)
+
+    act(() => {
+      fireMouseUp() // user releases ≥1 frame after the last move — the common real drag
+    })
+
+    expect(onResizeEnd).toHaveBeenCalledTimes(1)
+    expect(onResizeEnd).toHaveBeenCalledWith("name", 250)
+  })
+
   it("reports onResizeEnd with the starting width when mouseup fires with no movement", () => {
     const onWidthChange = vi.fn()
     const onResizeEnd = vi.fn()
