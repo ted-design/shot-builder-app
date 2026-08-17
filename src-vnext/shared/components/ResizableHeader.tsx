@@ -22,6 +22,7 @@ export function ResizableHeader({
 }: ResizableHeaderProps) {
   return (
     <th
+      scope="col"
       style={{ width: `${width}px` }}
       className={cn("relative", className)}
     >
