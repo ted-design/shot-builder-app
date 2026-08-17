@@ -201,6 +201,31 @@ export interface ReportConfig {
    * it when `featureReportConfig` is off.
    */
   readonly showAdditionalImages?: boolean
+  /**
+   * Tag chips on every shot row (2026-08-17, Ted's request: "I want to see the
+   * tags on the shot report export"). Mirrors `showAdditionalImages` above in
+   * every mechanical respect — persisted, default-merged by
+   * `hydrateReportConfig`, cleared by `neutralizeReportConfigForFlag` when
+   * `featureReportConfig` is off — with TWO deliberate differences:
+   *
+   * 1. The shipped DEFAULT is **ON** (`DEFAULT_REPORT_CONFIG.showTags: true`),
+   *    because showing the tags IS the feature. Flag-off byte-identity is
+   *    preserved by `neutralizeReportConfigForFlag` + `resolveShowTags`'s
+   *    `reportConfigEnabled` term, not by the default — see those two.
+   * 2. There is NO per-recipe exclusion (no `reportLayoutSupportsTags`). All
+   *    three recipes carry a synced height/weight term for the row —
+   *    image-led via `estimatePlateHeight`'s TAG_ROW_* terms
+   *    (reportPdfHeights.ts, which drives BOTH the PDF packing and the DOM
+   *    print-preview), production-sheet via `shotWeight`'s `tagRowWeight`, and
+   *    balanced-rows via `buildStream`'s — so, unlike the additional-images
+   *    row, the row is safe on every layout and `resolveShowTags` takes no
+   *    `layout` argument at all.
+   *
+   * ABSENT resolves to ON (`showTags !== false`), matching the shipped default
+   * for a raw/un-hydrated config that never carried the field. Only an explicit
+   * `false` — the control's Off button, or the flag-off neutralizer — hides it.
+   */
+  readonly showTags?: boolean
 }
 
 /** Stable id for the single synthetic filter `resolveReportFilters` folds a
@@ -319,6 +344,10 @@ export const DEFAULT_REPORT_CONFIG: ReportConfig = {
   sortBy: "shot-number",
   sortDir: "asc",
   showAdditionalImages: false,
+  // ON by design (2026-08-17) — see ReportConfig.showTags. Flag-off rollback
+  // safety is carried by neutralizeReportConfigForFlag + resolveShowTags's
+  // reportConfigEnabled term, NOT by this default.
+  showTags: true,
 }
 
 /**
@@ -413,6 +442,14 @@ export function neutralizeReportConfigForFlag(config: ReportConfig, flagOn: bool
     // featureReportConfig was ON could carry showAdditionalImages:true, and
     // with the control hidden the user has no way to clear it themselves.
     showAdditionalImages: false,
+    // Same class again, but load-bearing in a way the line above is not:
+    // showTags DEFAULTS TO TRUE (and an ABSENT showTags resolves to ON), so
+    // without this explicit `false` a featureReportConfig rollback would render
+    // tag chips on every shot row of every recipe — i.e. flag-off would NOT be
+    // byte-identical to the pre-tag-chips report. This is the write that makes
+    // a default-ON feature safe to roll back. See resolveShowTags below for the
+    // second, independent gate.
+    showTags: false,
   }
 }
 
@@ -448,6 +485,29 @@ export function resolveShowAdditionalImages(
     config.showAdditionalImages === true &&
     reportLayoutSupportsAdditionalImages(layout)
   )
+}
+
+/**
+ * The tag chips actually rendered on a shot row. Single source for ReportView's
+ * screen render (all three recipes) and ShotReportPage's PDF export, so the two
+ * can't drift — mirrors `resolveShowAdditionalImages`'s role for the extras row
+ * and `resolveReportLayout`'s for `layout`.
+ *
+ * Deliberately takes NO `layout` argument: every recipe carries a synced
+ * height/weight term for the tag row (see ReportConfig.showTags), so unlike the
+ * additional-images row there is no per-recipe exclusion to enforce. Adding a
+ * dead parameter would imply a constraint that does not exist.
+ *
+ * ABSENT (`undefined`) resolves to ON — the shipped default is `true`, and a
+ * raw/un-hydrated config that never carried the field should render what a
+ * brand-new report renders. Only an explicit `false` hides the row. The
+ * `reportConfigEnabled` term is the flag-off gate: it makes a
+ * `featureReportConfig` rollback byte-identical to the pre-tag-chips report
+ * even for a config object that was never run through
+ * `neutralizeReportConfigForFlag`.
+ */
+export function resolveShowTags(config: ReportConfig, reportConfigEnabled: boolean): boolean {
+  return reportConfigEnabled && config.showTags !== false
 }
 
 /** Normalized gender bucket. "?" = unresolved (never silently dropped). */
@@ -487,6 +547,23 @@ export interface ReportTalent {
 }
 
 export type ReportShotStatus = "complete" | "todo" | "in_progress" | "on_hold"
+
+/**
+ * One resolved tag chip on a shot row. Presentation-free: `label` is what the
+ * chip prints, `category` is what ordered it (and what excluded the gender
+ * tags upstream). `ShotTag.color` is deliberately NOT carried — it is a
+ * Tailwind class key with no hex behind it, and the report keeps a reserved
+ * palette (see the TagChip primitive's docstring).
+ *
+ * `category` is typed as a plain `string` rather than `ShotTagCategory` so the
+ * report model layer stays free of the shot-domain union — every reader treats
+ * it as an opaque ordering/filtering key.
+ */
+export interface ReportShotTag {
+  readonly id: string
+  readonly label: string
+  readonly category?: string
+}
 
 export interface ReportShot {
   readonly id: string
@@ -535,6 +612,25 @@ export interface ReportShot {
    * references.
    */
   readonly additionalImages?: readonly string[]
+  /**
+   * Tag chips for this shot's row (2026-08-17). The DISPLAY-READY list, not the
+   * raw `Shot.tags` — exactly the same "the model owns the derive rule, the
+   * config only gates whether a recipe RENDERS it" split `additionalImages`
+   * above uses. `resolveReportTagChips` (reportModel.ts) is the single source:
+   * it canonicalizes + de-dupes through the shared `tagDedup` helpers, DROPS
+   * every `category: "gender"` tag (gender already prints as its own
+   * badge/chip and, under `groupBy: "gender"`, as the group head — a chip would
+   * be a third statement of the same fact), and sorts media -> priority ->
+   * other, alphabetical within.
+   *
+   * ALWAYS computed by deriveShotReportModel (cheap, pure) regardless of
+   * `ReportConfig.showTags`, so the model never has a flag-shaped hole in it.
+   * OPTIONAL so every pre-existing hand-built ReportShot fixture (the PDF
+   * pagination, style-token and overflow-gate suites) keeps compiling
+   * unchanged — every reader treats an absent value as `[]` ("no tags"),
+   * matching a shot that carries none.
+   */
+  readonly tags?: readonly ReportShotTag[]
 }
 
 export interface ReportGroup {

@@ -34,6 +34,7 @@ import {
   resolveReportFilters,
   resolveReportLayout,
   resolveShowAdditionalImages,
+  resolveShowTags,
 } from "../../lib/report/reportTypes"
 import type { SortDir } from "../../lib/report/reportSort"
 import { hasAnyIncludedShot, sizeLabel } from "../../lib/report/reportModel"
@@ -43,6 +44,7 @@ import { resolveSrc, statusMeta } from "./reportShared"
 import { GroupSortControls } from "./GroupSortControls"
 import { ProductionSheetReport } from "./ProductionSheetReport"
 import { BalancedRowsReport } from "./BalancedRowsReport"
+import { TagChipView } from "./primitives/TagChip"
 
 /** A tag filter option: id actually present on a shot + its label. Deliberately
  *  narrower than useAvailableTags' `AvailableTag` (no usageCount/isDefault) —
@@ -229,12 +231,30 @@ function TalentRow({
 // ---------------------------------------------------------------------------
 // Caption block under the photo (title, colorway, status+talent, note, looks).
 // ---------------------------------------------------------------------------
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless shot's markup is byte-identical toggle on or off. The model already
+ *  de-duped, dropped gender, and ordered them (resolveReportTagChips) — this is
+ *  presentation only. */
+function TagChipRow({ shot }: { readonly shot: ReportShot }): JSX.Element | null {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <div className="sb-tag-row" role="group" aria-label="Tags">
+      {tags.map((t) => (
+        <TagChipView key={t.id} label={t.label} />
+      ))}
+    </div>
+  )
+}
+
 function PlateCaption({
   shot,
   imageMap,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
+  readonly showTags: boolean
 }): JSX.Element {
   const st = statusMeta(shot.status)
   return (
@@ -258,6 +278,8 @@ function PlateCaption({
         <TalentRow talent={shot.talent} imageMap={imageMap} />
       </div>
 
+      {showTags ? <TagChipRow shot={shot} /> : null}
+
       {shot.notes ? <p className="sb-shot-note">{shot.notes}</p> : null}
 
       <div className="sb-looks">
@@ -277,10 +299,12 @@ function Plate({
   shot,
   imageMap,
   onToggleExclude,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  readonly showTags: boolean
 }): JSX.Element {
   const primarySrc = resolveSrc(imageMap, primaryLookOf(shot)?.image ?? null)
   return (
@@ -295,7 +319,7 @@ function Plate({
         {shot.excluded ? "Restore shot" : "Exclude shot"}
       </button>
       <PlateFigure shot={shot} primarySrc={primarySrc} />
-      <PlateCaption shot={shot} imageMap={imageMap} />
+      <PlateCaption shot={shot} imageMap={imageMap} showTags={showTags} />
     </article>
   )
 }
@@ -307,10 +331,12 @@ function GroupSection({
   group,
   imageMap,
   onToggleExclude,
+  showTags,
 }: {
   readonly group: ReportGroup
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  readonly showTags: boolean
 }): JSX.Element {
   const withRef = group.shots.filter((s) => s.hasImage).length
   return (
@@ -325,7 +351,13 @@ function GroupSection({
       </div>
       <div className="sb-plates">
         {group.shots.map((shot) => (
-          <Plate key={shot.id} shot={shot} imageMap={imageMap} onToggleExclude={onToggleExclude} />
+          <Plate
+            key={shot.id}
+            shot={shot}
+            imageMap={imageMap}
+            onToggleExclude={onToggleExclude}
+            showTags={showTags}
+          />
         ))}
       </div>
     </section>
@@ -390,8 +422,11 @@ interface Sheet {
 // Mirror the PDF's height-aware pagination (reportPdfHeights.packShotSheets) so the
 // on-screen print preview and the downloaded PDF agree shot-for-shot (WYSIWYG): a
 // too-tall shot solos in both, rather than pairing here but soloing in the PDF.
-function buildSheets(model: ReportModel): readonly Sheet[] {
-  return packShotSheets(model).map((s) => ({
+// `showTags` MUST be the same resolved value the plates render with (and the
+// same one ShotReportPage hands generateShotReportPdf), or the preview and the
+// export disagree by a tag row per shot.
+function buildSheets(model: ReportModel, showTags: boolean): readonly Sheet[] {
+  return packShotSheets(model, showTags).map((s) => ({
     groupLabel: s.group.label,
     rangeFrom: s.firstPosition,
     rangeTo: s.lastPosition,
@@ -404,12 +439,14 @@ function PagedView({
   model,
   imageMap,
   onToggleExclude,
+  showTags,
 }: {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
+  readonly showTags: boolean
 }): JSX.Element {
-  const sheets = useMemo(() => buildSheets(model), [model])
+  const sheets = useMemo(() => buildSheets(model, showTags), [model, showTags])
   const projLine =
     model.project.name + (model.project.client ? ` · ${model.project.client}` : "")
   const totalPages = sheets.length
@@ -435,6 +472,7 @@ function PagedView({
                 shot={shot}
                 imageMap={imageMap}
                 onToggleExclude={onToggleExclude}
+                showTags={showTags}
               />
             ))}
           </div>
@@ -551,6 +589,9 @@ function ControlBar({
   additionalImagesOn,
   additionalImagesAvailable,
   onSetShowAdditionalImages,
+  showTagsControl,
+  tagsOn,
+  onSetShowTags,
   showFilters,
   showSort,
   sortBy,
@@ -585,6 +626,13 @@ function ControlBar({
   // layouts) but disabled/inert with an explanatory title on that recipe.
   readonly additionalImagesAvailable: boolean
   readonly onSetShowAdditionalImages: (v: boolean) => void
+  // Tag chips (2026-08-17). Gated with featureReportConfig, same as
+  // showAdditionalImagesControl/showFilters/showSort. Deliberately has NO
+  // `available` sibling: every recipe carries a synced height/weight term for
+  // the row, so the control is never inert — see ReportConfig.showTags.
+  readonly showTagsControl: boolean
+  readonly tagsOn: boolean
+  readonly onSetShowTags: (v: boolean) => void
   readonly showFilters: boolean
   // showSort gates BOTH the flag-on "Status"/"Set" group-by options and the
   // order-by/direction controls (== featureReportConfig). Flag-off → neither appears.
@@ -608,6 +656,7 @@ function ControlBar({
   const looksLabelId = useId()
   const recipeLabelId = useId()
   const extraImagesLabelId = useId()
+  const tagChipsLabelId = useId()
   const statusSelected = useMemo(() => new Set(statusFilter?.value ?? []), [statusFilter])
   const tagSelected = useMemo(() => new Set(tagFilter?.value ?? []), [tagFilter])
   return (
@@ -787,6 +836,35 @@ function ControlBar({
         </div>
       )}
 
+      {showTagsControl && (
+        <div className="sb-control-group" role="group" aria-labelledby={tagChipsLabelId}>
+          <span id={tagChipsLabelId} className="sb-control-label">
+            Tag chips
+          </span>
+          {/* No `sb-seg--inert` / `disabled` sibling here, unlike Extra images
+              above: every recipe carries a synced height term for the tag row,
+              so the control is live on all three. */}
+          <div className="sb-seg">
+            <button
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={!tagsOn}
+              onClick={() => onSetShowTags(false)}
+            >
+              Off
+            </button>
+            <button
+              type="button"
+              className="sb-seg-btn"
+              aria-pressed={tagsOn}
+              onClick={() => onSetShowTags(true)}
+            >
+              On
+            </button>
+          </div>
+        </div>
+      )}
+
       {showFilters && (
         <>
           <FilterModeGroup
@@ -889,6 +967,19 @@ export function ReportView(props: ReportViewProps): JSX.Element {
     onConfigChange({ ...config, showAdditionalImages: next })
   }
 
+  // Tag chips (2026-08-17). `tagsOn` is the RAW persisted choice driving the
+  // control's own pressed state; `showTags` is the EFFECTIVE value the recipe
+  // bodies render — resolveShowTags is the single source ShotReportPage's PDF
+  // export reads too, so screen and PDF can't drift. ABSENT resolves ON (the
+  // shipped default), so the control reads "On" for a config that has never
+  // carried the field rather than claiming a choice the user never made.
+  const tagsOn = config.showTags !== false
+  const showTags = resolveShowTags(config, reportConfigEnabled)
+  const setShowTags = (next: boolean): void => {
+    if (next === tagsOn) return
+    onConfigChange({ ...config, showTags: next })
+  }
+
   // Unified filters (status + tag) — replaces the old standalone "Hide
   // statuses" toggle set. resolveReportFilters reads the migrated view (so a
   // legacy hiddenStatuses-only config still shows its prior selection as
@@ -987,6 +1078,13 @@ export function ReportView(props: ReportViewProps): JSX.Element {
         additionalImagesOn={additionalImagesOn}
         additionalImagesAvailable={additionalImagesAvailable}
         onSetShowAdditionalImages={setShowAdditionalImages}
+        // Unlike Extra images above, this is gated on reportConfigEnabled
+        // ALONE — the tag row renders on all three recipes, so there is no
+        // "can never become available" dead-end to hide the control for when
+        // the Recipe picker is off.
+        showTagsControl={reportConfigEnabled}
+        tagsOn={tagsOn}
+        onSetShowTags={setShowTags}
         showFilters={reportConfigEnabled}
         showSort={reportConfigEnabled}
         sortBy={sortBy}
@@ -1011,6 +1109,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
             imageMap={imageMap}
             onToggleExclude={toggleExclude}
             showAdditionalImages={showAdditionalImages}
+            showTags={showTags}
           />
         ) : layout === "balanced-rows" ? (
           <BalancedRowsReport
@@ -1018,6 +1117,7 @@ export function ReportView(props: ReportViewProps): JSX.Element {
             imageMap={imageMap}
             onToggleExclude={toggleExclude}
             showAdditionalImages={showAdditionalImages}
+            showTags={showTags}
           />
         ) : (
           <>
@@ -1035,12 +1135,18 @@ export function ReportView(props: ReportViewProps): JSX.Element {
                       group={group}
                       imageMap={imageMap}
                       onToggleExclude={toggleExclude}
+                      showTags={showTags}
                     />
                   ))}
                 </div>
 
                 {/* Paged landscape preview (print mode + @media print) */}
-                <PagedView model={model} imageMap={imageMap} onToggleExclude={toggleExclude} />
+                <PagedView
+                  model={model}
+                  imageMap={imageMap}
+                  onToggleExclude={toggleExclude}
+                  showTags={showTags}
+                />
               </>
             )}
           </>

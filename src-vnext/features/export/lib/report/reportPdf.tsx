@@ -38,6 +38,7 @@ import {
 } from "./reportPdfHeights"
 import { ProductionSheetPdfDocument } from "./reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "./reportPdfBalancedRows"
+import { renderTagChipPdf, deriveTagChipSpec } from "./primitives/tagChip"
 
 // ---------------------------------------------------------------------------
 // Image-led layout — tokens shared via reportPdfShared. Red's one job: shot number.
@@ -232,6 +233,19 @@ const styles = StyleSheet.create({
     fontFamily: FONT.bodyItalic,
     fontSize: 7.5,
     color: COLOR.textSubtle,
+  },
+  // tag-chip row (2026-08-17) — LAYOUT only; every chip METRIC lives in the
+  // TagChip primitive's spec, single-sourced with the DOM recipes. The row's
+  // marginTop/gap are mirrored by reportPdfHeights' TAG_ROW_TOP / TAG_LINE_GAP,
+  // which is what keeps the estimator and this renderer in step.
+  tagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 3,
+    marginTop: 6,
+  },
+  tagChipBox: {
+    flexDirection: "row",
   },
   note: {
     fontFamily: FONT.bodyItalic,
@@ -467,12 +481,32 @@ function LookBlock({
   )
 }
 
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless plate's PDF tree is byte-identical toggle on or off. The chips come
+ *  from the shared TagChip primitive, so this row and the DOM recipes' rows
+ *  can't drift on metrics or colour. */
+function TagChipRow({ shot }: { readonly shot: ReportShot }) {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <View style={styles.tagRow}>
+      {tags.map((t) => (
+        <View key={t.id} style={styles.tagChipBox}>
+          {renderTagChipPdf(deriveTagChipSpec({ label: t.label }))}
+        </View>
+      ))}
+    </View>
+  )
+}
+
 function Plate({
   shot,
   imageMap,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
+  readonly showTags: boolean
 }) {
   const primary = shot.looks[0]
   const heroCandidate = primary?.image ?? null
@@ -517,6 +551,8 @@ function Plate({
           )}
         </View>
 
+        {showTags ? <TagChipRow shot={shot} /> : null}
+
         {has(shot.notes) ? <Text style={styles.note}>{shot.notes}</Text> : null}
 
         <View style={styles.looks}>
@@ -538,15 +574,17 @@ function Plate({
 function Column({
   shots,
   imageMap,
+  showTags,
 }: {
   readonly shots: readonly ReportShot[]
   readonly imageMap: ReadonlyMap<string, string>
+  readonly showTags: boolean
 }) {
   return (
     <View style={styles.column} wrap={false}>
       {shots.map((shot) => (
         <View key={shot.id} style={styles.plate} wrap={false}>
-          <Plate shot={shot} imageMap={imageMap} />
+          <Plate shot={shot} imageMap={imageMap} showTags={showTags} />
         </View>
       ))}
     </View>
@@ -560,9 +598,18 @@ function Column({
 export function ShotReportPdfDocument(props: {
   readonly model: ReportModel
   readonly imageMap: ReadonlyMap<string, string>
+  /** Tag-chip toggle (2026-08-17). Absent/false renders byte-identical to
+   *  pre-tag-chips output — TagChipRow is never invoked AND packShotSheets
+   *  estimates without the row's height term, so pagination is unchanged too.
+   *  Unlike showAdditionalImages (excluded from image-led in WS-C v1 for
+   *  exactly that missing-estimator-term reason), the tag row DOES have a
+   *  synced term here — see reportPdfHeights' estimateTagRowHeight. */
+  readonly showTags?: boolean
 }): JSX.Element {
-  const { model, imageMap } = props
-  const sheets = packShotSheets(model)
+  const { model, imageMap, showTags = false } = props
+  // Same resolved value drives the estimate AND the render — a mismatch would
+  // paginate for a plate that isn't the one drawn.
+  const sheets = packShotSheets(model, showTags)
   const projectLine = has(model.project.client)
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -598,8 +645,8 @@ export function ShotReportPdfDocument(props: {
           {/* Two height-packed columns. A too-tall shot is packed alone (empty right
               column) so it never strands a partner or blanks a mid-document page. */}
           <View style={styles.body}>
-            <Column shots={sheet.leftColumn} imageMap={imageMap} />
-            <Column shots={sheet.rightColumn} imageMap={imageMap} />
+            <Column shots={sheet.leftColumn} imageMap={imageMap} showTags={showTags} />
+            <Column shots={sheet.rightColumn} imageMap={imageMap} showTags={showTags} />
           </View>
 
           {/* Footer with page number */}
@@ -622,15 +669,33 @@ function reportPdfDocument(
   imageMap: ReadonlyMap<string, string>,
   layout: ReportLayout,
   showAdditionalImages: boolean,
+  showTags: boolean,
 ): JSX.Element {
-  // image-led is EXCLUDED v1 (see reportTypes.ts's reportLayoutSupportsAdditionalImages) —
-  // no showAdditionalImages prop exists on ShotReportPdfDocument at all, so a
-  // caller can't accidentally wire it through here even by passing true.
+  // image-led is EXCLUDED v1 for showAdditionalImages (see reportTypes.ts's
+  // reportLayoutSupportsAdditionalImages) — no showAdditionalImages prop exists
+  // on ShotReportPdfDocument at all, so a caller can't accidentally wire it
+  // through here even by passing true. showTags has NO such exclusion: all
+  // three recipes carry a synced height/weight term for the tag row, so it goes
+  // to every document.
   if (layout === "production-sheet")
-    return <ProductionSheetPdfDocument model={model} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
+    return (
+      <ProductionSheetPdfDocument
+        model={model}
+        imageMap={imageMap}
+        showAdditionalImages={showAdditionalImages}
+        showTags={showTags}
+      />
+    )
   if (layout === "balanced-rows")
-    return <BalancedRowsPdfDocument model={model} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
-  return <ShotReportPdfDocument model={model} imageMap={imageMap} />
+    return (
+      <BalancedRowsPdfDocument
+        model={model}
+        imageMap={imageMap}
+        showAdditionalImages={showAdditionalImages}
+        showTags={showTags}
+      />
+    )
+  return <ShotReportPdfDocument model={model} imageMap={imageMap} showTags={showTags} />
 }
 
 // ---------------------------------------------------------------------------
@@ -643,13 +708,14 @@ export async function generateShotReportPdf(
   filename = "comprehensive-shot-report.pdf",
   layout: ReportLayout = "image-led",
   showAdditionalImages = false,
+  showTags = false,
 ): Promise<void> {
   // Guard against a zero-page PDF (corrupt) when every shot is excluded.
   if (!hasAnyIncludedShot(model)) {
     throw new Error("No shots to export")
   }
   const { pdf } = await import("@react-pdf/renderer")
-  const element = reportPdfDocument(model, imageMap, layout, showAdditionalImages)
+  const element = reportPdfDocument(model, imageMap, layout, showAdditionalImages, showTags)
   const blob = await pdf(element).toBlob()
 
   const url = URL.createObjectURL(blob)

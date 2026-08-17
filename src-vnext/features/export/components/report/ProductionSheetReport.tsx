@@ -22,6 +22,7 @@ import {
   statusMeta,
 } from "./reportShared"
 import { sizeLabel } from "../../lib/report/reportModel"
+import { TagChipView } from "./primitives/TagChip"
 
 interface BodyProps {
   readonly model: ReportModel
@@ -30,6 +31,9 @@ interface BodyProps {
   /** WS-C additional-images toggle. Absent/false renders byte-identical to
    *  pre-WS-C output — AdditionalImagesRow is never invoked. */
   readonly showAdditionalImages?: boolean
+  /** Tag-chip toggle (2026-08-17). Absent/false renders byte-identical to
+   *  pre-tag-chips output — TagChipRow is never invoked. */
+  readonly showTags?: boolean
 }
 
 // --- product mini-table row: hero(neutral ▲) · family · style# · colour · size · qty
@@ -101,16 +105,34 @@ function AdditionalImagesRow({
   )
 }
 
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless shot's markup is byte-identical toggle on or off. The model already
+ *  de-duped, dropped gender, and ordered them (resolveReportTagChips) — this is
+ *  presentation only. */
+function TagChipRow({ shot }: { readonly shot: ReportShot }): JSX.Element | null {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <div className="sb-tag-row" role="group" aria-label="Tags">
+      {tags.map((t) => (
+        <TagChipView key={t.id} label={t.label} />
+      ))}
+    </div>
+  )
+}
+
 function ShotRow({
   shot,
   imageMap,
   onToggleExclude,
   showAdditionalImages,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly onToggleExclude: (shotId: string) => void
   readonly showAdditionalImages: boolean
+  readonly showTags: boolean
 }): JSX.Element {
   const flagged = isFlagged(shot.status)
   const st = statusMeta(shot.status)
@@ -161,6 +183,7 @@ function ShotRow({
             {shot.gender === "?" ? <span className="sb-badge-unresolved">Gender ?</span> : null}
           </span>
         </div>
+        {showTags ? <TagChipRow shot={shot} /> : null}
         {present(shot.notes) ? <p className="sb-ps-note">{shot.notes}</p> : null}
         <div className="sb-ps-looks">
           {shot.looks.map((lk) => (
@@ -327,16 +350,53 @@ export function extraImagesWeight(count: number): number {
 // compensate for. 2.4 is the measured-correct value again.
 const THUMBNAIL_FLOOR = 2.4
 
-export function shotWeight(shot: ReportShot, showAdditionalImages: boolean): number {
+// Tag-chip row weight (2026-08-17) — SCALES with chip count for the same reason
+// extraImagesWeight does: `.sb-ps-page` is a fixed-height `overflow: hidden`
+// sheet (reportStyles.ts), so under-charging this row silently CLIPS it off the
+// bottom of a page with no marker. Calibrated against the shipped CSS
+// (`.sb-tag-row` / `.sb-tag-chip`), same "estimate, not measure" character as
+// every other term in shotWeight, with a safety margin over the measured figure:
+//   - 1 weight unit = 48px (see extraImagesWeight's derivation above)
+//   - chips per PRINT-mode line = 8 (page content 10in minus --ps-col-status
+//     30px minus print --ps-col-thumb 112px minus .sb-ps-body's 14px*2 padding
+//     ≈ 790px usable; a 12-char chip ≈ 12 x 5.4px + 12px padding + 2px border
+//     + 5px gap ≈ 84px, so ~9 fit — charged 8 to bias toward over-counting,
+//     which can only over-estimate the row, the safe direction)
+//   - one line ≈ .sb-tag-row margin-top 8 + chip height (9px x 1.2 line-height
+//     + 2px padding + 2px border ≈ 15px) ≈ 23px ≈ 0.48 units — charged 0.5
+//   - each further wrapped line ≈ .sb-tag-row gap 5 + chip 15 = 20px ≈ 0.42
+//     units — charged 0.45 for margin
+// No-op (0) when the shot has no chips, so a shot without tags paginates
+// byte-identically whether the toggle is on or off.
+export const TAG_CHIPS_PER_LINE = 8
+const TAG_FIRST_LINE_UNITS = 0.5
+const TAG_WRAP_LINE_UNITS = 0.45
+
+export function tagRowWeight(count: number): number {
+  if (count <= 0) return 0
+  const lines = Math.ceil(count / TAG_CHIPS_PER_LINE)
+  return TAG_FIRST_LINE_UNITS + (lines - 1) * TAG_WRAP_LINE_UNITS
+}
+
+export function shotWeight(
+  shot: ReportShot,
+  showAdditionalImages: boolean,
+  showTags = false,
+): number {
   let prodRows = 0
   for (const l of shot.looks) prodRows += l.products.length
   let w = 1.7 + shot.looks.length * 0.55 + prodRows * 0.42
   if (present(shot.notes)) w += 0.6
   if (showAdditionalImages) w += extraImagesWeight(shot.additionalImages?.length ?? 0)
+  if (showTags) w += tagRowWeight(shot.tags?.length ?? 0)
   return Math.max(w, THUMBNAIL_FLOOR)
 }
 
-function paginate(model: ReportModel, showAdditionalImages: boolean): readonly PsPage[] {
+function paginate(
+  model: ReportModel,
+  showAdditionalImages: boolean,
+  showTags: boolean,
+): readonly PsPage[] {
   const pages: Block[][] = []
   let cur: Block[] = []
   let used = 0
@@ -352,12 +412,12 @@ function paginate(model: ReportModel, showAdditionalImages: boolean): readonly P
     const printable = group.shots.filter((s) => !s.excluded)
     if (printable.length === 0) continue
     // Never strand a group band: start fresh if it + its first shot won't fit.
-    const firstW = printable[0] ? shotWeight(printable[0], showAdditionalImages) : 2.4
+    const firstW = printable[0] ? shotWeight(printable[0], showAdditionalImages, showTags) : 2.4
     if (used > 0 && used + GROUP_W + firstW > cap) flush()
     cur.push({ type: "group", group })
     used += GROUP_W
     for (const shot of printable) {
-      const w = shotWeight(shot, showAdditionalImages)
+      const w = shotWeight(shot, showAdditionalImages, showTags)
       if (used + w > cap && cur.length > 0) {
         flush()
         cur.push({ type: "group", group, cont: true }) // continuation ruler
@@ -371,8 +431,17 @@ function paginate(model: ReportModel, showAdditionalImages: boolean): readonly P
   return pages.map((blocks) => ({ blocks }))
 }
 
-function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = false }: BodyProps): JSX.Element {
-  const pages = useMemo(() => paginate(model, showAdditionalImages), [model, showAdditionalImages])
+function PagedView({
+  model,
+  imageMap,
+  onToggleExclude,
+  showAdditionalImages = false,
+  showTags = false,
+}: BodyProps): JSX.Element {
+  const pages = useMemo(
+    () => paginate(model, showAdditionalImages, showTags),
+    [model, showAdditionalImages, showTags],
+  )
   const projLine = model.project.client
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -396,6 +465,7 @@ function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = fa
                 imageMap={imageMap}
                 onToggleExclude={onToggleExclude}
                 showAdditionalImages={showAdditionalImages}
+                showTags={showTags}
               />
             ),
           )}
@@ -416,6 +486,7 @@ export function ProductionSheetReport({
   imageMap,
   onToggleExclude,
   showAdditionalImages = false,
+  showTags = false,
 }: BodyProps): JSX.Element {
   const isEmpty = model.groups.length === 0 || model.project.shotCount === 0
   if (isEmpty) return <p className="sb-empty">No shots to report yet.</p>
@@ -436,6 +507,7 @@ export function ProductionSheetReport({
                 imageMap={imageMap}
                 onToggleExclude={onToggleExclude}
                 showAdditionalImages={showAdditionalImages}
+                showTags={showTags}
               />
             ))}
           </div>
@@ -447,6 +519,7 @@ export function ProductionSheetReport({
         imageMap={imageMap}
         onToggleExclude={onToggleExclude}
         showAdditionalImages={showAdditionalImages}
+        showTags={showTags}
       />
     </div>
   )

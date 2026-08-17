@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest"
 import {
   estimatePlateHeight,
+  estimateTagRowHeight,
   estimateWrappedLines,
   packShotSheets,
   COL_MAX,
+  TAG_CHIPS_PER_PLATE_LINE,
 } from "../reportPdfHeights"
 import type {
   ReportModel,
@@ -220,5 +222,120 @@ describe("packShotSheets — behaviour", () => {
     expect(last.rightColumn).toHaveLength(0)
     expect(last.firstPosition).toBe(3)
     expect(last.lastPosition).toBe(3)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag-chip row (2026-08-17). This module drives BOTH the real image-led PDF
+// pagination (reportPdf.tsx) and the DOM print preview's WYSIWYG packing
+// (ReportView.buildSheets), so a rendered row with no term here desyncs the
+// two AND can push a plate silently past COL_MAX.
+// ---------------------------------------------------------------------------
+describe("estimateTagRowHeight", () => {
+  it("is 0 for no chips — a tagless plate estimates identically toggle on or off", () => {
+    expect(estimateTagRowHeight(0)).toBe(0)
+    expect(estimateTagRowHeight(-3)).toBe(0)
+  })
+
+  it("scales with chip count, not merely with presence", () => {
+    const one = estimateTagRowHeight(1)
+    const oneFullLine = estimateTagRowHeight(TAG_CHIPS_PER_PLATE_LINE)
+    const threeLines = estimateTagRowHeight(TAG_CHIPS_PER_PLATE_LINE * 3)
+    // Within a line the cost is flat (chips sit side by side)...
+    expect(oneFullLine).toBe(one)
+    // ...but wrapping to more lines must cost more, and by a wide margin.
+    expect(threeLines).toBeGreaterThan(oneFullLine)
+    expect(threeLines).toBeGreaterThan(oneFullLine * 2)
+  })
+})
+
+describe("estimatePlateHeight — tag-chip term", () => {
+  const tags = Array.from({ length: 4 }, (_, i) => ({
+    id: `t${i}`,
+    label: `Tag ${i}`,
+    category: "other",
+  }))
+
+  it("defaults to NOT charging the row — every pre-existing caller/fixture estimates what it always has", () => {
+    const tagged = shot("a", { tags })
+    expect(estimatePlateHeight(tagged)).toBe(estimatePlateHeight(shot("a")))
+  })
+
+  it("charges the row when showTags is on AND the shot has chips", () => {
+    const tagged = shot("a", { tags })
+    expect(estimatePlateHeight(tagged, true)).toBeGreaterThan(estimatePlateHeight(tagged, false))
+  })
+
+  it("charges NOTHING when showTags is on but the shot has no chips", () => {
+    expect(estimatePlateHeight(shot("a", { tags: [] }), true)).toBe(estimatePlateHeight(shot("a")))
+    expect(estimatePlateHeight(shot("a"), true)).toBe(estimatePlateHeight(shot("a")))
+  })
+
+  it("charges MORE for more chips (a flat per-plate bump would fail this)", () => {
+    const few = shot("a", { tags: tags.slice(0, 2) })
+    const many = shot("a", {
+      tags: Array.from({ length: TAG_CHIPS_PER_PLATE_LINE * 4 }, (_, i) => ({
+        id: `t${i}`,
+        label: `Tag ${i}`,
+        category: "other",
+      })),
+    })
+    expect(estimatePlateHeight(many, true)).toBeGreaterThan(estimatePlateHeight(few, true))
+  })
+})
+
+describe("packShotSheets — showTags is threaded per shot, not per index", () => {
+  it("defaults to packing without the tag term (byte-identical to pre-tag-chips)", () => {
+    const tagged = (id: string) =>
+      shot(id, {
+        tags: Array.from({ length: 24 }, (_, i) => ({ id: `${id}-t${i}`, label: `Tag ${i}`, category: "other" })),
+      })
+    const m = model([group("Women", [tagged("1"), tagged("2"), tagged("3"), tagged("4")])])
+    expect(packShotSheets(m)).toEqual(packShotSheets(m, false))
+  })
+
+  it("a plate that fits WITHOUT chips can be forced to solo WITH them (the term reaches the packer)", () => {
+    // Deliberately sized so the tag row is what crosses COL_MAX: verify the
+    // premise (fits without) before asserting the consequence (solos with), so
+    // this can't pass vacuously on a fixture that was oversized all along.
+    const chips = Array.from({ length: TAG_CHIPS_PER_PLATE_LINE * 12 }, (_, i) => ({
+      id: `t${i}`,
+      label: `Tag ${i}`,
+      category: "other",
+    }))
+    const heavy = shot("heavy", { tags: chips })
+    expect(estimatePlateHeight(heavy, false)).toBeLessThanOrEqual(COL_MAX)
+    expect(estimatePlateHeight(heavy, true)).toBeGreaterThan(COL_MAX)
+
+    const m = model([group("Women", [heavy, shot("plain")])])
+    const packedOff = packShotSheets(m, false)
+    const packedOn = packShotSheets(m, true)
+    // Off: the two plates pair on one sheet. On: the tagged plate solos.
+    expect(packedOff).toHaveLength(1)
+    expect(packedOff[0]?.oversized).toBe(false)
+    expect(packedOn).toHaveLength(2)
+    expect(packedOn[0]?.oversized).toBe(true)
+    expect(packedOn[0]?.leftColumn.map((s) => s.id)).toEqual(["heavy"])
+  })
+
+  it("EVERY shot is measured with the same showTags value (Array#map's index arg must not leak into it)", () => {
+    // `visible.map(estimatePlateHeight)` would pass the array INDEX as the
+    // second argument, so shot 0 packs with showTags:false (index 0 -> falsy)
+    // and every later shot with a truthy index. This asserts the observable
+    // consequence: with the term ON, a group of identically-tagged shots
+    // produces the same per-sheet arrangement as their identical estimates
+    // imply, and the FIRST shot is not the odd one out.
+    const chips = Array.from({ length: TAG_CHIPS_PER_PLATE_LINE * 12 }, (_, i) => ({
+      id: `t${i}`,
+      label: `Tag ${i}`,
+      category: "other",
+    }))
+    const shots = ["a", "b", "c"].map((id) => shot(id, { tags: chips }))
+    const packed = packShotSheets(model([group("Women", shots)]), true)
+    // All three are individually oversized, so all three solo. With the index
+    // leaking in, shot "a" (index 0) would estimate WITHOUT the tag row, fit,
+    // and pair with "b" — two sheets instead of three.
+    expect(packed).toHaveLength(3)
+    expect(packed.every((s) => s.oversized)).toBe(true)
   })
 })

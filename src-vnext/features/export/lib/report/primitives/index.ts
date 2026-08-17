@@ -27,6 +27,10 @@ export * from "./holdFlag"
 export * from "./unresolvedBadge"
 export * from "./lookLabel"
 export * from "./productRow"
+// 7th primitive (2026-08-17) — the shot-report tag chip. Unlike the Phase-2 six
+// this one lands ADOPTED: all three PDF recipes render `renderTagChipPdf`, all
+// three DOM recipes render `TagChipView`.
+export * from "./tagChip"
 
 // DOM wrapper components (built by later agents).
 export { HeroMarkView } from "../../../components/report/primitives/HeroMark"
@@ -38,3 +42,4 @@ export {
   ProductRowView,
   ProductColHeadView,
 } from "../../../components/report/primitives/ProductRow"
+export { TagChipView } from "../../../components/report/primitives/TagChip"

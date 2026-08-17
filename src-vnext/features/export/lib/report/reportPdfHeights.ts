@@ -81,6 +81,39 @@ const ALT_FIGURE = 134 // alt thumb (maxHeight 110 + marginBottom 8) + lookAlt p
 const COLHEAD_H = 17 // product column header (paddingBottom 5 + marginBottom 5 + label)
 const PRODUCT_ROW = 15 // one product row (marginBottom 5 + content; slack for occasional wrap)
 
+// --- Tag-chip row (2026-08-17) — the image-led plate's own term. This module
+// drives BOTH the real PDF pagination (reportPdf.tsx's packShotSheets) and the
+// DOM print preview's WYSIWYG packing (ReportView.buildSheets), so a row
+// rendered without a term here desyncs the two AND can push a plate past
+// COL_MAX unnoticed. CONDITIONAL, exactly like NOTE_BASE: charged only when the
+// toggle is on AND the shot actually has chips, so the default/flag-off path
+// estimates byte-identically to pre-tag-chips.
+//
+// Calibrated against the shipped PDF style (reportPdf.tsx `tagRow`/`tagChip`,
+// mirroring the TagChip primitive's 5.5pt label + 3pt horizontal padding):
+//   - PLATE_WIDTH is 338pt; a chip is ~(label chars x 5.5 x 0.55) + 6 padding
+//     + 1 border + 4 row gap. A 12-char label therefore costs ~47pt, so ~7 fit
+//     a line. Charged at 6 — deliberately PESSIMISTIC (over-counting lines can
+//     only over-estimate the plate, which biases toward "solo this shot", the
+//     safe direction; under-counting is what clips).
+//   - one line ≈ marginTop 6 + chip box (5.5pt x 1.4 line-height + 2pt vertical
+//     padding + 1pt border) ≈ 6 + 11 = 17pt.
+//   - each further wrapped line ≈ the 11pt chip box + a 3pt row gap = 14pt.
+const TAG_ROW_TOP = 6
+const TAG_LINE_H = 11
+const TAG_LINE_GAP = 3
+/** Conservative chips-per-line for a plate-width tag row (see above). */
+export const TAG_CHIPS_PER_PLATE_LINE = 6
+
+/** Estimated height (pt) of an image-led plate's tag-chip row. 0 for no chips,
+ *  so the term is a genuine no-op on a shot with none. Exported for direct
+ *  unit + mutation coverage. */
+export function estimateTagRowHeight(tagCount: number): number {
+  if (tagCount <= 0) return 0
+  const lines = Math.ceil(tagCount / TAG_CHIPS_PER_PLATE_LINE)
+  return TAG_ROW_TOP + lines * TAG_LINE_H + (lines - 1) * TAG_LINE_GAP
+}
+
 /**
  * Conservative wrapped-line count for a text run at a given width. Uses a slightly
  * WIDE average glyph width so it errs toward MORE lines (Helvetica is proportional;
@@ -102,8 +135,12 @@ export function estimateWrappedLines(
  * Estimate the rendered height (pt) of one image-led plate from the resolved shot.
  * Conservative: hero image estimated at its cap; text wrap over-counted. Returns a
  * value comparable against COL_MAX for packing.
+ *
+ * `showTags` defaults to FALSE so every pre-existing caller and fixture
+ * estimates exactly what it always has (byte-identical pagination); the real
+ * call sites thread the resolved value through packShotSheets.
  */
-export function estimatePlateHeight(shot: ReportShot): number {
+export function estimatePlateHeight(shot: ReportShot, showTags = false): number {
   let h = 0
 
   // Figure: the plate shows the hero (capped at HERO_MAX_HEIGHT) iff the primary look
@@ -119,6 +156,9 @@ export function estimatePlateHeight(shot: ReportShot): number {
   // Status chip + talent row; talent names can wrap past the status chip's ~70pt.
   const talentText = shot.talent.map((t) => t.name).filter((nm) => has(nm)).join(" · ")
   h += SUBROW_H + (talentText ? (estimateWrappedLines(talentText, PLATE_WIDTH - 70, 7.5, 3) - 1) * NOTE_LINE : 0)
+  // Tag-chip row — CONDITIONAL, same shape as the note term above: only when
+  // the toggle is on AND the shot actually carries chips.
+  if (showTags) h += estimateTagRowHeight(shot.tags?.length ?? 0)
   if (has(shot.notes)) {
     h += NOTE_BASE + NOTE_LINE * estimateWrappedLines(shot.notes, PLATE_WIDTH - 8, 7.5, 4)
   }
@@ -162,13 +202,20 @@ export interface PackedSheet {
  * (COL_MAX) gets its own sheet, packed alone, never paired. Pure and deterministic:
  * excluded shots are dropped, empty groups produce no sheet, a sheet never spans a
  * gender group, and every non-excluded shot is placed exactly once in order.
+ *
+ * `showTags` (2026-08-17) must be the SAME resolved value the renderer uses
+ * (`resolveShowTags`), or the estimate is stale by a tag row per shot. Defaults
+ * to false so every pre-existing caller/fixture packs byte-identically.
  */
-export function packShotSheets(model: ReportModel): readonly PackedSheet[] {
+export function packShotSheets(model: ReportModel, showTags = false): readonly PackedSheet[] {
   const sheets: PackedSheet[] = []
   for (const group of model.groups) {
     const visible = group.shots.filter((s) => !s.excluded)
     if (visible.length === 0) continue
-    const heights = visible.map(estimatePlateHeight)
+    // NOT `visible.map(estimatePlateHeight)` — Array.prototype.map passes the
+    // INDEX as the second argument, which would land in `showTags` and make
+    // every shot after the first estimate as if tags were on.
+    const heights = visible.map((s) => estimatePlateHeight(s, showTags))
     const groupShotCount = visible.length
 
     let i = 0

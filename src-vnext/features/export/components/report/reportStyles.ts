@@ -80,6 +80,22 @@ export const REPORT_STYLES = `
   padding: 1px 4px; line-height: 1.2;
 }
 
+/* tag chips (2026-08-17) — ONE row shape shared by all three recipes, so a shot
+   row's tags read identically wherever they print. NEUTRAL by design: the same
+   thin rule-strong border + ink-2 uppercase label the gender chip already uses
+   (.sb-br-gender-chip below). Deliberately NOT the app's Tailwind TagBadge —
+   ShotTag.color is a class key with no hex behind it, and red has exactly one
+   job per recipe here. The TagChip primitive also emits every metric inline
+   from its spec (so DOM and PDF provably consume one source); this class is the
+   real-page/fidelity half of that belt-and-suspenders pair. */
+.sb-tag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; }
+.sb-tag-chip {
+  font-family: var(--sb-font-ui); font-size: var(--sb-t-3xs); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--sb-ink-2); border: 1px solid var(--sb-rule-strong); border-radius: 2px;
+  padding: 1px 6px; line-height: 1.2; display: inline-block; white-space: nowrap;
+}
+
 /* full-width fluid report frame ----------------------------------------- */
 .sb-report {
   max-width: none; margin: 0;

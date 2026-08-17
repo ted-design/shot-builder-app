@@ -17,6 +17,7 @@ import { inflateSync } from "node:zlib"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { ProductionSheetPdfDocument } from "../../../lib/report/reportPdfProductionSheet"
 import { BalancedRowsPdfDocument } from "../../../lib/report/reportPdfBalancedRows"
+import { ShotReportPdfDocument } from "../../../lib/report/reportPdf"
 import type { ReportModel, ReportProduct, ReportShot } from "../../../lib/report/reportTypes"
 
 // @react-pdf emits the overflow condition via console.warn; match either phrasing.
@@ -132,6 +133,10 @@ interface PdfRect {
 interface PdfPageImages {
   readonly mediaBox: { readonly width: number; readonly height: number }
   readonly rects: readonly PdfRect[]
+  /** The page's decompressed content stream — the source `rects` was parsed
+   *  from, kept so a text assertion (extractPdfText below) can reuse the same
+   *  page walk instead of re-implementing the xref/page-tree traversal. */
+  readonly content: string
 }
 interface Mat {
   a: number
@@ -314,8 +319,36 @@ function parsePdfPageImages(buf: Buffer): PdfPageImages[] {
       const { data } = getPdfObject(raw, buf, cn)
       if (data) content += data.toString("latin1")
     }
-    return { mediaBox, rects: extractImageRects(content) }
+    return { mediaBox, rects: extractImageRects(content), content }
   })
+}
+
+/**
+ * Concatenated text-showing operands (Tj / TJ) across every page, in page-tree
+ * order, WITH ALL WHITESPACE STRIPPED. @react-pdf's base-14 (non-embedded,
+ * WinAnsi) path emits per-glyph HEX strings inside TJ arrays, so hex decoding is
+ * the primary route; kerning-adjustment numbers simply don't match the
+ * tokenizer and fall out for free. Good enough to prove a specific token was
+ * DRAWN (or wasn't) — NOT a general PDF parser. Compare against a de-spaced,
+ * uppercase needle, since the chips render `textTransform: "uppercase"`.
+ */
+function extractPdfText(buf: Buffer): string {
+  let out = ""
+  for (const page of parsePdfPageImages(buf)) {
+    const tokenRe = /<([0-9A-Fa-f]+)>|\(((?:\\.|[^\\()])*)\)/g
+    let m: RegExpExecArray | null
+    while ((m = tokenRe.exec(page.content)) !== null) {
+      if (m[1] !== undefined) {
+        const hex = m[1]
+        for (let i = 0; i + 1 < hex.length; i += 2) {
+          out += String.fromCharCode(Number.parseInt(hex.slice(i, i + 2), 16))
+        }
+      } else if (m[2] !== undefined) {
+        out += m[2]
+      }
+    }
+  }
+  return out.replace(/\s+/g, "")
 }
 
 // Landscape-letter fallback for a page dict with no MediaBox of its own (never
@@ -653,6 +686,16 @@ describe("recipe PDF overflow — additional-images row (WS-C) must FLOW, never 
 const PRODUCTION_SHEET_STANDARD_HEIGHTS = [95, 47] as const
 const BALANCED_ROWS_STANDARD_HEIGHTS = [150, 49] as const
 
+// A realistic tag load for a crew sheet: a media tag, a priority tag, and two
+// production tags. Long enough labels that the row is a real, measurable band
+// rather than a rounding error.
+const BOUNDARY_TAGS = [
+  { id: "default-media-photo", label: "Photo", category: "media" },
+  { id: "default-priority-high", label: "High Priority", category: "priority" },
+  { id: "other-flat", label: "Flat Lay", category: "other" },
+  { id: "other-studio", label: "Studio Cyc", category: "other" },
+] as const
+
 function boundaryProduct(i: number): ReportProduct {
   return {
     family: `Heavyweight Brushed Fleece Full-Zip Hoodie ${i}`,
@@ -694,6 +737,12 @@ function boundaryShot(id: string, num: string): ReportShot {
       },
     ],
     additionalImages: Array.from({ length: 4 }, (_, i) => `${id}-extra-${i}`),
+    // Tag chips (2026-08-17). Present on EVERY boundary fixture shot so the
+    // showTags-ON cases below actually exercise the new row — a gate whose
+    // fixture can't trip the bug proves nothing. The existing extras-ON cases
+    // render WITHOUT showTags, so their pinned page-count bounds are unaffected
+    // (and the "OFF is byte-identical" case below is what proves that claim).
+    tags: BOUNDARY_TAGS,
   }
 }
 
@@ -850,6 +899,7 @@ function denseMultiPageShot(id: string, num: string, nProducts: number, extras: 
       },
     ],
     additionalImages: Array.from({ length: extras }, (_, i) => `${id}-extra-${i}`),
+    tags: BOUNDARY_TAGS,
   }
 }
 
@@ -1050,5 +1100,303 @@ describe("recipe PDF boundary scan (WS-C-1) — cover shrink landing inside the 
         { label: "extras", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[1], expectedCount: POOLED_BAND_SHOT_COUNT * POOLED_BAND_EXTRAS },
       ]),
     ).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag chips (2026-08-17) — the tag row must be as flow-friendly as the rest of
+// the shot block, and must not disturb the WS-C-1 image invariants.
+//
+// Why this belongs in THIS suite and not a mocked one: the parity/DOM tests
+// mock @react-pdf, so they cannot see physical page overflow, straddling, or
+// shrink-to-fit. The row is text-only (no Image leaves), so its own failure mode
+// is the ATOMIC-OVERFLOW one this file was built for: if anyone adds
+// wrap={false} to TagChipRow's container, a chip-heavy shot's row becomes an
+// unsplittable node taller than a page and @react-pdf emits "can't wrap between
+// pages" — silently clipping a crew sheet.
+//
+// MUTATION-VERIFIED (recorded in the PR): adding wrap={false} to TagChipRow's
+// outer View in reportPdfProductionSheet.tsx / reportPdfBalancedRows.tsx reddens
+// both "row ALONE" cases below.
+//
+// Fixture sizing follows this file's own discipline: the stress fixture is
+// sized WELL past one page's usable height (2-3x), not marginally past it, so a
+// fixture that merely fits can never mask a regression.
+// ---------------------------------------------------------------------------
+
+// MEASURED, not guessed (probe run 2026-08-17, real renderToBuffer): a chip
+// renders ~57pt wide at 5.5pt Helvetica ("Production Tag NNN" + 6pt padding +
+// 3pt gap), so ~11 fit a line of the production-sheet body column and a line
+// costs ~13pt — 400 chips is only ~0.6 of a page and pages at 2, which would
+// make the "row ALONE flows across pages" cases below nearly unfalsifiable.
+// 1200 chips pages at 4 on BOTH recipes (1 page baseline with the toggle off),
+// i.e. ~3 pages of tag row — comfortably past threshold rather than marginally
+// past it, per this repo's fixture-sizing discipline. The falsifiability check
+// immediately below pins that premise so a future change that shrinks the row
+// can't quietly turn these cases vacuous.
+const TAG_STRESS_COUNT = 1200
+const TAG_STRESS_TAGS = Array.from({ length: TAG_STRESS_COUNT }, (_, i) => ({
+  id: `stress-tag-${String(i)}`,
+  label: `Production Tag ${String(i)}`,
+  category: "other",
+}))
+
+/** The SAME "Everything Shot" as overflowModel(), plus a realistic tag load —
+ *  the shot is already several pages tall from the 50 products alone; this
+ *  proves the NEW row doesn't reintroduce a clip when composed with the
+ *  existing overflow behavior. */
+function overflowModelWithTags(): ReportModel {
+  const base = overflowModel()
+  const shot: ReportShot = { ...base.groups[0]!.shots[0]!, tags: [...BOUNDARY_TAGS] }
+  return { ...base, groups: [{ ...base.groups[0]!, shots: [shot] }] }
+}
+
+/** Stress fixture ISOLATING the tag row: a near-empty shot (one product, no
+ *  notes, no alt looks, no references) whose ONLY source of height is a huge
+ *  tag row. At 400 chips this wraps to several times a single page's usable
+ *  height on both recipes. */
+function tagStressModel(): ReportModel {
+  const shot: ReportShot = {
+    id: "s1",
+    number: "01",
+    title: "Tags-Only Shot",
+    colorway: null,
+    status: "todo",
+    gender: "W",
+    notes: null,
+    talent: [],
+    excluded: false,
+    hasImage: false,
+    looks: [{ id: "l1", label: "Primary", isAlt: false, image: null, hasReference: false, products: [product(0)] }],
+    tags: TAG_STRESS_TAGS,
+  }
+  return {
+    project: { name: "Tag-Row Stress Fixture", client: "unbound-merino", shotCount: 1, dateRange: null },
+    groups: [{ key: "W", label: "Women", count: 1, shots: [shot] }],
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
+}
+
+describe("recipe PDF overflow — tag-chip row (2026-08-17) must FLOW, never silently clip", () => {
+  let warn: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+  })
+  afterEach(() => {
+    warn.mockRestore()
+  })
+
+  it("production-sheet: 50-product shot + 4 tags, showTags ON — zero can't-wrap warnings, sane page count", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument model={overflowModelWithTags()} imageMap={new Map()} showTags={true} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    const pages = countPdfPages(buf)
+    expect(pages).toBeGreaterThanOrEqual(2)
+    expect(pages).toBeLessThanOrEqual(5)
+  })
+
+  it("balanced-rows: 50-product shot + 4 tags, showTags ON — zero can't-wrap warnings, sane page count", async () => {
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument model={overflowModelWithTags()} imageMap={new Map()} showTags={true} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    const pages = countPdfPages(buf)
+    expect(pages).toBeGreaterThanOrEqual(3)
+    expect(pages).toBeLessThanOrEqual(6)
+  })
+
+  it("production-sheet: tag row ALONE (400 chips, well past one page) still FLOWS — zero can't-wrap warnings", async () => {
+    const buf = await renderToBuffer(
+      <ProductionSheetPdfDocument model={tagStressModel()} imageMap={new Map()} showTags={true} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    expect(countPdfPages(buf)).toBeGreaterThan(1) // genuinely spans multiple pages
+  })
+
+  it("balanced-rows: tag row ALONE (400 chips, well past one page) still FLOWS — zero can't-wrap warnings", async () => {
+    const buf = await renderToBuffer(
+      <BalancedRowsPdfDocument model={tagStressModel()} imageMap={new Map()} showTags={true} />,
+    )
+    expect(buf.length).toBeGreaterThan(0)
+    expect(overflowWarnings(warn)).toEqual([])
+    expect(countPdfPages(buf)).toBeGreaterThan(1)
+  })
+
+  it("the 400-chip fixture actually TRIPS the threshold — showTags ON pages it well past the OFF baseline", async () => {
+    // The falsifiability check for the two "row ALONE" cases above: if the tag
+    // row were tiny (or never rendered), those cases would pass on a
+    // single-page render and prove nothing. Same shape as this file's
+    // "16-24 products still fit one page, so wrap={false} never fires" note.
+    const on = await renderToBuffer(
+      <ProductionSheetPdfDocument model={tagStressModel()} imageMap={new Map()} showTags={true} />,
+    )
+    const off = await renderToBuffer(
+      <ProductionSheetPdfDocument model={tagStressModel()} imageMap={new Map()} />,
+    )
+    expect(countPdfPages(off)).toBe(1)
+    expect(countPdfPages(on)).toBeGreaterThanOrEqual(3)
+    expect(countPdfPages(on)).toBeGreaterThan(countPdfPages(off) * 2)
+  })
+
+  it("showTags OFF (rollback) renders the IDENTICAL page count whether or not the model carries tags — TagChipRow is never invoked", async () => {
+    const withoutField = await renderToBuffer(
+      <ProductionSheetPdfDocument model={overflowModel()} imageMap={new Map()} />,
+    )
+    const withFieldButOff = await renderToBuffer(
+      <ProductionSheetPdfDocument model={overflowModelWithTags()} imageMap={new Map()} />,
+    )
+    expect(countPdfPages(withFieldButOff)).toBe(countPdfPages(withoutField))
+    expect(overflowWarnings(warn)).toEqual([])
+    // Sharper than page count, which can't tell "never invoked" from "invoked
+    // and returned null": the chip LABELS must not appear in the rendered text
+    // at all. (BOUNDARY_TAGS' labels are absent from every other field of
+    // overflowModel()'s shot.)
+    const text = withFieldButOff.toString("latin1")
+    expect(text).not.toContain("Flat Lay")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag chips x WS-C-1 image invariants. The tag row adds NO images, so every
+// placed-image invariant this file already enforces must hold UNCHANGED with
+// the row on — but the row changes where page breaks fall, which is exactly the
+// condition that produced the original straddle/shrink defects. Re-running the
+// containment + per-band count scan with tags ON is the cheap way to confirm the
+// new row didn't reopen that class.
+// ---------------------------------------------------------------------------
+describe.each(BOUNDARY_SHOT_COUNTS)(
+  "recipe PDF boundary scan — %i shots, extras ON *and* tags ON",
+  (shotCount) => {
+    const model = boundaryModel(shotCount)
+    const imageMap = boundaryImageMap(shotCount)
+
+    it("production-sheet: every placed image is still fully on-page and standard-sized", async () => {
+      const buf = await renderToBuffer(
+        <ProductionSheetPdfDocument
+          model={model}
+          imageMap={imageMap}
+          showAdditionalImages={true}
+          showTags={true}
+        />,
+      )
+      const pages = parsePdfPageImages(buf)
+      expect(pages.length).toBeGreaterThan(1)
+      const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+      expect(totalRects).toBe(shotCount * 5) // 1 cover + 4 extras per shot, nothing dropped
+      expect(findContainmentViolations(pages)).toEqual([])
+      expect(findUniformSizeViolations(pages, PRODUCTION_SHEET_STANDARD_HEIGHTS)).toEqual([])
+      expect(
+        findSizeBandCountMismatches(pages, [
+          { label: "cover", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[0], expectedCount: shotCount },
+          { label: "extras", heightPt: PRODUCTION_SHEET_STANDARD_HEIGHTS[1], expectedCount: shotCount * 4 },
+        ]),
+      ).toEqual([])
+    })
+
+    it("balanced-rows: every placed image is still fully on-page and standard-sized", async () => {
+      const buf = await renderToBuffer(
+        <BalancedRowsPdfDocument
+          model={model}
+          imageMap={imageMap}
+          showAdditionalImages={true}
+          showTags={true}
+        />,
+      )
+      const pages = parsePdfPageImages(buf)
+      expect(pages.length).toBeGreaterThan(1)
+      const totalRects = pages.reduce((n, p) => n + p.rects.length, 0)
+      expect(totalRects).toBe(shotCount * 5)
+      expect(findContainmentViolations(pages)).toEqual([])
+      expect(findUniformSizeViolations(pages, BALANCED_ROWS_STANDARD_HEIGHTS)).toEqual([])
+      expect(
+        findSizeBandCountMismatches(pages, [
+          { label: "cover", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[0], expectedCount: shotCount },
+          { label: "extras", heightPt: BALANCED_ROWS_STANDARD_HEIGHTS[1], expectedCount: shotCount * 4 },
+        ]),
+      ).toEqual([])
+    })
+  },
+)
+
+// ---------------------------------------------------------------------------
+// image-led (2026-08-17). This recipe is NOT covered by any other case in this
+// file — WS-C excluded it from the extras row precisely because its estimator
+// had no term for a second image row. The tag row DOES have one
+// (reportPdfHeights.estimateTagRowHeight), so image-led is in scope, and the
+// invariant that matters here is the one unique to it: the ESTIMATOR and the
+// RENDERER must agree. packShotSheets decides the page count up front from the
+// estimate; if the rendered tag row is taller than the estimate charged, the
+// plate's tail clips with no warning at all (Column/plate are wrap={false}).
+// ---------------------------------------------------------------------------
+describe("image-led PDF — tag row renders, paginates from the SAME estimate, and never warns", () => {
+  let warn: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+  })
+  afterEach(() => {
+    warn.mockRestore()
+  })
+
+  function imageLedTaggedModel(tagCount: number): ReportModel {
+    const shots: ReportShot[] = Array.from({ length: 6 }, (_, i) => ({
+      id: `il${i}`,
+      number: String(i + 1).padStart(2, "0"),
+      title: `Image-led Shot ${String(i + 1)}`,
+      colorway: "Charcoal / Bone",
+      status: "todo",
+      gender: "W",
+      notes: "Styling note to add a little height.",
+      talent: [{ id: `il${i}-t1`, name: "Alexandra Whitfield", img: null }],
+      excluded: false,
+      hasImage: false,
+      looks: [
+        {
+          id: `il${i}-l1`,
+          label: "Primary",
+          isAlt: false,
+          image: null,
+          hasReference: false,
+          products: Array.from({ length: 3 }, (_, p) => boundaryProduct(p)),
+        },
+      ],
+      tags: Array.from({ length: tagCount }, (_, t) => ({
+        id: `il${i}-tag-${t}`,
+        label: `Tagtoken${String(t)}`,
+        category: "other",
+      })),
+    }))
+    return {
+      project: { name: "Image-led Tag Fixture", client: "unbound-merino", shotCount: shots.length, dateRange: null },
+      groups: [{ key: "W", label: "Women", count: shots.length, shots }],
+      order: { sortBy: "shot-number", sortDir: "asc" },
+    }
+  }
+
+  it("renders the chip labels with showTags ON and none of them with it OFF", async () => {
+    const model = imageLedTaggedModel(4)
+    const on = await renderToBuffer(<ShotReportPdfDocument model={model} imageMap={new Map()} showTags={true} />)
+    const off = await renderToBuffer(<ShotReportPdfDocument model={model} imageMap={new Map()} />)
+    // The rendered CONTENT is compressed, so compare extracted text, not bytes.
+    expect(extractPdfText(on)).toContain("TAGTOKEN0")
+    expect(extractPdfText(off)).not.toContain("TAGTOKEN0")
+    expect(overflowWarnings(warn)).toEqual([])
+  })
+
+  it("OFF paginates identically whether or not the model carries tags (the estimator term is conditional)", async () => {
+    const tagged = await renderToBuffer(<ShotReportPdfDocument model={imageLedTaggedModel(24)} imageMap={new Map()} />)
+    const untagged = await renderToBuffer(<ShotReportPdfDocument model={imageLedTaggedModel(0)} imageMap={new Map()} />)
+    expect(countPdfPages(tagged)).toBe(countPdfPages(untagged))
+  })
+
+  it("a chip-heavy plate costs REAL pages with the toggle on — the estimator is wired into packShotSheets", async () => {
+    const model = imageLedTaggedModel(60)
+    const on = await renderToBuffer(<ShotReportPdfDocument model={model} imageMap={new Map()} showTags={true} />)
+    const off = await renderToBuffer(<ShotReportPdfDocument model={model} imageMap={new Map()} />)
+    expect(countPdfPages(on)).toBeGreaterThan(countPdfPages(off))
+    expect(overflowWarnings(warn)).toEqual([])
   })
 })
