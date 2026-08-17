@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest"
-import { deriveShotReportModel, formatDateWindow, mostOutstandingStatus, normalizeGender, sizeLabel, titleCaseSlug } from "../reportModel"
+import {
+  deriveShotReportModel,
+  formatDateWindow,
+  mostOutstandingStatus,
+  normalizeGender,
+  resolveReportTagChips,
+  sizeLabel,
+  titleCaseSlug,
+} from "../reportModel"
 import {
   DEFAULT_REPORT_CONFIG,
   formatFilterSummary,
@@ -1446,5 +1454,168 @@ describe("DEFAULT_REPORT_CONFIG is a hard behavioral floor — a user who touche
     // for a config that never touches filters/custom/scene.
     expect(formatOrderNote(model.order)).toBe("Sorted by shot #")
     expect(model.order.filterSummary).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag chips (2026-08-17) — ReportShot.tags. The model owns the derive rule
+// (de-dupe, drop gender, order); ReportConfig.showTags only gates whether a
+// recipe RENDERS the row, exactly as additionalImages/showAdditionalImages
+// split responsibility. Every assertion below reads the DERIVED model against
+// the RAW Shot.tags it was built from, never the same field on both sides.
+// ---------------------------------------------------------------------------
+describe("resolveReportTagChips — the tag-chip derive rule", () => {
+  it("returns [] for absent / empty tags (a reader can treat absent as 'no chips')", () => {
+    expect(resolveReportTagChips(undefined)).toEqual([])
+    expect(resolveReportTagChips([])).toEqual([])
+  })
+
+  it("DROPS every gender-category tag — gender already prints as its own badge and group head", () => {
+    const chips = resolveReportTagChips([
+      { id: "default-gender-women", label: "Women", color: "pink", category: "gender" },
+      { id: "default-media-photo", label: "Photo", color: "emerald", category: "media" },
+      { id: "default-gender-men", label: "Men", color: "blue", category: "gender" },
+    ])
+    expect(chips.map((t) => t.label)).toEqual(["Photo"])
+    expect(chips.some((t) => t.category === "gender")).toBe(false)
+  })
+
+  it("resolves a gender tag's category from its DEFAULT id even when the stored category is absent", () => {
+    // A blob written before ShotTag.category existed carries no category at
+    // all. resolveShotTagCategory recovers it from DEFAULT_TAGS by id — so the
+    // exclusion still fires. Without that lookup "Women" would print as a chip.
+    const chips = resolveReportTagChips([
+      { id: "default-gender-women", label: "Women", color: "pink" },
+      { id: "default-media-video", label: "Video", color: "orange" },
+    ])
+    expect(chips.map((t) => t.label)).toEqual(["Video"])
+  })
+
+  it("orders media -> priority -> other, alphabetical (numeric-aware) within a category", () => {
+    const chips = resolveReportTagChips([
+      { id: "z", label: "Zebra Set", color: "b", category: "other" },
+      { id: "p-low", label: "Low Priority", color: "green", category: "priority" },
+      { id: "m-video", label: "Video", color: "orange", category: "media" },
+      { id: "a", label: "Alpha Set", color: "b", category: "other" },
+      { id: "p-high", label: "High Priority", color: "red", category: "priority" },
+      { id: "m-photo", label: "Photo", color: "emerald", category: "media" },
+    ])
+    expect(chips.map((t) => t.label)).toEqual([
+      "Photo",
+      "Video",
+      "High Priority",
+      "Low Priority",
+      "Alpha Set",
+      "Zebra Set",
+    ])
+  })
+
+  it("de-dupes same-labelled tags through the SHARED tagDedup helper (differing ids collapse to one chip)", () => {
+    const chips = resolveReportTagChips([
+      { id: "random-uuid-1", label: "Photo", color: "emerald", category: "media" },
+      { id: "random-uuid-2", label: "photo", color: "blue", category: "media" },
+      { id: "random-uuid-3", label: "  Photo  ", color: "amber", category: "media" },
+    ])
+    expect(chips).toHaveLength(1)
+    // ...and the canonical DEFAULT_TAGS id wins over the random ones.
+    expect(chips[0]?.id).toBe("default-media-photo")
+  })
+
+  it("does not mutate its input", () => {
+    const tags = [
+      { id: "m-photo", label: "Photo", color: "emerald", category: "media" as const },
+      { id: "g", label: "Women", color: "pink", category: "gender" as const },
+    ]
+    const before = structuredClone(tags)
+    resolveReportTagChips(tags)
+    expect(tags).toEqual(before)
+  })
+
+  it("carries NO colour field — the report keeps a reserved palette (see the TagChip primitive)", () => {
+    // A non-default label, so canonicalizeTag passes the id through verbatim and
+    // this assertion is about a chip's SHAPE, not about canonicalization.
+    const chips = resolveReportTagChips([
+      { id: "custom-hero", label: "Hero Shot", color: "red", category: "other" },
+    ])
+    expect(chips[0]).toEqual({ id: "custom-hero", label: "Hero Shot", category: "other" })
+    expect("color" in (chips[0] ?? {})).toBe(false)
+  })
+
+  it("canonicalizes a DEFAULT-labelled tag to its default id (so two shots' 'High Priority' agree)", () => {
+    const chips = resolveReportTagChips([
+      { id: "random-uuid-from-the-editor", label: "High Priority", color: "red", category: "priority" },
+    ])
+    expect(chips[0]?.id).toBe("default-priority-high")
+    expect(chips[0]?.label).toBe("High Priority")
+  })
+})
+
+describe("deriveShotReportModel — ReportShot.tags is threaded from the raw shot", () => {
+  function taggedData() {
+    return data({
+      productFamilies: FAMILIES,
+      shots: [
+        shot({
+          id: "s1",
+          shotNumber: "01",
+          tags: [
+            { id: "other-flat", label: "Flat Lay", color: "b", category: "other" },
+            { id: "default-gender-women", label: "Women", color: "pink", category: "gender" },
+            { id: "default-media-photo", label: "Photo", color: "emerald", category: "media" },
+          ],
+          looks: [{ id: "l", order: 0, products: [{ familyId: "fW" }] }],
+        }),
+        shot({
+          id: "s2",
+          shotNumber: "02",
+          tags: [],
+          looks: [{ id: "l", order: 0, products: [{ familyId: "fM" }] }],
+        }),
+      ],
+    })
+  }
+
+  function shotsOf(model: ReturnType<typeof deriveShotReportModel>) {
+    return model.groups.flatMap((g) => g.shots)
+  }
+
+  it("puts the ordered, gender-free chips on the model shot", () => {
+    const model = deriveShotReportModel(taggedData(), DEFAULT_REPORT_CONFIG)
+    const s1 = shotsOf(model).find((s) => s.id === "s1")
+    expect(s1?.tags?.map((t) => t.label)).toEqual(["Photo", "Flat Lay"])
+  })
+
+  it("a shot with no tags gets [] (never undefined-with-a-hole, never the previous shot's chips)", () => {
+    const model = deriveShotReportModel(taggedData(), DEFAULT_REPORT_CONFIG)
+    expect(shotsOf(model).find((s) => s.id === "s2")?.tags).toEqual([])
+  })
+
+  it("the gender tag still drives shot.gender even though it never becomes a chip", () => {
+    // The exclusion is a DISPLAY rule, not a data drop: resolveShotGender reads
+    // the raw Shot.tags, so removing the chip must not change the grouping.
+    const model = deriveShotReportModel(taggedData(), DEFAULT_REPORT_CONFIG)
+    const s1 = shotsOf(model).find((s) => s.id === "s1")
+    expect(s1?.gender).toBe("W")
+    expect(s1?.tags?.some((t) => t.label === "Women")).toBe(false)
+  })
+
+  it("is computed regardless of config.showTags — the flag gates RENDERING, not the model", () => {
+    const off = deriveShotReportModel(taggedData(), { ...DEFAULT_REPORT_CONFIG, showTags: false })
+    const on = deriveShotReportModel(taggedData(), { ...DEFAULT_REPORT_CONFIG, showTags: true })
+    const labels = (m: ReturnType<typeof deriveShotReportModel>) =>
+      shotsOf(m).map((s) => s.tags?.map((t) => t.label) ?? [])
+    expect(labels(off)).toEqual([["Photo", "Flat Lay"], []])
+    expect(labels(off)).toEqual(labels(on))
+  })
+
+  it("survives the featureReportConfig flag-off neutralizer (same reason: it is model data, not config)", () => {
+    const model = deriveShotReportModel(
+      taggedData(),
+      neutralizeReportConfigForFlag(DEFAULT_REPORT_CONFIG, false),
+    )
+    expect(shotsOf(model).find((s) => s.id === "s1")?.tags?.map((t) => t.label)).toEqual([
+      "Photo",
+      "Flat Lay",
+    ])
   })
 })

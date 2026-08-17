@@ -12,8 +12,10 @@ import {
   resolveReportFilters,
   resolveReportLayout,
   resolveShowAdditionalImages,
+  resolveShowTags,
   type ReportConfig,
   type ReportFilterCondition,
+  type ReportLayout,
 } from "../reportTypes"
 import { DEFAULT_PRODUCT_INFO_CONFIG, type ProductInfoConfig } from "../productInfoTypes"
 import { DEFAULT_TALENT_CONFIG, type TalentConfig } from "../talentTypes"
@@ -441,5 +443,113 @@ describe("TalentConfig headshot crop (Phase C, R4 part 2)", () => {
       headshotCrops: { tA: { scale: 1.5, x: 0.25, y: 0.1 } },
     }
     expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag chips (2026-08-17) — ReportConfig.showTags. Mechanically mirrors
+// showAdditionalImages above with TWO deliberate differences, and BOTH are the
+// point of these tests: the default is ON, and there is no per-recipe
+// exclusion. A default-ON persisted flag is only safe to roll back because
+// neutralizeReportConfigForFlag writes an explicit `false` AND resolveShowTags
+// carries an independent `reportConfigEnabled` gate — either alone would leave
+// a featureReportConfig rollback rendering chips.
+// ---------------------------------------------------------------------------
+const ALL_LAYOUTS: readonly ReportLayout[] = ["image-led", "production-sheet", "balanced-rows"]
+
+describe("ReportConfig.showTags (2026-08-17) — default, hydrate, neutralize", () => {
+  it("DEFAULT_REPORT_CONFIG carries showTags: true — a brand-new report starts ON (this IS the feature)", () => {
+    expect(DEFAULT_REPORT_CONFIG.showTags).toBe(true)
+  })
+
+  it("hydrateReportConfig default-merges a pre-tag-chips blob (no showTags) to TRUE", () => {
+    const stored = JSON.parse('{"groupBy":"gender","excludedShotIds":[],"layout":"production-sheet"}')
+    expect(hydrateReportConfig(stored).showTags).toBe(true)
+  })
+
+  it("hydrateReportConfig preserves a persisted showTags:false verbatim (a deliberate Off is never re-defaulted ON)", () => {
+    const stored = JSON.parse(
+      '{"groupBy":"gender","excludedShotIds":[],"layout":"production-sheet","showTags":false}',
+    )
+    expect(hydrateReportConfig(stored).showTags).toBe(false)
+  })
+
+  it("round-trips showTags:false through JSON unchanged", () => {
+    const config: ReportConfig = { groupBy: "none", excludedShotIds: [], showTags: false }
+    expect(JSON.parse(JSON.stringify(config))).toEqual(config)
+  })
+
+  it("neutralizeReportConfigForFlag (flag off) forces showTags to FALSE — the write that makes a default-ON feature rollback-safe", () => {
+    const config: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: true }
+    expect(neutralizeReportConfigForFlag(config, false).showTags).toBe(false)
+  })
+
+  it("neutralizeReportConfigForFlag (flag off) forces showTags to FALSE even when the field is ABSENT", () => {
+    // The sharp case a `=== true` guard would miss: an absent showTags resolves
+    // ON (resolveShowTags below), so the neutralizer must WRITE false, not just
+    // leave the field alone.
+    const config: ReportConfig = { groupBy: "gender", excludedShotIds: [] }
+    expect(neutralizeReportConfigForFlag(config, false).showTags).toBe(false)
+  })
+
+  it("neutralizeReportConfigForFlag (flag on) leaves showTags verbatim", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: true }
+    expect(neutralizeReportConfigForFlag(on, true).showTags).toBe(true)
+    const off: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: false }
+    expect(neutralizeReportConfigForFlag(off, true).showTags).toBe(false)
+  })
+})
+
+describe("resolveShowTags — single source for ReportView + ShotReportPage's PDF export", () => {
+  it("true when the toggle is on and the config flag is on", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: true }
+    expect(resolveShowTags(on, true)).toBe(true)
+  })
+
+  it("true when the field is ABSENT and the config flag is on — absent means 'never chosen', and the shipped default is ON", () => {
+    const absent: ReportConfig = { groupBy: "gender", excludedShotIds: [] }
+    expect(resolveShowTags(absent, true)).toBe(true)
+  })
+
+  it("false for an explicit showTags:false, whatever the flag", () => {
+    const off: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: false }
+    expect(resolveShowTags(off, true)).toBe(false)
+    expect(resolveShowTags(off, false)).toBe(false)
+  })
+
+  it("false when featureReportConfig is off — the independent gate that keeps a rollback byte-identical even for a config the neutralizer never touched", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: true }
+    const absent: ReportConfig = { groupBy: "gender", excludedShotIds: [] }
+    expect(resolveShowTags(on, false)).toBe(false)
+    expect(resolveShowTags(absent, false)).toBe(false)
+    expect(resolveShowTags(DEFAULT_REPORT_CONFIG, false)).toBe(false)
+  })
+
+  it("has NO per-recipe exclusion — unlike the extras row, every layout renders the tag row", () => {
+    // The falsifiable complement to the DOM tests: if someone later adds a
+    // `reportLayoutSupportsTags`-style clamp, this reddens. Compare directly
+    // against resolveShowAdditionalImages, which DOES exclude image-led.
+    const on: ReportConfig = {
+      groupBy: "gender",
+      excludedShotIds: [],
+      showTags: true,
+      showAdditionalImages: true,
+    }
+    for (const layout of ALL_LAYOUTS) {
+      expect(resolveShowTags(on, true)).toBe(true)
+      // ...and the sibling resolver still excludes image-led, so this test is
+      // asserting a real difference, not a tautology about a constant.
+      expect(resolveShowAdditionalImages(on, layout, true)).toBe(layout !== "image-led")
+    }
+  })
+
+  it("the flag-off neutralizer and the flag-off resolver agree (belt AND suspenders, not belt OR suspenders)", () => {
+    const on: ReportConfig = { groupBy: "gender", excludedShotIds: [], showTags: true }
+    const neutralized = neutralizeReportConfigForFlag(on, false)
+    // Either gate alone would be enough; both are present on purpose, so a
+    // future refactor that drops one still can't leak chips past a rollback.
+    expect(resolveShowTags(neutralized, false)).toBe(false)
+    expect(resolveShowTags(neutralized, true)).toBe(false) // the neutralizer's own write
+    expect(resolveShowTags(on, false)).toBe(false) // the resolver's own gate
   })
 })

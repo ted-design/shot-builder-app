@@ -16,6 +16,7 @@ import {
   tokenHyphenation,
 } from "./reportPdfShared"
 import { sizeLabel } from "./reportModel"
+import { renderTagChipPdf, deriveTagChipSpec } from "./primitives/tagChip"
 
 const PAD_X = 30
 const PAD_Y = 30
@@ -77,6 +78,13 @@ const s = StyleSheet.create({
   statusInlineTxt: { fontFamily: FONT.uiBold, fontSize: 6, letterSpacing: 0.5, textTransform: "uppercase", color: COLOR.textSubtle, marginLeft: 4 },
   unresolved: { fontFamily: FONT.uiBold, fontSize: 5.5, letterSpacing: 0.4, textTransform: "uppercase", color: COLOR.accentInk, borderWidth: 0.5, borderColor: COLOR.accentInk, borderRadius: 1, paddingHorizontal: 2, marginLeft: 5 },
   note: { fontFamily: FONT.bodyItalic, fontSize: 6.5, color: COLOR.textSecondary, marginTop: 3, paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: COLOR.ruleStrong, lineHeight: 1.4 },
+
+  // tag-chip row (2026-08-17) — LAYOUT only. Every chip METRIC (font, letter
+  // spacing, padding, border, radius, ink) lives in the TagChip primitive's
+  // spec, single-sourced with the DOM recipes; this only owns the row's own
+  // flow/gap and each chip's margin, which are per-host by design.
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 3, marginTop: 4 },
+  tagChipBox: { flexDirection: "row" },
 
   look: { marginTop: 6, borderWidth: 0.5, borderColor: COLOR.rule },
   lookAlt: { marginLeft: 14, borderStyle: "dashed", backgroundColor: COLOR.surfaceSubtle },
@@ -185,14 +193,37 @@ function AdditionalImagesRow({
   )
 }
 
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless shot's PDF tree is byte-identical toggle on or off. The chips
+ *  themselves come from the shared TagChip primitive, so this row and the DOM
+ *  recipes' rows can't drift on metrics or colour. The wrapping View stays
+ *  SPLITTABLE (no wrap={false}) — a text-only row must flow across pages like
+ *  the rest of the shot block; only fixed-size IMAGE leaves are atomic here
+ *  (see thumbBox / extraThumb). */
+function TagChipRow({ shot }: { readonly shot: ReportShot }): JSX.Element | null {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <View style={s.tagRow}>
+      {tags.map((t) => (
+        <View key={t.id} style={s.tagChipBox}>
+          {renderTagChipPdf(deriveTagChipSpec({ label: t.label }))}
+        </View>
+      ))}
+    </View>
+  )
+}
+
 function Row({
   shot,
   imageMap,
   showAdditionalImages,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly showAdditionalImages: boolean
+  readonly showTags: boolean
 }): JSX.Element {
   const flagged = shot.status === "on_hold"
   const st = STATUS[shot.status]
@@ -255,6 +286,7 @@ function Row({
             {shot.gender === "?" ? <Text style={s.unresolved}>Gender ?</Text> : null}
           </View>
         </View>
+        {showTags ? <TagChipRow shot={shot} /> : null}
         {has(shot.notes) ? <Text style={s.note}>{shot.notes}</Text> : null}
         {shot.looks.map((lk) => (
           <LookBlock key={lk.id} look={lk} />
@@ -297,8 +329,11 @@ export function ProductionSheetPdfDocument(props: {
    *  pre-WS-C output — no new element in the tree at all (AdditionalImagesRow
    *  is never invoked, not merely invoked-and-empty). */
   readonly showAdditionalImages?: boolean
+  /** Tag-chip toggle (2026-08-17). Same contract: absent/false renders
+   *  byte-identical to pre-tag-chips output — TagChipRow is never invoked. */
+  readonly showTags?: boolean
 }): JSX.Element {
-  const { model, imageMap, showAdditionalImages = false } = props
+  const { model, imageMap, showAdditionalImages = false, showTags = false } = props
   // Count only printable shots — the rows omit excluded, so the masthead must too.
   const all = model.groups.flatMap((g) => g.shots).filter((x) => !x.excluded)
   const women = all.filter((x) => x.gender === "W").length
@@ -349,7 +384,13 @@ export function ProductionSheetPdfDocument(props: {
             <View key={group.key}>
               <GroupBand group={{ ...group, count: printable.length }} />
               {printable.map((shot) => (
-                <Row key={shot.id} shot={shot} imageMap={imageMap} showAdditionalImages={showAdditionalImages} />
+                <Row
+                  key={shot.id}
+                  shot={shot}
+                  imageMap={imageMap}
+                  showAdditionalImages={showAdditionalImages}
+                  showTags={showTags}
+                />
               ))}
             </View>
           )

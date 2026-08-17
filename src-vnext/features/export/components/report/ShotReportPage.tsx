@@ -17,6 +17,7 @@ import {
   neutralizeReportConfigForFlag,
   resolveReportLayout,
   resolveShowAdditionalImages,
+  resolveShowTags,
   type ReportConfig,
   type ReportLayout,
 } from "../../lib/report/reportTypes"
@@ -193,19 +194,26 @@ export default function ShotReportPage() {
         layout,
         isFeatureEnabled("featureReportConfig"),
       )
+      // Tag chips (2026-08-17) — same single-source pattern: the exact resolver
+      // ReportView's screen render calls, so the exported PDF and the preview
+      // can never disagree about whether the tag row is there (and therefore
+      // about how the image-led plates paginate — packShotSheets takes the same
+      // value).
+      const showTags = resolveShowTags(config, isFeatureEnabled("featureReportConfig"))
       await generateShotReportPdf(
         model,
         imageMap,
         `${model.project.name} — Shot Report.pdf`,
         layout,
         showAdditionalImages,
+        showTags,
       )
     })()
       .catch((err) => toast.error(err instanceof Error ? err.message : "Couldn't export the PDF"))
       .finally(() => {
         setExporting(false)
       })
-  }, [model, imageMap, config.layout, config.showAdditionalImages])
+  }, [model, imageMap, config.layout, config.showAdditionalImages, config.showTags])
 
   if (data.loading) {
     return (

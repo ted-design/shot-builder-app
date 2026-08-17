@@ -23,6 +23,7 @@ import {
   statusMeta,
 } from "./reportShared"
 import { sizeLabel } from "../../lib/report/reportModel"
+import { TagChipView } from "./primitives/TagChip"
 
 interface BodyProps {
   readonly model: ReportModel
@@ -31,6 +32,9 @@ interface BodyProps {
   /** WS-C additional-images toggle. Absent/false renders byte-identical to
    *  pre-WS-C output — AdditionalImagesRow is never invoked. */
   readonly showAdditionalImages?: boolean
+  /** Tag-chip toggle (2026-08-17). Absent/false renders byte-identical to
+   *  pre-tag-chips output — TagChipRow is never invoked. */
+  readonly showTags?: boolean
 }
 
 const GENDER_LABEL: Record<GenderKey, string> = { W: "Women", M: "Men", Mixed: "Mixed", "?": "Unresolved" }
@@ -117,18 +121,36 @@ function AdditionalImagesRow({
   )
 }
 
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless shot's markup is byte-identical toggle on or off. The model already
+ *  de-duped, dropped gender, and ordered them (resolveReportTagChips) — this is
+ *  presentation only. */
+function TagChipRow({ shot }: { readonly shot: ReportShot }): JSX.Element | null {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <div className="sb-tag-row" role="group" aria-label="Tags">
+      {tags.map((t) => (
+        <TagChipView key={t.id} label={t.label} />
+      ))}
+    </div>
+  )
+}
+
 function Band({
   shot,
   imageMap,
   zebra,
   onToggleExclude,
   showAdditionalImages,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly zebra: boolean
   readonly onToggleExclude: (shotId: string) => void
   readonly showAdditionalImages: boolean
+  readonly showTags: boolean
 }): JSX.Element {
   const imgSrc = resolveSrc(imageMap, primaryLookImage(shot))
   const st = statusMeta(shot.status)
@@ -184,6 +206,8 @@ function Band({
             {st.label}
           </div>
         </div>
+
+        {showTags ? <TagChipRow shot={shot} /> : null}
 
         {present(shot.notes) ? (
           <p className="sb-br-note">
@@ -293,6 +317,29 @@ export function extraImagesWeight(count: number): number {
   return EXTRA_FIRST_LINE_UNITS + (lines - 1) * EXTRA_WRAP_LINE_UNITS
 }
 
+// Tag-chip row weight (2026-08-17) — SCALES with chip count, same reasoning as
+// extraImagesWeight above (`.sb-br-page` growing past its `min-height` under
+// `@media print { break-after: page }` produces a mis-placed footer / part-blank
+// physical page — a pagination-fidelity bug, not a silent clip, but a bug).
+// Calibrated against reportStyles.ts (`.sb-tag-row` / `.sb-tag-chip`):
+//   - 1 weight unit = 177.6px (see extraImagesWeight's derivation above)
+//   - chips per PRINT-mode line = 6 (panel ≈ 670px usable — same derivation as
+//     the extras row; a 12-char chip ≈ 84px, so ~7 fit; charged 6 to bias
+//     toward over-counting lines, which can only over-estimate)
+//   - one line ≈ .sb-tag-row margin-top 8 + chip height ≈ 15px = 23px ≈ 0.13
+//     units — charged 0.15
+//   - each further wrapped line ≈ gap 5 + chip 15 = 20px ≈ 0.11 units —
+//     charged 0.13
+const TAG_CHIPS_PER_LINE = 6
+const TAG_FIRST_LINE_UNITS = 0.15
+const TAG_WRAP_LINE_UNITS = 0.13
+
+export function tagRowWeight(count: number): number {
+  if (count <= 0) return 0
+  const lines = Math.ceil(count / TAG_CHIPS_PER_LINE)
+  return TAG_FIRST_LINE_UNITS + (lines - 1) * TAG_WRAP_LINE_UNITS
+}
+
 // Base band height. A WS-C-1 hotfix nudged this 1.0/1.7 -> 1.05/1.75 for the
 // same reason as ProductionSheetReport's THUMBNAIL_FLOOR. Reverted on review
 // (PR #519 finding dom-preview-nudge-hits-the-wrong-branch) — see that
@@ -305,7 +352,11 @@ export function extraImagesWeight(count: number): number {
 const BASE_H_SINGLE = 1.0
 const BASE_H_MULTI = 1.7
 
-function buildStream(model: ReportModel, showAdditionalImages: boolean): readonly Item[] {
+function buildStream(
+  model: ReportModel,
+  showAdditionalImages: boolean,
+  showTags: boolean,
+): readonly Item[] {
   const stream: Item[] = [{ kind: "mast", h: 1.6 }]
   let z = 0
   for (const group of model.groups) {
@@ -319,6 +370,9 @@ function buildStream(model: ReportModel, showAdditionalImages: boolean): readonl
       // the toggle is off or the shot has nothing extra, so default-off
       // pagination stays byte-identical to pre-WS-C.
       if (showAdditionalImages) h += extraImagesWeight(shot.additionalImages?.length ?? 0)
+      // Tag-chip row (2026-08-17): same shape — no-op when the toggle is off or
+      // the shot has no chips.
+      if (showTags) h += tagRowWeight(shot.tags?.length ?? 0)
       stream.push({ kind: "band", shot, zebra: z % 2 === 1, h })
       z += 1
     }
@@ -326,8 +380,12 @@ function buildStream(model: ReportModel, showAdditionalImages: boolean): readonl
   return stream
 }
 
-function paginate(model: ReportModel, showAdditionalImages: boolean): readonly (readonly Item[])[] {
-  const stream = buildStream(model, showAdditionalImages)
+function paginate(
+  model: ReportModel,
+  showAdditionalImages: boolean,
+  showTags: boolean,
+): readonly (readonly Item[])[] {
+  const stream = buildStream(model, showAdditionalImages, showTags)
   const pages: Item[][] = [[]]
   let curH = 0
   stream.forEach((item, i) => {
@@ -351,8 +409,17 @@ function paginate(model: ReportModel, showAdditionalImages: boolean): readonly (
   return pages
 }
 
-function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = false }: BodyProps): JSX.Element {
-  const pages = useMemo(() => paginate(model, showAdditionalImages), [model, showAdditionalImages])
+function PagedView({
+  model,
+  imageMap,
+  onToggleExclude,
+  showAdditionalImages = false,
+  showTags = false,
+}: BodyProps): JSX.Element {
+  const pages = useMemo(
+    () => paginate(model, showAdditionalImages, showTags),
+    [model, showAdditionalImages, showTags],
+  )
   const projLine = model.project.client
     ? `${model.project.name} · ${model.project.client}`
     : model.project.name
@@ -372,6 +439,7 @@ function PagedView({ model, imageMap, onToggleExclude, showAdditionalImages = fa
                 zebra={item.zebra}
                 onToggleExclude={onToggleExclude}
                 showAdditionalImages={showAdditionalImages}
+                showTags={showTags}
               />
             )
           })}
@@ -392,6 +460,7 @@ export function BalancedRowsReport({
   imageMap,
   onToggleExclude,
   showAdditionalImages = false,
+  showTags = false,
 }: BodyProps): JSX.Element {
   // Continuous zebra across groups (matches comp-c rhythm) — precomputed so the
   // render body stays pure. Counts printable shots only, so the screen rhythm
@@ -430,6 +499,7 @@ export function BalancedRowsReport({
                 zebra={zebraById.get(shot.id) ?? false}
                 onToggleExclude={onToggleExclude}
                 showAdditionalImages={showAdditionalImages}
+                showTags={showTags}
               />
             ))}
           </div>
@@ -440,6 +510,7 @@ export function BalancedRowsReport({
         imageMap={imageMap}
         onToggleExclude={onToggleExclude}
         showAdditionalImages={showAdditionalImages}
+        showTags={showTags}
       />
     </div>
   )

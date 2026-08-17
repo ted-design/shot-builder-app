@@ -4,6 +4,7 @@ import type {
   ProductFamily,
   Shot,
   ShotLook,
+  ShotTag,
   SizeScope,
   TalentRecord,
 } from "@/shared/types"
@@ -11,6 +12,8 @@ import type { ExportData } from "../../hooks/useExportData"
 import { humanizeLabel } from "@/shared/lib/textUtils"
 import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
 import { applyFilterConditions } from "@/features/shots/lib/filterEngine"
+import { deduplicateTags } from "@/shared/lib/tagDedup"
+import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 import {
   REPORT_STATUS_LABEL,
   formatFilterSummary,
@@ -23,6 +26,7 @@ import {
   type ReportProduct,
   type ReportShot,
   type ReportShotStatus,
+  type ReportShotTag,
   type ReportSortField,
   type ReportTalent,
 } from "./reportTypes"
@@ -240,6 +244,62 @@ function resolveAdditionalImages(
     }
   }
   return out
+}
+
+// Tag-chip category order (2026-08-17). Media first (the single most
+// operationally load-bearing distinction on a crew sheet: is this a Photo or a
+// Video setup), then priority, then everything else. "gender" is absent from
+// this table ON PURPOSE — it is filtered out entirely below, so a gender tag can
+// never fall through to a default order and reappear.
+const TAG_CHIP_CATEGORY_ORDER: Record<string, number> = {
+  media: 0,
+  priority: 1,
+  other: 2,
+}
+const TAG_CHIP_CATEGORY_FALLBACK_ORDER = TAG_CHIP_CATEGORY_ORDER.other ?? 2
+
+/** Excluded from the chip row: gender already prints as its own badge/chip on
+ *  every recipe, and under groupBy:"gender" as the group head too. */
+const TAG_CHIP_EXCLUDED_CATEGORY = "gender"
+
+// Numeric-aware, case-insensitive — the SAME collator computeUsedTagOptions
+// (tagDedup.ts) sorts the report's own tag-filter options with, so the chip
+// order on a row and the option order in the Filters control read alike.
+const TAG_CHIP_COLLATOR = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+
+/**
+ * The display-ready tag chips for a shot — see `ReportShot.tags`. PURE.
+ *
+ * Three steps, in order, each one load-bearing:
+ *  1. `deduplicateTags` (the shared tagDedup helper, NOT a local re-implementation)
+ *     collapses same-labelled tags by normalized label, preferring the canonical
+ *     DEFAULT_TAGS id, and resolves each tag's category.
+ *  2. every `category: "gender"` tag is DROPPED — gender is already stated by
+ *     the recipe's own gender badge/chip and, under groupBy:"gender", by the
+ *     group head; a third statement of it is noise on a dense sheet.
+ *  3. a stable sort: media -> priority -> other, alphabetical (numeric-aware)
+ *     within a category. Stable ordering matters because the chips print on a
+ *     PDF a crew reads side-by-side with another copy — Firestore array order is
+ *     whatever the editor last wrote.
+ *
+ * Exported so the ordering/exclusion rule is directly unit-testable, rather than
+ * only reachable through a full deriveShotReportModel run.
+ */
+export function resolveReportTagChips(
+  tags: readonly ShotTag[] | undefined,
+): readonly ReportShotTag[] {
+  if (!tags || tags.length === 0) return []
+  const chips: ReportShotTag[] = []
+  for (const tag of deduplicateTags(tags)) {
+    const category = resolveShotTagCategory(tag)
+    if (category === TAG_CHIP_EXCLUDED_CATEGORY) continue
+    chips.push({ id: tag.id, label: tag.label, category })
+  }
+  return chips.sort((a, b) => {
+    const orderA = TAG_CHIP_CATEGORY_ORDER[a.category ?? ""] ?? TAG_CHIP_CATEGORY_FALLBACK_ORDER
+    const orderB = TAG_CHIP_CATEGORY_ORDER[b.category ?? ""] ?? TAG_CHIP_CATEGORY_FALLBACK_ORDER
+    return orderA - orderB || TAG_CHIP_COLLATOR.compare(a.label, b.label)
+  })
 }
 
 /** Shot gender cascade: explicit gender tag -> products' family genders -> "?". */
@@ -552,6 +612,9 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
       sortOrder: shot.sortOrder,
       laneId: shot.laneId ?? null,
       additionalImages: resolveAdditionalImages(visibleRawLooks, coverIdentity),
+      // ALWAYS computed (cheap, pure) regardless of config.showTags — that flag
+      // only gates whether a recipe RENDERS the row. See resolveReportTagChips.
+      tags: resolveReportTagChips(shot.tags),
     }
   })
 

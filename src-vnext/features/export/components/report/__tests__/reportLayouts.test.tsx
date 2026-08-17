@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest"
 import { render } from "@testing-library/react"
-import { ProductionSheetReport, extraImagesWeight as psExtraImagesWeight } from "../ProductionSheetReport"
-import { BalancedRowsReport, extraImagesWeight as brExtraImagesWeight } from "../BalancedRowsReport"
+import {
+  ProductionSheetReport,
+  extraImagesWeight as psExtraImagesWeight,
+  tagRowWeight as psTagRowWeight,
+} from "../ProductionSheetReport"
+import {
+  BalancedRowsReport,
+  extraImagesWeight as brExtraImagesWeight,
+  tagRowWeight as brTagRowWeight,
+} from "../BalancedRowsReport"
 import type { ReportModel, ReportShot } from "../../../lib/report/reportTypes"
 
 // Smoke + behavior tests for the two R3 layout variants: they render without
@@ -303,5 +311,143 @@ describe("BalancedRowsReport — print-preview page count grows with additionalI
     const fewPages = fewContainer.querySelectorAll(".sb-br-page").length
     const manyPages = manyContainer.querySelectorAll(".sb-br-page").length
     expect(manyPages).toBeGreaterThan(fewPages)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Tag-chip row (2026-08-17) — the same pagination-fidelity class as
+// extraImagesWeight above. `.sb-ps-page` is a fixed-height `overflow: hidden`
+// sheet, so an uncharged (or flat-charged) tag row silently CLIPS off the
+// bottom of a page with no marker; `.sb-br-page` grows past its min-height and
+// mis-places the footer instead. Both are pagination bugs.
+// ---------------------------------------------------------------------------
+describe("ProductionSheetReport — tagRowWeight scales with chip count (print-preview pagination)", () => {
+  it("returns 0 for no chips — a tagless shot paginates identically toggle on or off", () => {
+    expect(psTagRowWeight(0)).toBe(0)
+    expect(psTagRowWeight(-1)).toBe(0)
+  })
+
+  it("one line's worth of chips (<= TAG_CHIPS_PER_LINE) costs LESS than three lines' worth", () => {
+    expect(psTagRowWeight(24)).toBeGreaterThan(psTagRowWeight(4))
+  })
+
+  it("weight grows monotonically with chip count — never flat", () => {
+    const w4 = psTagRowWeight(4)
+    const w16 = psTagRowWeight(16)
+    const w40 = psTagRowWeight(40)
+    expect(w16).toBeGreaterThan(w4)
+    expect(w40).toBeGreaterThan(w16)
+    // A flat per-shot charge would make all three equal; clear the single-line
+    // figure by a wide margin, not a rounding error.
+    expect(w40).toBeGreaterThan(w4 * 2)
+  })
+})
+
+describe("BalancedRowsReport — tagRowWeight scales with chip count (print-preview pagination)", () => {
+  it("returns 0 for no chips", () => {
+    expect(brTagRowWeight(0)).toBe(0)
+    expect(brTagRowWeight(-1)).toBe(0)
+  })
+
+  it("weight grows monotonically with chip count — never flat", () => {
+    const w3 = brTagRowWeight(3)
+    const w12 = brTagRowWeight(12)
+    const w30 = brTagRowWeight(30)
+    expect(w12).toBeGreaterThan(w3)
+    expect(w30).toBeGreaterThan(w12)
+    expect(w30).toBeGreaterThan(w3 * 2)
+  })
+})
+
+// End-to-end (DOM) regression: MORE tags must be able to push a shot onto a
+// LATER print-preview page than FEWER — the true observable consequence of an
+// uncharged/flat tag row, and the only assertion here a unit test of
+// tagRowWeight alone cannot make (it proves the weight is actually WIRED into
+// paginate/buildStream, not merely exported).
+function taggedShot(id: string, count: number): ReportShot {
+  return {
+    id,
+    number: id,
+    title: `Shot ${id}`,
+    colorway: null,
+    status: "todo",
+    gender: "?",
+    notes: null,
+    talent: [],
+    excluded: false,
+    hasImage: false,
+    looks: [{ id: `${id}-l0`, label: "Primary", isAlt: false, image: null, hasReference: false, products: [] }],
+    tags: Array.from({ length: count }, (_, i) => ({
+      id: `${id}-tag-${i}`,
+      label: `Tag ${i}`,
+      category: "other",
+    })),
+  }
+}
+
+function manyTagsModel(shotCount: number, tagsPerShot: number): ReportModel {
+  const shots = Array.from({ length: shotCount }, (_, i) => taggedShot(`s${i}`, tagsPerShot))
+  return {
+    project: { name: "Tag pagination stress", client: "c", shotCount: shots.length, dateRange: null },
+    groups: [{ key: "all", label: "All shots", count: shots.length, shots }],
+    order: { sortBy: "shot-number", sortDir: "asc" },
+  }
+}
+
+describe("ProductionSheetReport — print-preview page count grows with tag count", () => {
+  it("6 shots x 120 tags paginate onto MORE pages than 6 shots x 2 tags", () => {
+    const few = manyTagsModel(6, 2)
+    const many = manyTagsModel(6, 120)
+    const { container: fewContainer } = render(
+      <ProductionSheetReport model={few} imageMap={new Map()} onToggleExclude={noop} showTags={true} />,
+    )
+    const { container: manyContainer } = render(
+      <ProductionSheetReport model={many} imageMap={new Map()} onToggleExclude={noop} showTags={true} />,
+    )
+    expect(manyContainer.querySelectorAll(".sb-ps-page").length).toBeGreaterThan(
+      fewContainer.querySelectorAll(".sb-ps-page").length,
+    )
+  })
+
+  it("showTags OFF paginates IDENTICALLY whether or not the model carries tags — the row is never charged", () => {
+    const withTags = manyTagsModel(6, 120)
+    const withoutTags = manyTagsModel(6, 0)
+    const { container: a } = render(
+      <ProductionSheetReport model={withTags} imageMap={new Map()} onToggleExclude={noop} />,
+    )
+    const { container: b } = render(
+      <ProductionSheetReport model={withoutTags} imageMap={new Map()} onToggleExclude={noop} />,
+    )
+    expect(a.querySelectorAll(".sb-ps-page").length).toBe(b.querySelectorAll(".sb-ps-page").length)
+    expect(a.querySelectorAll('[data-testid="tag-chip"]')).toHaveLength(0)
+  })
+})
+
+describe("BalancedRowsReport — print-preview page count grows with tag count", () => {
+  it("4 shots x 90 tags paginate onto MORE pages than 4 shots x 2 tags", () => {
+    const few = manyTagsModel(4, 2)
+    const many = manyTagsModel(4, 90)
+    const { container: fewContainer } = render(
+      <BalancedRowsReport model={few} imageMap={new Map()} onToggleExclude={noop} showTags={true} />,
+    )
+    const { container: manyContainer } = render(
+      <BalancedRowsReport model={many} imageMap={new Map()} onToggleExclude={noop} showTags={true} />,
+    )
+    expect(manyContainer.querySelectorAll(".sb-br-page").length).toBeGreaterThan(
+      fewContainer.querySelectorAll(".sb-br-page").length,
+    )
+  })
+
+  it("showTags OFF paginates IDENTICALLY whether or not the model carries tags", () => {
+    const withTags = manyTagsModel(4, 90)
+    const withoutTags = manyTagsModel(4, 0)
+    const { container: a } = render(
+      <BalancedRowsReport model={withTags} imageMap={new Map()} onToggleExclude={noop} />,
+    )
+    const { container: b } = render(
+      <BalancedRowsReport model={withoutTags} imageMap={new Map()} onToggleExclude={noop} />,
+    )
+    expect(a.querySelectorAll(".sb-br-page").length).toBe(b.querySelectorAll(".sb-br-page").length)
+    expect(a.querySelectorAll('[data-testid="tag-chip"]')).toHaveLength(0)
   })
 })

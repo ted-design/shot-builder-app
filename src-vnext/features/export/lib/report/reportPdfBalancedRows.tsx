@@ -18,6 +18,7 @@ import {
   tokenHyphenation,
 } from "./reportPdfShared"
 import { sizeLabel } from "./reportModel"
+import { renderTagChipPdf, deriveTagChipSpec } from "./primitives/tagChip"
 
 const PAD_X = 34
 const PAD_Y = 32
@@ -74,6 +75,11 @@ const s = StyleSheet.create({
   statusTxt: { fontFamily: FONT.uiBold, fontSize: 6, letterSpacing: 0.5, textTransform: "uppercase", color: COLOR.textSecondary },
   note: { fontFamily: FONT.ui, fontSize: 7, color: COLOR.textSecondary, marginTop: 7, lineHeight: 1.4 },
   noteK: { fontFamily: FONT.uiBold, fontSize: 5.5, letterSpacing: 0.6, textTransform: "uppercase", color: COLOR.textSubtle },
+
+  // tag-chip row (2026-08-17) — LAYOUT only; every chip METRIC lives in the
+  // TagChip primitive's spec, single-sourced with the DOM recipes.
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 3, marginTop: 6 },
+  tagChipBox: { flexDirection: "row" },
 
   looks: { marginTop: 8 },
   look: { marginTop: 8 },
@@ -187,16 +193,37 @@ function AdditionalImagesRow({
   )
 }
 
+/** Tag-chip row (2026-08-17): renders nothing when the shot has no chips, so a
+ *  tagless shot's PDF tree is byte-identical toggle on or off. The chips come
+ *  from the shared TagChip primitive, so this row and the DOM recipes' rows
+ *  can't drift. The wrapping View stays SPLITTABLE (no wrap={false}) — a
+ *  text-only row must flow across pages like the rest of the panel. */
+function TagChipRow({ shot }: { readonly shot: ReportShot }): JSX.Element | null {
+  const tags = shot.tags ?? []
+  if (tags.length === 0) return null
+  return (
+    <View style={s.tagRow}>
+      {tags.map((t) => (
+        <View key={t.id} style={s.tagChipBox}>
+          {renderTagChipPdf(deriveTagChipSpec({ label: t.label }))}
+        </View>
+      ))}
+    </View>
+  )
+}
+
 function Band({
   shot,
   imageMap,
   zebra,
   showAdditionalImages,
+  showTags,
 }: {
   readonly shot: ReportShot
   readonly imageMap: ReadonlyMap<string, string>
   readonly zebra: boolean
   readonly showAdditionalImages: boolean
+  readonly showTags: boolean
 }): JSX.Element {
   const cand = primaryLookImage(shot)
   const src = has(cand) ? imageMap.get(cand) : undefined
@@ -235,6 +262,7 @@ function Band({
             <Text style={s.statusTxt}>{st.label}</Text>
           </View>
         </View>
+        {showTags ? <TagChipRow shot={shot} /> : null}
         {has(shot.notes) ? (
           <Text style={s.note}>
             <Text style={s.noteK}>{"Note  "}</Text>
@@ -269,8 +297,11 @@ export function BalancedRowsPdfDocument(props: {
    *  pre-WS-C output — no new element in the tree at all (AdditionalImagesRow
    *  is never invoked, not merely invoked-and-empty). */
   readonly showAdditionalImages?: boolean
+  /** Tag-chip toggle (2026-08-17). Same contract: absent/false renders
+   *  byte-identical to pre-tag-chips output — TagChipRow is never invoked. */
+  readonly showTags?: boolean
 }): JSX.Element {
-  const { model, imageMap, showAdditionalImages = false } = props
+  const { model, imageMap, showAdditionalImages = false, showTags = false } = props
   // Count only printable shots — excluded are omitted from the rendered bands.
   const all = model.groups.flatMap((g) => g.shots).filter((x) => !x.excluded)
   const withImg = all.filter((x) => x.hasImage).length
@@ -324,6 +355,7 @@ export function BalancedRowsPdfDocument(props: {
                     imageMap={imageMap}
                     zebra={zebra}
                     showAdditionalImages={showAdditionalImages}
+                    showTags={showTags}
                   />
                 )
               })}
