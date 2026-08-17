@@ -120,6 +120,8 @@ function ShotHeroThumb({
     <img
       src={url}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       className="h-9 w-9 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
       onError={() => setVisible(false)}
     />
