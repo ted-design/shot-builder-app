@@ -201,6 +201,7 @@ export function ShotCard({
             className="flex flex-shrink-0 items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             {leadingControl}
             {actionControl}
@@ -215,7 +216,11 @@ export function ShotCard({
         </div>
 
         {selectable && (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             {selectable && (
               <Checkbox
                 checked={!!selected}
@@ -298,6 +303,7 @@ export function ShotCard({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
                             className="inline-flex max-w-full items-center gap-1 hover:underline"
                             title={`${entry.title}\n${entry.url}`}
                           >

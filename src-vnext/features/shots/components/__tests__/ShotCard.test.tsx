@@ -30,10 +30,17 @@ const baseShot = {
   updatedAt: { toDate: () => new Date() },
 }
 
-function renderCard(onOpenShot = vi.fn()) {
+const shotWithReferenceLink = {
+  ...baseShot,
+  referenceLinks: [
+    { id: "ref-1", title: "Moodboard", url: "https://example.com/moodboard", type: "web" as const },
+  ],
+}
+
+function renderCard(onOpenShot = vi.fn(), props: { selectable?: boolean } = {}) {
   render(
     <MemoryRouter>
-      <ShotCard shot={baseShot as unknown as Shot} onOpenShot={onOpenShot} />
+      <ShotCard shot={baseShot as unknown as Shot} onOpenShot={onOpenShot} {...props} />
     </MemoryRouter>,
   )
   return onOpenShot
@@ -55,5 +62,32 @@ describe("ShotCard keyboard activation", () => {
   it("has tabindex 0", () => {
     renderCard()
     expect(screen.getByTestId("shot-card")).toHaveAttribute("tabindex", "0")
+  })
+
+  it("does not call onOpenShot when Enter is pressed on the status-select trigger", () => {
+    const onOpenShot = renderCard()
+    fireEvent.keyDown(screen.getByTestId("status-select-stub"), { key: "Enter" })
+    expect(onOpenShot).not.toHaveBeenCalled()
+  })
+
+  it("does not call onOpenShot when Space is pressed on the selection checkbox", () => {
+    const onOpenShot = renderCard(vi.fn(), { selectable: true })
+    fireEvent.keyDown(screen.getByRole("checkbox"), { key: " " })
+    expect(onOpenShot).not.toHaveBeenCalled()
+  })
+
+  it("does not call onOpenShot when Enter is pressed on a reference link anchor", () => {
+    const onOpenShot = vi.fn()
+    render(
+      <MemoryRouter>
+        <ShotCard
+          shot={shotWithReferenceLink as unknown as Shot}
+          onOpenShot={onOpenShot}
+          visibleFields={{ links: true }}
+        />
+      </MemoryRouter>,
+    )
+    fireEvent.keyDown(screen.getByRole("link", { name: "Moodboard" }), { key: "Enter" })
+    expect(onOpenShot).not.toHaveBeenCalled()
   })
 })
