@@ -139,18 +139,27 @@ type RowCellsProps = {
 }
 
 /**
- * Only these four props determine whether a row's cells need to re-render.
- * Everything else (onOpenShot, stopPropagation, reorderDragHandle, lanes,
- * onAssignScene, showLifecycleActions, renderLifecycleAction, onToggleShot)
- * is table-wide config or a stable/curried callback that doesn't vary
- * independently of a data or selection change — see React.memo(RowCells) below.
+ * These props determine whether a row's cells need to re-render.
+ * `selectionEnabled`, `showLifecycleActions`, and whether `reorderDragHandle`
+ * is present each gate an entire <td> in the output above — omitting any of
+ * them from this comparator lets a row skip a re-render across a toggle that
+ * changes its own column count, misaligning it against the unmemoized
+ * thead/colgroup. `lanes` is safe to exclude: scene reassignment goes through
+ * `rowContexts`' `laneById`, which is carried on `ctx` (already compared).
+ * `renderLifecycleAction`/`onAssignScene`/`onOpenShot`/`stopPropagation`/
+ * `onToggleShot` are stable callbacks the row curries with `shot.id`
+ * internally — comparing them by reference would defeat the memo for no
+ * correctness benefit.
  */
 function rowCellsPropsAreEqual(prev: RowCellsProps, next: RowCellsProps): boolean {
   return (
     prev.shot === next.shot &&
     prev.visibleColumns === next.visibleColumns &&
     prev.isSelected === next.isSelected &&
-    prev.ctx === next.ctx
+    prev.ctx === next.ctx &&
+    prev.selectionEnabled === next.selectionEnabled &&
+    prev.showLifecycleActions === next.showLifecycleActions &&
+    (prev.reorderDragHandle !== undefined) === (next.reorderDragHandle !== undefined)
   )
 }
 
@@ -260,7 +269,11 @@ type SortableRowProps = Omit<RowCellsProps, "reorderDragHandle"> & {
 }
 
 /**
- * Same comparator scope as RowCells (shot, visibleColumns, isSelected, ctx).
+ * Same comparator scope as RowCells (shot, visibleColumns, isSelected, ctx,
+ * selectionEnabled, showLifecycleActions) — see the rationale above.
+ * `reorderDragHandle` isn't part of `SortableRowProps` (it's omitted from the
+ * type; SortableRow always builds its own via `useSortable` below and passes
+ * it to `RowCells` directly), so there's nothing to compare here for it.
  * Note this only gates re-renders triggered by a PARENT prop change — the
  * useSortable() hook below subscribes to dnd-kit's DndContext directly, so
  * live drag transforms for OTHER rows still update via that context
@@ -271,7 +284,9 @@ function sortableRowPropsAreEqual(prev: SortableRowProps, next: SortableRowProps
     prev.shot === next.shot &&
     prev.visibleColumns === next.visibleColumns &&
     prev.isSelected === next.isSelected &&
-    prev.ctx === next.ctx
+    prev.ctx === next.ctx &&
+    prev.selectionEnabled === next.selectionEnabled &&
+    prev.showLifecycleActions === next.showLifecycleActions
   )
 }
 

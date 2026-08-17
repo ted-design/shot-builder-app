@@ -103,7 +103,63 @@ function SelectableTable({ reorderEnabled }: { readonly reorderEnabled: boolean 
   )
 }
 
+// Toggles a boolean that changes the row's own <td> count (selectionEnabled
+// or showLifecycleActions) via a button, without touching `shots` — isolates
+// the memo-comparator bug from any data/ctx change that would legitimately
+// force a re-render on its own.
+function ToggleColumnCountTable({
+  toggle,
+}: {
+  readonly toggle: "selectionEnabled" | "showLifecycleActions"
+}) {
+  const [on, setOn] = useState(true)
+  return (
+    <>
+      <button type="button" onClick={() => setOn((v) => !v)}>
+        toggle
+      </button>
+      <ShotsTable
+        clientId="c1"
+        projectId="p1"
+        shots={SHOTS}
+        onOpenShot={() => {}}
+        reorderEnabled={false}
+        selection={
+          toggle === "selectionEnabled"
+            ? { enabled: on, selectedIds: new Set(), onToggle: () => {}, onToggleAll: () => {} }
+            : { enabled: true, selectedIds: new Set(), onToggle: () => {}, onToggleAll: () => {} }
+        }
+        showLifecycleActions={toggle === "showLifecycleActions" ? on : false}
+        renderLifecycleAction={() => <button type="button">Actions</button>}
+      />
+    </>
+  )
+}
+
+function expectEveryRowTdCountMatchesTheadThCount() {
+  const theadThCount = document.querySelectorAll("thead th").length
+  const rows = document.querySelectorAll("tbody tr")
+  expect(rows.length).toBeGreaterThan(0)
+  rows.forEach((row, i) => {
+    expect(row.querySelectorAll(":scope > td").length, `row ${i} <td> count`).toBe(theadThCount)
+  })
+}
+
 describe("ShotsTable row memoization", () => {
+  it("keeps every row's <td> count in sync with <thead> after selectionEnabled toggles off", () => {
+    render(<ToggleColumnCountTable toggle="selectionEnabled" />)
+    expectEveryRowTdCountMatchesTheadThCount()
+    fireEvent.click(screen.getByText("toggle"))
+    expectEveryRowTdCountMatchesTheadThCount()
+  })
+
+  it("keeps every row's <td> count in sync with <thead> after showLifecycleActions toggles on", () => {
+    render(<ToggleColumnCountTable toggle="showLifecycleActions" />)
+    expectEveryRowTdCountMatchesTheadThCount()
+    fireEvent.click(screen.getByText("toggle"))
+    expectEveryRowTdCountMatchesTheadThCount()
+  })
+
   it("toggling one row's selection does not re-render other rows' cells (plain <tr> path)", () => {
     render(<SelectableTable reorderEnabled={false} />)
     renderShotCellCalls.ids = [] // discard the initial-mount render
