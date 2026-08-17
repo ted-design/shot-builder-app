@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react"
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   DndContext,
   closestCenter,
@@ -122,7 +122,12 @@ type RowCellsProps = {
   readonly visibleColumns: readonly TableColumnConfig[]
   readonly selectionEnabled: boolean
   readonly isSelected: boolean
-  readonly onToggle?: () => void
+  /**
+   * Stable across renders (it's `selection.onToggle`, forwarded as-is — never
+   * a per-row closure built by the caller). RowCells curries it with `shot.id`
+   * internally, which only happens when RowCells itself actually re-renders.
+   */
+  readonly onToggleShot?: (shotId: string) => void
   readonly showLifecycleActions: boolean
   readonly renderLifecycleAction?: (shot: Shot) => ReactNode
   readonly onOpenShot: (shotId: string) => void
@@ -133,12 +138,32 @@ type RowCellsProps = {
   readonly onAssignScene?: (shotId: string, laneId: string | null) => void
 }
 
-function RowCells({
+/**
+ * Only these four props determine whether a row's cells need to re-render.
+ * Everything else (onOpenShot, stopPropagation, reorderDragHandle, lanes,
+ * onAssignScene, showLifecycleActions, renderLifecycleAction, onToggleShot)
+ * is table-wide config or a stable/curried callback that doesn't vary
+ * independently of a data or selection change — see React.memo(RowCells) below.
+ */
+function rowCellsPropsAreEqual(prev: RowCellsProps, next: RowCellsProps): boolean {
+  return (
+    prev.shot === next.shot &&
+    prev.visibleColumns === next.visibleColumns &&
+    prev.isSelected === next.isSelected &&
+    prev.ctx === next.ctx
+  )
+}
+
+// Memoized: with N shots, a single unrelated re-render (e.g. toggling one
+// row's selection) would otherwise re-render every row's cells. The
+// comparator above lets React skip rows whose own data/selection/columns
+// haven't changed.
+const RowCells = memo(function RowCells({
   shot,
   visibleColumns,
   selectionEnabled,
   isSelected,
-  onToggle,
+  onToggleShot,
   showLifecycleActions,
   renderLifecycleAction,
   ctx,
@@ -160,7 +185,7 @@ function RowCells({
             checked={isSelected}
             onCheckedChange={(v) => {
               if (v === "indeterminate") return
-              onToggle?.()
+              onToggleShot?.(shot.id)
             }}
             aria-label={isSelected ? "Deselect shot" : "Select shot"}
           />
@@ -224,7 +249,7 @@ function RowCells({
       </td>
     </>
   )
-}
+}, rowCellsPropsAreEqual)
 
 // ---------------------------------------------------------------------------
 // Sortable row (DnD)
@@ -234,7 +259,23 @@ type SortableRowProps = Omit<RowCellsProps, "reorderDragHandle"> & {
   readonly onOpenShot: (shotId: string) => void
 }
 
-function SortableRow(props: SortableRowProps) {
+/**
+ * Same comparator scope as RowCells (shot, visibleColumns, isSelected, ctx).
+ * Note this only gates re-renders triggered by a PARENT prop change — the
+ * useSortable() hook below subscribes to dnd-kit's DndContext directly, so
+ * live drag transforms for OTHER rows still update via that context
+ * subscription, independent of this memo boundary.
+ */
+function sortableRowPropsAreEqual(prev: SortableRowProps, next: SortableRowProps): boolean {
+  return (
+    prev.shot === next.shot &&
+    prev.visibleColumns === next.visibleColumns &&
+    prev.isSelected === next.isSelected &&
+    prev.ctx === next.ctx
+  )
+}
+
+const SortableRow = memo(function SortableRow(props: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.shot.id,
   })
@@ -261,7 +302,7 @@ function SortableRow(props: SortableRowProps) {
       <RowCells {...props} reorderDragHandle={dragHandle} />
     </tr>
   )
-}
+}, sortableRowPropsAreEqual)
 
 // ---------------------------------------------------------------------------
 // DnD context wrapper
@@ -359,7 +400,6 @@ function GroupRows({
           const ctx = contextById.get(shot.id)
           if (!ctx) return null
           const isSelected = selectionEnabled ? selection!.selectedIds.has(shot.id) : false
-          const onToggle = selectionEnabled ? () => selection!.onToggle(shot.id) : undefined
 
           return (
             <tr
@@ -372,7 +412,7 @@ function GroupRows({
                 visibleColumns={visibleColumns}
                 selectionEnabled={selectionEnabled}
                 isSelected={isSelected}
-                onToggle={onToggle}
+                onToggleShot={selectionEnabled ? selection?.onToggle : undefined}
                 showLifecycleActions={showLifecycleActions}
                 renderLifecycleAction={renderLifecycleAction}
                 onOpenShot={onOpenShot}
@@ -459,6 +499,21 @@ export function ShotsTable({
   // -- Column management via useTableColumns --
   const { columns, visibleColumns, setColumnWidth, toggleVisibility, reorderColumns, resetToDefaults } =
     useTableColumns(storageKey, SHOT_TABLE_COLUMNS)
+
+  // useTableColumns derives `visibleColumns` via `.filter().toSorted()` on every
+  // call, so it's a NEW array reference every render even when nothing about the
+  // columns actually changed — that breaks RowCells/SortableRow's React.memo
+  // comparator (which compares visibleColumns by reference) for every row on
+  // every unrelated re-render (e.g. a selection toggle). Row cells only care
+  // WHICH columns are visible and in what order — never their pixel width (that's
+  // colgroup/header-only, below) — so key the memo on the column-key sequence and
+  // pass this stable reference to rows; the raw `visibleColumns` (with live
+  // widths) still drives the colgroup/thead below.
+  const visibleColumnKeySequence = visibleColumns.map((c) => c.key).join(",")
+  const stableVisibleColumns = useMemo(
+    () => visibleColumns,
+    [visibleColumnKeySequence],
+  )
 
   // -- Column resize: hold the live width in local state during the drag and
   // only persist (localStorage write, via setColumnWidth) once on mouseup.
@@ -662,7 +717,7 @@ export function ShotsTable({
                       isUngrouped={isUngrouped}
                       colSpan={sceneColSpan}
                       contextById={contextById}
-                      visibleColumns={visibleColumns}
+                      visibleColumns={stableVisibleColumns}
                       selectionEnabled={selectionEnabled}
                       selection={selection}
                       showLifecycleActions={showLifecycleActions}
@@ -683,14 +738,17 @@ export function ShotsTable({
                 shots.map((shot, index) => {
                   const ctx = rowContexts[index]!
                   const isSelected = selectionEnabled ? selection!.selectedIds.has(shot.id) : false
-                  const onToggle = selectionEnabled ? () => selection!.onToggle(shot.id) : undefined
 
+                  // onToggleShot is `selection.onToggle` forwarded as-is (never a new
+                  // per-row closure here) — see RowCells' React.memo comparator above,
+                  // which deliberately doesn't compare it: RowCells curries it with
+                  // shot.id internally, only when RowCells itself actually re-renders.
                   const commonCellProps = {
                     shot,
-                    visibleColumns,
+                    visibleColumns: stableVisibleColumns,
                     selectionEnabled,
                     isSelected,
-                    onToggle,
+                    onToggleShot: selectionEnabled ? selection?.onToggle : undefined,
                     showLifecycleActions,
                     renderLifecycleAction,
                     onOpenShot,
