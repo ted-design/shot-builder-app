@@ -41,33 +41,21 @@ import { TooltipProvider } from "@/ui/tooltip"
 import type { TableColumnConfig } from "@/shared/types/table"
 import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
+import {
+  mirrorColumnWidthToV2,
+  mirrorColumnOrderToV2,
+  mirrorColumnVisibilityToV2,
+  resetColumnPrefsInV2,
+} from "@/features/shots/lib/migrateShotsPrefsV2"
 
 // Threshold above which DnD reorder is automatically disabled — @dnd-kit's
 // sortable overhead becomes noticeable past ~500 items. Exported for tests.
 export const REORDER_SHOT_LIMIT = 500
 
-// ---------------------------------------------------------------------------
-// Migration from old localStorage key format
-// ---------------------------------------------------------------------------
-
-function migrateOldColumnPrefs(clientId: string, projectId: string): void {
-  const oldKey = `sb:shots:list:${clientId}:${projectId}:fields:v1`
-  const newKey = `sb:shots-table:${clientId}:${projectId}`
-  try {
-    if (globalThis.localStorage?.getItem(newKey)) return
-    const oldData = globalThis.localStorage?.getItem(oldKey)
-    if (!oldData) return
-    const fields = JSON.parse(oldData) as Record<string, boolean>
-    const migrated = SHOT_TABLE_COLUMNS.map((col) => ({
-      ...col,
-      visible: col.pinned ? true : (fields[col.key] ?? col.visible),
-    }))
-    globalThis.localStorage?.setItem(newKey, JSON.stringify(migrated))
-    globalThis.localStorage?.removeItem(oldKey)
-  } catch {
-    // Ignore migration errors
-  }
-}
+// NOTE (Phase 1, build plan §1.3b): `migrateOldColumnPrefs` used to live here,
+// forking `:fields:v1` into the table columns key then DESTRUCTIVELY
+// `removeItem`'ing it on every render. Retired — superseded by the
+// non-destructive v2 backfill in useShotListState.ts.
 
 // ---------------------------------------------------------------------------
 // Props
@@ -504,10 +492,13 @@ export function ShotsTable({
     selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))
   const someSelected = selectionEnabled && shots.some((s) => selection!.selectedIds.has(s.id))
 
-  // -- Migrate old localStorage column prefs then let useTableColumns read new key --
-  if (clientId && projectId) {
-    migrateOldColumnPrefs(clientId, projectId)
-  }
+  // The clientId-less fallback key is DELIBERATELY outside v2's scope for
+  // Phase 1: every mirror seam below is guarded on `clientId && projectId`, so
+  // a table rendered without a clientId writes legacy Store 3 only and lands in
+  // no `sb:shots:prefs:v2:*` key at all (a v2 key built from a null clientId
+  // would be an orphan no backfill or read-flip could ever find). The exclusion
+  // is covered by ShotsTable.prefsV2DualWrite.test.tsx's key-space assertion,
+  // and is revisited in Phase 2 when reads flip to v2.
   const storageKey =
     clientId && projectId ? `shots-table:${clientId}:${projectId}` : `shots-table:${projectId}`
 
@@ -543,13 +534,45 @@ export function ShotsTable({
     setDragWidthOverride({ key, width })
   }, [])
 
+  // Dual-write mirrors (build plan §1.2B, migrateShotsPrefsV2.ts): resize/
+  // reorder mirror into v2 `columns`; visibility mirrors into v2 `fields`
+  // (`handleToggleVisibility` is the shots-local seam `toggleVisibility` lacks).
   const handleColumnResizeEnd = useCallback(
     (key: string, width: number) => {
       setColumnWidth(key, width)
       setDragWidthOverride(null)
+      if (clientId && projectId) mirrorColumnWidthToV2(clientId, projectId, key, width)
     },
-    [setColumnWidth],
+    [setColumnWidth, clientId, projectId],
   )
+
+  const handleReorderColumns = useCallback(
+    (orderedKeys: readonly string[]) => {
+      reorderColumns(orderedKeys)
+      if (clientId && projectId) mirrorColumnOrderToV2(clientId, projectId, orderedKeys)
+    },
+    [reorderColumns, clientId, projectId],
+  )
+
+  const handleToggleVisibility = useCallback(
+    (key: string) => {
+      toggleVisibility(key)
+      if (clientId && projectId) {
+        const col = columns.find((c) => c.key === key)
+        if (col) mirrorColumnVisibilityToV2(clientId, projectId, key, !col.visible)
+      }
+    },
+    [toggleVisibility, columns, clientId, projectId],
+  )
+
+  // Reset is a WRITE like any other and needs its own seam: the shared hook's
+  // `resetToDefaults` removes the Store 3 key, which v2 would never hear about
+  // — leaving the mirrored widths/order/visibility in place to reappear at the
+  // Phase 2 read-flip as prefs the user had explicitly cleared.
+  const handleResetColumns = useCallback(() => {
+    resetToDefaults()
+    if (clientId && projectId) resetColumnPrefsInV2(clientId, projectId)
+  }, [resetToDefaults, clientId, projectId])
 
   const { startResize } = useColumnResize({
     onWidthChange: handleColumnWidthChange,
@@ -635,10 +658,10 @@ export function ShotsTable({
       <div className="flex justify-end">
         <ColumnSettingsPopover
           columns={columns}
-          onToggleVisibility={toggleVisibility}
-          onReorder={reorderColumns}
+          onToggleVisibility={handleToggleVisibility}
+          onReorder={handleReorderColumns}
           showReorder={true}
-          onReset={resetToDefaults}
+          onReset={handleResetColumns}
         >
           <Button
             variant="ghost"
