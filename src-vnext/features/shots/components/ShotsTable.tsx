@@ -577,9 +577,9 @@ export function ShotsTable({
 
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-subtle)]">
               <tr>
-                {showDragColumn && <th className="w-9" />}
+                {showDragColumn && <th scope="col" className="w-9" />}
                 {selectionEnabled && (
-                  <th className="w-10 px-3 py-2 text-left">
+                  <th scope="col" className="w-10 px-3 py-2 text-left">
                     <Checkbox
                       checked={allSelected ? true : someSelected ? "indeterminate" : false}
                       onCheckedChange={(v) => {
@@ -612,9 +612,9 @@ export function ShotsTable({
                   </ResizableHeader>
                 ))}
                 {showLifecycleActions && (
-                  <th className="w-16 px-3 py-2 text-left font-medium">Actions</th>
+                  <th scope="col" className="w-16 px-3 py-2 text-left font-medium">Actions</th>
                 )}
-                <th className="w-28 px-3 py-2 text-left font-medium">Status</th>
+                <th scope="col" className="w-28 px-3 py-2 text-left font-medium">Status</th>
               </tr>
             </thead>
 
