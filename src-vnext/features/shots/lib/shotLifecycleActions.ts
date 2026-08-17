@@ -61,6 +61,26 @@ export function buildDuplicateShotTitle(
   return `${base} (Copy ${Date.now()})`
 }
 
+/**
+ * Extra clone controls beyond the original preserveLane/title-reset shape.
+ * All fields are optional and unset-by-default, so callers that omit
+ * `options` entirely reproduce today's behavior byte-for-byte (mutation-
+ * tested — see shotLifecycleActions.test.ts).
+ */
+interface BuildShotClonePayloadOptions {
+  /**
+   * Explicit laneId for the clone (e.g. remapped via an old->new lane map
+   * for project duplication). When present — including `null` — this WINS
+   * over `preserveLane`. Existing call sites never set this, so
+   * `preserveLane` alone still governs their laneId.
+   */
+  readonly laneIdOverride?: string | null
+  /** Keep the source shot's shotNumber instead of resetting it to null. */
+  readonly preserveShotNumber?: boolean
+  /** Explicit sortOrder for the clone. Defaults to Date.now() (today's behavior) when absent. */
+  readonly sortOrderOverride?: number
+}
+
 interface BuildShotClonePayloadArgs {
   readonly shot: Shot
   readonly clientId: string
@@ -68,10 +88,22 @@ interface BuildShotClonePayloadArgs {
   readonly title: string
   readonly createdByUid: string | null
   readonly preserveLane: boolean
+  readonly options?: BuildShotClonePayloadOptions
 }
 
 export function buildShotClonePayload(args: BuildShotClonePayloadArgs): Record<string, unknown> {
-  const { shot, clientId, targetProjectId, title, createdByUid, preserveLane } = args
+  const { shot, clientId, targetProjectId, title, createdByUid, preserveLane, options = {} } = args
+
+  const laneId =
+    options.laneIdOverride !== undefined
+      ? options.laneIdOverride
+      : preserveLane
+        ? shot.laneId ?? null
+        : null
+
+  const shotNumber = options.preserveShotNumber ? shot.shotNumber ?? null : null
+
+  const sortOrder = options.sortOrderOverride !== undefined ? options.sortOrderOverride : Date.now()
 
   const payload = {
     title: normalizeTitle(title),
@@ -89,9 +121,13 @@ export function buildShotClonePayload(args: BuildShotClonePayloadArgs): Record<s
     products: shot.products ?? [],
     locationId: shot.locationId ?? null,
     locationName: shot.locationName ?? null,
-    laneId: preserveLane ? shot.laneId ?? null : null,
-    sortOrder: Date.now(),
-    shotNumber: null,
+    laneId,
+    // Sets initiative field — previously dropped by every clone path
+    // (duplicate-in-project, copy-to-project). Included unconditionally now;
+    // no existing test asserts its absence.
+    mediaType: shot.mediaType ?? null,
+    sortOrder,
+    shotNumber,
     notes: shot.notes ?? null,
     notesAddendum: shot.notesAddendum ?? null,
     date: shot.date ?? null,
@@ -277,5 +313,136 @@ export async function bulkSoftDeleteShots(args: BulkSoftDeleteShotsArgs): Promis
 
     await batch.commit()
   }
+}
+
+/** Sort shots by canonical `sortOrder` ascending — never selection/Set-insertion order. */
+function byCanonicalSortOrder(shots: ReadonlyArray<Shot>): readonly Shot[] {
+  return [...shots].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+}
+
+function chunkShots(shots: ReadonlyArray<Shot>): readonly (readonly Shot[])[] {
+  const chunks: Shot[][] = []
+  for (let i = 0; i < shots.length; i += BULK_CHUNK_SIZE) {
+    chunks.push([...shots.slice(i, i + BULK_CHUNK_SIZE)])
+  }
+  return chunks
+}
+
+interface BulkCopyShotsToProjectArgs {
+  readonly clientId: string
+  readonly shots: ReadonlyArray<Shot>
+  readonly targetProjectId: string
+  /** Existing shot titles in the TARGET project, for dedup via buildDuplicateShotTitle. */
+  readonly targetTitles: ReadonlySet<string>
+  readonly createdByUid: string | null
+}
+
+/**
+ * Bulk "Copy to project…" — clones the given shots into `targetProjectId`.
+ * Order: canonical `sortOrder` ascending (NOT selection/Set order), appended
+ * at the end of the target's custom order (`sortOrder: base + i`). Each
+ * clone's laneId is cleared and shotNumber reset, matching the single-shot
+ * copyShotToProject precedent ("reset to avoid collisions"). Titles are
+ * deduped against `targetTitles`, accumulating newly-minted titles so N
+ * copies of the same source title don't collide with each other.
+ */
+export async function bulkCopyShotsToProject(
+  args: BulkCopyShotsToProjectArgs,
+): Promise<{ readonly copiedCount: number }> {
+  const { clientId, shots, targetProjectId, targetTitles, createdByUid } = args
+  if (shots.length === 0) return { copiedCount: 0 }
+
+  const ordered = byCanonicalSortOrder(shots)
+  const base = Date.now()
+  const accumulatedTitles = new Set(targetTitles)
+
+  const path = shotsPath(clientId)
+  const collectionRef = collection(db, path[0]!, ...path.slice(1))
+
+  let copiedCount = 0
+  const chunks = chunkShots(ordered)
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
+    const chunk = chunks[chunkIndex]!
+    const batch = writeBatch(db)
+
+    chunk.forEach((shot, i) => {
+      const globalIndex = chunkIndex * BULK_CHUNK_SIZE + i
+      const title = buildDuplicateShotTitle(shot.title, accumulatedTitles)
+      accumulatedTitles.add(title)
+
+      const payload = buildShotClonePayload({
+        shot,
+        clientId,
+        targetProjectId,
+        title,
+        createdByUid,
+        preserveLane: false,
+        options: { sortOrderOverride: base + globalIndex },
+      })
+
+      const ref = doc(collectionRef)
+      batch.set(ref, {
+        ...payload,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    })
+
+    await batch.commit()
+    copiedCount += chunk.length
+  }
+
+  return { copiedCount }
+}
+
+interface BulkMoveShotsToProjectArgs {
+  readonly clientId: string
+  readonly shots: ReadonlyArray<Shot>
+  readonly targetProjectId: string
+  readonly user: AuthUser | null
+}
+
+/**
+ * Bulk "Move to project…" — reassigns the given shots' `projectId` in place.
+ * Order: canonical `sortOrder` ascending, appended at the end of the
+ * target's custom order (`sortOrder: base + i` — deliberate deviation from
+ * the single-shot moveShotToProject, which leaves sortOrder untouched; a
+ * bulk move needs an explicit landing order in the target). `shotNumber` is
+ * KEPT (Ted decision 4 — Renumber tool in target resolves collisions);
+ * `laneId` is cleared, matching the single-shot move.
+ */
+export async function bulkMoveShotsToProject(
+  args: BulkMoveShotsToProjectArgs,
+): Promise<{ readonly movedCount: number }> {
+  const { clientId, shots, targetProjectId, user } = args
+  if (shots.length === 0) return { movedCount: 0 }
+
+  const ordered = byCanonicalSortOrder(shots)
+  const base = Date.now()
+
+  let movedCount = 0
+  const chunks = chunkShots(ordered)
+  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
+    const chunk = chunks[chunkIndex]!
+    const batch = writeBatch(db)
+
+    chunk.forEach((shot, i) => {
+      const globalIndex = chunkIndex * BULK_CHUNK_SIZE + i
+      const path = shotPath(shot.id, clientId)
+      const ref = doc(db, path[0]!, ...path.slice(1))
+      batch.update(ref, {
+        projectId: targetProjectId,
+        laneId: null,
+        sortOrder: base + globalIndex,
+        updatedAt: serverTimestamp(),
+        ...(user?.uid ? { updatedBy: user.uid } : {}),
+      })
+    })
+
+    await batch.commit()
+    movedCount += chunk.length
+  }
+
+  return { movedCount }
 }
 
