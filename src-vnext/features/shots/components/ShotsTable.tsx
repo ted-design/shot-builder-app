@@ -41,33 +41,20 @@ import { TooltipProvider } from "@/ui/tooltip"
 import type { TableColumnConfig } from "@/shared/types/table"
 import type { Shot, ProductFamily, ProductSku, ProductSample, Lane } from "@/shared/types"
 import type { ShotGroup } from "@/features/shots/lib/shotListFilters"
+import {
+  mirrorColumnWidthToV2,
+  mirrorColumnOrderToV2,
+  mirrorColumnVisibilityToV2,
+} from "@/features/shots/lib/migrateShotsPrefsV2"
 
 // Threshold above which DnD reorder is automatically disabled — @dnd-kit's
 // sortable overhead becomes noticeable past ~500 items. Exported for tests.
 export const REORDER_SHOT_LIMIT = 500
 
-// ---------------------------------------------------------------------------
-// Migration from old localStorage key format
-// ---------------------------------------------------------------------------
-
-function migrateOldColumnPrefs(clientId: string, projectId: string): void {
-  const oldKey = `sb:shots:list:${clientId}:${projectId}:fields:v1`
-  const newKey = `sb:shots-table:${clientId}:${projectId}`
-  try {
-    if (globalThis.localStorage?.getItem(newKey)) return
-    const oldData = globalThis.localStorage?.getItem(oldKey)
-    if (!oldData) return
-    const fields = JSON.parse(oldData) as Record<string, boolean>
-    const migrated = SHOT_TABLE_COLUMNS.map((col) => ({
-      ...col,
-      visible: col.pinned ? true : (fields[col.key] ?? col.visible),
-    }))
-    globalThis.localStorage?.setItem(newKey, JSON.stringify(migrated))
-    globalThis.localStorage?.removeItem(oldKey)
-  } catch {
-    // Ignore migration errors
-  }
-}
+// NOTE (Phase 1, build plan §1.3b): `migrateOldColumnPrefs` used to live here,
+// forking `:fields:v1` into the table columns key then DESTRUCTIVELY
+// `removeItem`'ing it on every render. Retired — superseded by the
+// non-destructive v2 backfill in useShotListState.ts.
 
 // ---------------------------------------------------------------------------
 // Props
@@ -504,10 +491,6 @@ export function ShotsTable({
     selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))
   const someSelected = selectionEnabled && shots.some((s) => selection!.selectedIds.has(s.id))
 
-  // -- Migrate old localStorage column prefs then let useTableColumns read new key --
-  if (clientId && projectId) {
-    migrateOldColumnPrefs(clientId, projectId)
-  }
   const storageKey =
     clientId && projectId ? `shots-table:${clientId}:${projectId}` : `shots-table:${projectId}`
 
@@ -543,12 +526,35 @@ export function ShotsTable({
     setDragWidthOverride({ key, width })
   }, [])
 
+  // Dual-write mirrors (build plan §1.2B, migrateShotsPrefsV2.ts): resize/
+  // reorder mirror into v2 `columns`; visibility mirrors into v2 `fields`
+  // (`handleToggleVisibility` is the shots-local seam `toggleVisibility` lacks).
   const handleColumnResizeEnd = useCallback(
     (key: string, width: number) => {
       setColumnWidth(key, width)
       setDragWidthOverride(null)
+      if (clientId && projectId) mirrorColumnWidthToV2(clientId, projectId, key, width)
     },
-    [setColumnWidth],
+    [setColumnWidth, clientId, projectId],
+  )
+
+  const handleReorderColumns = useCallback(
+    (orderedKeys: readonly string[]) => {
+      reorderColumns(orderedKeys)
+      if (clientId && projectId) mirrorColumnOrderToV2(clientId, projectId, orderedKeys)
+    },
+    [reorderColumns, clientId, projectId],
+  )
+
+  const handleToggleVisibility = useCallback(
+    (key: string) => {
+      toggleVisibility(key)
+      if (clientId && projectId) {
+        const col = columns.find((c) => c.key === key)
+        if (col) mirrorColumnVisibilityToV2(clientId, projectId, key, !col.visible)
+      }
+    },
+    [toggleVisibility, columns, clientId, projectId],
   )
 
   const { startResize } = useColumnResize({
@@ -635,8 +641,8 @@ export function ShotsTable({
       <div className="flex justify-end">
         <ColumnSettingsPopover
           columns={columns}
-          onToggleVisibility={toggleVisibility}
-          onReorder={reorderColumns}
+          onToggleVisibility={handleToggleVisibility}
+          onReorder={handleReorderColumns}
           showReorder={true}
           onReset={resetToDefaults}
         >

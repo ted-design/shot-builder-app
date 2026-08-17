@@ -28,6 +28,11 @@ import { deserializeFilters, serializeFilters, migrateLegacyParams } from "@/fea
 import { applyFilterConditions } from "@/features/shots/lib/filterEngine"
 import type { FilterCondition } from "@/features/shots/lib/filterConditions"
 import { OPERATOR_LABELS } from "@/features/shots/lib/filterConditions"
+import {
+  backfillShotsPrefsV2,
+  mirrorFieldsToV2,
+  mirrorViewToV2,
+} from "@/features/shots/lib/migrateShotsPrefsV2"
 
 // ---------------------------------------------------------------------------
 // Constants (badge label lookups)
@@ -247,6 +252,23 @@ export function useShotListState(params: {
   // -- localStorage persistence --
   const storageKeyBase = clientId && projectId ? `sb:shots:list:${clientId}:${projectId}` : null
 
+  // -- Phase 1 (build plan §1.2A) — one-time v2 prefs backfill, per project.
+  // `backfillShotsPrefsV2` is itself idempotent (marker-gated on `_mig.v2`),
+  // so this ref is defense-in-depth against a redundant localStorage
+  // read/write on a StrictMode double-invoke — NOT a correctness
+  // requirement. Keyed by `clientId:projectId` (not a single boolean, unlike
+  // the legacy-params `migrationDone` ref above) because the backfill is
+  // scoped per project: switching projects within one mounted component must
+  // still backfill the newly-selected project's stores.
+  const prefsV2BackfilledKeys = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!clientId || !projectId) return
+    const key = `${clientId}:${projectId}`
+    if (prefsV2BackfilledKeys.current.has(key)) return
+    prefsV2BackfilledKeys.current.add(key)
+    backfillShotsPrefsV2(clientId, projectId)
+  }, [clientId, projectId])
+
   const [fields, setFields] = useState<ShotsListFields>(() => {
     if (!storageKeyBase) return DEFAULT_FIELDS
     try {
@@ -273,11 +295,16 @@ export function useShotListState(params: {
     }
   }, [storageKeyBase])
 
-  // Persist fields to localStorage on change
+  // Persist fields to localStorage on change — dual-write (build plan
+  // §1.2B): legacy `:fields:v1` stays the read path this phase; the v2
+  // mirror keeps `sb:shots:prefs:v2:*` from going stale before Phase 2's
+  // read-flip. A one-shot backfill snapshot WITHOUT this mirror would freeze
+  // at backfill time and silently lose any card edit made before Phase 2.
   useEffect(() => {
     if (!storageKeyBase) return
     try { window.localStorage.setItem(`${storageKeyBase}:fields:v1`, JSON.stringify(fields)) } catch { /* ignore */ }
-  }, [fields, storageKeyBase])
+    if (clientId && projectId) mirrorFieldsToV2(clientId, projectId, fields)
+  }, [fields, storageKeyBase, clientId, projectId])
 
   const storedDefaultView = useMemo((): ViewMode => {
     if (!storageKeyBase) return "card"
@@ -383,7 +410,9 @@ export function useShotListState(params: {
     if (storageKeyBase) {
       try { window.localStorage.setItem(`${storageKeyBase}:view:v1`, mode) } catch { /* ignore */ }
     }
-  }, [searchParams, setSearchParams, storageKeyBase])
+    // Dual-write mirror (build plan §1.2B) — see the [fields] effect above.
+    if (clientId && projectId) mirrorViewToV2(clientId, projectId, mode)
+  }, [searchParams, setSearchParams, storageKeyBase, clientId, projectId])
 
   const setGroupKey = useCallback((key: GroupKey) => {
     const next = new URLSearchParams(searchParams)
