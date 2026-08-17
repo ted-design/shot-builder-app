@@ -51,6 +51,7 @@ export function ShotReorderControls({
         size="icon"
         className="h-6 w-6"
         disabled={isFirst}
+        aria-label="Move shot up"
         onClick={(e) => {
           e.stopPropagation()
           void move(-1)
@@ -63,6 +64,7 @@ export function ShotReorderControls({
         size="icon"
         className="h-6 w-6"
         disabled={isLast}
+        aria-label="Move shot down"
         onClick={(e) => {
           e.stopPropagation()
           void move(1)
