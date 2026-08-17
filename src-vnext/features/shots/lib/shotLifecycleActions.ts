@@ -79,6 +79,24 @@ interface BuildShotClonePayloadOptions {
   readonly preserveShotNumber?: boolean
   /** Explicit sortOrder for the clone. Defaults to Date.now() (today's behavior) when absent. */
   readonly sortOrderOverride?: number
+  /**
+   * Explicit heroImage for the clone (project-duplication path only). When
+   * the key is PRESENT — including `null` — this WINS over `shot.heroImage`:
+   * a value clones that heroImage verbatim; `null` OMITS the field from the
+   * payload entirely (see below). Existing call sites never set this, so
+   * `shot.heroImage` (see the default branch's comment) still governs their
+   * payload byte-for-byte.
+   *
+   * Why this exists: `shot.heroImage` comes from `mapShot`, which
+   * MATERIALIZES a cover — it derives one from `activeLookId`/`products`
+   * whenever the raw Firestore doc has no *stored* `heroImage` field.
+   * Writing that materialized value as a literal stored field on a NEW doc
+   * freezes the cover (the new doc no longer re-derives on look/product
+   * changes) and inherits product-image hard-delete exposure. Pass the RAW
+   * doc's stored `heroImage` here (or `null` when the raw doc had none) so
+   * the clone re-derives dynamically, exactly like the source did.
+   */
+  readonly heroImageOverride?: Shot["heroImage"] | null
 }
 
 interface BuildShotClonePayloadArgs {
@@ -104,6 +122,16 @@ export function buildShotClonePayload(args: BuildShotClonePayloadArgs): Record<s
   const shotNumber = options.preserveShotNumber ? shot.shotNumber ?? null : null
 
   const sortOrder = options.sortOrderOverride !== undefined ? options.sortOrderOverride : Date.now()
+
+  // Default (no heroImageOverride key): today's behavior, unchanged — the
+  // MATERIALIZED `shot.heroImage` (mapShot's derived-or-stored value) is
+  // written verbatim. This is pre-existing, known materialization behavior
+  // for single-shot duplicate/copy (duplicateShotInProject/copyShotToProject
+  // below) and bulk copy (bulkCopyShotsToProject) — out of scope to change
+  // here. duplicateProject.ts deliberately differs: it passes the RAW
+  // stored value via heroImageOverride instead (see that option's doc).
+  const heroImage =
+    options.heroImageOverride !== undefined ? (options.heroImageOverride ?? undefined) : (shot.heroImage ?? null)
 
   const payload = {
     title: normalizeTitle(title),
@@ -131,7 +159,7 @@ export function buildShotClonePayload(args: BuildShotClonePayloadArgs): Record<s
     notes: shot.notes ?? null,
     notesAddendum: shot.notesAddendum ?? null,
     date: shot.date ?? null,
-    heroImage: shot.heroImage ?? null,
+    heroImage,
     looks: shot.looks ?? [],
     activeLookId: shot.activeLookId ?? null,
     tags: shot.tags ?? [],
@@ -315,9 +343,18 @@ export async function bulkSoftDeleteShots(args: BulkSoftDeleteShotsArgs): Promis
   }
 }
 
-/** Sort shots by canonical `sortOrder` ascending — never selection/Set-insertion order. */
+/**
+ * Sort shots by canonical `sortOrder` ascending — never selection/Set-
+ * insertion order. Secondary tie-break by `id` (house pattern: reportSort's
+ * `SHOT_TIEBREAK`/`compareByOrder` family — ALWAYS ascending, deterministic).
+ * Without it, shots that tie on `sortOrder` (e.g. every shot lacking the
+ * field, which `mapShot` defaults to 0) fall back to `Array.sort`'s stable
+ * ordering, which is whatever order they arrived in — the toolbar's
+ * transient display/selection order — and that leaks into the written
+ * landing order in the target project.
+ */
 function byCanonicalSortOrder(shots: ReadonlyArray<Shot>): readonly Shot[] {
-  return [...shots].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  return [...shots].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id))
 }
 
 function chunkShots(shots: ReadonlyArray<Shot>): readonly (readonly Shot[])[] {
@@ -328,11 +365,49 @@ function chunkShots(shots: ReadonlyArray<Shot>): readonly (readonly Shot[])[] {
   return chunks
 }
 
+/**
+ * Bulk-copy title resolution: keep the BARE (normalized) source title when
+ * it doesn't collide with anything already in the target (`existingTitles` =
+ * target's current titles ∪ titles already minted earlier in this same
+ * batch); only on collision fall back to `buildDuplicateShotTitle`'s
+ * "(Copy)" / "(Copy N)" namer. Case-insensitive, matching
+ * `buildDuplicateShotTitle`'s own comparison. Single-shot duplicate ALWAYS
+ * renames (it's cloning into the SAME project, where the source title is
+ * itself already taken) — bulk copy targets a DIFFERENT project, so an
+ * empty/non-colliding target has no reason to rename anything.
+ */
+function resolveBulkCopyTitle(sourceTitle: string | null | undefined, existingTitles: ReadonlySet<string>): string {
+  const base = typeof sourceTitle === "string" && sourceTitle.trim().length > 0 ? sourceTitle.trim() : "Untitled Shot"
+  const existingLower = new Set(Array.from(existingTitles).map((t) => t.trim().toLowerCase()))
+  if (!existingLower.has(base.toLowerCase())) return base
+  return buildDuplicateShotTitle(sourceTitle, existingTitles)
+}
+
+/**
+ * Thrown when a chunk of `bulkCopyShotsToProject`'s multi-batch write fails
+ * partway through. Mirrors `DuplicateProjectPartialFailureError`
+ * (duplicateProject.ts) — carries how many shots landed so the caller can
+ * show a precise "Copied N of M shots" error instead of a bare failure
+ * toast, and knows NOT to clear the source selection (some shots never
+ * copied).
+ */
+export class BulkCopyPartialFailureError extends Error {
+  readonly copiedCount: number
+  readonly totalCount: number
+
+  constructor(message: string, info: { readonly copiedCount: number; readonly totalCount: number }) {
+    super(message)
+    this.name = "BulkCopyPartialFailureError"
+    this.copiedCount = info.copiedCount
+    this.totalCount = info.totalCount
+  }
+}
+
 interface BulkCopyShotsToProjectArgs {
   readonly clientId: string
   readonly shots: ReadonlyArray<Shot>
   readonly targetProjectId: string
-  /** Existing shot titles in the TARGET project, for dedup via buildDuplicateShotTitle. */
+  /** Existing shot titles in the TARGET project, for dedup via resolveBulkCopyTitle. */
   readonly targetTitles: ReadonlySet<string>
   readonly createdByUid: string | null
 }
@@ -342,9 +417,15 @@ interface BulkCopyShotsToProjectArgs {
  * Order: canonical `sortOrder` ascending (NOT selection/Set order), appended
  * at the end of the target's custom order (`sortOrder: base + i`). Each
  * clone's laneId is cleared and shotNumber reset, matching the single-shot
- * copyShotToProject precedent ("reset to avoid collisions"). Titles are
- * deduped against `targetTitles`, accumulating newly-minted titles so N
- * copies of the same source title don't collide with each other.
+ * copyShotToProject precedent ("reset to avoid collisions"). Titles are kept
+ * BARE unless they collide with `targetTitles` (accumulated as newly-minted
+ * titles are chosen, so N copies of the same source title don't collide
+ * with each other) — see resolveBulkCopyTitle.
+ *
+ * Version snapshots (createShotVersionSnapshot) are deliberately SKIPPED
+ * here, unlike the single-shot copy/duplicate paths — writing one snapshot
+ * doc per shot at bulk scale (up to 500) would double the write volume for
+ * a history feature nobody reads immediately after a bulk transfer.
  */
 export async function bulkCopyShotsToProject(
   args: BulkCopyShotsToProjectArgs,
@@ -367,7 +448,7 @@ export async function bulkCopyShotsToProject(
 
     chunk.forEach((shot, i) => {
       const globalIndex = chunkIndex * BULK_CHUNK_SIZE + i
-      const title = buildDuplicateShotTitle(shot.title, accumulatedTitles)
+      const title = resolveBulkCopyTitle(shot.title, accumulatedTitles)
       accumulatedTitles.add(title)
 
       const payload = buildShotClonePayload({
@@ -388,7 +469,15 @@ export async function bulkCopyShotsToProject(
       })
     })
 
-    await batch.commit()
+    try {
+      await batch.commit()
+    } catch (err) {
+      console.error("[bulkCopyShotsToProject] Chunk failed partway through:", err)
+      throw new BulkCopyPartialFailureError(
+        `Copied ${copiedCount} of ${ordered.length} shot${ordered.length === 1 ? "" : "s"} before a write failed.`,
+        { copiedCount, totalCount: ordered.length },
+      )
+    }
     copiedCount += chunk.length
   }
 

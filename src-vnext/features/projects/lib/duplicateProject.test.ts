@@ -73,9 +73,33 @@ describe("duplicateProject", () => {
     vi.mocked(firestore.getDoc).mockResolvedValue(
       fakeDocSnap("src-p1", params.project) as unknown as Awaited<ReturnType<typeof firestore.getDoc>>,
     )
-    vi.mocked(firestore.getDocs)
-      .mockResolvedValueOnce(fakeQuerySnap(params.lanes) as unknown as Awaited<ReturnType<typeof firestore.getDocs>>)
-      .mockResolvedValueOnce(fakeQuerySnap(params.shots) as unknown as Awaited<ReturnType<typeof firestore.getDocs>>)
+    // getDocs is dispatched by SHAPE, not call order, so it stays a faithful
+    // stand-in for real Firestore filtering regardless of which query fires
+    // when: `readSourceLanes` calls getDocs(collection(...)) directly (no
+    // query() wrapper -> `__col`); `readSourceShots` calls
+    // getDocs(query(collection(...), ...whereClauses)) (-> `__query`). For
+    // the shots branch, APPLY the recorded where() clauses against each
+    // doc's raw data the same way Firestore's `==` operator would — in
+    // particular, `where("deleted","==",false)` EXCLUDES a doc where the
+    // field is simply absent, not just docs where it's `true`. This is what
+    // makes the predicate-parity tests below meaningful: they fail on the
+    // unfixed code (which sends no `deleted` where-clause at all) and pass
+    // once the query matches useShots.ts's predicate.
+    vi.mocked(firestore.getDocs).mockImplementation(async (target: unknown) => {
+      const t = target as { __col?: string; __query?: readonly unknown[] }
+      if (t.__query) {
+        const whereClauses = t.__query.slice(1) as ReadonlyArray<{
+          readonly field: string
+          readonly op: string
+          readonly value: unknown
+        }>
+        const filtered = params.shots.filter((shot) =>
+          whereClauses.every((w) => (w.op === "==" ? shot.data[w.field] === w.value : true)),
+        )
+        return fakeQuerySnap(filtered) as unknown as Awaited<ReturnType<typeof firestore.getDocs>>
+      }
+      return fakeQuerySnap(params.lanes) as unknown as Awaited<ReturnType<typeof firestore.getDocs>>
+    })
   }
 
   it("source project not found throws a plain Error and writes nothing", async () => {
@@ -174,7 +198,7 @@ describe("duplicateProject", () => {
     expect(payload["title"]).toBe("Hero") // unchanged, no "(Copy)" suffix
   })
 
-  it("query semantics: a legacy shot with NO `deleted` field is still cloned (mutation: add ==false filter -> reddens)", async () => {
+  it("PARITY WITH useShots: a legacy shot with NO `deleted` field is NOT cloned (mutation: drop the ==false where clause -> reddens)", async () => {
     mockReads({
       project: { name: "P", status: "active", shootDates: [] },
       lanes: [],
@@ -182,16 +206,36 @@ describe("duplicateProject", () => {
         {
           id: "legacy-shot",
           data: { title: "Legacy", projectId: "src-p1", clientId: "c1", status: "todo", sortOrder: 1 },
-          // deliberately no `deleted` key at all
+          // deliberately no `deleted` key at all — invisible on useShots.ts
+          // and this dialog's own preview count today; must stay invisible
+          // when duplicating too ("duplicate copies exactly what the shots
+          // list shows" — see readSourceShots's doc).
         },
       ],
     })
     const result = await duplicateProject({
       clientId: "c1", sourceProjectId: "src-p1", newName: "P (Copy)", role: "admin", user: USER,
     })
-    expect(result.shotCount).toBe(1)
-    const payload = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
-    expect(payload["title"]).toBe("Legacy")
+    expect(result.shotCount).toBe(0)
+    expect(mockBatchSet).toHaveBeenCalledTimes(1) // project doc only — no shot, no lane
+
+    // Belt-and-suspenders: the query sent to Firestore matches useShots.ts's
+    // predicate verbatim, independent of the mock's own filtering.
+    const shotsQueryCall = vi.mocked(firestore.query).mock.calls.find((call) =>
+      (call as unknown[]).some((arg) => (arg as { field?: string })?.field === "deleted"),
+    )
+    expect(shotsQueryCall).toBeDefined()
+    const whereClauses = (shotsQueryCall as unknown[]).slice(1) as Array<{
+      field: string
+      op: string
+      value: unknown
+    }>
+    expect(whereClauses).toEqual(
+      expect.arrayContaining([
+        { field: "projectId", op: "==", value: "src-p1" },
+        { field: "deleted", op: "==", value: false },
+      ]),
+    )
   })
 
   it("skips a genuinely soft-deleted shot (deleted === true)", async () => {
@@ -209,6 +253,58 @@ describe("duplicateProject", () => {
     expect(result.shotCount).toBe(1)
     const payload = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
     expect(payload["title"]).toBe("Kept")
+  })
+
+  it("heroImage passthrough: raw doc with NO stored heroImage (but a derivable look-image) clones with NO heroImage field, so the clone re-derives (mutation: use shot.heroImage instead of the raw override -> reddens)", async () => {
+    mockReads({
+      project: { name: "P", status: "active", shootDates: [] },
+      lanes: [],
+      shots: [
+        {
+          id: "shot-1",
+          data: {
+            title: "Auto Cover", projectId: "src-p1", clientId: "c1", status: "todo", sortOrder: 1,
+            deleted: false,
+            activeLookId: "look-1",
+            looks: [
+              { id: "look-1", products: [{ familyId: "fam-1", skuImageUrl: "https://img/of/product.jpg" }] },
+            ],
+            // deliberately NO top-level `heroImage` field — mapShot DERIVES
+            // one from the look above, but the RAW doc has none stored.
+          },
+        },
+      ],
+    })
+    await duplicateProject({
+      clientId: "c1", sourceProjectId: "src-p1", newName: "P (Copy)", role: "admin", user: USER,
+    })
+    const payload = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
+    expect(payload).not.toHaveProperty("heroImage")
+  })
+
+  it("heroImage passthrough: raw doc WITH a stored heroImage clones it verbatim", async () => {
+    mockReads({
+      project: { name: "P", status: "active", shootDates: [] },
+      lanes: [],
+      shots: [
+        {
+          id: "shot-1",
+          data: {
+            title: "Fixed Cover", projectId: "src-p1", clientId: "c1", status: "todo", sortOrder: 1,
+            deleted: false,
+            heroImage: { path: "clients/c1/shots/shot-1/hero.jpg", downloadURL: "https://cdn/shots/shot-1/hero.jpg" },
+          },
+        },
+      ],
+    })
+    await duplicateProject({
+      clientId: "c1", sourceProjectId: "src-p1", newName: "P (Copy)", role: "admin", user: USER,
+    })
+    const payload = mockBatchSet.mock.calls[1]![1] as Record<string, unknown>
+    expect(payload["heroImage"]).toEqual({
+      path: "clients/c1/shots/shot-1/hero.jpg",
+      downloadURL: "https://cdn/shots/shot-1/hero.jpg",
+    })
   })
 
   it("partial failure on the LANES step surfaces a DuplicateProjectPartialFailureError naming 0 shots copied", async () => {

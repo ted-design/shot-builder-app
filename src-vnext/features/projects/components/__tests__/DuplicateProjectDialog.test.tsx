@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, act } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { Timestamp } from "firebase/firestore"
 import type { Project } from "@/shared/types"
@@ -130,6 +130,39 @@ describe("DuplicateProjectDialog", () => {
     })
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+
+  it("guards against double-submit: re-entering handleDuplicate while a submit is in flight calls duplicateProject once", async () => {
+    let resolveDuplicate!: (val: unknown) => void
+    mockDuplicateProject.mockReturnValue(new Promise((r) => { resolveDuplicate = r }))
+    renderDialog(makeProject({ id: "src-1", name: "Q4 Shoot" }))
+
+    const button = screen.getByRole("button", { name: "Duplicate" })
+    // A second `fireEvent.click`/`.click()` on the SAME button cannot
+    // falsify the internal `saving` check: React reads `disabled` off the
+    // fiber's own memoized props at event-dispatch time (not the live DOM
+    // attribute), and setSaving(true) commits synchronously on discrete
+    // click events — so a disabled button never re-dispatches to the
+    // handler at all, guard or no guard (verified empirically). To test
+    // the guard actually WRITTEN in handleDuplicate, invoke its onClick
+    // prop directly a second time — exactly the scenario the internal
+    // check defends: a re-entrant call while a submit is already in
+    // flight, bypassing the disabled button entirely.
+    const getOnClick = (): (() => void) => {
+      const propsKey = Object.keys(button).find((k) => k.startsWith("__reactProps$"))!
+      return (button as unknown as Record<string, { onClick: () => void }>)[propsKey]!.onClick
+    }
+
+    act(() => getOnClick()())
+    await waitFor(() => expect(mockDuplicateProject).toHaveBeenCalledTimes(1))
+
+    // Re-query onClick: the closure now reflects the COMMITTED saving=true
+    // from the first call.
+    act(() => getOnClick()())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(mockDuplicateProject).toHaveBeenCalledTimes(1)
+    resolveDuplicate({ newProjectId: "new-p1", laneCount: 0, shotCount: 0 })
   })
 
   it("disables Duplicate when the name is blank", async () => {

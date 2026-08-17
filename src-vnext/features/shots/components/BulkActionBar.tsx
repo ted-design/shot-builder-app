@@ -43,6 +43,7 @@ import {
   bulkAddTalent,
 } from "@/features/shots/lib/bulkShotUpdates"
 import {
+  BulkCopyPartialFailureError,
   bulkCopyShotsToProject,
   bulkMoveShotsToProject,
 } from "@/features/shots/lib/shotLifecycleActions"
@@ -197,9 +198,17 @@ export function BulkActionBar({
       setTransferOpen(false)
       onClearSelection()
     } catch (err) {
-      toast.error(transferMode === "copy" ? "Failed to copy shots" : "Failed to move shots", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      })
+      // Partial failure (some shots landed before a chunk failed): name the
+      // count and leave the selection intact — the user still needs it to
+      // retry the shots that didn't make it. Any other error: generic
+      // failure toast, selection also left intact (nothing copied/moved).
+      if (err instanceof BulkCopyPartialFailureError) {
+        toast.error("Copy stopped partway", { description: err.message })
+      } else {
+        toast.error(transferMode === "copy" ? "Failed to copy shots" : "Failed to move shots", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        })
+      }
     } finally {
       setTransferBusy(false)
     }

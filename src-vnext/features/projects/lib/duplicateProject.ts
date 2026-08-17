@@ -93,35 +93,85 @@ async function readSourceLanes(sourceProjectId: string, clientId: string): Promi
   return snap.docs.map((d) => mapLane(d.id, d.data()))
 }
 
+interface SourceShotEntry {
+  readonly shot: Shot
+  /**
+   * The RAW stored `heroImage` field straight off the Firestore doc, BEFORE
+   * `mapShot`'s derivation waterfall runs — `null` when the raw doc had
+   * none (whether or not one is derivable from looks/products). Passed to
+   * `buildShotClonePayload` via `heroImageOverride` in `cloneShots` instead
+   * of the mapped `shot.heroImage`, which is often MATERIALIZED (see that
+   * option's doc in shotLifecycleActions.ts).
+   */
+  readonly rawHeroImage: Shot["heroImage"] | null
+}
+
 /**
- * Fetch source shots by projectId. Deliberately NOT `where("deleted","==",
- * false)` — that Firestore operator excludes docs where the field is
- * ABSENT, not just docs where it's true, which would silently drop legacy
- * shots that predate the `deleted` field. Filtered client-side instead,
- * matching the codebase's OWN documented rule (CLAUDE.md: "Always filter
- * deleted products client-side ... never use where('deleted','==',false)
- * which excludes docs missing the field") and the precedent already used
- * by talentDependencies.ts / useLinkedShots.ts.
- *
- * NOTE — spec contradiction found and resolved: the build spec said to
- * "mirror the live shots-list query semantics exactly" and cited
- * useShots.ts as ground truth; useShots.ts DOES use
- * `where("deleted","==",false)` (verified today, not a recent regression —
- * that line dates to 2026-01-31). Mirroring it literally would fail the
- * spec's OWN required test ("legacy shot lacking `deleted` field -> still
- * cloned") and would contradict CLAUDE.md's documented rule. Resolved in
- * favor of the safe client-side filter, which is what both the test matrix
- * and CLAUDE.md require. Flagged in the PR body.
+ * Extract ONLY the "explicitly stored" branch of mapShot's
+ * `normalizeHeroImage` — no derivation from looks/products/attachments.
+ * Deliberately narrower than mapShot: this function answers "did the raw
+ * doc have a heroImage field," not "what would the shot's cover resolve
+ * to," which is exactly the distinction the clone payload needs to make.
  */
-async function readSourceShots(sourceProjectId: string, clientId: string): Promise<Shot[]> {
+function extractStoredHeroImage(data: Record<string, unknown>): Shot["heroImage"] | null {
+  const rawHero = data["heroImage"]
+  if (rawHero && typeof rawHero === "object") {
+    const obj = rawHero as Record<string, unknown>
+    const downloadURL = typeof obj["downloadURL"] === "string" && obj["downloadURL"] ? obj["downloadURL"] : undefined
+    const path = typeof obj["path"] === "string" && obj["path"] ? obj["path"] : undefined
+    const resolved = downloadURL ?? path
+    if (resolved) {
+      return { path: path ?? resolved, downloadURL: resolved }
+    }
+  }
+  return null
+}
+
+/**
+ * Fetch source shots by projectId, using the SAME predicate as the live
+ * shots list — `where("projectId","==",id), where("deleted","==",false)`,
+ * identical to `useShots.ts` and this project's own source-count query
+ * (`DuplicateProjectDialog.tsx`'s `loadSourceCounts`). Contract: **duplicate
+ * copies exactly what the shots list shows.** The composite index this
+ * query needs already exists (verified) — it's the same index `useShots.ts`
+ * uses.
+ *
+ * CORRECTION (2026-08-16, adversarial review): an earlier version of this
+ * function used a client-side `deleted !== true` filter instead (so a
+ * legacy doc lacking the `deleted` field would still be cloned), reasoning
+ * from CLAUDE.md's "always filter deleted products client-side, never
+ * `where('deleted','==',false)`" rule and the talentDependencies.ts /
+ * useLinkedShots.ts precedent. On review that argument does not hold for
+ * this call site:
+ * - CLAUDE.md's rule is scoped to deleted PRODUCTS inside bulk shot
+ *   CREATION (`bulkShotWrites.ts`) — a different collection and a
+ *   different failure mode (silently blocking a create) than this read.
+ * - talentDependencies.ts / useLinkedShots.ts are DEPENDENCY scans ("does
+ *   anything still reference this talent/location") where over-inclusion
+ *   is the SAFE direction — a false-positive dependency just blocks a
+ *   delete one extra time. Over-inclusion here is the OPPOSITE of safe: it
+ *   resurrects a shot that is invisible to every user everywhere in the
+ *   app today into a brand-new project, where it silently counts toward
+ *   totals, exports, and pulls.
+ * - Every shots-DISPLAY path in the app already uses
+ *   `where("deleted","==",false)`. A doc lacking `deleted` is invisible
+ *   app-wide today (the live list, this dialog's own preview counts); the
+ *   client-side variant would have made duplicate-project the ONE path
+ *   that resurrects it — the opposite of "what you see is what you copy."
+ */
+async function readSourceShots(sourceProjectId: string, clientId: string): Promise<ReadonlyArray<SourceShotEntry>> {
   const segs = shotsPath(clientId)
   const snap = await getDocs(
     query(
       collection(db, segs[0]!, ...segs.slice(1)),
       where("projectId", "==", sourceProjectId),
+      where("deleted", "==", false),
     ),
   )
-  return snap.docs.map((d) => mapShot(d.id, d.data())).filter((shot) => shot.deleted !== true)
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return { shot: mapShot(d.id, data), rawHeroImage: extractStoredHeroImage(data) }
+  })
 }
 
 /** New project doc (+ auto-membership for non-admin creators, mirrors CreateProjectDialog.tsx's batch pattern). */
@@ -151,6 +201,14 @@ async function createNewProjectDoc(params: {
     updatedAt: serverTimestamp(),
   })
 
+  // NOTE: an admin duplicating a project they don't otherwise have explicit
+  // membership on gets NO auto-membership doc here (matches
+  // CreateProjectDialog.tsx's create-flow semantics exactly, byte-for-byte —
+  // see that file's own copy of this same batch pattern). So an admin
+  // duplicating a private project ends up as its admin+creator only: no
+  // membership row is written for them either, same as creating one fresh.
+  // This is a known, accepted consequence of mirroring create — not unique
+  // to duplication — and not something to "fix" here.
   if (!isAdmin(role) && user) {
     const memberSegs = projectMembersPath(ref.id, clientId)
     const memberRef = doc(db, memberSegs[0]!, ...memberSegs.slice(1), user.uid)
@@ -216,13 +274,21 @@ async function cloneLanes(params: {
  * `preserveShotNumber` + explicit `sortOrderOverride: shot.sortOrder` keep
  * status/date/number/order exactly; `laneIdOverride` remaps through
  * `laneIdMap` (null if the source lane is missing, e.g. it was itself
- * deleted). Returns how many shots landed before any failure — the caller
- * uses this to build a precise partial-failure error.
+ * deleted); `heroImageOverride: rawHeroImage` passes the RAW stored cover
+ * through (or `null` to omit, when the source had none) instead of
+ * `mapShot`'s often-materialized `shot.heroImage` — see that option's doc
+ * in shotLifecycleActions.ts. Returns how many shots landed before any
+ * failure — the caller uses this to build a precise partial-failure error.
+ *
+ * Version snapshots (createShotVersionSnapshot) are deliberately SKIPPED
+ * here, same as bulkCopyShotsToProject and for the same reason — one
+ * snapshot doc per shot at project-duplication scale is a write-volume cost
+ * nobody reads back immediately after duplicating a whole project.
  */
 async function cloneShots(params: {
   readonly clientId: string
   readonly newProjectId: string
-  readonly sourceShots: ReadonlyArray<Shot>
+  readonly sourceShots: ReadonlyArray<SourceShotEntry>
   readonly laneIdMap: ReadonlyMap<string, string>
   readonly user: AuthUser | null
   readonly shotsCollectionRef: CollectionReference
@@ -234,7 +300,7 @@ async function cloneShots(params: {
     for (let start = 0; start < sourceShots.length; start += BATCH_CHUNK_SIZE) {
       const chunk = sourceShots.slice(start, start + BATCH_CHUNK_SIZE)
       const batch = writeBatch(db)
-      for (const shot of chunk) {
+      for (const { shot, rawHeroImage } of chunk) {
         const newLaneId = shot.laneId ? laneIdMap.get(shot.laneId) ?? null : null
         const payload = buildShotClonePayload({
           shot,
@@ -247,6 +313,7 @@ async function cloneShots(params: {
             laneIdOverride: newLaneId,
             preserveShotNumber: true,
             sortOrderOverride: shot.sortOrder,
+            heroImageOverride: rawHeroImage,
           },
         })
         const ref = doc(shotsCollectionRef)

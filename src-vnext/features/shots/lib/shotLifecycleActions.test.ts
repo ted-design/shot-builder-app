@@ -27,6 +27,7 @@ import { Timestamp } from "firebase/firestore"
 import * as firestore from "firebase/firestore"
 import type { Shot } from "@/shared/types"
 import {
+  BulkCopyPartialFailureError,
   buildDuplicateShotTitle,
   buildShotClonePayload,
   bulkCopyShotsToProject,
@@ -199,6 +200,45 @@ describe("shotLifecycleActions", () => {
       expect(payload["status"]).toBe("todo") // already preserved unconditionally
       expect(payload["date"]).toBeTruthy() // already preserved unconditionally
     })
+
+    it("heroImageOverride WINS over shot.heroImage: a value clones verbatim, null OMITS the field, absent key keeps today's behavior", () => {
+      const materialized = { path: "materialized.jpg", downloadURL: "https://x/materialized.jpg" }
+
+      const overridden = buildShotClonePayload({
+        shot: makeShot({ heroImage: materialized }),
+        clientId: "c1",
+        targetProjectId: "p1",
+        title: "Hero Shot",
+        createdByUid: "u2",
+        preserveLane: false,
+        options: { heroImageOverride: { path: "raw.jpg", downloadURL: "https://x/raw.jpg" } },
+      })
+      expect(overridden["heroImage"]).toEqual({ path: "raw.jpg", downloadURL: "https://x/raw.jpg" })
+
+      const omitted = buildShotClonePayload({
+        shot: makeShot({ heroImage: materialized }),
+        clientId: "c1",
+        targetProjectId: "p1",
+        title: "Hero Shot",
+        createdByUid: "u2",
+        preserveLane: false,
+        options: { heroImageOverride: null },
+      })
+      expect(omitted).not.toHaveProperty("heroImage")
+
+      const defaulted = buildShotClonePayload({
+        shot: makeShot({ heroImage: materialized }),
+        clientId: "c1",
+        targetProjectId: "p1",
+        title: "Hero Shot",
+        createdByUid: "u2",
+        preserveLane: false,
+        // no options at all — existing callers (duplicateShotInProject,
+        // copyShotToProject, bulkCopyShotsToProject) must keep writing the
+        // materialized shot.heroImage byte-for-byte.
+      })
+      expect(defaulted["heroImage"]).toEqual(materialized)
+    })
   })
 })
 
@@ -258,19 +298,15 @@ describe("bulk cross-project transfer", () => {
         createdByUid: "u1",
       })
 
-      // Canonical order (sortOrder asc) is s3(1), s2(2), s1(3), s0(4). Every
-      // bulk-copy title gets buildDuplicateShotTitle's "(Copy)" suffix
-      // unconditionally (same as single-shot duplicate) — titles here don't
-      // collide with each other, so no "(Copy 2)" escalation.
+      // Canonical order (sortOrder asc) is s3(1), s2(2), s1(3), s0(4). No
+      // titles collide (targetTitles is empty and every source title is
+      // distinct), so every title stays BARE — see the dedicated
+      // no-collision test below for that behavior; this test's job is
+      // ORDER, so just assert on the write sequence via title identity.
       const titlesInWriteOrder = mockBatchSet.mock.calls.map(
         (call) => (call[1] as Record<string, unknown>)["title"],
       )
-      expect(titlesInWriteOrder).toEqual([
-        "Shot 3 (Copy)",
-        "Shot 2 (Copy)",
-        "Shot 1 (Copy)",
-        "Shot 0 (Copy)",
-      ])
+      expect(titlesInWriteOrder).toEqual(["Shot 3", "Shot 2", "Shot 1", "Shot 0"])
 
       const sortOrders = mockBatchSet.mock.calls.map(
         (call) => (call[1] as Record<string, unknown>)["sortOrder"] as number,
@@ -278,6 +314,22 @@ describe("bulk cross-project transfer", () => {
       expect(sortOrders[1]! - sortOrders[0]!).toBe(1)
       expect(sortOrders[2]! - sortOrders[1]!).toBe(1)
       expect(sortOrders[3]! - sortOrders[2]!).toBe(1)
+    })
+
+    it("keeps the BARE title when it doesn't collide with target or already-copied titles (mutation: unconditional rename -> reddens)", async () => {
+      const shots = [
+        makeShot({ id: "s1", title: "Product Shot", sortOrder: 1 }),
+        makeShot({ id: "s2", title: "Lifestyle Shot", sortOrder: 2 }),
+      ]
+      await bulkCopyShotsToProject({
+        clientId: "c1",
+        shots,
+        targetProjectId: "p2",
+        targetTitles: new Set(),
+        createdByUid: "u1",
+      })
+      const titles = mockBatchSet.mock.calls.map((call) => (call[1] as Record<string, unknown>)["title"])
+      expect(titles).toEqual(["Product Shot", "Lifestyle Shot"])
     })
 
     it("clears laneId and resets shotNumber on every copy (single-shot copy precedent)", async () => {
@@ -322,6 +374,27 @@ describe("bulk cross-project transfer", () => {
       })
       expect(mockBatchCommit).toHaveBeenCalledTimes(2)
       expect(result.copiedCount).toBe(251)
+    })
+
+    it("a chunk failing partway through throws BulkCopyPartialFailureError carrying how many landed", async () => {
+      const shots = shotsScrambled(251) // 2 chunks: 250 + 1
+      mockBatchCommit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("network down"))
+
+      try {
+        await bulkCopyShotsToProject({
+          clientId: "c1",
+          shots,
+          targetProjectId: "p2",
+          targetTitles: new Set(),
+          createdByUid: "u1",
+        })
+        expect.unreachable("expected bulkCopyShotsToProject to throw")
+      } catch (err) {
+        expect(err).toBeInstanceOf(BulkCopyPartialFailureError)
+        const failure = err as BulkCopyPartialFailureError
+        expect(failure.copiedCount).toBe(250)
+        expect(failure.totalCount).toBe(251)
+      }
     })
   })
 
@@ -385,6 +458,21 @@ describe("bulk cross-project transfer", () => {
       })
       expect(mockBatchCommit).toHaveBeenCalledTimes(2)
       expect(result.movedCount).toBe(251)
+    })
+
+    it("tie-breaks by id when sortOrder ties on every shot (all-absent -> 0) — no transient display-order leak (mutation: drop the id tie-break -> reddens)", async () => {
+      const shots = [
+        makeShot({ id: "s2", title: "B", sortOrder: 0, laneId: undefined }),
+        makeShot({ id: "s1", title: "A", sortOrder: 0, laneId: undefined }),
+      ]
+      await bulkMoveShotsToProject({
+        clientId: "c1",
+        shots,
+        targetProjectId: "p2",
+        user: null,
+      })
+      const idsInWriteOrder = mockBatchUpdate.mock.calls.map((call) => (call[0] as { id: string }).id)
+      expect(idsInWriteOrder).toEqual(["s1", "s2"])
     })
   })
 })

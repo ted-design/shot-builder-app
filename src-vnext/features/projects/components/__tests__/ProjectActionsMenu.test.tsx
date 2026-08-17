@@ -72,6 +72,14 @@ describe("ProjectActionsMenu", () => {
     expect(screen.queryByTitle("Project actions")).not.toBeInTheDocument()
   })
 
+  it("hides 'Duplicate project…' for a viewer role — explicit assertion, not just the menu's early-return", () => {
+    mockRole = "viewer"
+
+    render(<ProjectActionsMenu project={makeProject()} onEdit={() => undefined} />)
+
+    expect(screen.queryByText("Duplicate project…")).not.toBeInTheDocument()
+  })
+
   it("shows 'Duplicate project…' for producer (same predicate that gates project creation UI)", async () => {
     mockRole = "producer"
     const user = userEvent.setup()
