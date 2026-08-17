@@ -160,7 +160,15 @@ export function ShotCard({
       data-testid="shot-card"
       data-shot-id={shot.id}
       className="cursor-pointer hover-lift"
+      role="button"
+      tabIndex={0}
       onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.key === " ") e.preventDefault()
+          onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)
+        }
+      }}
     >
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
         <div className="flex items-start justify-between gap-2.5">
