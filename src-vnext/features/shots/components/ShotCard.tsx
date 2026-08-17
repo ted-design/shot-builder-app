@@ -160,7 +160,15 @@ export function ShotCard({
       data-testid="shot-card"
       data-shot-id={shot.id}
       className="cursor-pointer hover-lift"
+      role="button"
+      tabIndex={0}
       onClick={() => onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          if (e.key === " ") e.preventDefault()
+          onOpenShot ? onOpenShot(shot.id) : navigate(`/projects/${projectId}/shots/${shot.id}`)
+        }
+      }}
     >
       <CardContent className="flex flex-col gap-2.5 px-4 py-3.5">
         <div className="flex items-start justify-between gap-2.5">
@@ -193,6 +201,7 @@ export function ShotCard({
             className="flex flex-shrink-0 items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             {leadingControl}
             {actionControl}
@@ -207,7 +216,11 @@ export function ShotCard({
         </div>
 
         {selectable && (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             {selectable && (
               <Checkbox
                 checked={!!selected}
@@ -290,6 +303,7 @@ export function ShotCard({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
                             className="inline-flex max-w-full items-center gap-1 hover:underline"
                             title={`${entry.title}\n${entry.url}`}
                           >
