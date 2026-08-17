@@ -108,25 +108,44 @@ function safeSetItem(key: string, value: string): void {
   }
 }
 
-/** Read the current v2 blob, tolerantly. Missing/malformed → the empty shape
- *  with `_mig.v2: false`, so callers can safely read-modify-write. */
-function readPrefsV2(clientId: string, projectId: string): ShotsPrefsV2 {
+/**
+ * Read the current v2 blob. Three outcomes, deliberately distinguished:
+ *
+ *   ABSENT   (no key)            → `EMPTY_PREFS_V2` — a valid starting point;
+ *                                  a mirror may safely read-modify-write it.
+ *   OK       (well-formed blob)  → the parsed prefs.
+ *   CORRUPT  (unparseable, or a
+ *             non-object such as
+ *             an array / `null`) → `null`.
+ *
+ * CORRUPT must NOT collapse into ABSENT. A mirror that read-modify-writes an
+ * unparseable blob would silently rewrite it as `_mig.v2: false` +
+ * `rawSnapshot: null` — destroying both the marker and the ONLY recovery copy
+ * of the legacy stores, on a code path nobody is watching. Mirrors therefore
+ * skip entirely on CORRUPT; the next mount's backfill (which treats an
+ * unstamped-or-unreadable blob as unstamped) rebuilds from the legacy stores,
+ * which are still the authoritative read path this phase.
+ */
+function readPrefsV2(clientId: string, projectId: string): ShotsPrefsV2 | null {
   const raw = safeGetItem(prefsV2Key(clientId, projectId))
   if (!raw) return EMPTY_PREFS_V2
   try {
-    const parsed = JSON.parse(raw) as Partial<ShotsPrefsV2> | null
-    if (!parsed || typeof parsed !== "object") return EMPTY_PREFS_V2
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null
+    const blob = parsed as Partial<ShotsPrefsV2>
     const columns =
-      parsed.columns && typeof parsed.columns === "object" ? parsed.columns : {}
+      blob.columns && typeof blob.columns === "object" && !Array.isArray(blob.columns)
+        ? blob.columns
+        : {}
     return {
-      fields: { ...DEFAULT_FIELDS, ...(parsed.fields ?? {}) },
+      fields: { ...DEFAULT_FIELDS, ...(blob.fields ?? {}) },
       columns,
-      view: parsed.view === "table" || parsed.view === "card" ? parsed.view : null,
-      rawSnapshot: parsed.rawSnapshot ?? null,
-      _mig: { v2: parsed._mig?.v2 === true },
+      view: blob.view === "table" || blob.view === "card" ? blob.view : null,
+      rawSnapshot: blob.rawSnapshot ?? null,
+      _mig: { v2: blob._mig?.v2 === true },
     }
   } catch {
-    return EMPTY_PREFS_V2
+    return null
   }
 }
 
@@ -165,6 +184,46 @@ function buildFieldToColumnMap(): ReadonlyMap<keyof ShotsListFields, string> {
 
 const FIELD_TO_COLUMN = buildFieldToColumnMap()
 const FIELD_KEYS = Object.keys(DEFAULT_FIELDS) as ReadonlyArray<keyof ShotsListFields>
+
+/** A subset of `ShotsListFields` — the unit every mirror writes (see the
+ *  per-key patch invariant on the mirrors below). `ShotsListFields` is
+ *  readonly, so the builders below accumulate into the mutable twin. */
+export type ShotsFieldsPatch = Readonly<Partial<ShotsListFields>>
+type MutableFieldsPatch = { -readonly [K in keyof ShotsListFields]?: ShotsListFields[K] }
+
+/** The COLUMN domain's own default visibility, keyed by field. Deliberately
+ *  NOT `DEFAULT_FIELDS` — the two disagree (notes/links/updated are visible by
+ *  column default and hidden by card default), and a *column* reset must
+ *  restore what `useTableColumns.resetToDefaults` restores: SHOT_TABLE_COLUMNS.
+ *  Card-only keys (`description`, `readiness`, `shotNumber`) are absent here,
+ *  which is what keeps a column reset from touching them. */
+function buildColumnDomainDefaults(): ShotsFieldsPatch {
+  const out: MutableFieldsPatch = {}
+  for (const col of SHOT_TABLE_COLUMNS) {
+    const fieldKey = columnKeyToFieldKey(col.key)
+    if (fieldKey) out[fieldKey] = col.visible
+  }
+  return out
+}
+
+const COLUMN_DOMAIN_DEFAULT_FIELDS = buildColumnDomainDefaults()
+
+/**
+ * The keys whose values differ between `prev` and `next`, as a patch.
+ *
+ * This is what makes card writes co-exist with table writes in ONE v2 blob:
+ * the card surface's state is derived from Store 1 alone and knows nothing
+ * about a column the user hid from the table popover, so mirroring the card's
+ * WHOLE fields object would resurrect that column every time any card field
+ * was toggled. Mirroring only the delta gives last-write-wins per key.
+ */
+export function fieldsDelta(prev: ShotsListFields, next: ShotsListFields): ShotsFieldsPatch {
+  const patch: MutableFieldsPatch = {}
+  for (const key of FIELD_KEYS) {
+    if (prev[key] !== next[key]) patch[key] = next[key]
+  }
+  return patch
+}
 
 // ---------------------------------------------------------------------------
 // Legacy blob parsing (tolerant — a malformed blob is treated as absent)
@@ -251,7 +310,10 @@ function unionFields(
 export function backfillShotsPrefsV2(clientId: string, projectId: string): void {
   try {
     const existing = readPrefsV2(clientId, projectId)
-    if (existing._mig.v2) return // idempotent — marker already stamped
+    // Idempotent — marker already stamped. A CORRUPT blob (`null`) reads as
+    // unstamped on purpose: rebuilding it from the still-authoritative legacy
+    // stores is the recovery path the mirrors deliberately defer to.
+    if (existing?._mig.v2) return
 
     const fieldsRaw = safeGetItem(fieldsV1Key(clientId, projectId))
     const tableRaw = safeGetItem(tableV3Key(clientId, projectId))
@@ -304,18 +366,41 @@ export function backfillShotsPrefsV2(clientId: string, projectId: string): void 
 
 // ---------------------------------------------------------------------------
 // (B) Dual-write mirrors — extend the existing legacy persist paths so v2
-// never goes stale before the Phase 2 read-flip. Each is a read-modify-write
-// against whatever v2 blob currently exists (defaulting to the empty shape),
-// and never touches `_mig` except the backfill above.
+// never goes stale before the Phase 2 read-flip.
+//
+// TWO invariants hold across every mirror below:
+//
+//   1. PER-KEY PATCH. A mirror writes only the keys the user's action actually
+//      changed, so the card surface and the table surface — which have
+//      independent legacy stores and therefore independent, disagreeing ideas
+//      of "the current fields" — can share one v2 blob under last-write-wins
+//      per key. Never replace a whole sub-object.
+//   2. WRITES ONLY. A mirror fires from a write path, never from a mount
+//      effect. A mount-time mirror is an ECHO of one surface's load-time
+//      state and silently overwrites whatever the backfill computed from the
+//      OTHER stores (see useShotListState's `setFields` for the seam).
+//
+// Each is a read-modify-write against whatever v2 blob currently exists
+// (defaulting to the empty shape when ABSENT, skipped entirely when CORRUPT —
+// see `readPrefsV2`), and never touches `_mig` except the backfill above.
 // ---------------------------------------------------------------------------
 
-export function mirrorFieldsToV2(clientId: string, projectId: string, fields: ShotsListFields): void {
+/** Mirrors a CARD field write, as a per-key patch of just the changed keys
+ *  (build a patch with `fieldsDelta`, not the whole `ShotsListFields`). */
+export function mirrorFieldsPatchToV2(
+  clientId: string,
+  projectId: string,
+  patch: ShotsFieldsPatch,
+): void {
+  if (Object.keys(patch).length === 0) return
   const current = readPrefsV2(clientId, projectId)
-  writePrefsV2(clientId, projectId, { ...current, fields })
+  if (!current) return
+  writePrefsV2(clientId, projectId, { ...current, fields: { ...current.fields, ...patch } })
 }
 
 export function mirrorViewToV2(clientId: string, projectId: string, view: ViewMode): void {
   const current = readPrefsV2(clientId, projectId)
+  if (!current) return
   writePrefsV2(clientId, projectId, { ...current, view })
 }
 
@@ -327,6 +412,7 @@ export function mirrorColumnWidthToV2(
   width: number,
 ): void {
   const current = readPrefsV2(clientId, projectId)
+  if (!current) return
   const prevGeom = current.columns[columnKey]
   const order = prevGeom?.order ?? SHOT_TABLE_COLUMNS.find((c) => c.key === columnKey)?.order ?? 0
   writePrefsV2(clientId, projectId, {
@@ -342,6 +428,7 @@ export function mirrorColumnOrderToV2(
   orderedKeys: readonly string[],
 ): void {
   const current = readPrefsV2(clientId, projectId)
+  if (!current) return
   const updates = orderedKeys.map((key, idx) => {
     const prevGeom = current.columns[key]
     const width = prevGeom?.width ?? SHOT_TABLE_COLUMNS.find((c) => c.key === key)?.width ?? 0
@@ -365,8 +452,31 @@ export function mirrorColumnVisibilityToV2(
   const fieldKey = columnKeyToFieldKey(columnKey)
   if (!fieldKey) return
   const current = readPrefsV2(clientId, projectId)
+  if (!current) return
   writePrefsV2(clientId, projectId, {
     ...current,
     fields: { ...current.fields, [fieldKey]: visible },
+  })
+}
+
+/**
+ * Mirrors a column RESET (ShotsTable's `handleResetColumns`, wrapping
+ * `useTableColumns.resetToDefaults`, which removes the Store 3 key outright).
+ *
+ * Clears the geometry sidecar and returns the COLUMN-DOMAIN field keys to the
+ * column defaults. Card-only keys (`description`, `readiness`, `shotNumber`)
+ * are deliberately untouched: they have no column counterpart, they are not
+ * shown in the column popover, and a table reset has never meant "throw away
+ * the card's display prefs". Without this seam a reset would clear Store 3
+ * while leaving v2 carrying the pre-reset widths/order/visibility forever —
+ * the divergence would only surface at the Phase 2 read-flip.
+ */
+export function resetColumnPrefsInV2(clientId: string, projectId: string): void {
+  const current = readPrefsV2(clientId, projectId)
+  if (!current) return
+  writePrefsV2(clientId, projectId, {
+    ...current,
+    columns: {},
+    fields: { ...current.fields, ...COLUMN_DOMAIN_DEFAULT_FIELDS },
   })
 }

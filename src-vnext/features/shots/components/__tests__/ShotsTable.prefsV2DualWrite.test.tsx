@@ -23,13 +23,20 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { render, screen, fireEvent, within } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { ShotsTable } from "../ShotsTable"
-import { prefsV2Key, tableV3Key, type ShotsPrefsV2 } from "@/features/shots/lib/migrateShotsPrefsV2"
+import {
+  prefsV2Key,
+  tableV3Key,
+  mirrorFieldsPatchToV2,
+  type ShotsPrefsV2,
+} from "@/features/shots/lib/migrateShotsPrefsV2"
 import { SHOT_TABLE_COLUMNS } from "@/features/shots/lib/shotTableColumns"
+import { DEFAULT_FIELDS } from "@/features/shots/lib/shotListFilters"
 
 vi.mock("@/shared/components/ColumnSettingsPopover", () => ({
   ColumnSettingsPopover: (props: {
     readonly onToggleVisibility: (key: string) => void
     readonly onReorder: (keys: readonly string[]) => void
+    readonly onReset: () => void
     readonly children: ReactNode
   }) => (
     <div>
@@ -39,6 +46,9 @@ vi.mock("@/shared/components/ColumnSettingsPopover", () => ({
       </button>
       <button type="button" onClick={() => props.onReorder(["talent", "date", "notes"])}>
         mock-reorder
+      </button>
+      <button type="button" onClick={() => props.onReset()}>
+        mock-reset
       </button>
     </div>
   ),
@@ -50,6 +60,14 @@ const PROJECT = "p1"
 function readV2(): ShotsPrefsV2 | null {
   const raw = window.localStorage.getItem(prefsV2Key(CLIENT, PROJECT))
   return raw ? (JSON.parse(raw) as ShotsPrefsV2) : null
+}
+
+/** Legacy Store 3, parsed. The dual-write's legacy half is load-bearing: this
+ *  phase flips NO reads, so a mirror that quietly replaced the legacy write
+ *  instead of extending it would break every surface while leaving v2 green. */
+function readStore3(): ReadonlyArray<{ key: string; visible: boolean; width: number; order: number }> {
+  const raw = window.localStorage.getItem(tableV3Key(CLIENT, PROJECT))
+  return raw ? (JSON.parse(raw) as Array<{ key: string; visible: boolean; width: number; order: number }>) : []
 }
 
 beforeEach(() => {
@@ -86,10 +104,15 @@ describe("ShotsTable — Phase 1 v2 dual-write wiring", () => {
     expect(v2.columns.date?.width).toBe(dateCol3.width)
   })
 
-  it("column VISIBILITY toggle mirrors into v2.fields (not v2.columns)", () => {
+  it("column VISIBILITY toggle writes BOTH halves: legacy Store 3 and v2.fields", () => {
     renderTable()
 
     fireEvent.click(screen.getByText("mock-toggle-date"))
+
+    // Legacy half — deleting `toggleVisibility(key)` from the wrapper must redden here.
+    const store3 = readStore3()
+    expect(store3.length).toBeGreaterThan(0) // the legacy write happened at all
+    expect(store3.find((c) => c.key === "date")!.visible).toBe(false)
 
     const v2 = readV2()!
     // date defaults to visible:true -> toggled to false.
@@ -97,10 +120,16 @@ describe("ShotsTable — Phase 1 v2 dual-write wiring", () => {
     expect(v2.columns.date).toBeUndefined()
   })
 
-  it("column REORDER mirrors order into v2.columns, preserving default widths", () => {
+  it("column REORDER writes BOTH halves: legacy Store 3 order and v2.columns order", () => {
     renderTable()
 
     fireEvent.click(screen.getByText("mock-reorder"))
+
+    // Legacy half — deleting `reorderColumns(orderedKeys)` must redden here.
+    const store3 = readStore3()
+    expect(store3.find((c) => c.key === "talent")!.order).toBe(0)
+    expect(store3.find((c) => c.key === "date")!.order).toBe(1)
+    expect(store3.find((c) => c.key === "notes")!.order).toBe(2)
 
     const v2 = readV2()!
     expect(v2.columns.talent?.order).toBe(0)
@@ -108,12 +137,63 @@ describe("ShotsTable — Phase 1 v2 dual-write wiring", () => {
     expect(v2.columns.notes?.order).toBe(2)
   })
 
-  it("no clientId/projectId: mirrors are skipped (no v2 key written) — matches legacy's own guard", () => {
+  it("no clientId: NO v2 key of any shape is written, while the legacy no-client key still is", () => {
     render(<ShotsTable clientId={null} projectId="" shots={[]} onOpenShot={() => {}} />)
 
     fireEvent.click(screen.getByText("mock-toggle-date"))
     fireEvent.click(screen.getByText("mock-reorder"))
 
-    expect(window.localStorage.getItem(prefsV2Key("c1", "p1"))).toBeNull()
+    // Positive control: the interactions really ran, and landed in the
+    // clientId-less legacy key ShotsTable falls back to. Without this the
+    // negative below could pass on a component that did nothing at all.
+    const legacyNoClient = JSON.parse(window.localStorage.getItem("sb:shots-table:")!) as Array<{
+      key: string
+      visible: boolean
+    }>
+    expect(legacyNoClient.find((c) => c.key === "date")!.visible).toBe(false)
+
+    // F5 — the clientId-less surface is deliberately OUT of v2's scope this
+    // phase. Assert on the KEY SPACE, not one guessed key: `prefsV2Key("c1","p1")`
+    // is a key nothing in this render could ever write, so asserting it is null
+    // stays green even with every clientId guard deleted.
+    const v2Keys = Object.keys(window.localStorage).filter((k) => /^sb:shots:prefs:v2:/.test(k))
+    expect(v2Keys).toEqual([])
+  })
+
+  it("column RESET clears v2 geometry and returns column-domain fields to column defaults", () => {
+    renderTable()
+
+    // Establish non-default v2 state on both halves of the blob.
+    fireEvent.click(screen.getByText("mock-toggle-date")) // fields.date -> false
+    fireEvent.click(screen.getByText("mock-reorder")) // columns.{talent,date,notes}
+    expect(readV2()!.fields.date).toBe(false)
+    expect(Object.keys(readV2()!.columns).length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByText("mock-reset"))
+
+    // Legacy half: useTableColumns' reset removes the Store 3 key outright.
+    expect(window.localStorage.getItem(tableV3Key(CLIENT, PROJECT))).toBeNull()
+
+    const v2 = readV2()!
+    expect(v2.columns).toEqual({})
+    // Column-domain keys return to the COLUMN defaults (which differ from
+    // DEFAULT_FIELDS on notes/links/updated — Store 3 is what reset restores).
+    expect(v2.fields.date).toBe(true)
+    expect(v2.fields.notes).toBe(true)
+    expect(v2.fields.links).toBe(true)
+    expect(v2.fields.updated).toBe(true)
+    // Card-only fields have no column counterpart — a COLUMN reset must not
+    // touch them.
+    expect(v2.fields.description).toBe(DEFAULT_FIELDS.description)
+    expect(v2.fields.readiness).toBe(DEFAULT_FIELDS.readiness)
+  })
+
+  it("column RESET leaves a card-only field edit intact", () => {
+    renderTable()
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { description: false })
+
+    fireEvent.click(screen.getByText("mock-reset"))
+
+    expect(readV2()!.fields.description).toBe(false)
   })
 })

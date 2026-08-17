@@ -30,7 +30,8 @@ import type { FilterCondition } from "@/features/shots/lib/filterConditions"
 import { OPERATOR_LABELS } from "@/features/shots/lib/filterConditions"
 import {
   backfillShotsPrefsV2,
-  mirrorFieldsToV2,
+  fieldsDelta,
+  mirrorFieldsPatchToV2,
   mirrorViewToV2,
 } from "@/features/shots/lib/migrateShotsPrefsV2"
 
@@ -269,7 +270,7 @@ export function useShotListState(params: {
     backfillShotsPrefsV2(clientId, projectId)
   }, [clientId, projectId])
 
-  const [fields, setFields] = useState<ShotsListFields>(() => {
+  const [fields, setFieldsState] = useState<ShotsListFields>(() => {
     if (!storageKeyBase) return DEFAULT_FIELDS
     try {
       const raw = window.localStorage.getItem(`${storageKeyBase}:fields:v1`)
@@ -280,31 +281,60 @@ export function useShotListState(params: {
     }
   })
 
-  // Rehydrate fields when project/client changes
+  // Latest-value ref for the v2 mirror's delta base (see `setFields` below).
+  // Written by EVERY path that changes `fields`, so two writes inside one tick
+  // diff against what was actually stored rather than a render-stale closure.
+  const fieldsRef = useRef<ShotsListFields>(fields)
+
+  // Rehydrate fields when project/client changes. Uses the RAW setter, never
+  // the wrapped `setFields`: this is a LOAD, not a user write, and mirroring it
+  // would echo one surface's load-time state over the backfill's answer.
   useEffect(() => {
     if (!storageKeyBase) return
+    const apply = (next: ShotsListFields) => {
+      fieldsRef.current = next
+      setFieldsState(next)
+    }
     try {
       const raw = window.localStorage.getItem(`${storageKeyBase}:fields:v1`)
       if (raw) {
-        setFields({ ...DEFAULT_FIELDS, ...JSON.parse(raw) as Partial<ShotsListFields> })
+        apply({ ...DEFAULT_FIELDS, ...JSON.parse(raw) as Partial<ShotsListFields> })
       } else {
-        setFields(DEFAULT_FIELDS)
+        apply(DEFAULT_FIELDS)
       }
     } catch {
-      setFields(DEFAULT_FIELDS)
+      apply(DEFAULT_FIELDS)
     }
   }, [storageKeyBase])
 
-  // Persist fields to localStorage on change — dual-write (build plan
-  // §1.2B): legacy `:fields:v1` stays the read path this phase; the v2
-  // mirror keeps `sb:shots:prefs:v2:*` from going stale before Phase 2's
-  // read-flip. A one-shot backfill snapshot WITHOUT this mirror would freeze
-  // at backfill time and silently lose any card edit made before Phase 2.
+  // Persist fields to legacy Store 1 on change. Legacy `:fields:v1` stays the
+  // read path this phase, and this effect's semantics are byte-for-byte what
+  // they were before Phase 1.
+  //
+  // The v2 mirror deliberately does NOT live here. This effect runs on MOUNT
+  // (after the backfill effect above), so mirroring from it would overwrite
+  // `v2.fields` with the card surface's load-time state on every first load —
+  // silently discarding the column-derived / OR-unioned answer the backfill
+  // had just computed from Store 3. v2 is mirrored from the WRITE path
+  // (`setFields`) instead.
   useEffect(() => {
     if (!storageKeyBase) return
     try { window.localStorage.setItem(`${storageKeyBase}:fields:v1`, JSON.stringify(fields)) } catch { /* ignore */ }
-    if (clientId && projectId) mirrorFieldsToV2(clientId, projectId, fields)
-  }, [fields, storageKeyBase, clientId, projectId])
+  }, [fields, storageKeyBase])
+
+  /** Card-surface field write. Dual-write (build plan §1.2B): the state change
+   *  drives the legacy Store 1 persist effect above; v2 gets a PER-KEY PATCH of
+   *  only the keys this write actually changed, so it never clobbers a value
+   *  the table surface owns (the card's state is derived from Store 1 alone and
+   *  cannot see a column hidden from the table popover). */
+  const setFields = useCallback((next: ShotsListFields) => {
+    const prev = fieldsRef.current
+    fieldsRef.current = next
+    setFieldsState(next)
+    if (clientId && projectId) {
+      mirrorFieldsPatchToV2(clientId, projectId, fieldsDelta(prev, next))
+    }
+  }, [clientId, projectId])
 
   const storedDefaultView = useMemo((): ViewMode => {
     if (!storageKeyBase) return "card"

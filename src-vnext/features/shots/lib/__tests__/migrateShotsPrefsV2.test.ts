@@ -5,11 +5,13 @@
 import { describe, it, expect, beforeEach } from "vitest"
 import {
   backfillShotsPrefsV2,
-  mirrorFieldsToV2,
+  fieldsDelta,
+  mirrorFieldsPatchToV2,
   mirrorViewToV2,
   mirrorColumnWidthToV2,
   mirrorColumnOrderToV2,
   mirrorColumnVisibilityToV2,
+  resetColumnPrefsInV2,
   resolveViewV2FromRaw,
   fieldsV1Key,
   viewV1Key,
@@ -225,7 +227,7 @@ describe("backfillShotsPrefsV2 — idempotency", () => {
 
     // Simulate a user edit landing in v2 between two backfill invocations
     // (e.g. via a dual-write mirror) — the marker MUST protect it.
-    mirrorFieldsToV2(CLIENT, PROJECT, { ...DEFAULT_FIELDS, notes: true })
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { notes: true })
 
     backfillShotsPrefsV2(CLIENT, PROJECT)
 
@@ -269,17 +271,17 @@ describe("resolveViewV2FromRaw — null-preserving view reader", () => {
 // ---------------------------------------------------------------------------
 
 describe("dual-write mirrors", () => {
-  it("mirrorFieldsToV2 updates v2.fields and preserves the existing _mig marker", () => {
+  it("mirrorFieldsPatchToV2 updates v2.fields and preserves the existing _mig marker", () => {
     backfillShotsPrefsV2(CLIENT, PROJECT) // establishes _mig.v2: true baseline
-    mirrorFieldsToV2(CLIENT, PROJECT, { ...DEFAULT_FIELDS, samples: true })
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { samples: true })
 
     const v2 = readV2()!
     expect(v2.fields.samples).toBe(true)
     expect(v2._mig.v2).toBe(true)
   })
 
-  it("mirrorFieldsToV2 before any backfill still writes a usable v2 blob (does not claim _mig.v2)", () => {
-    mirrorFieldsToV2(CLIENT, PROJECT, { ...DEFAULT_FIELDS, notes: true })
+  it("mirrorFieldsPatchToV2 before any backfill still writes a usable v2 blob (does not claim _mig.v2)", () => {
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { notes: true })
 
     const v2 = readV2()!
     expect(v2.fields.notes).toBe(true)
@@ -355,12 +357,166 @@ describe("no sweeps", () => {
     seedTableV3(nonDefaultTableV3())
 
     backfillShotsPrefsV2(CLIENT, PROJECT)
-    mirrorFieldsToV2(CLIENT, PROJECT, { ...DEFAULT_FIELDS, notes: true })
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { notes: true })
     mirrorViewToV2(CLIENT, PROJECT, "table")
     mirrorColumnWidthToV2(CLIENT, PROJECT, "date", 200)
 
     expect(window.localStorage.getItem(fieldsV1Key(CLIENT, PROJECT))).not.toBeNull()
     expect(window.localStorage.getItem(viewV1Key(CLIENT, PROJECT))).not.toBeNull()
     expect(window.localStorage.getItem(tableV3Key(CLIENT, PROJECT))).not.toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F3 — per-key patch semantics. `fieldsDelta` + `mirrorFieldsPatchToV2` are
+// what let the card and table surfaces share one blob: each writes only the
+// keys its own action changed, last write wins per key.
+// ---------------------------------------------------------------------------
+
+describe("fieldsDelta", () => {
+  it("returns only the changed keys, with their NEW values", () => {
+    const prev: ShotsListFields = { ...DEFAULT_FIELDS }
+    const next: ShotsListFields = { ...DEFAULT_FIELDS, notes: true, talent: false }
+
+    expect(fieldsDelta(prev, next)).toEqual({ notes: true, talent: false })
+  })
+
+  it("returns an empty patch for an unchanged object", () => {
+    expect(fieldsDelta({ ...DEFAULT_FIELDS }, { ...DEFAULT_FIELDS })).toEqual({})
+  })
+})
+
+describe("mirrorFieldsPatchToV2 — per-key patch, not whole-object replace", () => {
+  it("leaves untouched keys alone (a card write cannot resurrect a table-hidden column)", () => {
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+    mirrorColumnVisibilityToV2(CLIENT, PROJECT, "tags", false)
+
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { description: false })
+
+    const v2 = readV2()!
+    expect(v2.fields.description).toBe(false)
+    expect(v2.fields.tags).toBe(false) // NOT reverted to the card's idea of it
+  })
+
+  it("an empty patch writes nothing at all", () => {
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+    const before = window.localStorage.getItem(prefsV2Key(CLIENT, PROJECT))
+
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, {})
+
+    expect(window.localStorage.getItem(prefsV2Key(CLIENT, PROJECT))).toBe(before)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F2 — column reset (ShotsTable's `handleResetColumns` seam).
+// ---------------------------------------------------------------------------
+
+describe("resetColumnPrefsInV2", () => {
+  it("clears geometry and returns COLUMN-domain fields to the column defaults", () => {
+    seedTableV3(nonDefaultTableV3())
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+    expect(Object.keys(readV2()!.columns).length).toBeGreaterThan(0)
+
+    resetColumnPrefsInV2(CLIENT, PROJECT)
+
+    const v2 = readV2()!
+    expect(v2.columns).toEqual({})
+    // Spelled out rather than re-derived from SHOT_TABLE_COLUMNS: three of
+    // these (notes/links/updated) differ from DEFAULT_FIELDS, which is exactly
+    // the mistake a reset that reached for DEFAULT_FIELDS would make.
+    expect(v2.fields).toMatchObject({
+      heroThumb: true,
+      date: true,
+      notes: true,
+      location: true,
+      products: true,
+      links: true,
+      talent: true,
+      tags: true,
+      launch: false,
+      reqs: false,
+      samples: false,
+      updated: true,
+      scene: false,
+    })
+  })
+
+  it("does NOT touch card-only fields (description/readiness/shotNumber)", () => {
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { description: false, readiness: false, shotNumber: false })
+
+    resetColumnPrefsInV2(CLIENT, PROJECT)
+
+    const v2 = readV2()!
+    expect(v2.fields.description).toBe(false)
+    expect(v2.fields.readiness).toBe(false)
+    expect(v2.fields.shotNumber).toBe(false)
+  })
+
+  it("preserves the marker, view and rawSnapshot", () => {
+    seedFieldsV1({ ...DEFAULT_FIELDS })
+    seedViewV1("table")
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+    const before = readV2()!
+
+    resetColumnPrefsInV2(CLIENT, PROJECT)
+
+    const v2 = readV2()!
+    expect(v2._mig.v2).toBe(true)
+    expect(v2.view).toBe("table")
+    expect(v2.rawSnapshot).toEqual(before.rawSnapshot)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// F4 — a CORRUPT v2 blob must not be read-modify-written by any mirror. Doing
+// so rewrites it with `_mig.v2: false` and `rawSnapshot: null`, destroying the
+// marker AND the only recovery copy of the legacy stores. Mirrors skip; the
+// next mount's backfill rebuilds from the (still authoritative) legacy stores.
+// ---------------------------------------------------------------------------
+
+describe("corrupt v2 blob", () => {
+  const CORRUPT = '{"fields":{"notes":true},'
+
+  function seedCorrupt(raw: string): void {
+    window.localStorage.setItem(prefsV2Key(CLIENT, PROJECT), raw)
+  }
+
+  it.each([
+    ["unparseable", CORRUPT],
+    ["an array", '[{"key":"date"}]'],
+    ["a JSON null", "null"],
+    ["a JSON string", '"nope"'],
+  ])("every mirror writes NOTHING when the blob is %s", (_label, raw) => {
+    seedCorrupt(raw)
+
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { notes: true })
+    mirrorViewToV2(CLIENT, PROJECT, "table")
+    mirrorColumnWidthToV2(CLIENT, PROJECT, "date", 321)
+    mirrorColumnOrderToV2(CLIENT, PROJECT, ["talent", "date"])
+    mirrorColumnVisibilityToV2(CLIENT, PROJECT, "date", false)
+    resetColumnPrefsInV2(CLIENT, PROJECT)
+
+    expect(window.localStorage.getItem(prefsV2Key(CLIENT, PROJECT))).toBe(raw)
+  })
+
+  it("the NEXT backfill rebuilds it from the legacy stores (corrupt reads as unstamped)", () => {
+    const fields: ShotsListFields = { ...DEFAULT_FIELDS, launch: true }
+    seedFieldsV1(fields)
+    seedCorrupt(CORRUPT)
+
+    backfillShotsPrefsV2(CLIENT, PROJECT)
+
+    const v2 = readV2()!
+    expect(v2._mig.v2).toBe(true)
+    expect(v2.fields).toEqual(fields)
+    expect(v2.rawSnapshot?.fieldsV1).toBe(JSON.stringify(fields))
+  })
+
+  it("an ABSENT blob is not corrupt — mirrors still write it (that distinction is the point)", () => {
+    mirrorFieldsPatchToV2(CLIENT, PROJECT, { notes: true })
+
+    expect(readV2()!.fields.notes).toBe(true)
   })
 })

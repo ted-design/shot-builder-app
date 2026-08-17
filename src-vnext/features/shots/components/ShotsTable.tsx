@@ -45,6 +45,7 @@ import {
   mirrorColumnWidthToV2,
   mirrorColumnOrderToV2,
   mirrorColumnVisibilityToV2,
+  resetColumnPrefsInV2,
 } from "@/features/shots/lib/migrateShotsPrefsV2"
 
 // Threshold above which DnD reorder is automatically disabled — @dnd-kit's
@@ -491,6 +492,13 @@ export function ShotsTable({
     selectionEnabled && shots.length > 0 && shots.every((s) => selection!.selectedIds.has(s.id))
   const someSelected = selectionEnabled && shots.some((s) => selection!.selectedIds.has(s.id))
 
+  // The clientId-less fallback key is DELIBERATELY outside v2's scope for
+  // Phase 1: every mirror seam below is guarded on `clientId && projectId`, so
+  // a table rendered without a clientId writes legacy Store 3 only and lands in
+  // no `sb:shots:prefs:v2:*` key at all (a v2 key built from a null clientId
+  // would be an orphan no backfill or read-flip could ever find). The exclusion
+  // is covered by ShotsTable.prefsV2DualWrite.test.tsx's key-space assertion,
+  // and is revisited in Phase 2 when reads flip to v2.
   const storageKey =
     clientId && projectId ? `shots-table:${clientId}:${projectId}` : `shots-table:${projectId}`
 
@@ -556,6 +564,15 @@ export function ShotsTable({
     },
     [toggleVisibility, columns, clientId, projectId],
   )
+
+  // Reset is a WRITE like any other and needs its own seam: the shared hook's
+  // `resetToDefaults` removes the Store 3 key, which v2 would never hear about
+  // — leaving the mirrored widths/order/visibility in place to reappear at the
+  // Phase 2 read-flip as prefs the user had explicitly cleared.
+  const handleResetColumns = useCallback(() => {
+    resetToDefaults()
+    if (clientId && projectId) resetColumnPrefsInV2(clientId, projectId)
+  }, [resetToDefaults, clientId, projectId])
 
   const { startResize } = useColumnResize({
     onWidthChange: handleColumnWidthChange,
@@ -644,7 +661,7 @@ export function ShotsTable({
           onToggleVisibility={handleToggleVisibility}
           onReorder={handleReorderColumns}
           showReorder={true}
-          onReset={resetToDefaults}
+          onReset={handleResetColumns}
         >
           <Button
             variant="ghost"
