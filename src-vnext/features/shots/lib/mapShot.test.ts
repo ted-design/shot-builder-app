@@ -414,3 +414,45 @@ describe("mapShot", () => {
     }
   })
 })
+
+describe("mapShot heroImage — a colourway cover never borrows the family image", () => {
+  const FAMILY_URL = "https://firebasestorage.googleapis.com/v0/b/x/o/black.webp?alt=media" // first colourway's photo
+
+  function lookShot(heroProductId: string | undefined, products: Record<string, unknown>[]) {
+    return mapShot("s1", {
+      title: "T",
+      projectId: "p1",
+      clientId: "c1",
+      activeLookId: "l1",
+      looks: [{ id: "l1", ...(heroProductId === undefined ? {} : { heroProductId }), products }],
+    })
+  }
+
+  it("explicit colourway cover with only the frozen family fallback: no synthesized hero", () => {
+    // Picker-written shape when the colourway had no photo: thumbUrl = familyImageUrl.
+    const shot = lookShot("sku-olive", [
+      { familyId: "f1", skuId: "sku-olive", thumbUrl: FAMILY_URL, familyImageUrl: FAMILY_URL },
+    ])
+    expect(shot.heroImage).toBeUndefined()
+  })
+
+  it("auto cover skips a no-photo colourway and uses the next product's own photo", () => {
+    const shot = lookShot(undefined, [
+      { familyId: "f1", skuId: "sku-olive", thumbUrl: FAMILY_URL, familyImageUrl: FAMILY_URL },
+      { familyId: "f2", skuId: "sku-navy", skuImageUrl: "navy.webp", thumbUrl: "navy.webp", familyImageUrl: "f2.webp" },
+    ])
+    expect(shot.heroImage?.downloadURL).toBe("navy.webp")
+  })
+
+  it("explicit colourway cover with its own frozen photo is unchanged", () => {
+    const shot = lookShot("sku-olive", [
+      { familyId: "f1", skuId: "sku-olive", skuImageUrl: "olive.webp", thumbUrl: "olive.webp", familyImageUrl: FAMILY_URL },
+    ])
+    expect(shot.heroImage?.downloadURL).toBe("olive.webp")
+  })
+
+  it("family-level cover keeps the family image", () => {
+    const shot = lookShot("f1", [{ familyId: "f1", thumbUrl: FAMILY_URL, familyImageUrl: FAMILY_URL }])
+    expect(shot.heroImage?.downloadURL).toBe(FAMILY_URL)
+  })
+})

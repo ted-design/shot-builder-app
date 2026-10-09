@@ -28,6 +28,13 @@ import { ProductUpsertDialog } from "@/features/products/components/ProductUpser
 import { ProductQuickViewPopover } from "@/features/shots/components/ProductQuickViewPopover"
 import { Package, Plus, X, ChevronLeft, Loader2, Search, Star } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
+import {
+  NO_COLOURWAY_PHOTO_LABEL,
+  assignmentColourwayId,
+  resolveAssignmentImage,
+  resolveSkuImage,
+} from "@/shared/lib/colourwayImage"
+import { ProductImage } from "@/shared/components/ProductImage"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { getTagColorClasses } from "@/shared/lib/tagColors"
 import { normalizeText, humanizeLabel } from "@/shared/lib/textUtils"
@@ -281,7 +288,6 @@ export function ProductAssignmentPicker({
             {step === "sku" && draft.family && (
               <SkuStep
                 family={draft.family}
-                familyImageUrl={draft.family.headerImagePath ?? draft.family.thumbnailImagePath}
                 canManageCatalog={canManageCatalog}
                 onManageColorways={(family, skus) => {
                   setManageColorwayPayload({ family, skus })
@@ -367,16 +373,14 @@ function AssignmentRow({
       ? assignment.familyId
       : null
 
-  const needsImageLookup =
-    !assignment.thumbUrl && !assignment.skuImageUrl && !assignment.familyImageUrl
-
-  const skuId =
-    needsImageLookup
-      ? (assignment.skuId ?? assignment.colourId ?? null)
-      : null
+  // Always read the live colourway: the image frozen on the assignment may be the
+  // family fallback (a sibling colour), and the colourway may have a photo now.
+  const skuId = assignmentColourwayId(assignment)
 
   const { data: family } = useProductFamilyDoc(familyId)
-  const { data: sku } = useProductSkuDoc(familyId, skuId)
+  const { data: skuDoc, loading: skuLoading } = useProductSkuDoc(familyId, skuId)
+  // Ignore doc data still carried over from a prior id.
+  const sku = skuDoc?.id === skuId ? skuDoc : null
 
   const label = assignment.familyName ?? assignment.familyId
   const colourLabel = assignment.colourName
@@ -394,13 +398,7 @@ function AssignmentRow({
   if (sizeLabel) meta.push(sizeLabel)
   if (qty > 1) meta.push(`×${qty}`)
 
-  const thumbSrc =
-    assignment.thumbUrl ??
-    assignment.skuImageUrl ??
-    assignment.familyImageUrl ??
-    sku?.imagePath ??
-    family?.thumbnailImagePath ??
-    family?.headerImagePath
+  const thumb = resolveAssignmentImage(assignment, { sku, family })
 
   const styleNumber =
     family?.styleNumbers?.[0] ?? family?.styleNumber ?? undefined
@@ -414,7 +412,12 @@ function AssignmentRow({
 
   return (
     <div className="flex items-start gap-2.5 rounded-md border border-[var(--color-border)] px-2.5 py-2">
-      <CollapsibleThumb src={thumbSrc} alt={label} large />
+      <CollapsibleThumb
+        src={thumb.src ?? undefined}
+        alt={label}
+        large
+        emptyLabel={thumb.colourwayPhotoMissing && !skuLoading ? NO_COLOURWAY_PHOTO_LABEL : undefined}
+      />
       <div
         className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5"
         onClick={disabled ? undefined : onEdit}
@@ -492,10 +495,13 @@ function CollapsibleThumb({
   src,
   alt,
   large = false,
+  emptyLabel,
 }: {
   readonly src: string | undefined
   readonly alt: string
   readonly large?: boolean
+  /** When set, a missing image renders a labelled placeholder instead of collapsing. */
+  readonly emptyLabel?: string
 }) {
   const resolvedSrc = useStorageUrl(src)
   const [errored, setErrored] = useState(false)
@@ -503,6 +509,19 @@ function CollapsibleThumb({
   useEffect(() => {
     setErrored(false)
   }, [src])
+
+  // Label only a genuinely missing source — not one still resolving or failing to load.
+  if (!src && emptyLabel) {
+    return (
+      <ProductImage
+        src={undefined}
+        alt={alt}
+        size="sm"
+        emptyLabel={emptyLabel}
+        className={`shrink-0 rounded-[var(--radius-md)] ${large ? "h-11 w-11" : "h-10 w-10"}`}
+      />
+    )
+  }
 
   if (!resolvedSrc || errored) return null
 
@@ -875,7 +894,6 @@ function FamilyStep({
 
 function SkuStep({
   family,
-  familyImageUrl,
   canManageCatalog,
   onManageColorways,
   onBack,
@@ -883,7 +901,6 @@ function SkuStep({
   onSkip,
 }: {
   readonly family: ProductFamily
-  readonly familyImageUrl: string | undefined
   readonly canManageCatalog: boolean
   readonly onManageColorways: (family: ProductFamily, skus: ReadonlyArray<ProductSku>) => void
   readonly onBack: () => void
@@ -975,8 +992,9 @@ function SkuStep({
                     className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--color-surface-subtle)]"
                   >
                     <CollapsibleThumb
-                      src={sku.imagePath ?? familyImageUrl}
+                      src={resolveSkuImage(sku).src ?? undefined}
                       alt={sku.colorName ?? sku.name}
+                      emptyLabel={NO_COLOURWAY_PHOTO_LABEL}
                     />
                     {(sku.hexColor ?? sku.colourHex) && (
                       <span

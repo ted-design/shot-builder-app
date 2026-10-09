@@ -147,7 +147,6 @@ export function ProductColorwaysSection({
             <ProductSkuCard
               key={sku.id}
               sku={sku}
-              familyImageUrl={family.thumbnailImagePath ?? family.headerImagePath}
               familyLaunchDate={family.launchDate}
               familySizeOptions={family.sizeOptions}
               canEdit={editEnabled}

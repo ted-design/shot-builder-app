@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils"
 
 interface EditableProductImageProps {
   readonly src: string | undefined
-  readonly fallbackSrc?: string | undefined
+  readonly emptyLabel?: string
   readonly alt: string
   readonly size?: "sm" | "md" | "lg"
   readonly className?: string
@@ -18,7 +18,7 @@ interface EditableProductImageProps {
 
 export function EditableProductImage({
   src,
-  fallbackSrc,
+  emptyLabel,
   alt,
   size = "md",
   className,
@@ -42,7 +42,7 @@ export function EditableProductImage({
   if (!canEdit) {
     return (
       <div className={cn("flex flex-col items-center gap-1", className)}>
-        <ProductImage src={src} fallbackSrc={fallbackSrc} alt={alt} size={size} />
+        <ProductImage src={src} emptyLabel={emptyLabel} alt={alt} size={size} />
         {label && (
           <span className="text-2xs text-[var(--color-text-muted)]">{label}</span>
         )}
@@ -53,7 +53,7 @@ export function EditableProductImage({
   return (
     <div className={cn("flex flex-col items-center gap-1", className)}>
       <div className="group relative">
-        <ProductImage src={src} fallbackSrc={fallbackSrc} alt={alt} size={size} />
+        <ProductImage src={src} emptyLabel={emptyLabel} alt={alt} size={size} />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1 rounded-[var(--radius-lg)] bg-black/50 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
           <Button
             type="button"

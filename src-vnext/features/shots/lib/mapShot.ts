@@ -4,6 +4,7 @@ import { resolveShotTagCategory } from "@/shared/lib/tagCategories"
 import { canonicalizeTag, deduplicateTags } from "@/shared/lib/tagDedup"
 import { normalizeReferenceLinks } from "@/features/shots/lib/referenceLinks"
 import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
+import { resolveAssignmentImage } from "@/shared/lib/colourwayImage"
 
 /**
  * Normalize a raw Firestore `status` field to the canonical vocabulary.
@@ -131,6 +132,36 @@ function asNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined
 }
 
+/**
+ * Image candidate for a product used as a shot cover. A colourway product only
+ * yields a photo of that colourway, never the family image, which is usually a
+ * sibling colour (see shared/lib/colourwayImage). Family-level products keep
+ * the full legacy chain.
+ */
+function productCoverCandidate(p: Record<string, unknown> | null | undefined): string | undefined {
+  if (!p) return undefined
+  const skuId = asNonEmptyString(p["skuId"])
+  const colourId = asNonEmptyString(p["colourId"])
+  if (!skuId && !colourId) {
+    return (
+      asNonEmptyString(p["skuImageUrl"]) ??
+      asNonEmptyString(p["thumbUrl"]) ??
+      asNonEmptyString(p["familyImageUrl"]) ??
+      asNonEmptyString(p["colourImagePath"]) ??
+      asNonEmptyString(p["thumbnailImagePath"])
+    )
+  }
+  const resolved = resolveAssignmentImage({
+    familyId: asNonEmptyString(p["familyId"]) ?? "",
+    skuId,
+    colourId,
+    thumbUrl: asNonEmptyString(p["thumbUrl"]),
+    skuImageUrl: asNonEmptyString(p["skuImageUrl"]) ?? asNonEmptyString(p["colourImagePath"]),
+    familyImageUrl: asNonEmptyString(p["familyImageUrl"]) ?? asNonEmptyString(p["thumbnailImagePath"]),
+  })
+  return resolved.src ?? undefined
+}
+
 function normalizeNullableString(value: unknown): string | null | undefined {
   if (value === null) return null
   return asNonEmptyString(value)
@@ -187,12 +218,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
         )
       }) ?? null
       if (match) {
-        const candidate =
-          asNonEmptyString(match["skuImageUrl"]) ??
-          asNonEmptyString(match["thumbUrl"]) ??
-          asNonEmptyString(match["familyImageUrl"]) ??
-          asNonEmptyString(match["colourImagePath"]) ??
-          asNonEmptyString(match["thumbnailImagePath"])
+        const candidate = productCoverCandidate(match)
         if (candidate) return { path: candidate, downloadURL: candidate }
       }
     }
@@ -201,12 +227,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     if (coverMode === "auto") {
       const products = Array.isArray(look.products) ? look.products : []
       for (const p of products) {
-        const candidate =
-          asNonEmptyString(p?.["skuImageUrl"]) ??
-          asNonEmptyString(p?.["thumbUrl"]) ??
-          asNonEmptyString(p?.["familyImageUrl"]) ??
-          asNonEmptyString(p?.["colourImagePath"]) ??
-          asNonEmptyString(p?.["thumbnailImagePath"])
+        const candidate = productCoverCandidate(p)
         if (candidate) return { path: candidate, downloadURL: candidate }
       }
     }
@@ -252,12 +273,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
       )
     }) ?? null
     if (!match) continue
-    const candidate =
-      asNonEmptyString(match["skuImageUrl"]) ??
-      asNonEmptyString(match["thumbUrl"]) ??
-      asNonEmptyString(match["familyImageUrl"]) ??
-      asNonEmptyString(match["colourImagePath"]) ??
-      asNonEmptyString(match["thumbnailImagePath"])
+    const candidate = productCoverCandidate(match)
     if (candidate) {
       return { path: candidate, downloadURL: candidate }
     }
@@ -271,12 +287,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     if (explicitNone || explicitChosen) continue
     const products = Array.isArray(look.products) ? look.products : []
     for (const p of products) {
-      const candidate =
-        asNonEmptyString(p?.["skuImageUrl"]) ??
-        asNonEmptyString(p?.["thumbUrl"]) ??
-        asNonEmptyString(p?.["familyImageUrl"]) ??
-        asNonEmptyString(p?.["colourImagePath"]) ??
-        asNonEmptyString(p?.["thumbnailImagePath"])
+      const candidate = productCoverCandidate(p)
       if (candidate) return { path: candidate, downloadURL: candidate }
     }
   }
@@ -303,12 +314,7 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     ? (data["products"] as Record<string, unknown>[])
     : []
   for (const p of rootProducts) {
-    const candidate =
-      asNonEmptyString(p?.["skuImageUrl"]) ??
-      asNonEmptyString(p?.["thumbUrl"]) ??
-      asNonEmptyString(p?.["familyImageUrl"]) ??
-      asNonEmptyString(p?.["colourImagePath"]) ??
-      asNonEmptyString(p?.["thumbnailImagePath"])
+    const candidate = productCoverCandidate(p)
     if (candidate) return { path: candidate, downloadURL: candidate }
   }
 

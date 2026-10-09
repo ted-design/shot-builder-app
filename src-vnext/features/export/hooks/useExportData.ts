@@ -28,6 +28,13 @@ export interface ExportData {
    */
   readonly lanes?: readonly Lane[]
   readonly productFamilies: readonly ProductFamily[]
+  /**
+   * Live colourway photos (`colourwaySkuKey(familyId, skuId)` → imagePath | null).
+   * Optional and NOT loaded by this hook: only the shot report needs it, and
+   * ShotReportPage merges it in (useReportSkuImages). Absent → product images
+   * fall back to the photo frozen on each assignment.
+   */
+  readonly skuImagePaths?: ReadonlyMap<string, string | null> | null
   readonly pulls: readonly Pull[]
   readonly crew: readonly CrewRecord[]
   readonly talent: readonly TalentRecord[]
