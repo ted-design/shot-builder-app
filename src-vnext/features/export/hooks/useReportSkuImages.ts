@@ -49,41 +49,53 @@ export async function loadSkuImagePaths(
  * frozen on the assignment at pick time. One-time `getDocs` per family (no
  * subscriptions), bounded by the families in the project (~20-80). Waits for
  * `enabled` (the shots' own load) so it never fetches for an empty shot list.
+ *
+ * `scopeKey` (the project) scopes readiness: a new project is not ready until
+ * ITS photos load, so a report never renders or exports with another
+ * project's map. Within one project, a refetch (the family set changed) keeps
+ * the previous paths instead of flashing back to a loading state.
  */
 export function useReportSkuImages(
   shots: ReadonlyArray<Shot>,
   clientId: string | null | undefined,
   enabled: boolean,
+  scopeKey: string,
 ): {
   readonly skuImagePaths: SkuImagePaths | null
-  /** False until the first load settles. A later refetch keeps the previous paths. */
+  /** False until the first load for this scope settles. */
   readonly ready: boolean
 } {
   const familyIds = useMemo(() => familyIdsInUse(shots), [shots])
   const requestKey = `${clientId ?? ""}|${familyIds.join(",")}`
-  // undefined = not loaded yet; null = load failed (frozen-field fallback).
-  const [paths, setPaths] = useState<SkuImagePaths | null | undefined>(undefined)
+  // paths: null = load failed (frozen-field fallback).
+  const [loaded, setLoaded] = useState<{
+    readonly scope: string
+    readonly paths: SkuImagePaths | null
+  } | null>(null)
 
   useEffect(() => {
     if (!enabled) return
     if (!clientId || familyIds.length === 0) {
-      setPaths(new Map())
+      setLoaded({ scope: scopeKey, paths: new Map() })
       return
     }
     let cancelled = false
     loadSkuImagePaths(familyIds, clientId)
-      .then((next) => {
-        if (!cancelled) setPaths(next)
+      .then((paths) => {
+        if (!cancelled) setLoaded({ scope: scopeKey, paths })
       })
       .catch(() => {
-        // Keep an earlier good load; only a first-load failure falls back to frozen fields.
-        if (!cancelled) setPaths((prev) => prev ?? null)
+        // Keep an earlier good load for this scope; otherwise fall back to frozen fields.
+        if (!cancelled) {
+          setLoaded((prev) => ({ scope: scopeKey, paths: prev?.scope === scopeKey ? prev.paths : null }))
+        }
       })
     return () => {
       cancelled = true
     }
     // familyIds is derived from requestKey; keying on the string avoids refetching per render.
-  }, [requestKey, enabled])
+  }, [requestKey, enabled, scopeKey])
 
-  return { skuImagePaths: paths ?? null, ready: paths !== undefined }
+  const ready = loaded !== null && loaded.scope === scopeKey
+  return { skuImagePaths: ready ? loaded.paths : null, ready }
 }

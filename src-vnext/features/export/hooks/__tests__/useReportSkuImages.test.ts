@@ -69,7 +69,7 @@ describe("useReportSkuImages", () => {
   })
 
   it("is not ready (and fetches nothing) until the shots have loaded", () => {
-    const { result } = renderHook(() => useReportSkuImages(shots, "c1", false))
+    const { result } = renderHook(() => useReportSkuImages(shots, "c1", false, "c1/p1"))
     expect(result.current.ready).toBe(false)
     expect(firestoreMocks.getDocs).not.toHaveBeenCalled()
   })
@@ -77,12 +77,50 @@ describe("useReportSkuImages", () => {
   it("is not ready while live photos load, then exposes them", async () => {
     let resolve!: (v: unknown) => void
     firestoreMocks.getDocs.mockReturnValue(new Promise((r) => (resolve = r)))
-    const { result } = renderHook(() => useReportSkuImages(shots, "c1", true))
+    const { result } = renderHook(() => useReportSkuImages(shots, "c1", true, "c1/p1"))
     expect(result.current.ready).toBe(false)
 
     await act(async () => {
       resolve(snap([{ id: "olive", imagePath: "skus/olive.webp" }]))
     })
+    expect(result.current.ready).toBe(true)
+    expect(result.current.skuImagePaths?.get("f1/olive")).toBe("skus/olive.webp")
+  })
+
+  it("switching projects is not ready until the new project's photos load (never the old map)", async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce(snap([{ id: "olive", imagePath: "skus/olive.webp" }]))
+    const { result, rerender } = renderHook(
+      ({ list, scope }: { list: Shot[]; scope: string }) => useReportSkuImages(list, "c1", true, scope),
+      { initialProps: { list: shots, scope: "c1/p1" } },
+    )
+    await act(async () => {})
+    expect(result.current.ready).toBe(true)
+
+    let resolve!: (v: unknown) => void
+    firestoreMocks.getDocs.mockReturnValueOnce(new Promise((r) => (resolve = r)))
+    const otherShots = [{ id: "s9", products: [{ familyId: "f2" }], looks: [] }] as unknown as Shot[]
+    rerender({ list: otherShots, scope: "c1/p2" })
+    expect(result.current.ready).toBe(false)
+    expect(result.current.skuImagePaths).toBeNull()
+
+    await act(async () => {
+      resolve(snap([{ id: "navy", imagePath: null }]))
+    })
+    expect(result.current.ready).toBe(true)
+    expect([...(result.current.skuImagePaths?.entries() ?? [])]).toEqual([["f2/navy", null]])
+  })
+
+  it("within one project, a refetch keeps the previous paths (no flash back to loading)", async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce(snap([{ id: "olive", imagePath: "skus/olive.webp" }]))
+    const { result, rerender } = renderHook(
+      ({ list }: { list: Shot[] }) => useReportSkuImages(list, "c1", true, "c1/p1"),
+      { initialProps: { list: shots } },
+    )
+    await act(async () => {})
+
+    firestoreMocks.getDocs.mockReturnValue(new Promise(() => {}))
+    const moreShots = [...shots, { id: "s2", products: [{ familyId: "f3" }], looks: [] }] as unknown as Shot[]
+    rerender({ list: moreShots })
     expect(result.current.ready).toBe(true)
     expect(result.current.skuImagePaths?.get("f1/olive")).toBe("skus/olive.webp")
   })

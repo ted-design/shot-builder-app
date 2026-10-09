@@ -38,6 +38,7 @@ export default function ShotReportPage() {
     exportData.shots,
     clientId,
     !exportData.loading,
+    `${clientId ?? ""}/${projectId ?? ""}`,
   )
   const data = useMemo(() => ({ ...exportData, skuImagePaths }), [exportData, skuImagePaths])
   const [searchParams] = useSearchParams()
