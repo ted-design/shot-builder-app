@@ -79,6 +79,10 @@ export interface ColorSwatch {
   readonly hexColor?: string | null
   readonly aliases?: ReadonlyArray<string>
   readonly swatchImagePath?: string | null
+  /** Soft-retired duplicate: the doc is kept but hidden from the palette by default. */
+  readonly deleted?: boolean
+  /** Surviving swatch a retired duplicate was merged into. */
+  readonly retiredIntoSwatchId?: string | null
   /** Firestore Timestamp or epoch ms (legacy compatibility). */
   readonly createdAt?: unknown
   /** Firestore Timestamp or epoch ms (legacy compatibility). */

@@ -3,7 +3,7 @@ import { db } from "@/shared/lib/firebase"
 import { colorSwatchPath } from "@/shared/lib/paths"
 import { normalizeColorName, normalizeHexColor } from "@/features/library/lib/colorSwatches"
 
-export async function saveColorSwatch(opts: {
+interface SaveColorSwatchOptions {
   readonly clientId: string
   readonly swatchId: string
   readonly name: string
@@ -11,7 +11,23 @@ export async function saveColorSwatch(opts: {
   readonly aliases?: readonly string[]
   readonly swatchImagePath?: string | null
   readonly isNew?: boolean
-}) {
+}
+
+// Merge write: only touch hex / aliases / swatch image when the caller passes
+// them, so an edit keeps what is stored (e.g. a retired duplicate's name).
+// A new swatch starts with all three empty.
+function optionalSwatchFields(opts: SaveColorSwatchOptions): Record<string, unknown> {
+  const fields: Record<string, unknown> = {}
+  if (opts.hexColor !== undefined) fields.hexColor = normalizeHexColor(opts.hexColor) ?? null
+  else if (opts.isNew) fields.hexColor = null
+  if (opts.aliases !== undefined) fields.aliases = opts.aliases.filter(Boolean)
+  else if (opts.isNew) fields.aliases = []
+  if (opts.swatchImagePath !== undefined) fields.swatchImagePath = opts.swatchImagePath
+  else if (opts.isNew) fields.swatchImagePath = null
+  return fields
+}
+
+export async function saveColorSwatch(opts: SaveColorSwatchOptions) {
   const name = opts.name.trim()
   if (!name) throw new Error("Name is required")
 
@@ -19,7 +35,6 @@ export async function saveColorSwatch(opts: {
   if (!swatchId) throw new Error("Swatch id is required")
 
   const normalizedName = normalizeColorName(name)
-  const hexColor = normalizeHexColor(opts.hexColor) ?? null
 
   const path = colorSwatchPath(swatchId, opts.clientId)
   const ref = doc(db, path[0]!, ...path.slice(1))
@@ -28,9 +43,7 @@ export async function saveColorSwatch(opts: {
     name,
     colorKey: swatchId,
     normalizedName,
-    hexColor,
-    aliases: Array.isArray(opts.aliases) ? opts.aliases.filter(Boolean) : [],
-    swatchImagePath: opts.swatchImagePath ?? null,
+    ...optionalSwatchFields(opts),
     updatedAt: serverTimestamp(),
   }
 
