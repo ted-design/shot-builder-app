@@ -17,6 +17,7 @@ import { useFirestoreCollection } from "@/shared/hooks/useFirestoreCollection"
 import { colorSwatchesPath } from "@/shared/lib/paths"
 import { ROLE, canManageProducts } from "@/shared/lib/rbac"
 import { useIsMobile } from "@/shared/hooks/useMediaQuery"
+import { cn } from "@/shared/lib/utils"
 import type { ColorSwatch } from "@/shared/types"
 import { toast } from "sonner"
 import {
@@ -50,6 +51,9 @@ function mapSwatchDoc(id: string, data: Record<string, unknown>): ColorSwatch {
       : undefined,
     swatchImagePath:
       typeof data["swatchImagePath"] === "string" ? data["swatchImagePath"] : null,
+    deleted: data["deleted"] === true,
+    retiredIntoSwatchId:
+      typeof data["retiredIntoSwatchId"] === "string" ? data["retiredIntoSwatchId"] : null,
     createdAt: data["createdAt"],
     updatedAt: data["updatedAt"],
   }
@@ -177,25 +181,65 @@ export default function LibraryPalettePage() {
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ColorSwatch | null>(null)
+  const [showDeleted, setShowDeleted] = useState(false)
 
   const createNameRef = useRef<HTMLInputElement>(null)
 
+  // Soft-retired duplicates keep their doc (deleted + retiredIntoSwatchId) but
+  // are hidden unless "Show deleted" is on (desktop only, like product SKUs).
+  const activeSwatches = useMemo(() => swatches.filter((s) => s.deleted !== true), [swatches])
+  const deletedCount = swatches.length - activeSwatches.length
+  const showRetired = showDeleted && !isMobile
+
+  const swatchNameById = useMemo(
+    () => new Map(swatches.map((s) => [s.id, s.name])),
+    [swatches],
+  )
+  const mergedIntoLabel = (swatch: ColorSwatch): string => {
+    const targetId = swatch.retiredIntoSwatchId
+    if (!targetId) return "another swatch"
+    return swatchNameById.get(targetId) ?? `${targetId} (deleted)`
+  }
+
   const filtered = useMemo(() => {
+    const source = showRetired ? swatches : activeSwatches
     const q = query.trim().toLowerCase()
-    if (!q) return swatches
-    return swatches.filter((s) => {
+    if (!q) return source
+    return source.filter((s) => {
       const name = (s.name ?? "").toLowerCase()
       const key = (s.colorKey ?? s.id).toLowerCase()
-      return name.includes(q) || key.includes(q)
+      const aliasMatch = (s.aliases ?? []).some((a) => a.toLowerCase().includes(q))
+      return name.includes(q) || key.includes(q) || aliasMatch
     })
-  }, [query, swatches])
+  }, [query, showRetired, swatches, activeSwatches])
 
-  const existingCreateId = useMemo(() => {
+  // Checked against every doc, retired included: Create is a merge write, so
+  // reusing a retired key would silently update the hidden duplicate. A name
+  // that is already a live swatch's alias would recreate a merged duplicate.
+  const existingCreate = useMemo(() => {
     const trimmed = newName.trim()
     if (!trimmed) return null
     const id = buildColorKey(trimmed)
-    return swatches.some((s) => s.id === id) ? id : null
+    return swatches.find((s) => s.id === id) ?? null
   }, [newName, swatches])
+  const aliasCreateOwner = useMemo(() => {
+    const trimmed = newName.trim()
+    if (!trimmed || existingCreate) return null
+    const id = buildColorKey(trimmed)
+    return (
+      activeSwatches.find((s) => (s.aliases ?? []).some((a) => buildColorKey(a) === id)) ??
+      null
+    )
+  }, [newName, existingCreate, activeSwatches])
+  const retiredCreateTarget = existingCreate?.deleted === true ? existingCreate : null
+  const existingCreateId = existingCreate && !retiredCreateTarget ? existingCreate.id : null
+  const createBlocked = retiredCreateTarget !== null || aliasCreateOwner !== null
+
+  const mergedIntoDeleteTarget = deleteTarget
+    ? swatches
+        .filter((s) => s.deleted === true && s.retiredIntoSwatchId === deleteTarget.id)
+        .map((s) => `"${s.name}"`)
+    : []
 
   const create = async () => {
     if (!clientId) return
@@ -221,7 +265,8 @@ export default function LibraryPalettePage() {
         clientId,
         swatchId,
         name,
-        hexColor,
+        // A blank hex on Update keeps the stored one; on Create it starts empty.
+        ...(hexColor || isNew ? { hexColor } : {}),
         isNew,
       })
       toast.success(isNew ? "Swatch created" : "Swatch updated")
@@ -295,7 +340,22 @@ export default function LibraryPalettePage() {
 
   return (
     <ErrorBoundary>
-      <PageHeader title="Palette" breadcrumbs={[{ label: "Library" }]} />
+      <PageHeader
+        title="Palette"
+        breadcrumbs={[{ label: "Library" }]}
+        actions={
+          !isMobile && deletedCount > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 px-2 text-xs text-[var(--color-text-muted)]"
+              onClick={() => setShowDeleted((v) => !v)}
+            >
+              {showDeleted ? "Hide deleted" : `Show deleted (${deletedCount})`}
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-col gap-4">
         {canEdit ? (
@@ -327,12 +387,25 @@ export default function LibraryPalettePage() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button onClick={() => void create()} disabled={busyKey === "new"}>
+                <Button
+                  onClick={() => void create()}
+                  disabled={busyKey === "new" || createBlocked}
+                >
                   {busyKey === "new" ? "Saving..." : existingCreateId ? "Update" : "Create"}
                 </Button>
               </div>
             </CardContent>
-            {existingCreateId ? (
+            {retiredCreateTarget ? (
+              <div className="px-6 pb-4 text-xs text-[var(--color-text-muted)]">
+                &ldquo;{retiredCreateTarget.name}&rdquo; was merged into{" "}
+                {mergedIntoLabel(retiredCreateTarget)}. Edit that swatch instead.
+              </div>
+            ) : aliasCreateOwner ? (
+              <div className="px-6 pb-4 text-xs text-[var(--color-text-muted)]">
+                &ldquo;{newName.trim()}&rdquo; is already a name for {aliasCreateOwner.name}. Edit
+                that swatch instead.
+              </div>
+            ) : existingCreateId ? (
               <div className="px-6 pb-4 text-xs text-[var(--color-text-muted)]">
                 Swatch key <span className="font-mono">{existingCreateId}</span> already exists.
                 Creating will update it.
@@ -341,7 +414,7 @@ export default function LibraryPalettePage() {
           </Card>
         ) : null}
 
-        {swatches.length === 0 ? (
+        {(showRetired ? swatches : activeSwatches).length === 0 ? (
           <EmptyState
             icon={<Palette className="h-12 w-12" />}
             title="No swatches yet"
@@ -417,10 +490,14 @@ export default function LibraryPalettePage() {
                     </div>
                     {filtered.map((s) => {
                       const busy = busyKey === s.id
+                      const retired = s.deleted === true
                       return (
                         <div
                           key={s.id}
-                          className="grid grid-cols-[36px_1fr_160px_84px] items-start gap-3 rounded-md border border-transparent py-2 hover:bg-[var(--color-surface-subtle)]"
+                          className={cn(
+                            "grid grid-cols-[36px_1fr_160px_84px] items-start gap-3 rounded-md border border-transparent py-2 hover:bg-[var(--color-surface-subtle)]",
+                            retired && "opacity-60",
+                          )}
                         >
                           <div className="pt-1.5">
                             <span
@@ -429,28 +506,39 @@ export default function LibraryPalettePage() {
                             />
                           </div>
                           <div className="min-w-0 pt-1">
-                            <InlineEdit
-                              value={s.name}
-                              disabled={!canEdit || busy}
-                              placeholder="Untitled"
-                              onSave={(next) => {
-                                void update(s, { name: next })
-                              }}
-                              className="text-sm font-medium text-[var(--color-text)]"
-                            />
+                            {retired ? (
+                              <div className="text-sm font-medium text-[var(--color-text)]">
+                                {s.name}
+                              </div>
+                            ) : (
+                              <InlineEdit
+                                value={s.name}
+                                disabled={!canEdit || busy}
+                                placeholder="Untitled"
+                                onSave={(next) => {
+                                  void update(s, { name: next })
+                                }}
+                                className="text-sm font-medium text-[var(--color-text)]"
+                              />
+                            )}
                             <div className="mt-1 font-mono text-2xs text-[var(--color-text-muted)]">
                               {s.id}
                             </div>
+                            {retired ? (
+                              <div className="mt-1 text-2xs text-[var(--color-text-muted)]">
+                                Merged into {mergedIntoLabel(s)}
+                              </div>
+                            ) : null}
                           </div>
                           <div className="pt-0.5">
                             <InlineHexEdit
                               value={s.hexColor}
-                              disabled={!canEdit || busy}
+                              disabled={!canEdit || busy || retired}
                               onSave={async (next) => update(s, { hexColor: next })}
                             />
                           </div>
                           <div className="flex justify-end pt-0.5">
-                            {canDelete ? (
+                            {canDelete && !retired ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -467,7 +555,8 @@ export default function LibraryPalettePage() {
                       )
                     })}
                     <div className="pt-2 text-xs text-[var(--color-text-muted)]">
-                      {swatches.length} swatch{swatches.length === 1 ? "" : "es"}
+                      {activeSwatches.length} swatch{activeSwatches.length === 1 ? "" : "es"}
+                      {deletedCount > 0 ? ` · ${deletedCount} deleted` : ""}
                       {canEdit && !canDelete ? " • Delete requires admin." : ""}
                     </div>
                   </>
@@ -482,7 +571,11 @@ export default function LibraryPalettePage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete swatch?"
-        description={`Deletes "${deleteTarget?.name ?? "this swatch"}" from the org palette.`}
+        description={`Deletes "${deleteTarget?.name ?? "this swatch"}" from the org palette.${
+          mergedIntoDeleteTarget.length > 0
+            ? ` ${mergedIntoDeleteTarget.join(", ")} ${mergedIntoDeleteTarget.length === 1 ? "was" : "were"} merged into it and would be left pointing at a deleted swatch.`
+            : ""
+        }`}
         confirmLabel={busyKey === deleteTarget?.id ? "Deleting..." : "Delete"}
         destructive
         confirmDisabled={busyKey === deleteTarget?.id}
