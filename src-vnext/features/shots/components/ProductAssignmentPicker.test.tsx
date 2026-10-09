@@ -1,8 +1,10 @@
 /// <reference types="@testing-library/jest-dom" />
-import { describe, it, expect, vi, beforeEach } from "vitest"
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react"
 import { ProductAssignmentPicker } from "./ProductAssignmentPicker"
 import type { ProductAssignment } from "@/shared/types"
+import { resolveAssignmentImage } from "@/shared/lib/colourwayImage"
+import { mapShot } from "@/features/shots/lib/mapShot"
 
 /* ─── Mocks ─── */
 
@@ -30,11 +32,13 @@ const MOCK_SKU = {
 // Swappable per test; reset in the colourway-image describe.
 let mockSku: Record<string, unknown> | null = MOCK_SKU
 let mockSkuLoading = false
+// When set, the colourway list (useProductSkus) returns these instead of [mockSku].
+let mockSkuList: Record<string, unknown>[] | null = null
 const storageMode = vi.hoisted(() => ({ pending: false }))
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilies: () => ({ data: [MOCK_FAMILY], loading: false }),
-  useProductSkus: () => ({ data: [mockSku], loading: false }),
+  useProductSkus: () => ({ data: mockSkuList ?? [mockSku], loading: false }),
   useProductFamilyDoc: () => ({ data: MOCK_FAMILY, loading: false, error: null }),
   useProductSkuDoc: () => ({ data: mockSku, loading: mockSkuLoading, error: null }),
 }))
@@ -417,5 +421,118 @@ describe("ProductAssignmentPicker — a colourway with no photo never shows the 
 
     expect(screen.getByRole("img", { name: "Navy: No photo for this colour" })).toBeInTheDocument()
     expect(screen.queryByAltText("Navy")).not.toBeInTheDocument()
+  })
+})
+
+describe("ProductAssignmentPicker — editing an assignment's colourway replaces its photo fields", () => {
+  const PHOTO_A = "https://img.test/productFamilies/fam-1/skus/sku-1.webp"
+  const FAMILY_URL = "https://img.test/productFamilies/fam-1/thumb.webp"
+  const NAVY_WITH_PHOTO: ProductAssignment = {
+    familyId: "fam-1",
+    familyName: "Classic Tee",
+    skuId: "sku-1",
+    colourId: "sku-1",
+    skuName: "Navy",
+    colourName: "Navy",
+    sizeScope: "all",
+    quantity: 1,
+    thumbUrl: PHOTO_A,
+    skuImageUrl: PHOTO_A,
+    familyImageUrl: FAMILY_URL,
+  }
+  // Legacy shape after mapShot: colourId only; colourImagePath surfaced as skuImageUrl.
+  const LEGACY_NAVY: ProductAssignment = {
+    familyId: "fam-1",
+    familyName: "Classic Tee",
+    colourId: "sku-1",
+    colourName: "Navy",
+    sizeScope: "all",
+    quantity: 1,
+    thumbUrl: FAMILY_URL,
+    skuImageUrl: PHOTO_A,
+    familyImageUrl: FAMILY_URL,
+  }
+  const OLIVE_NO_PHOTO = { id: "sku-2", name: "Olive", colorName: "Olive", sizes: ["S"], skuCode: "CT-100-OLV" }
+
+  beforeEach(() => {
+    mockSku = MOCK_SKU
+    mockSkuLoading = false
+    mockSkuList = [MOCK_SKU, OLIVE_NO_PHOTO]
+  })
+  afterEach(() => {
+    mockSkuList = null
+  })
+
+  async function confirmEdit(selected: ProductAssignment[], change: () => Promise<void>) {
+    const save = vi.fn().mockResolvedValue(true)
+    render(<ProductAssignmentPicker selected={selected} onSave={save} />)
+    fireEvent.click(screen.getByText("Classic Tee")) // open the row in edit mode (details step)
+    await change()
+    fireEvent.click(await screen.findByTestId("picker-confirm"))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    return (save.mock.calls[0]![0] as ProductAssignment[])[0]!
+  }
+
+  const pickOlive = async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Back to colorways" }))
+    fireEvent.click(await screen.findByText("Olive"))
+  }
+
+  it("A (with photo) → B (no photo): no trace of A survives and the cover falls to the placeholder", async () => {
+    const saved = await confirmEdit([NAVY_WITH_PHOTO], pickOlive)
+
+    expect(saved).toMatchObject({ skuId: "sku-2", colourId: "sku-2", skuName: "Olive", colourName: "Olive" })
+    expect(JSON.stringify(saved)).not.toContain("sku-1")
+    expect(JSON.stringify(saved)).not.toContain("Navy")
+    expect(saved.familyImageUrl).toBe(FAMILY_URL) // family-level field kept
+    expect(resolveAssignmentImage(saved)).toEqual({ src: null, colourwayPhotoMissing: true })
+    const shot = mapShot("s1", {
+      title: "T", projectId: "p1", clientId: "c1", activeLookId: "l1",
+      looks: [{ id: "l1", heroProductId: "sku-2", products: [saved] }],
+    })
+    expect(shot.heroImage).toBeUndefined()
+  })
+
+  it("legacy colourId-only assignment with a stored colour photo → B: the legacy photo is dropped", async () => {
+    const saved = await confirmEdit([LEGACY_NAVY], pickOlive)
+
+    expect(saved).toMatchObject({ skuId: "sku-2", colourId: "sku-2", colourName: "Olive" })
+    expect(JSON.stringify(saved)).not.toContain("sku-1")
+    expect(resolveAssignmentImage(saved).colourwayPhotoMissing).toBe(true)
+  })
+
+  it("skipping the colourway makes the assignment family-level: the old colourway and its photo are gone", async () => {
+    const saved = await confirmEdit([NAVY_WITH_PHOTO], async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Back to colorways" }))
+      fireEvent.click(await screen.findByText("Skip — no specific colorway"))
+    })
+
+    for (const key of ["skuId", "colourId", "skuName", "colourName", "skuImageUrl"] as const) {
+      expect(saved[key]).toBeUndefined()
+    }
+    expect(JSON.stringify(saved)).not.toContain("sku-1")
+    expect(resolveAssignmentImage(saved)).toEqual({ src: FAMILY_URL, colourwayPhotoMissing: false })
+  })
+
+  it("re-picking the same colourway from the catalog after its photo was removed drops the stale URL", async () => {
+    mockSkuList = [{ ...MOCK_SKU, imagePath: undefined }, OLIVE_NO_PHOTO] // Navy's photo has since been removed
+    const saved = await confirmEdit([NAVY_WITH_PHOTO], async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Back to colorways" }))
+      fireEvent.click(await within(screen.getByRole("dialog")).findByText("Navy"))
+    })
+
+    expect(saved).toMatchObject({ skuId: "sku-1", colourName: "Navy", familyImageUrl: FAMILY_URL })
+    expect(saved.skuImageUrl).toBeUndefined()
+    expect(saved.thumbUrl).toBeUndefined()
+  })
+
+  it("an edit that keeps the colourway keeps its stored photo", async () => {
+    const saved = await confirmEdit([NAVY_WITH_PHOTO], async () => {})
+    expect(saved).toMatchObject({ skuId: "sku-1", colourName: "Navy", skuImageUrl: PHOTO_A, thumbUrl: PHOTO_A })
+  })
+
+  it("a legacy colourId-only assignment confirmed unchanged keeps its colourway", async () => {
+    const saved = await confirmEdit([LEGACY_NAVY], async () => {})
+    expect(saved).toMatchObject({ colourId: "sku-1", colourName: "Navy", skuImageUrl: PHOTO_A })
   })
 })

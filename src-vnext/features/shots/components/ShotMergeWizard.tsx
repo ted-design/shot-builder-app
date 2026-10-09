@@ -112,7 +112,7 @@ function shotProductCount(shot: Shot): number {
     const seen = new Set<string>()
     for (const look of shot.looks) {
       for (const p of look.products ?? []) {
-        seen.add(`${p.familyId}::${p.skuId ?? ""}::${p.colourId ?? ""}`)
+        seen.add(`${p.familyId}::${p.skuId ?? p.colourId ?? ""}::${p.colourId ?? p.skuId ?? ""}`)
       }
     }
     return seen.size

@@ -26,6 +26,7 @@ import {
 } from "@/features/shots/hooks/usePickerData"
 import { ProductUpsertDialog } from "@/features/products/components/ProductUpsertDialog"
 import { ProductQuickViewPopover } from "@/features/shots/components/ProductQuickViewPopover"
+import { applyAssignmentEdit } from "@/features/shots/lib/productAssignmentEdit"
 import { Package, Plus, X, ChevronLeft, Loader2, Search, Star } from "lucide-react"
 import { resolveStoragePath } from "@/shared/lib/resolveStoragePath"
 import {
@@ -57,6 +58,8 @@ type AddStep = "family" | "sku" | "details"
 interface DraftAssignment {
   readonly family: ProductFamily | null
   readonly sku: ProductSku | null
+  /** The colourway was (re)picked from the live catalog in this dialog (its photo fields are current). */
+  readonly skuFromCatalog?: boolean
   readonly sizeScope: SizeScope
   readonly size: string
   readonly quantity: number
@@ -145,10 +148,13 @@ export function ProductAssignmentPicker({
     const assignment = selected[index]
     if (!assignment) return
     setEditIndex(index)
+    // Legacy assignments carry the colourway only in colourId; without it the
+    // draft would look like "no colourway" and an unrelated edit would clear it.
+    const colourwayId = assignmentColourwayId(assignment)
     setDraft({
       family: { id: assignment.familyId, styleName: assignment.familyName ?? "", clientId: "" },
-      sku: assignment.skuId
-        ? { id: assignment.skuId, name: assignment.skuName ?? assignment.colourName ?? "" }
+      sku: colourwayId
+        ? { id: colourwayId, name: assignment.skuName ?? assignment.colourName ?? "" }
         : null,
       sizeScope: assignment.sizeScope ?? "pending",
       size: assignment.size ?? "",
@@ -205,10 +211,10 @@ export function ProductAssignmentPicker({
 
       let next: ProductAssignment[]
       if (editIndex !== null) {
-        const existing = selected[editIndex]
+        const edit = patch as Partial<ProductAssignment> & Pick<ProductAssignment, "familyId">
         next = selected.map((item, i) =>
           i === editIndex
-            ? stripUndefined({ ...existing, ...patch } as unknown as ProductAssignment)
+            ? stripUndefined(applyAssignmentEdit(item, edit, { refreshColourwayImages: draft.skuFromCatalog }))
             : stripUndefined(item),
         )
       } else {
@@ -294,7 +300,7 @@ export function ProductAssignmentPicker({
                 }}
                 onBack={() => setStep("family")}
                 onSelect={(sku) => {
-                  setDraft({ ...draft, sku })
+                  setDraft({ ...draft, sku, skuFromCatalog: true })
                   setStep("details")
                 }}
                 onSkip={() => {
@@ -476,6 +482,7 @@ function AssignmentRow({
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-[var(--color-text-subtle)]"
+            aria-label={`Remove ${label}`}
             onClick={(e) => {
               e.stopPropagation()
               onRemove()
@@ -930,7 +937,7 @@ function SkuStep({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack} aria-label="Back to products">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="truncate text-sm font-medium">{family.styleName}</span>
@@ -1066,7 +1073,7 @@ function DetailsStep({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack} aria-label="Back to colorways">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex flex-col">

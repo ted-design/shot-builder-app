@@ -309,10 +309,15 @@ function normalizeHeroImage(data: Record<string, unknown>): Shot["heroImage"] | 
     }
   }
 
-  // Priority 5.5: legacy shot-level products fallback (when looks aren't used)
-  const rootProducts = Array.isArray(data["products"])
-    ? (data["products"] as Record<string, unknown>[])
-    : []
+  // Priority 5.5: legacy shot-level products fallback (when looks aren't used).
+  // Shots with look products keep a root `products` mirror that look edits never
+  // update (205 of 290 mirrors already differed on 2026-10-09), so reading it
+  // would resurrect a replaced colourway's photo as the cover.
+  const looksHaveProducts = looks.some((look) => Array.isArray(look?.products) && look.products.length > 0)
+  const rootProducts =
+    !looksHaveProducts && Array.isArray(data["products"])
+      ? (data["products"] as Record<string, unknown>[])
+      : []
   for (const p of rootProducts) {
     const candidate = productCoverCandidate(p)
     if (candidate) return { path: candidate, downloadURL: candidate }
