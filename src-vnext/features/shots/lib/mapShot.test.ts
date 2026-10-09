@@ -456,3 +456,25 @@ describe("mapShot heroImage — a colourway cover never borrows the family image
     expect(shot.heroImage?.downloadURL).toBe(FAMILY_URL)
   })
 })
+
+describe("mapShot heroImage — a stale root products mirror never supplies the cover when looks have products", () => {
+  const PHOTO_A = "https://img.test/skus/navy.webp"
+
+  it("root [A with photo] + look [B, no photo] and no activeLookId: no cover from the stale mirror", () => {
+    const shot = mapShot("s1", {
+      title: "T", projectId: "p1", clientId: "c1",
+      products: [{ familyId: "f1", skuId: "navy", colourId: "navy", skuImageUrl: PHOTO_A, thumbUrl: PHOTO_A }],
+      looks: [{ id: "l1", products: [{ familyId: "f1", skuId: "olive", colourId: "olive", colourName: "Olive" }] }],
+    })
+    expect(shot.heroImage).toBeUndefined()
+  })
+
+  it("a legacy shot with root products and no look products still uses them", () => {
+    const shot = mapShot("s1", {
+      title: "T", projectId: "p1", clientId: "c1",
+      products: [{ familyId: "f1", skuId: "navy", colourId: "navy", skuImageUrl: PHOTO_A }],
+      looks: [{ id: "l1", products: [] }],
+    })
+    expect(shot.heroImage?.downloadURL).toBe(PHOTO_A)
+  })
+})

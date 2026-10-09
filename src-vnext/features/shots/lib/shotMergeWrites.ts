@@ -29,9 +29,13 @@ export interface ShotMergeResult {
   readonly referencesKept: number
 }
 
-/** Dedup key for a product assignment — British `colourId`, never `colorId`. */
+/**
+ * Dedup key for a product assignment — British `colourId`, never `colorId`.
+ * Each id falls back to the other, so a legacy colourId-only row and the same
+ * colourway written with both ids (e.g. after an edit) dedupe as one.
+ */
 function productKey(p: ProductAssignment): string {
-  return `${p.familyId}::${p.skuId ?? ""}::${p.colourId ?? ""}`
+  return `${p.familyId}::${p.skuId ?? p.colourId ?? ""}::${p.colourId ?? p.skuId ?? ""}`
 }
 
 /** Union products preserving first-seen order, deduped by family/sku/colour. */

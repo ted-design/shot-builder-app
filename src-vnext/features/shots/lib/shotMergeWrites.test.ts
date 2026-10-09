@@ -124,6 +124,20 @@ describe("buildShotMergePlan — combine mode", () => {
     expect(result.looksKept).toBe(1)
   })
 
+  it("dedupes a legacy colourId-only row with the same colourway written with both ids", () => {
+    const primary = makeShot({
+      id: "A", title: "Shot A", activeLookId: "look-a",
+      looks: [look({ id: "look-a", products: [product({ familyId: "f1", skuId: "navy", colourId: "navy" })] })],
+    })
+    const secondary = makeShot({
+      id: "B", title: "Shot B", activeLookId: "look-b",
+      looks: [look({ id: "look-b", products: [product({ familyId: "f1", skuId: undefined, colourId: "navy" })] })],
+    })
+
+    const { patch } = buildShotMergePlan({ primary, secondary, mode: "combine" })
+    expect((patch.looks as ShotLook[])[0]!.products).toHaveLength(1)
+  })
+
   it("unions references by id across both shots' looks", () => {
     const primary = makeShot({
       id: "A",
