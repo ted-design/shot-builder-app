@@ -25,6 +25,12 @@ import {
 import { countActiveRequirements, resolveEarliestLaunchDate } from "@/features/products/lib/assetRequirements"
 import { createProductVersionSnapshot } from "@/features/products/lib/productVersioning"
 import type { MergePlan } from "./productDedup"
+import {
+  remapPullItemForMerge,
+  remapShotForMerge,
+  type MergeRemapContext,
+} from "./productMergeRemap"
+import { completeMergeRemap, prepareMergeRemap, transferredSkuNames } from "./productMergeRemapContext"
 import type {
   AuthUser,
   ProductFamily,
@@ -102,11 +108,11 @@ async function transferNewSkus(args: {
       // batch ("Unsupported field value: undefined"). Default to the best
       // human-readable fallback, and sanitizeForFirestore() (matching steps 2–5)
       // strips any remaining undefined from nested fields like assetRequirements.
-      const skuName = sku.name ?? sku.colorName ?? sku.skuCode ?? "Untitled"
+      const { name: skuName, colorName } = transferredSkuNames(sku)
       batch.set(
         newRef,
         sanitizeForFirestore({
-          colorName: sku.colorName ?? skuName,
+          colorName,
           name: skuName,
           skuCode: sku.skuCode ?? null,
           sizes: sku.sizes ? [...sku.sizes] : [],
@@ -264,13 +270,10 @@ async function transferDocuments(args: {
 
 async function updateShotReferences(args: {
   readonly affectedShotIds: ReadonlyArray<string>
-  readonly loserId: string
-  readonly winnerId: string
-  readonly winnerName: string
+  readonly ctx: MergeRemapContext
   readonly clientId: string
-  readonly mergedBy: string
 }): Promise<number> {
-  const { affectedShotIds, loserId, winnerId, winnerName, clientId, mergedBy } = args
+  const { affectedShotIds, ctx, clientId } = args
   if (affectedShotIds.length === 0) return 0
 
   const shotBasePath = shotsPath(clientId)
@@ -286,57 +289,13 @@ async function updateShotReferences(args: {
     for (const shotSnap of shotSnaps) {
       if (!shotSnap.exists()) continue
 
-      const shotData = shotSnap.data()
-      let changed = false
-
-      // Replace in top-level products array + deduplicate by familyId
-      const products = (shotData.products ?? []) as Record<string, unknown>[]
-      const mappedProducts = products.map((p) => {
-        if (p.familyId === loserId) {
-          changed = true
-          return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
-        }
-        return p
-      })
-      const seenFamilyIds = new Set<string>()
-      const newProducts = mappedProducts.filter((p) => {
-        const fid = p.familyId as string
-        if (seenFamilyIds.has(fid)) return false
-        seenFamilyIds.add(fid)
-        return true
-      })
-
-      // Replace in looks + deduplicate per-look products
-      const looks = (shotData.looks ?? []) as Record<string, unknown>[]
-      const newLooks = looks.map((look) => {
-        const lookProducts = (look.products ?? []) as Record<string, unknown>[]
-        const mappedLookProducts = lookProducts.map((p) => {
-          if (p.familyId === loserId) {
-            changed = true
-            return { ...p, familyId: winnerId, familyName: winnerName ?? p.familyName }
-          }
-          return p
-        })
-        const seenLook = new Set<string>()
-        const replacedProducts = mappedLookProducts.filter((p) => {
-          const fid = p.familyId as string
-          if (seenLook.has(fid)) return false
-          seenLook.add(fid)
-          return true
-        })
-
-        const heroProductId = look.heroProductId as string | null | undefined
-        const newHeroProductId = heroProductId === loserId ? winnerId : heroProductId
-
-        if (newHeroProductId !== heroProductId) changed = true
-
-        return { ...look, products: replacedProducts, heroProductId: newHeroProductId }
-      })
-
+      // Remap loser colourways (family-scoped), the SKU-id hero, and dedupe by
+      // family + colourway — in the root products mirror and every look.
+      const { changed, products, looks } = remapShotForMerge(shotSnap.data(), ctx)
       if (changed) {
         batch.update(shotSnap.ref, sanitizeForFirestore({
-          products: newProducts,
-          looks: newLooks,
+          products,
+          looks,
           updatedAt: serverTimestamp(),
         }) as Record<string, unknown>)
         updated += 1
@@ -355,12 +314,10 @@ async function updateShotReferences(args: {
 
 async function updatePullReferences(args: {
   readonly affectedProjectIds: ReadonlyArray<string>
-  readonly loserId: string
-  readonly winnerId: string
-  readonly winnerName: string
+  readonly ctx: MergeRemapContext
   readonly clientId: string
 }): Promise<number> {
-  const { affectedProjectIds, loserId, winnerId, winnerName, clientId } = args
+  const { affectedProjectIds, ctx, clientId } = args
   if (affectedProjectIds.length === 0) return 0
 
   let updated = 0
@@ -373,7 +330,7 @@ async function updatePullReferences(args: {
 
     const pullsToUpdate = pullSnap.docs.filter((d) => {
       const items = (d.data().items ?? []) as Record<string, unknown>[]
-      return items.some((item) => item.familyId === loserId)
+      return items.some((item) => item.familyId === ctx.loserId)
     })
 
     if (pullsToUpdate.length === 0) continue
@@ -384,14 +341,10 @@ async function updatePullReferences(args: {
       for (const pullDoc of chunk) {
         const data = pullDoc.data()
         const items = (data.items ?? []) as Record<string, unknown>[]
-        const newItems = items.map((item) => {
-          if (item.familyId === loserId) {
-            return { ...item, familyId: winnerId, familyName: winnerName ?? item.familyName }
-          }
-          return item
-        })
+        // Loser colour ids follow the SKU map; winnerName can be missing on legacy
+        // families at runtime, so the item's own name is the fallback.
+        const newItems = items.map((item) => remapPullItemForMerge(item, ctx))
 
-        // winnerName is typed string but legacy families can lack styleName at runtime (the class this PR fixes) — fall back to the item's own name.
         batch.update(
           pullDoc.ref,
           sanitizeForFirestore({
@@ -663,6 +616,11 @@ export async function executeProductMerge(args: {
       })
     }
 
+    // Read what the colourway remap (steps 5–6) needs before any merge write.
+    const remapPrep = await prepareMergeRemap({ loserId, winnerId, plan, clientId }).catch((err) => {
+      throw new Error(`[executeProductMerge] Remap prep (prepareMergeRemap) failed: ${err instanceof Error ? err.message : String(err)}`)
+    })
+
     // Step 1: Transfer new SKUs (also populates matchedSkuMap with loser→new mappings)
     const skusCreated = await transferNewSkus({
       newSkus: plan.newSkus,
@@ -705,14 +663,15 @@ export async function executeProductMerge(args: {
       throw new Error(`[executeProductMerge] Step 4 (transferDocuments) failed after ${skusCreated} SKUs, ${samplesTransferred} samples, ${commentsTransferred} comments: ${err instanceof Error ? err.message : String(err)}`)
     })
 
+    // Colourway remap context for steps 5–6: matchedSkuMap now holds matched +
+    // newly transferred SKU ids; the winner's SKUs supply names and photos.
+    const remapCtx: MergeRemapContext = completeMergeRemap(remapPrep, matchedSkuMap)
+
     // Step 5: Update shot references
     const shotsUpdated = await updateShotReferences({
       affectedShotIds: plan.affectedShotIds,
-      loserId,
-      winnerId,
-      winnerName: plan.winner.styleName,
+      ctx: remapCtx,
       clientId,
-      mergedBy,
     }).catch((err) => {
       throw new Error(`[executeProductMerge] Step 5 (updateShotReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
     })
@@ -725,9 +684,7 @@ export async function executeProductMerge(args: {
     ))
     const pullsUpdated = await updatePullReferences({
       affectedProjectIds,
-      loserId,
-      winnerId,
-      winnerName: plan.winner.styleName,
+      ctx: remapCtx,
       clientId,
     }).catch((err) => {
       throw new Error(`[executeProductMerge] Step 6 (updatePullReferences) failed: ${err instanceof Error ? err.message : String(err)}`)
