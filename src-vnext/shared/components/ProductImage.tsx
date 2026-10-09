@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Package } from "lucide-react"
+import { ImageOff, Package } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 
@@ -11,6 +11,8 @@ interface ProductImageProps {
   readonly alt: string
   readonly className?: string
   readonly size?: "sm" | "md" | "lg"
+  /** Says why there is no image (e.g. a colourway with no photo of its own): visible at md/lg, tooltip + accessible name at every size. */
+  readonly emptyLabel?: string
 }
 
 const sizeClasses = {
@@ -25,6 +27,7 @@ export function ProductImage({
   alt,
   className,
   size = "md",
+  emptyLabel,
 }: ProductImageProps) {
   const resolvedSrc = useStorageUrl(src)
   const resolvedFallback = useStorageUrl(fallbackSrc)
@@ -36,6 +39,12 @@ export function ProductImage({
       ? null
       : resolvedFallback
     : resolvedSrc
+
+  // The label claims there is no image, so only show it when no source exists —
+  // not while a path is still resolving or after a load error.
+  if (!activeSrc && emptyLabel && !src && !fallbackSrc) {
+    return <EmptyProductImage label={emptyLabel} alt={alt} size={size} className={className} />
+  }
 
   if (!activeSrc) {
     return (
@@ -70,5 +79,37 @@ export function ProductImage({
         }
       }}
     />
+  )
+}
+
+function EmptyProductImage({
+  label,
+  alt,
+  size,
+  className,
+}: {
+  readonly label: string
+  readonly alt: string
+  readonly size: keyof typeof sizeClasses
+  readonly className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-1.5 text-center",
+        sizeClasses[size],
+        className,
+      )}
+      role="img"
+      aria-label={`${alt}: ${label}`}
+      title={label}
+    >
+      <ImageOff
+        className={cn("shrink-0 text-[var(--color-text-subtle)]", size === "sm" ? "h-4 w-4" : "h-5 w-5")}
+      />
+      {size !== "sm" && (
+        <span className="text-2xs leading-tight text-[var(--color-text-subtle)]">{label}</span>
+      )}
+    </div>
   )
 }

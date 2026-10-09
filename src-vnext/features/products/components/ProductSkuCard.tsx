@@ -5,12 +5,12 @@ import { InlineDateField } from "@/features/products/components/InlineDateField"
 import { replaceProductSkuImage, removeProductSkuImage, updateProductSkuLaunchDateWithSync } from "@/features/products/lib/productWorkspaceWrites"
 import { compressSizeRange } from "@/shared/lib/sizeRange"
 import { formatLaunchDate } from "@/features/products/lib/assetRequirements"
+import { NO_COLOURWAY_PHOTO_LABEL, resolveSkuImage } from "@/shared/lib/colourwayImage"
 import { toast } from "@/shared/hooks/use-toast"
 import { Badge } from "@/ui/badge"
 
 interface ProductSkuCardProps {
   readonly sku: ProductSku
-  readonly familyImageUrl?: string
   readonly familyLaunchDate?: Timestamp | null
   /** Family-level sizeOptions for comparison — if SKU sizes match, they are hidden. */
   readonly familySizeOptions?: ReadonlyArray<string>
@@ -25,7 +25,6 @@ interface ProductSkuCardProps {
 
 export function ProductSkuCard({
   sku,
-  familyImageUrl,
   familyLaunchDate,
   familySizeOptions,
   canEdit = false,
@@ -90,8 +89,8 @@ export function ProductSkuCard({
   return (
     <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition-colors hover:border-[var(--color-border-strong)]">
       <EditableProductImage
-        src={sku.imagePath}
-        fallbackSrc={familyImageUrl}
+        src={resolveSkuImage(sku).src ?? undefined}
+        emptyLabel={NO_COLOURWAY_PHOTO_LABEL}
         alt={name}
         size="md"
         canEdit={canEdit && !!clientId && !!familyId}

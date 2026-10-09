@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { ProductAssignmentPicker } from "./ProductAssignmentPicker"
 import type { ProductAssignment } from "@/shared/types"
 
@@ -27,15 +27,19 @@ const MOCK_SKU = {
   imagePath: "productFamilies/fam-1/skus/sku-1.webp",
 }
 
+// Swappable per test; reset to MOCK_SKU in the colourway-image describe.
+let mockSku: Record<string, unknown> = MOCK_SKU
+
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilies: () => ({ data: [MOCK_FAMILY], loading: false }),
-  useProductSkus: () => ({ data: [MOCK_SKU], loading: false }),
+  useProductSkus: () => ({ data: [mockSku], loading: false }),
   useProductFamilyDoc: () => ({ data: MOCK_FAMILY, loading: false, error: null }),
-  useProductSkuDoc: () => ({ data: MOCK_SKU, loading: false, error: null }),
+  useProductSkuDoc: () => ({ data: mockSku, loading: false, error: null }),
 }))
 
 vi.mock("@/shared/lib/resolveStoragePath", () => ({
-  resolveStoragePath: () => Promise.resolve("https://img.test/thumb.jpg"),
+  // Echo the path so a test can tell WHICH image resolved (live SKU vs family).
+  resolveStoragePath: (path: string) => Promise.resolve(`https://img.test/${path}`),
   getCachedUrl: () => undefined,
 }))
 
@@ -92,7 +96,7 @@ describe("ProductAssignmentPicker", () => {
 
     // The assignment row should render a thumbnail resolved from storage path.
     const img = await screen.findByAltText("Classic Tee")
-    expect(img).toHaveAttribute("src", "https://img.test/thumb.jpg")
+    expect(img).toHaveAttribute("src", `https://img.test/${MOCK_SKU.imagePath}`)
   })
 
   describe("hero star", () => {
@@ -334,5 +338,48 @@ describe("ProductAssignmentPicker", () => {
       const savedProducts = onSave.mock.calls[0]![0] as ProductAssignment[]
       expect(savedProducts).toHaveLength(0)
     })
+  })
+})
+
+describe("ProductAssignmentPicker — a colourway with no photo never shows the family image", () => {
+  const NAVY_NO_PHOTO = { ...MOCK_SKU, imagePath: undefined }
+  // Picker-written shape when Navy had no photo: thumbUrl = familyImageUrl.
+  const FROZEN_FAMILY_FALLBACK: ProductAssignment[] = [
+    { ...EXISTING[0]!, thumbUrl: "https://img.test/family.jpg", familyImageUrl: "https://img.test/family.jpg" },
+  ]
+
+  beforeEach(() => {
+    mockSku = MOCK_SKU
+  })
+
+  it("assignment row: shows the placeholder instead of the frozen family image", async () => {
+    mockSku = NAVY_NO_PHOTO
+    render(<ProductAssignmentPicker selected={FROZEN_FAMILY_FALLBACK} onSave={vi.fn()} />)
+    // Let any async storage-URL resolution settle so the negative check can't pass early.
+    await act(async () => {})
+
+    expect(screen.getByRole("img", { name: "Classic Tee: No photo for this colour" })).toBeInTheDocument()
+    expect(screen.queryByAltText("Classic Tee")).not.toBeInTheDocument()
+  })
+
+  it("assignment row: shows the colourway's live photo once it has one", async () => {
+    render(<ProductAssignmentPicker selected={FROZEN_FAMILY_FALLBACK} onSave={vi.fn()} />)
+
+    // The live SKU photo, not the frozen family image.
+    expect(await screen.findByAltText("Classic Tee")).toHaveAttribute("src", `https://img.test/${MOCK_SKU.imagePath}`)
+    expect(screen.queryByRole("img", { name: /No photo for this colour/ })).not.toBeInTheDocument()
+  })
+
+  it("colourway step: lists a colourway with no photo with the placeholder, not the family image", async () => {
+    mockSku = NAVY_NO_PHOTO
+    render(<ProductAssignmentPicker selected={[]} onSave={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /add product/i }))
+    fireEvent.click(await screen.findByText("Classic Tee"))
+    await screen.findByText("Navy")
+    await act(async () => {})
+
+    expect(screen.getByRole("img", { name: "Navy: No photo for this colour" })).toBeInTheDocument()
+    expect(screen.queryByAltText("Navy")).not.toBeInTheDocument()
   })
 })

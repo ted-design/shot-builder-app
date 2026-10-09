@@ -154,3 +154,33 @@ describe("HeroImageSection cover-product fallback", () => {
     expect(img).toHaveAttribute("src", "https://example.test/hero.webp")
   })
 })
+
+describe("HeroImageSection cover-product fallback — a colourway cover never borrows the family image", () => {
+  const FAMILY_THUMB = "clients/c1/products/fam-X/thumb.webp" // = the first colourway's photo
+  const colourwayCoverShot = {
+    ...(baseShot as object),
+    activeLookId: "look-1",
+    looks: [
+      {
+        id: "look-1",
+        // Picker-written shape when Olive had no photo: thumbUrl = familyImageUrl.
+        products: [{ familyId: "fam-X", skuId: "sku-olive", thumbUrl: FAMILY_THUMB, familyImageUrl: FAMILY_THUMB }],
+        heroProductId: "sku-olive",
+      },
+    ],
+  } as unknown as Shot
+
+  it("shows the empty state, not the frozen family image, when the colourway has no photo", () => {
+    catalogMocks.family = { data: { id: "fam-X", thumbnailImagePath: FAMILY_THUMB } }
+    catalogMocks.sku = { data: { id: "sku-olive" } }
+    render(<HeroImageSection heroImage={undefined} shot={colourwayCoverShot} shotId="shot-1" canUpload={true} />)
+    expect(screen.queryByAltText("Hero")).not.toBeInTheDocument()
+    expect(screen.getByText("Add hero image")).toBeInTheDocument()
+  })
+
+  it("shows the colourway's live photo when it has one", () => {
+    catalogMocks.sku = { data: { id: "sku-olive", imagePath: "clients/c1/products/fam-X/skus/olive.webp" } }
+    render(<HeroImageSection heroImage={undefined} shot={colourwayCoverShot} shotId="shot-1" canUpload={true} />)
+    expect(screen.getByAltText("Hero")).toHaveAttribute("src", "clients/c1/products/fam-X/skus/olive.webp")
+  })
+})

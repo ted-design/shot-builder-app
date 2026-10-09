@@ -43,6 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/ui/separator"
 import { Textarea } from "@/ui/textarea"
 import { cn } from "@/shared/lib/utils"
+import { NO_COLOURWAY_PHOTO_LABEL } from "@/shared/lib/colourwayImage"
 import { toast } from "@/shared/hooks/use-toast"
 import { Package, Plus, Save, X } from "lucide-react"
 
@@ -229,7 +230,6 @@ function SectionCard({
 
 function ColorwayRow({
   sku,
-  familyImagePath,
   disabled,
   onChange,
   onRemoveExisting,
@@ -237,7 +237,6 @@ function ColorwayRow({
   onUndoRemove,
 }: {
   readonly sku: ProductSkuFormState
-  readonly familyImagePath: string | null
   readonly disabled: boolean
   readonly onChange: (next: ProductSkuFormState) => void
   readonly onRemoveExisting: (id: string) => void
@@ -259,7 +258,7 @@ function ColorwayRow({
       <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <ProductImage
           src={isDeleted ? undefined : previewUrl ?? (sku.imagePath ?? undefined)}
-          fallbackSrc={familyImagePath ?? undefined}
+          emptyLabel={isDeleted ? undefined : NO_COLOURWAY_PHOTO_LABEL}
           alt={sku.colorName || "Colorway"}
           size="sm"
           className="mt-0.5 shrink-0"
@@ -778,8 +777,6 @@ export default function ProductEditorPage() {
     })
   }
 
-  const familyImagePath = (draft.thumbnailImagePath || draft.headerImagePath) ?? null
-
   return (
     <ErrorBoundary>
     <div className="flex flex-col gap-6">
@@ -1211,7 +1208,6 @@ export default function ProductEditorPage() {
                   <ColorwayRow
                     key={sku.localId}
                     sku={sku}
-                    familyImagePath={familyImagePath}
                     disabled={!canEdit || saving}
                     onChange={(next) =>
                       setSkuDrafts((prev) => prev.map((s) => (s.localId === sku.localId ? next : s)))

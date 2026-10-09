@@ -22,8 +22,9 @@ vi.mock("@/features/shots/hooks/usePickerData", () => ({
   },
 }))
 
+// Echo the path so a resolved image renders as <img src={path}>.
 vi.mock("@/shared/hooks/useStorageUrl", () => ({
-  useStorageUrl: () => undefined,
+  useStorageUrl: (src: string | undefined) => src,
 }))
 
 import { ProductQuickViewPopover } from "./ProductQuickViewPopover"
@@ -133,5 +134,39 @@ describe("ProductQuickViewPopover launch date resolution", () => {
     expect(lastSkuLookupId).toBe("colour-black")
     expect(screen.getByText(SKU_LAUNCH)).toBeInTheDocument()
     expect(screen.queryByText("inherited")).not.toBeInTheDocument()
+  })
+})
+
+describe("ProductQuickViewPopover image — a colourway never borrows the family image", () => {
+  const FAMILY_THUMB = "productFamilies/fam1/skus/black.webp" // = the first colourway's photo
+  const OLIVE_PHOTO = "productFamilies/fam1/skus/olive.webp"
+  // Radix hides popover content from role queries in jsdom; the <img> alt is the family name.
+  const FAMILY_NAME = "Women's Merino Scoop Bralette"
+
+  beforeEach(() => {
+    mockFamily = { id: "fam1", styleName: "Bralette", thumbnailImagePath: FAMILY_THUMB }
+    mockSku = null
+  })
+
+  it("shows 'No photo for this colour' instead of the frozen family image", async () => {
+    mockSku = { id: "sku-olive", name: "Olive" } // no imagePath
+    await renderPopover({ ...assignment("sku-olive"), thumbUrl: FAMILY_THUMB, familyImageUrl: FAMILY_THUMB })
+
+    expect(screen.getByText("No photo for this colour")).toBeInTheDocument()
+    expect(screen.queryByAltText(FAMILY_NAME)).not.toBeInTheDocument()
+  })
+
+  it("shows the colourway's live photo when it has one", async () => {
+    mockSku = { id: "sku-olive", name: "Olive", imagePath: OLIVE_PHOTO }
+    await renderPopover({ ...assignment("sku-olive"), thumbUrl: FAMILY_THUMB, familyImageUrl: FAMILY_THUMB })
+
+    expect(screen.getByAltText(FAMILY_NAME)).toHaveAttribute("src", OLIVE_PHOTO)
+  })
+
+  it("keeps the family image for a family-level assignment (no colourway chosen)", async () => {
+    const familyLevel = { familyId: "fam1", familyName: "Women's Merino Scoop Bralette" } as ProductAssignment
+    await renderPopover(familyLevel)
+
+    expect(screen.getByAltText(FAMILY_NAME)).toHaveAttribute("src", FAMILY_THUMB)
   })
 })

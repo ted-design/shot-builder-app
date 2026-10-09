@@ -5,10 +5,23 @@ import { Button } from "@/ui/button"
 import { useProductFamilyDoc, useProductSkuDoc } from "@/features/shots/hooks/usePickerData"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { formatDateOnly } from "@/features/shots/lib/dateOnly"
+import {
+  NO_COLOURWAY_PHOTO_LABEL,
+  assignmentColourwayId,
+  resolveAssignmentImage,
+} from "@/shared/lib/colourwayImage"
 import { ExternalLink } from "lucide-react"
 import type { ProductAssignment } from "@/shared/types"
 
-function QuickViewImage({ src, alt }: { readonly src: string | undefined; readonly alt: string }) {
+function QuickViewImage({
+  src,
+  alt,
+  emptyLabel = "No image",
+}: {
+  readonly src: string | undefined
+  readonly alt: string
+  readonly emptyLabel?: string
+}) {
   const resolved = useStorageUrl(src)
   const [errored, setErrored] = useState(false)
 
@@ -19,7 +32,7 @@ function QuickViewImage({ src, alt }: { readonly src: string | undefined; readon
   if (!resolved || errored) {
     return (
       <div className="flex h-[120px] w-full items-center justify-center rounded-md bg-[var(--color-surface-subtle)] text-xs text-[var(--color-text-subtle)]">
-        No image
+        {emptyLabel}
       </div>
     )
   }
@@ -39,17 +52,12 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
   // Legacy/colour-keyed assignments carry the SKU doc id in colourId, not
   // skuId (mirrors ProductAssignmentPicker's lookup) — fall back so the
   // per-SKU launch date still resolves for them.
-  const { data: sku } = useProductSkuDoc(
-    assignment.familyId ?? null,
-    assignment.skuId ?? assignment.colourId ?? null,
-  )
+  const skuId = assignmentColourwayId(assignment)
+  const { data: skuDoc, loading: skuLoading } = useProductSkuDoc(assignment.familyId ?? null, skuId)
+  // Ignore doc data still carried over from a prior id.
+  const sku = skuDoc?.id === skuId ? skuDoc : null
 
-  const imageSrc =
-    assignment.thumbUrl ??
-    assignment.skuImageUrl ??
-    assignment.familyImageUrl ??
-    family?.thumbnailImagePath ??
-    family?.headerImagePath
+  const image = resolveAssignmentImage(assignment, { sku, family })
 
   const familyName = assignment.familyName ?? family?.styleName ?? assignment.familyId
   const colourName = assignment.colourName ?? assignment.skuName
@@ -66,7 +74,11 @@ function QuickViewContent({ assignment }: { readonly assignment: ProductAssignme
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      <QuickViewImage src={imageSrc} alt={familyName} />
+      <QuickViewImage
+        src={image.src ?? undefined}
+        alt={familyName}
+        emptyLabel={image.colourwayPhotoMissing && !skuLoading ? NO_COLOURWAY_PHOTO_LABEL : undefined}
+      />
 
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium text-[var(--color-text)] leading-tight">{familyName}</p>

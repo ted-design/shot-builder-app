@@ -6,6 +6,7 @@ import { Button } from "@/ui/button"
 import { useStorageUrl } from "@/shared/hooks/useStorageUrl"
 import { useProductFamilyDoc, useProductSkuDoc } from "@/features/shots/hooks/usePickerData"
 import { findExplicitCoverAssignment } from "@/features/shots/lib/coverProductImage"
+import { assignmentColourwayId, resolveAssignmentImage } from "@/shared/lib/colourwayImage"
 import { ImagePlus, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import type { Shot } from "@/shared/types"
@@ -43,22 +44,27 @@ export function HeroImageSection({
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
-  // Catalog-image fallback for an explicit cover product whose URL was never denormalized.
+  // Catalog-image fallback for an explicit cover product. A colourway cover always
+  // reads its live SKU (its denormalized URL may be the family image, i.e. a sibling
+  // colour) and never falls back to the family; a family-level cover reads the
+  // family doc only when the assignment carries no denormalized URL.
+  // mapShot no longer synthesizes heroImage from a colourway cover's family image,
+  // so that case reaches this path.
   const coverAssignment = heroImage ? null : findExplicitCoverAssignment(shot)
+  const coverSkuId = coverAssignment ? assignmentColourwayId(coverAssignment) : null
   const coverDenormalized = coverAssignment
     ? (coverAssignment.thumbUrl ?? coverAssignment.skuImageUrl ?? coverAssignment.familyImageUrl)
     : undefined
-  // Only read catalog docs when the assignment carries no denormalized URL.
-  const coverFamilyId = coverAssignment && !coverDenormalized ? coverAssignment.familyId : null
-  const coverSkuId =
-    coverAssignment && !coverDenormalized ? (coverAssignment.skuId ?? coverAssignment.colourId ?? null) : null
-  const { data: coverFamily } = useProductFamilyDoc(coverFamilyId)
-  const { data: coverSku } = useProductSkuDoc(coverFamilyId, coverSkuId)
+  const coverFamilyId = coverAssignment?.familyId || null
+  const familyDocId = coverSkuId || coverDenormalized ? null : coverFamilyId
+  const { data: coverFamily } = useProductFamilyDoc(familyDocId)
+  const { data: coverSku } = useProductSkuDoc(coverSkuId ? coverFamilyId : null, coverSkuId)
   // Ignore doc data still carried over from a prior id.
-  const coverSkuImage = coverSku?.id === coverSkuId ? coverSku?.imagePath : undefined
-  const coverFamilyImage =
-    coverFamily?.id === coverFamilyId ? (coverFamily?.thumbnailImagePath ?? coverFamily?.headerImagePath) : undefined
-  const coverFallbackSrc = coverDenormalized ?? coverSkuImage ?? coverFamilyImage
+  const liveSku = coverSkuId && coverSku?.id === coverSkuId ? coverSku : null
+  const liveFamily = familyDocId && coverFamily?.id === familyDocId ? coverFamily : null
+  const coverFallbackSrc = coverAssignment
+    ? (resolveAssignmentImage(coverAssignment, { sku: liveSku, family: liveFamily }).src ?? undefined)
+    : undefined
 
   const heroCandidate = heroImage?.downloadURL ?? heroImage?.path ?? coverFallbackSrc
   const resolvedHeroUrl = useStorageUrl(heroCandidate)
