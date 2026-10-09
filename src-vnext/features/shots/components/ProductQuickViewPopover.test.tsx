@@ -13,12 +13,13 @@ import type { ProductAssignment, ProductFamily, ProductSku } from "@/shared/type
 let mockFamily: Partial<ProductFamily> | null = null
 let mockSku: Partial<ProductSku> | null = null
 let lastSkuLookupId: string | null = null
+let mockSkuLoading = false
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilyDoc: () => ({ data: mockFamily, loading: false }),
   useProductSkuDoc: (_familyId: string | null, skuId: string | null) => {
     lastSkuLookupId = skuId
-    return { data: mockSku, loading: false }
+    return { data: mockSku, loading: mockSkuLoading }
   },
 }))
 
@@ -146,6 +147,24 @@ describe("ProductQuickViewPopover image — a colourway never borrows the family
   beforeEach(() => {
     mockFamily = { id: "fam1", styleName: "Bralette", thumbnailImagePath: FAMILY_THUMB }
     mockSku = null
+    mockSkuLoading = false
+  })
+
+  it("does not claim 'no photo for this colour' while the live colourway is still loading", async () => {
+    mockSkuLoading = true
+    await renderPopover({ ...assignment("sku-olive"), thumbUrl: FAMILY_THUMB, familyImageUrl: FAMILY_THUMB })
+
+    expect(screen.queryByText("No photo for this colour")).not.toBeInTheDocument()
+    expect(screen.getByText("No image")).toBeInTheDocument()
+    expect(screen.queryByAltText(FAMILY_NAME)).not.toBeInTheDocument()
+  })
+
+  it("ignores a SKU doc carried over from a different colourway", async () => {
+    mockSku = { id: "sku-black", name: "Black", imagePath: "productFamilies/fam1/skus/black-own.webp" }
+    await renderPopover({ ...assignment("sku-olive"), thumbUrl: FAMILY_THUMB, familyImageUrl: FAMILY_THUMB })
+
+    expect(screen.getByText("No photo for this colour")).toBeInTheDocument()
+    expect(screen.queryByAltText(FAMILY_NAME)).not.toBeInTheDocument()
   })
 
   it("shows 'No photo for this colour' instead of the frozen family image", async () => {

@@ -35,8 +35,11 @@ export async function loadSkuImagePaths(
       })
     }),
   )
-  // A family whose read fails is simply absent: its assignments fall back to
-  // the photo frozen on the assignment.
+  // A family whose read fails is absent: its assignments fall back to the photo
+  // frozen on the assignment. Log it so a silent fallback is traceable.
+  results.forEach((r, i) => {
+    if (r.status === "rejected") console.error("[useReportSkuImages] SKU read failed", familyIds[i], r.reason)
+  })
   return new Map(results.flatMap((r) => (r.status === "fulfilled" ? r.value : [])))
 }
 
@@ -73,7 +76,8 @@ export function useReportSkuImages(
         if (!cancelled) setPaths(next)
       })
       .catch(() => {
-        if (!cancelled) setPaths(null)
+        // Keep an earlier good load; only a first-load failure falls back to frozen fields.
+        if (!cancelled) setPaths((prev) => prev ?? null)
       })
     return () => {
       cancelled = true

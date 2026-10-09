@@ -27,19 +27,22 @@ const MOCK_SKU = {
   imagePath: "productFamilies/fam-1/skus/sku-1.webp",
 }
 
-// Swappable per test; reset to MOCK_SKU in the colourway-image describe.
-let mockSku: Record<string, unknown> = MOCK_SKU
+// Swappable per test; reset in the colourway-image describe.
+let mockSku: Record<string, unknown> | null = MOCK_SKU
+let mockSkuLoading = false
+const storageMode = vi.hoisted(() => ({ pending: false }))
 
 vi.mock("@/features/shots/hooks/usePickerData", () => ({
   useProductFamilies: () => ({ data: [MOCK_FAMILY], loading: false }),
   useProductSkus: () => ({ data: [mockSku], loading: false }),
   useProductFamilyDoc: () => ({ data: MOCK_FAMILY, loading: false, error: null }),
-  useProductSkuDoc: () => ({ data: mockSku, loading: false, error: null }),
+  useProductSkuDoc: () => ({ data: mockSku, loading: mockSkuLoading, error: null }),
 }))
 
 vi.mock("@/shared/lib/resolveStoragePath", () => ({
   // Echo the path so a test can tell WHICH image resolved (live SKU vs family).
-  resolveStoragePath: (path: string) => Promise.resolve(`https://img.test/${path}`),
+  resolveStoragePath: (path: string) =>
+    storageMode.pending ? new Promise<string>(() => {}) : Promise.resolve(`https://img.test/${path}`),
   getCachedUrl: () => undefined,
 }))
 
@@ -350,6 +353,39 @@ describe("ProductAssignmentPicker — a colourway with no photo never shows the 
 
   beforeEach(() => {
     mockSku = MOCK_SKU
+    mockSkuLoading = false
+    storageMode.pending = false
+  })
+
+  it("assignment row: no 'no photo' claim while the live colourway is still loading", async () => {
+    mockSku = null
+    mockSkuLoading = true
+    render(<ProductAssignmentPicker selected={FROZEN_FAMILY_FALLBACK} onSave={vi.fn()} />)
+    await act(async () => {})
+
+    expect(screen.queryByRole("img", { name: /No photo for this colour/ })).not.toBeInTheDocument()
+    expect(screen.queryByAltText("Classic Tee")).not.toBeInTheDocument()
+  })
+
+  it("assignment row: ignores a SKU doc carried over from a different colourway", async () => {
+    mockSku = { ...MOCK_SKU, id: "sku-OTHER" } // has a photo, but not this assignment's colourway
+    render(<ProductAssignmentPicker selected={FROZEN_FAMILY_FALLBACK} onSave={vi.fn()} />)
+    await act(async () => {})
+
+    expect(screen.getByRole("img", { name: "Classic Tee: No photo for this colour" })).toBeInTheDocument()
+    expect(screen.queryByAltText("Classic Tee")).not.toBeInTheDocument()
+  })
+
+  it("colourway step: a colourway WITH a photo never shows the 'no photo' label while its URL resolves", async () => {
+    storageMode.pending = true
+    render(<ProductAssignmentPicker selected={[]} onSave={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /add product/i }))
+    fireEvent.click(await screen.findByText("Classic Tee"))
+    await screen.findByText("Navy")
+    await act(async () => {})
+
+    expect(screen.queryByRole("img", { name: /No photo for this colour/ })).not.toBeInTheDocument()
   })
 
   it("assignment row: shows the placeholder instead of the frozen family image", async () => {
