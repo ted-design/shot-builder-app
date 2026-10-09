@@ -10,6 +10,11 @@ import type {
 } from "@/shared/types"
 import type { ExportData } from "../../hooks/useExportData"
 import { humanizeLabel } from "@/shared/lib/textUtils"
+import {
+  assignmentColourwayId,
+  colourwaySkuKey,
+  resolveAssignmentImage,
+} from "@/shared/lib/colourwayImage"
 import { SHOT_STATUS_CYCLE } from "@/shared/lib/statusMappings"
 import { applyFilterConditions } from "@/features/shots/lib/filterEngine"
 import { deduplicateTags } from "@/shared/lib/tagDedup"
@@ -105,20 +110,29 @@ function resolveImageIdentity(img: { readonly path: string; readonly downloadURL
   return img.path
 }
 
-/** Best image candidate for a styled product: assignment thumbs, then family thumbnail. */
+/**
+ * Best image candidate for a styled product. A family-level assignment uses the
+ * assignment thumbs, then the family image. A colourway assignment uses only a
+ * photo of that colourway (null when it has none) — never the family image,
+ * which is usually a sibling colour. With `skuImagePaths` (live SKU photos) the
+ * colourway's current photo wins; without it, the photo frozen at pick time.
+ */
 export function pickProductImage(
   p: ProductAssignment,
   family: ProductFamily | undefined,
+  skuImagePaths?: ReadonlyMap<string, string | null> | null,
 ): string | null {
-  return (
-    p.thumbUrl ?? p.skuImageUrl ?? p.familyImageUrl ?? family?.thumbnailImagePath ?? null
-  )
+  const colourwayId = assignmentColourwayId(p)
+  const key = colourwayId ? colourwaySkuKey(p.familyId, colourwayId) : null
+  const sku = key && skuImagePaths?.has(key) ? { imagePath: skuImagePaths.get(key) ?? null } : null
+  return resolveAssignmentImage(p, { family, sku }).src
 }
 
 function resolveProducts(
   products: readonly ProductAssignment[],
   heroProductId: string | null | undefined,
   familyById: ReadonlyMap<string, ProductFamily>,
+  skuImagePaths: ReadonlyMap<string, string | null> | null,
 ): readonly ReportProduct[] {
   return products.map((p) => {
     const family = familyById.get(p.familyId)
@@ -133,7 +147,7 @@ function resolveProducts(
       gender: (gender ?? "?") as GenderKey,
       // hero = explicit isHero flag OR the look's heroProductId points at this family
       isHero: p.isHero === true || (heroProductId != null && heroProductId === p.familyId),
-      img: pickProductImage(p, family),
+      img: pickProductImage(p, family, skuImagePaths),
     }
   })
 }
@@ -191,6 +205,7 @@ function resolveLooks(
   shot: Shot,
   sortedRawLooks: readonly ShotLook[],
   familyById: ReadonlyMap<string, ProductFamily>,
+  skuImagePaths: ReadonlyMap<string, string | null> | null,
 ): readonly ReportLook[] {
   // Cover semantics (WS-C, 2026-08-11): a MANUALLY-uploaded Shot.heroImage
   // (isManualHeroImage above) WINS over the look's own reference/product-
@@ -203,7 +218,7 @@ function resolveLooks(
   return sortedRawLooks.map((look, i): ReportLook => {
     const label = lookLabel(look.label, i)
     const isAlt = i > 0 || /^alt/i.test(label)
-    const products = resolveProducts(look.products, look.heroProductId, familyById)
+    const products = resolveProducts(look.products, look.heroProductId, familyById, skuImagePaths)
     // The PRIMARY look's plate falls back to a product image (hero first) when there's
     // no uploaded reference, so pre-shoot decks still show a thumbnail. Alt looks stay
     // reference-only (they keep their "no reference" slot rather than a product stand-in).
@@ -587,7 +602,7 @@ export function deriveShotReportModel(data: ExportData, config: ReportConfig): R
 
   const built: ReportShot[] = filteredShots.map((shot): ReportShot => {
     const sortedRawLooks = sortLooksByOrder(shot.looks ?? [])
-    const looks = resolveLooks(shot, sortedRawLooks, familyById)
+    const looks = resolveLooks(shot, sortedRawLooks, familyById, data.skuImagePaths ?? null)
     // Gender resolves from ALL looks so grouping stays stable across looksMode.
     const gender = resolveShotGender(shot, looks)
     // primary-only is a display filter: keep only the primary look (looks[0]).

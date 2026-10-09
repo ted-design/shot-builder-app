@@ -4,6 +4,7 @@ import {
   formatDateWindow,
   mostOutstandingStatus,
   normalizeGender,
+  pickProductImage,
   resolveReportTagChips,
   sizeLabel,
   titleCaseSlug,
@@ -1617,5 +1618,90 @@ describe("deriveShotReportModel — ReportShot.tags is threaded from the raw sho
       "Photo",
       "Flat Lay",
     ])
+  })
+})
+
+describe("pickProductImage — a colourway never borrows the family image", () => {
+  const family = { ...fam("fW", "W-1", "women"), thumbnailImagePath: "fam-thumb" } as ProductFamily
+
+  it("returns null for a colourway whose only frozen image is the family fallback", () => {
+    expect(
+      pickProductImage({ familyId: "fW", skuId: "olive", thumbUrl: "fam-url", familyImageUrl: "fam-url" }, family),
+    ).toBeNull()
+    expect(pickProductImage({ familyId: "fW", colourId: "olive" }, family)).toBeNull()
+  })
+
+  it("returns the colourway's own frozen photo", () => {
+    expect(
+      pickProductImage(
+        { familyId: "fW", skuId: "olive", skuImageUrl: "olive-url", thumbUrl: "olive-url", familyImageUrl: "fam-url" },
+        family,
+      ),
+    ).toBe("olive-url")
+  })
+
+  it("keeps the family image for a family-level assignment", () => {
+    expect(pickProductImage({ familyId: "fW" }, family)).toBe("fam-thumb")
+    expect(pickProductImage({ familyId: "fW", thumbUrl: "prod-img" }, family)).toBe("prod-img")
+  })
+
+  it("prefers the live colourway photo when the report has live SKU data", () => {
+    const live = new Map<string, string | null>([
+      ["fW/olive", "skus/olive-live.webp"],
+      ["fW/black", null],
+    ])
+    // Frozen family fallback, but the colourway has a photo now.
+    expect(
+      pickProductImage({ familyId: "fW", skuId: "olive", thumbUrl: "fam-url", familyImageUrl: "fam-url" }, family, live),
+    ).toBe("skus/olive-live.webp")
+    // Live doc says no photo: a stale frozen photo (e.g. from an edited assignment) is ignored.
+    expect(
+      pickProductImage({ familyId: "fW", skuId: "black", skuImageUrl: "stale-url" }, family, live),
+    ).toBeNull()
+    // Unknown to the live map (doc missing / family read failed): frozen fallback.
+    expect(pickProductImage({ familyId: "fW", skuId: "navy", skuImageUrl: "navy-url" }, family, live)).toBe("navy-url")
+  })
+
+  it("plate uses the live colourway photo when the look has no reference", () => {
+    const m = deriveShotReportModel(
+      data({
+        productFamilies: [family],
+        skuImagePaths: new Map([["fW/olive", "skus/olive-live.webp"]]),
+        shots: [
+          shot({
+            id: "s1",
+            looks: [
+              {
+                id: "l1",
+                products: [{ familyId: "fW", skuId: "olive", thumbUrl: "fam-url", familyImageUrl: "fam-url" }],
+              },
+            ],
+          }),
+        ],
+      }),
+      DEFAULT_REPORT_CONFIG,
+    )
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBe("skus/olive-live.webp")
+  })
+
+  it("plate: a look whose only product is a colourway with no photo stays imageless", () => {
+    const m = deriveShotReportModel(
+      data({
+        productFamilies: [family],
+        shots: [
+          shot({
+            id: "s1",
+            looks: [
+              {
+                id: "l1",
+                products: [{ familyId: "fW", skuId: "olive", thumbUrl: "fam-url", familyImageUrl: "fam-url" }],
+              },
+            ],
+          }),
+        ],
+      }),
+      DEFAULT_REPORT_CONFIG,
+    )
+    expect(m.groups[0]?.shots[0]?.looks[0]?.image).toBeNull()
   })
 })

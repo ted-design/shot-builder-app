@@ -6,6 +6,7 @@ import { isFeatureEnabled } from "@/shared/lib/flags"
 import { computeUsedTagOptions } from "@/shared/lib/tagDedup"
 import { useExportData } from "../../hooks/useExportData"
 import { useExportReports } from "../../hooks/useExportReports"
+import { useReportSkuImages } from "../../hooks/useReportSkuImages"
 import { deriveShotReportModel } from "../../lib/report/reportModel"
 import {
   collectReportImageCandidates,
@@ -28,9 +29,17 @@ import { ReportView } from "./ReportView"
 // they can't drift. Mounted only behind the featureShotReport flag (route gate).
 
 export default function ShotReportPage() {
-  const data = useExportData()
+  const exportData = useExportData()
   const { id: projectId } = useParams<{ id: string }>()
   const { clientId } = useAuth()
+  // Live colourway photos, so a product image is the colourway's current photo
+  // (or none) rather than the image frozen on the assignment at pick time.
+  const { skuImagePaths, ready: skuImagesReady } = useReportSkuImages(
+    exportData.shots,
+    clientId,
+    !exportData.loading,
+  )
+  const data = useMemo(() => ({ ...exportData, skuImagePaths }), [exportData, skuImagePaths])
   const [searchParams] = useSearchParams()
   const reportId = searchParams.get("reportId")
   const { loadReport, saveReportConfig } = useExportReports(clientId, projectId)
@@ -215,7 +224,7 @@ export default function ShotReportPage() {
       })
   }, [model, imageMap, config.layout, config.showAdditionalImages, config.showTags])
 
-  if (data.loading) {
+  if (data.loading || !skuImagesReady) {
     return (
       <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
         Loading shots…
