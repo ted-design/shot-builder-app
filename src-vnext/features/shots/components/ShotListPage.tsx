@@ -56,6 +56,7 @@ import { ShotMergeWizard } from "@/features/shots/components/ShotMergeWizard"
 import { createLane, assignShotsToLane, ungroupAllShotsFromLane, deleteLane, shotIdsInLane } from "@/features/shots/lib/laneActions"
 import { bulkUpdateLocation } from "@/features/shots/lib/bulkShotUpdates"
 import { writeShotListNavOrder } from "@/features/shots/lib/shotListNavOrder"
+import { collectProjectTalentIds } from "@/features/shots/lib/projectTalent"
 import { Skeleton } from "@/ui/skeleton"
 import { useStuckLoading } from "@/shared/hooks/useStuckLoading"
 
@@ -253,6 +254,11 @@ export default function ShotListPage() {
 
   // -- Lookup maps (computed from picker data, passed to list state hook) --
   const talentNameById = useMemo(() => new Map(talentRecords.map((t) => [t.id, t.name])), [talentRecords])
+  // From ALL project shots (not the filtered list) so the talent filter's options don't shrink as filters apply.
+  const projectTalentIds = useMemo(
+    () => collectProjectTalentIds(shots, talentRecords, projectId),
+    [shots, talentRecords, projectId],
+  )
   const locationNameById = useMemo(() => new Map(locationRecords.map((l) => [l.id, l.name])), [locationRecords])
   const productNameById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p.styleName])), [productFamilies])
   const familyById = useMemo(() => new Map(productFamilies.map((p) => [p.id, p])), [productFamilies])
@@ -621,7 +627,7 @@ export default function ShotListPage() {
             talentRecords={talentRecords}
             locationRecords={locationRecords}
             productFamilies={productFamilies}
-            projectId={projectId}
+            projectTalentIds={projectTalentIds}
             onClearFilters={clearFilters}
             canRepair={canRepair}
             onRepairOpen={() => setRepairOpen(true)}

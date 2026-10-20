@@ -40,7 +40,7 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof ShotListToolba
     talentRecords: [],
     locationRecords: [],
     productFamilies: [],
-    projectId: "p1",
+    projectTalentIds: new Set<string>(),
     onClearFilters: vi.fn(),
     canRepair: false,
     onRepairOpen: vi.fn(),

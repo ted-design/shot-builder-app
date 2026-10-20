@@ -19,10 +19,10 @@ interface FilterValuePickerProps {
   readonly onChange: (value: FilterValue) => void
   readonly statusOptions: readonly { value: string; label: string }[]
   readonly tagOptions: readonly { id: string; label: string }[]
-  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
+  readonly talentRecords: readonly { id: string; name: string }[]
   readonly locationRecords: readonly { id: string; name: string }[]
   readonly productFamilies: readonly { id: string; styleName: string }[]
-  readonly projectId: string
+  readonly projectTalentIds: ReadonlySet<string>
 }
 
 // ---------------------------------------------------------------------------
@@ -157,12 +157,12 @@ function TalentPicker({
   condition,
   onChange,
   talentRecords,
-  projectId,
+  projectTalentIds,
 }: {
   readonly condition: FilterCondition
   readonly onChange: (v: FilterValue) => void
-  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
-  readonly projectId: string
+  readonly talentRecords: readonly { id: string; name: string }[]
+  readonly projectTalentIds: ReadonlySet<string>
 }) {
   const [query, setQuery] = useState("")
   const selected = asStringArray(condition.value)
@@ -175,7 +175,7 @@ function TalentPicker({
   const onToggle = (id: string) => onChange(toggleInArray(selected, id))
 
   const q = query.trim().toLowerCase()
-  const isProjectTalent = (t: { projectIds?: readonly string[] }) => t.projectIds?.includes(projectId) ?? false
+  const isProjectTalent = (t: { id: string }) => projectTalentIds.has(t.id)
   const nameMatches = (t: { name: string }) => t.name.toLowerCase().includes(q)
   const isSelected = (t: { id: string }) => selected.includes(t.id)
 
@@ -317,7 +317,7 @@ export function FilterValuePicker({
   talentRecords,
   locationRecords,
   productFamilies,
-  projectId,
+  projectTalentIds,
 }: FilterValuePickerProps) {
   switch (condition.field) {
     case "status":
@@ -327,7 +327,7 @@ export function FilterValuePicker({
     case "missing":
       return <MissingPicker condition={condition} onChange={onChange} />
     case "talent":
-      return <TalentPicker condition={condition} onChange={onChange} talentRecords={talentRecords} projectId={projectId} />
+      return <TalentPicker condition={condition} onChange={onChange} talentRecords={talentRecords} projectTalentIds={projectTalentIds} />
     case "location":
       return <LocationPicker condition={condition} onChange={onChange} locationRecords={locationRecords} />
     case "product":

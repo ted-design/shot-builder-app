@@ -77,12 +77,20 @@ function makeId(): string {
 /**
  * Deserialize a URL param string back into filter conditions.
  *
+ * Ids are `field.operator#n` (n = occurrence of that pair), so they stay stable
+ * across URL round-trips — filter rows are keyed by id, and a fresh id per
+ * deserialize remounted every row on each value change. Repeated pairs on
+ * multi-use fields still get distinct ids, and nothing is deduped. Removing an
+ * earlier repeat shifts later ids, so those rows inherit local UI state (e.g.
+ * search text) — cosmetic only; values come from the URL.
+ *
  * Returns an empty array for null, empty, or malformed input.
  */
 export function deserializeFilters(raw: string | null): readonly FilterCondition[] {
   if (!raw || !raw.trim()) return []
 
   const result: FilterCondition[] = []
+  const occurrences = new Map<string, number>()
 
   for (const segment of raw.split(";")) {
     const colonIdx = segment.indexOf(":")
@@ -102,7 +110,9 @@ export function deserializeFilters(raw: string | null): readonly FilterCondition
     if (!meta.operators.includes(operator)) continue
 
     const value = decodeValue(rawValue, field, operator)
-    result.push({ id: makeId(), field, operator, value })
+    const n = occurrences.get(key) ?? 0
+    occurrences.set(key, n + 1)
+    result.push({ id: `${key}#${n}`, field, operator, value })
   }
 
   return result

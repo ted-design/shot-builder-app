@@ -18,10 +18,10 @@ type ShotListFilterContentProps = {
   readonly onRemoveCondition: (conditionId: string) => void
   // Data for value pickers
   readonly tagOptions: readonly { id: string; label: string }[]
-  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
+  readonly talentRecords: readonly { id: string; name: string }[]
   readonly locationRecords: readonly { id: string; name: string }[]
   readonly productFamilies: readonly { id: string; styleName: string }[]
-  readonly projectId: string
+  readonly projectTalentIds: ReadonlySet<string>
   // Actions
   readonly hasActiveFilters: boolean
   readonly onClearFilters: () => void
@@ -58,7 +58,7 @@ export function ShotListFilterContent({
   talentRecords,
   locationRecords,
   productFamilies,
-  projectId,
+  projectTalentIds,
   hasActiveFilters,
   onClearFilters,
   canRepair,
@@ -91,7 +91,7 @@ export function ShotListFilterContent({
               talentRecords={talentRecords}
               locationRecords={locationRecords}
               productFamilies={productFamilies}
-              projectId={projectId}
+              projectTalentIds={projectTalentIds}
             />
           ))}
         </div>
