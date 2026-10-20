@@ -67,7 +67,9 @@ vi.mock("@/shared/hooks/useMediaQuery", () => ({
 // and is only forced on in the live deploy workflow — default OFF here so the
 // legacy-pinned suite reflects preview/dev reality; flip per-test to pin the
 // flag-ON target.
-const flagState = vi.hoisted(() => ({ shootSurface: false, shotReport: false }))
+// featureShotFilterTalentScope gates the scoped talent filter picker; flip
+// per-test for the project-talent pin.
+const flagState = vi.hoisted(() => ({ shootSurface: false, shotReport: false, talentScope: false }))
 
 vi.mock("@/shared/lib/flags", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/shared/lib/flags")>()
@@ -80,7 +82,9 @@ vi.mock("@/shared/lib/flags", async (importOriginal) => {
           ? flagState.shootSurface
           : flag === "featureShotReport"
             ? flagState.shotReport
-            : actual.isFeatureEnabled(flag),
+            : flag === "featureShotFilterTalentScope"
+              ? flagState.talentScope
+              : actual.isFeatureEnabled(flag),
   }
 })
 
@@ -155,6 +159,7 @@ describe("ShotListPage", () => {
     mediaState.isDesktop = false
     flagState.shootSurface = false
     flagState.shotReport = false
+    flagState.talentScope = false
     ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
       data: [],
       loading: false,
@@ -338,6 +343,32 @@ describe("ShotListPage", () => {
     expect(screen.getByText("Jacket (Black • M)")).toBeInTheDocument()
     expect(screen.getByText("Jane")).toBeInTheDocument()
     expect(screen.getByText("Bob")).toBeInTheDocument()
+  })
+
+  it("talent filter lists the project's talent: on its shots or linked via projectIds", () => {
+    flagState.talentScope = true
+    ;(useTalent as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [
+        { id: "t1", name: "Jane", projectIds: ["p1"] }, // linked, on no shot
+        { id: "t2", name: "Bob" }, // on a shot, not linked
+        { id: "t3", name: "Cara", projectIds: ["pX"] }, // another project
+      ],
+      loading: false,
+      error: null,
+    })
+    ;(useShots as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+      data: [makeShot({ id: "a", title: "Alpha", talentIds: ["t2"] })],
+      loading: false,
+      error: null,
+    })
+
+    renderPage("/projects/p1/shots?view=table&sort=name&filters=talent.in:")
+    fireEvent.click(screen.getByTestId("filter-more-trigger"))
+
+    expect(screen.getByLabelText("Search talent")).toHaveValue("")
+    expect(screen.getByRole("checkbox", { name: "Bob" })).toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Jane" })).toBeInTheDocument()
+    expect(screen.queryByRole("checkbox", { name: "Cara" })).not.toBeInTheDocument()
   })
 
   it("switches between table and card views", () => {

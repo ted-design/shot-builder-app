@@ -26,10 +26,10 @@ interface FilterConditionRowProps {
   readonly onRemove: (conditionId: string) => void
   readonly statusOptions: readonly { value: string; label: string }[]
   readonly tagOptions: readonly { id: string; label: string }[]
-  readonly talentRecords: readonly { id: string; name: string; projectIds?: readonly string[] }[]
+  readonly talentRecords: readonly { id: string; name: string }[]
   readonly locationRecords: readonly { id: string; name: string }[]
   readonly productFamilies: readonly { id: string; styleName: string }[]
-  readonly projectId: string
+  readonly projectTalentIds: ReadonlySet<string>
 }
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ export function FilterConditionRow({
   talentRecords,
   locationRecords,
   productFamilies,
-  projectId,
+  projectTalentIds,
 }: FilterConditionRowProps) {
   const meta = FILTER_FIELD_BY_KEY.get(condition.field)
   if (!meta) return null
@@ -120,7 +120,7 @@ export function FilterConditionRow({
         talentRecords={talentRecords}
         locationRecords={locationRecords}
         productFamilies={productFamilies}
-        projectId={projectId}
+        projectTalentIds={projectTalentIds}
       />
     </div>
   )

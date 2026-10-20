@@ -54,6 +54,7 @@ jobs:
           VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
           VITE_SHOT_REPORT_RECIPES:         1   # D3 final: Production sheet + Balanced rows recipes LIVE (#508 splittable; Ted approved off real-data renders 2026-08-08)
           VITE_SETS:                        1   # Sets Phase 2a: Set location + Apply-to-N LIVE (#499; Ted approved flip 2026-08-11)
+          VITE_SHOT_FILTER_TALENT_SCOPE:    1   # Shot-list talent filter scoped to project talent + search LIVE (Ted approved flip 2026-10-20)
         run: npm run build
 
       - name: Auth to Google Cloud (WIF)
@@ -101,6 +102,7 @@ jobs:
           VITE_TALENT_REPORT:               1   # D3: Talent report type LIVE (detail 2/sheet; #505/#506 pagination fixed)
           VITE_SHOT_REPORT_RECIPES:         1   # D3 final: Production sheet + Balanced rows recipes LIVE (#508 splittable; Ted approved off real-data renders 2026-08-08)
           VITE_SETS:                        1   # Sets Phase 2a: Set location + Apply-to-N LIVE (#499; Ted approved flip 2026-08-11)
+          VITE_SHOT_FILTER_TALENT_SCOPE:    1   # Shot-list talent filter scoped to project talent + search LIVE (Ted approved flip 2026-10-20)
         run: npx firebase-tools deploy --only hosting --project um-shotbuilder --json > deploy-live.json
 
       - name: Output live URL

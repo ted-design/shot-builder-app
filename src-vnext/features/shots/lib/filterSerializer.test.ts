@@ -350,3 +350,30 @@ describe("deserializeFilters — repeatable fields", () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Stable ids — filter rows are keyed by condition.id and every URL change
+// re-deserializes, so a value change must not mint a new id (that remounts the
+// row and wipes local UI state such as the talent search query).
+// ---------------------------------------------------------------------------
+
+describe("deserializeFilters — stable ids across URL round-trips", () => {
+  it("keeps a condition's id when only its value changes", () => {
+    const [before] = deserializeFilters("talent.in:t1")
+    const [after] = deserializeFilters("talent.in:t1,t2")
+    expect(after!.id).toBe(before!.id)
+  })
+
+  it("keeps a condition's id when another condition changes", () => {
+    const before = deserializeFilters("status.in:todo;talent.in:t1")
+    const after = deserializeFilters("status.in:todo,complete;talent.in:t1")
+    expect(after[1]!.id).toBe(before[1]!.id)
+  })
+
+  it("keeps repeated field+operator ids distinct and stable", () => {
+    const before = deserializeFilters("talent.in:t1;talent.in:t2").map((c) => c.id)
+    const after = deserializeFilters("talent.in:t1;talent.in:t2,t3").map((c) => c.id)
+    expect(after).toEqual(before)
+    expect(new Set(after).size).toBe(2)
+  })
+})

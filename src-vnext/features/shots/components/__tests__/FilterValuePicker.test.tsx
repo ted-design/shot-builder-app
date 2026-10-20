@@ -10,12 +10,15 @@ vi.mock("@/shared/lib/flags", () => ({
 }))
 
 const TALENT = [
-  { id: "t1", name: "Anna", projectIds: ["p1"] },
-  { id: "t2", name: "Bob", projectIds: [] as string[] },
-  { id: "t3", name: "Cara", projectIds: ["pX"] },
+  { id: "t1", name: "Anna" },
+  { id: "t2", name: "Bob" },
+  { id: "t3", name: "Cara" },
 ]
 
-function renderTalentPicker(opts?: { value?: FilterValue; projectId?: string }) {
+// Anna is project talent (on a shot or linked via projectIds — see collectProjectTalentIds).
+const PROJECT_TALENT: ReadonlySet<string> = new Set(["t1"])
+
+function renderTalentPicker(opts?: { value?: FilterValue; projectTalentIds?: ReadonlySet<string> }) {
   const onChange = vi.fn()
   const condition: FilterCondition = {
     id: "c1",
@@ -32,7 +35,7 @@ function renderTalentPicker(opts?: { value?: FilterValue; projectId?: string }) 
       talentRecords={TALENT}
       locationRecords={[]}
       productFamilies={[]}
-      projectId={opts?.projectId ?? "p1"}
+      projectTalentIds={opts?.projectTalentIds ?? PROJECT_TALENT}
     />,
   )
   return { onChange }
@@ -57,12 +60,12 @@ describe("FilterValuePicker talent picker — flag ON (scoped + searchable)", ()
     flagMock.on = true
   })
 
-  it("scopes to project-attached talent and shows a search box by default", () => {
+  it("scopes to project talent and shows a search box by default", () => {
     renderTalentPicker()
     expect(screen.getByLabelText("Search talent")).toBeInTheDocument()
-    expect(screen.getByText("Anna")).toBeInTheDocument() // projectIds includes p1
-    expect(screen.queryByText("Bob")).not.toBeInTheDocument() // no project
-    expect(screen.queryByText("Cara")).not.toBeInTheDocument() // different project
+    expect(screen.getByText("Anna")).toBeInTheDocument() // project talent
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument() // not project talent
+    expect(screen.queryByText("Cara")).not.toBeInTheDocument() // not project talent
     expect(screen.getByText(/Search to filter by other talent/i)).toBeInTheDocument()
   })
 
@@ -75,8 +78,8 @@ describe("FilterValuePicker talent picker — flag ON (scoped + searchable)", ()
     expect(screen.queryByText(/Search to filter by other talent/i)).not.toBeInTheDocument()
   })
 
-  it("shows an empty hint when the project has no attached talent", () => {
-    renderTalentPicker({ projectId: "pZZZ" })
+  it("shows an empty hint when the project has no talent", () => {
+    renderTalentPicker({ projectTalentIds: new Set() })
     expect(screen.getByText(/No talent assigned to this project/i)).toBeInTheDocument()
     expect(screen.queryByText("Anna")).not.toBeInTheDocument()
   })
@@ -94,7 +97,7 @@ describe("FilterValuePicker talent picker — flag ON (scoped + searchable)", ()
   })
 
   it("keeps a selected off-project talent visible with an empty query", () => {
-    renderTalentPicker({ value: ["t3"] }) // Cara: projectIds ['pX'], not in p1
+    renderTalentPicker({ value: ["t3"] }) // Cara: not project talent
     expect(screen.getByText("Cara")).toBeInTheDocument()
     expect(screen.getByText("Anna")).toBeInTheDocument() // project talent
     expect(screen.queryByText("Bob")).not.toBeInTheDocument() // unselected off-project, empty query
@@ -134,7 +137,7 @@ function renderStatusPicker(opts?: { value?: FilterValue }) {
       talentRecords={[]}
       locationRecords={[]}
       productFamilies={[]}
-      projectId="p1"
+      projectTalentIds={new Set()}
     />,
   )
   return { onChange }
@@ -161,7 +164,7 @@ describe("FilterValuePicker status picker", () => {
         talentRecords={[]}
         locationRecords={[]}
         productFamilies={[]}
-        projectId="p1"
+        projectTalentIds={new Set()}
       />,
     )
     expect(screen.getByText("No options available")).toBeInTheDocument()
